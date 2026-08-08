@@ -61,47 +61,6 @@
 			"red": "Red"
 		}
 	},
-	"products": {
-		"dog-life-jacket": {
-			"name": "Dog Life Jacket",
-			"tagline": "Let them be the adventurous one",
-			"description": "If the size you chose isn't quite right, we offer a 30 day - no questions asked - free exchange or return policy. If your dog is between sizes, we recommend sizing up for a more comfortable, secure fit.",
-			"faq": [
-				{
-					"q": "When will I get my order? 🚚",
-					"a": "Please allow us 2-4 business days to process your order. Once processed, 93% of orders arrive between 5-12 days later. You may review our shipping policy for full details. If you have any questions, please contact us at contact@chillmypet.com."
-				},
-				{
-					"q": "What if the size doesn't fit my dog? 📏",
-					"a": "We offer 30 day - no questions asked - free exchanges and returns. You may review our return and exchange policy for full details. If you have any questions or would like to begin an exchange, please email us at contact@chillmypet.com."
-				},
-				{
-					"q": "Is the chin rest comfortable for smaller dogs?",
-					"a": "Yes - the chin rest is designed to sit naturally under the jaw without restricting movement, and it's proportioned across all sizes so smaller breeds get the same support as larger ones."
-				},
-				{
-					"q": "Will this work for a dog who's never worn a life vest before?",
-					"a": "Most dogs adjust within the first few minutes, especially once they're in the water and feel the support. We recommend a quick 5-minute trial in shallow water before a big trip."
-				},
-				{
-					"q": "Can it get wet and dry quickly between uses?",
-					"a": "Absolutely - the materials are quick-dry and built for repeated water use, so you can use it one day and have it ready again the next."
-				},
-				{
-					"q": "How do I know which size to order?",
-					"a": "Check our size chart based on chest girth and weight. If your dog is between sizes, we recommend sizing up for a more comfortable, secure fit."
-				},
-				{
-					"q": "Is the handle strong enough to lift my dog out of water?",
-					"a": "Yes - the handle is reinforced and stitched to support a quick lift-assist, ideal for getting your dog back onto a dock, boat, or shore."
-				},
-				{
-					"q": "What if the size doesn't fit right when it arrives?",
-					"a": "No problem - reach out to our team and we'll help you exchange for the correct size, hassle-free."
-				}
-			]
-		}
-	},
 	"cart": {
 		"title": "Your cart",
 		"empty": "Your cart is empty.",

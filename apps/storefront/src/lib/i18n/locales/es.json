@@ -61,47 +61,6 @@
 			"red": "Rojo"
 		}
 	},
-	"products": {
-		"dog-life-jacket": {
-			"name": "Chaleco salvavidas para perros",
-			"tagline": "Deja que sea el aventurero",
-			"description": "Si la talla que elegiste no es la adecuada, ofrecemos cambios y devoluciones gratuitos durante 30 días, sin preguntas. Si tu perro está entre dos tallas, recomendamos elegir la mayor para un ajuste más cómodo y seguro.",
-			"faq": [
-				{
-					"q": "¿Cuándo recibiré mi pedido? 🚚",
-					"a": "Necesitamos entre 2 y 4 días laborables para preparar tu pedido. Una vez enviado, el 93% de los pedidos llega entre 5 y 12 días después. Puedes consultar nuestra política de envíos para más detalles. Si tienes cualquier duda, escríbenos a contact@chillmypet.com."
-				},
-				{
-					"q": "¿Y si la talla no le queda bien a mi perro? 📏",
-					"a": "Ofrecemos cambios y devoluciones gratuitos durante 30 días, sin preguntas. Puedes consultar nuestra política de devoluciones y cambios para más detalles. Si tienes dudas o quieres iniciar un cambio, escríbenos a contact@chillmypet.com."
-				},
-				{
-					"q": "¿El apoyo de barbilla es cómodo para perros pequeños?",
-					"a": "Sí: el apoyo de barbilla está diseñado para quedar de forma natural bajo la mandíbula sin limitar el movimiento, y está proporcionado en todas las tallas, así que las razas pequeñas reciben el mismo soporte que las grandes."
-				},
-				{
-					"q": "¿Sirve para un perro que nunca ha llevado chaleco salvavidas?",
-					"a": "La mayoría de los perros se adapta en los primeros minutos, sobre todo cuando están en el agua y notan el soporte. Recomendamos una prueba de 5 minutos en agua poco profunda antes de una salida larga."
-				},
-				{
-					"q": "¿Se puede mojar y secar rápido entre usos?",
-					"a": "Por supuesto: los materiales son de secado rápido y están hechos para un uso repetido en el agua, así que puedes usarlo un día y tenerlo listo al siguiente."
-				},
-				{
-					"q": "¿Cómo sé qué talla pedir?",
-					"a": "Consulta nuestra guía de tallas según el contorno de pecho y el peso. Si tu perro está entre dos tallas, recomendamos elegir la mayor para un ajuste más cómodo y seguro."
-				},
-				{
-					"q": "¿El asa aguanta para sacar a mi perro del agua?",
-					"a": "Sí: el asa está reforzada y cosida para permitir una elevación rápida, ideal para subir a tu perro a un muelle, una barca o la orilla."
-				},
-				{
-					"q": "¿Y si al llegar la talla no es la correcta?",
-					"a": "Sin problema: escríbenos y te ayudamos a cambiarla por la talla correcta, sin complicaciones."
-				}
-			]
-		}
-	},
 	"cart": {
 		"title": "Tu carrito",
 		"empty": "Tu carrito está vacío.",

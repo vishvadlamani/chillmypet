@@ -4,9 +4,13 @@ Multi-store commerce on Cloudflare Workers. A shared domain package plus one
 backend-for-frontend per storefront.
 
 ```
-packages/commerce/     domain modules — catalog, customers, orders, stores, meta
+packages/ecomwithai/   the open-source framework (edit here; sync out to publish)
 apps/storefront/       SvelteKit BFF: UI, language packs, routes that compose modules
 ```
+
+This store runs on [ecomwithai](./packages/ecomwithai/README.md), the framework
+extracted from it. Dogfooding is deliberate: the storefront is the first real
+traffic the framework sees, and anything awkward here is a framework bug.
 
 ## Quick start
 
@@ -19,7 +23,7 @@ npm run dev            # http://localhost:5173
 
 ## Architecture
 
-**`@chillmypet/commerce` owns the domain.** Every module is exposed as an
+**`ecomwithai` owns the domain.** Every module is exposed as an
 interface — `CatalogService`, `CustomerService`, `OrderService`, `StoreService`,
 `MetaService` — with a local, in-process implementation. Nothing in the package
 imports a framework or reads `process.env`; configuration is injected, because
@@ -56,7 +60,7 @@ Per-store config lives in the `stores` table: domain, default locale, currency,
 Meta pixel id and domain-verification token. Adding a store is a row plus its
 catalog — no code change.
 
-`packages/commerce/src/tenancy.test.ts` pins the isolation guarantees: one store
+`packages/ecomwithai/src/commerce.test.ts` pins the isolation guarantees: one store
 cannot read, price, or order another's variants, and the same email is a
 separate customer per store with separate order history. **A leak here is a data
 breach, not a bug** — keep those tests green.
@@ -105,7 +109,7 @@ photography falls back to the tinted SVG placeholder in `ProductImage.svelte`.
 ## Database
 
 Turso in deployment, a local `local.db` file otherwise, so everything runs
-before credentials exist. Schema: `packages/commerce/src/db/schema.sql`.
+before credentials exist. Schema: `packages/ecomwithai/src/db/schema.ts`.
 
 Two invariants worth preserving:
 
@@ -134,7 +138,7 @@ with the CAPI Purchase, and returns it to the browser, which fires
 `fbq('track', 'Purchase', …, { eventID })` with the same value. Break that and
 every sale is counted twice.
 
-**Advanced matching.** `packages/commerce/src/meta/hash.ts` normalizes and
+**Advanced matching.** `packages/ecomwithai/src/marketing/hash.ts` normalizes and
 SHA-256 hashes email, phone, name, city, state, zip and country;
 `client_ip_address`, `client_user_agent`, `fbp` and `fbc` go unhashed, as Meta
 requires. Absent fields are **omitted, never sent as `null`** — a null carries no
@@ -155,11 +159,17 @@ everyone, and GDPR/ePrivacy require prior consent for advertising cookies.
 
 ## Payment
 
-No payment provider is wired up. Orders are written with status
-`pending_payment` and the checkout page says so — **no card details are
-collected anywhere**. Add a provider before taking real orders and move the
-status transition into its webhook. Tax (EU VAT/OSS, US nexus) is not handled
-either; use Stripe Tax rather than building it.
+The Stripe module and the webhook route at `/api/stripe/webhook` exist and are
+tested, but payments are **not switched on**: `commerce.payments` is null until
+`STRIPE_SECRET_KEY` is set, and checkout still ends at `pending_payment` with
+**no card details collected anywhere**.
+
+To turn it on: set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`, point Stripe
+at `/api/stripe/webhook`, and have the checkout action call
+`payments.startCheckout` instead of rendering the confirmation screen directly.
+
+Tax (EU VAT/OSS, US nexus) is still unhandled; use Stripe Tax rather than
+building it.
 
 ## Testing
 

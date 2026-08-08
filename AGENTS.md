@@ -6,9 +6,15 @@ project does; this file covers **how to change it without breaking things**.
 ## Shape
 
 ```
-packages/commerce/      domain: catalog, customers, orders, stores, meta
+packages/ecomwithai/    the open-source framework — EDIT HERE
 apps/storefront/        BFF: SvelteKit UI, language packs, routes
 ```
+
+`packages/ecomwithai` is the editable copy of the framework, and the standalone
+public repo is a publishing artifact produced from it by
+`npm run sync:framework`. That direction matters: extending the framework and
+running real traffic through it happen against the same files, so they cannot
+drift. Never edit the standalone repo directly.
 
 npm workspaces. Run everything from the repo root:
 
@@ -29,11 +35,12 @@ npm run test:e2e       # BASE_URL= and CHROMIUM_PATH= to override
 
 ## The one rule
 
-**Domain logic goes in `packages/commerce`. Presentation goes in
+**Domain logic goes in `packages/ecomwithai`. Presentation goes in
 `apps/storefront`.**
 
-The package must never import a framework, read `process.env`, or touch a
-Cloudflare API. Configuration is injected. This is what lets a module be lifted
+The framework must never import a UI framework, read `process.env`, or touch a
+Cloudflare API. It is published to other people: anything chillmypet-specific
+that leaks in becomes their problem too. Configuration is injected. This is what lets a module be lifted
 into its own Worker later, and what keeps the package runnable on Node, Deno,
 Bun or a container. If you find yourself reaching for `$env` or `platform`
 inside the package, the thing you're building belongs in the BFF instead.
@@ -77,10 +84,11 @@ matches nobody. `hash.test.ts` pins these rules.
 then `w(p)` throws `Illegal invocation` on the Workers runtime. This 500'd every
 order until it was caught.
 
-**The commerce package ships TypeScript source, not a build artifact.** Node
-runs its tests with `--experimental-strip-types`, which rejects **parameter
-properties, enums, and namespaces**. Don't use them in `packages/commerce`.
-Vite handles the app side via `ssr.noExternal`.
+**The framework ships TypeScript source, not a build artifact.** Node runs its
+tests with `--experimental-strip-types`, which rejects **parameter properties,
+enums, and namespaces**. Don't use them in `packages/ecomwithai`. Vite handles
+the app side via `ssr.noExternal`. Run `npm run typecheck` — the framework is
+consumed as source, so a type error reaches users directly.
 
 **i18n translators must be per-render.** `createTranslator(locale)` in a
 component or request, never a module-level singleton — the server handles many
@@ -104,19 +112,21 @@ Restart the server after reseeding.
 ## Adding things
 
 **A language:** drop `apps/storefront/src/lib/i18n/locales/<code>.json` next to
-`en.json`, translate the values, keep the keys. It's auto-discovered via
-`import.meta.glob` and appears in the header switcher. Missing keys fall back to
-English. Product copy lives under `products.<slug>`; colour names under
-`product.colors.<code>`.
+`en.json`, translate the values, keep the keys — that covers UI chrome and the
+colour names under `product.colors.<code>`. **Product copy is no longer in the
+packs**: titles and descriptions live in `product_translations` and the FAQ in a
+`content.faq` metafield, both per locale, so add a row in the seed for the new
+locale too.
 
 **A store:** `SEED_STORE_ID=x SEED_STORE_DOMAIN=x.com npm run db:seed`, then add
 the domain to `apps/storefront/wrangler.toml`. One Worker serves all tenants;
 the `Host` header picks which. No code change.
 
-**A domain module:** create `packages/commerce/src/<name>/index.ts` exporting an
-interface plus a `create<Name>Service({ db, storeId })` factory, add a subpath to
-the package `exports`, and compose it in `createCommerce()`. Follow the existing
-modules — interface first, implementation second.
+**A domain module:** create `packages/ecomwithai/src/<name>/index.ts` exporting
+an interface plus a `create<Name>Service({ db, storeId })` factory, add a subpath
+to the package `exports`, and compose it in `createCommerce()`. Follow the
+existing modules — interface first, implementation second. Then
+`npm run sync:framework`.
 
 **Splitting a module into its own Worker:** write a second implementation of the
 same interface that forwards over a Service Binding, and swap it at
@@ -126,14 +136,20 @@ reason; it costs a network hop and a deploy pipeline.
 ## State of play
 
 Working: product page, cart, checkout, orders, customers, multi-tenancy, i18n
-(en/es), Meta pixel + Conversions API, Cloudflare deploy pipeline.
+(en/es), Meta pixel + Conversions API, Cloudflare deploy pipeline. The store now
+runs on the framework: catalogue, options, translations and metafields all come
+from `packages/ecomwithai`.
+
+Payments are **wired but not switched on**. The Stripe module and the webhook
+route at `/api/stripe/webhook` exist and are tested; `commerce.payments` is null
+until `STRIPE_SECRET_KEY` is set, and until then checkout still ends at
+`pending_payment` with **no card details collected anywhere**.
 
 Not built, in rough priority order:
 
-1. **Payments.** No provider. Orders are written `pending_payment` and the
-   checkout page says so — **no card details are collected anywhere**. Don't
-   add a card form without a real processor behind it. Move the status
-   transition into the provider's webhook.
+1. **Turn payments on.** Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`,
+   point Stripe at `/api/stripe/webhook`, and have the checkout action call
+   `payments.startCheckout` instead of ending at the confirmation screen.
 2. **Tax.** Nothing. EU VAT/OSS and US nexus are genuinely hard — use Stripe Tax
    rather than building it.
 3. **Consent gate.** The pixel loads for everyone. GDPR/ePrivacy require prior

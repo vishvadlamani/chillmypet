@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import type { MetaCustomData, MetaEventName } from '@chillmypet/commerce/meta';
+import type { MetaCustomData, MetaEventName } from 'ecomwithai/marketing';
 
 declare global {
 	interface Window {

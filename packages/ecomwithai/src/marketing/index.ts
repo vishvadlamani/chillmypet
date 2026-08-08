@@ -58,11 +58,16 @@ export function toAmount(cents: number): string {
 }
 
 /**
- * Shared id for one logical conversion. The browser and the server both send
- * the Purchase with this id so Meta counts it once instead of twice.
+ * Shared id for one logical conversion. The browser and the server both send the
+ * event with this id so Meta counts it once instead of twice.
  */
 export function newEventId(): string {
 	return crypto.randomUUID();
+}
+
+/** The `fbc` value Meta expects when a visitor lands with `?fbclid=`. */
+export function buildFbc(fbclid: string, createdAt: number): string {
+	return `fb.1.${createdAt}.${fbclid}`;
 }
 
 export function createMetaService(config: MetaConfig): MetaService {
@@ -80,10 +85,7 @@ export function createMetaService(config: MetaConfig): MetaService {
 				event_id: event.eventId,
 				action_source: 'website',
 				user_data: await buildUserData(event.user),
-				original_event_data: {
-					event_name: event.eventName,
-					event_time: eventTime
-				}
+				original_event_data: { event_name: event.eventName, event_time: eventTime }
 			};
 
 			if (event.eventSourceUrl) payload.event_source_url = event.eventSourceUrl;
@@ -115,14 +117,12 @@ export function createMetaService(config: MetaConfig): MetaService {
 					headers: { 'content-type': 'application/json' },
 					body: JSON.stringify(body)
 				});
-
 				const parsed = await response.json().catch(() => null);
 
 				if (!response.ok) {
 					console.error('Meta CAPI rejected event', response.status, parsed);
 					return { sent: false, reason: 'request_failed', detail: `HTTP ${response.status}` };
 				}
-
 				return { sent: true, response: parsed };
 			} catch (error) {
 				console.error('Meta CAPI request failed', error);

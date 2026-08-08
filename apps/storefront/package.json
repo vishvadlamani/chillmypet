@@ -16,8 +16,8 @@
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
-    "@chillmypet/commerce": "*",
-    "@libsql/client": "^0.15.15"
+    "@libsql/client": "^0.15.15",
+    "ecomwithai": "*"
   },
   "devDependencies": {
     "@sveltejs/adapter-cloudflare": "^7.2.7",

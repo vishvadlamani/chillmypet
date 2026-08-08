@@ -1,27 +1,23 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
-	import { toAmount } from '@chillmypet/commerce/meta';
+	import { toAmount } from 'ecomwithai/marketing';
 	import { track } from '$lib/analytics/pixel';
 	import { countryOptions } from '$lib/countries';
-	import { createTranslator, defaultLocale, formatMoney, pack, type Messages } from '$lib/i18n';
+	import { createTranslator, defaultLocale, formatMoney } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
-	import {
-		isShippingMethod,
-		SHIPPING_RATES,
-		type ShippingMethod
-	} from '@chillmypet/commerce/shipping';
+	import { DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 	import type { ActionData } from './$types';
 
 	let { form }: { form: ActionData } = $props();
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let t = $derived(createTranslator(locale));
-	let messages = $derived(pack(locale));
 
 	type PricedLine = {
 		variantId: number;
 		slug: string;
+		title: string;
 		colour: string;
 		size: string;
 		sku: string;
@@ -32,8 +28,11 @@
 	let priced = $state<{ lines: PricedLine[]; subtotalCents: number; currency: string } | null>(
 		null
 	);
-	let method = $state<ShippingMethod>('standard');
+	let method = $state('standard');
 	let submitting = $state(false);
+	// Stable per page view: a double-submitted form returns the first order
+	// instead of placing a second one.
+	const submissionId = crypto.randomUUID();
 
 	// Restore the chosen method when a failed submit sends `form` back.
 	$effect(() => {
@@ -41,7 +40,7 @@
 			form && 'values' in form && form.values
 				? (form.values as Record<string, unknown>).method
 				: undefined;
-		if (isShippingMethod(submitted)) method = submitted;
+		if (typeof submitted === 'string' && rate(submitted) !== undefined) method = submitted;
 	});
 
 	$effect(() => {
@@ -115,7 +114,8 @@
 		cart.clear();
 	});
 
-	let shippingCents = $derived(SHIPPING_RATES[method]);
+	const rate = (id: string) => DEFAULT_SHIPPING_RATES.find((r) => r.id === id)?.priceCents;
+	let shippingCents = $derived(rate(method) ?? 0);
 	let subtotalCents = $derived(priced?.subtotalCents ?? 0);
 	let currency = $derived(priced?.currency ?? 'USD');
 	let totalCents = $derived(subtotalCents + shippingCents);
@@ -126,11 +126,6 @@
 	let linesPayload = $derived(
 		JSON.stringify(cart.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })))
 	);
-
-	function productName(slug: string): string {
-		const products = messages.products as Record<string, { name: string } | undefined>;
-		return products[slug]?.name ?? slug;
-	}
 
 	function colourName(code: string): string {
 		return t(`product.colors.${code}` as never);
@@ -233,6 +228,7 @@
 				}}
 			>
 				<input type="hidden" name="lines" value={linesPayload} />
+				<input type="hidden" name="submissionId" value={submissionId} />
 
 				<fieldset>
 					<legend class="text-lg font-medium">{t('checkout.contactTitle')}</legend>
@@ -388,9 +384,9 @@
 									<span class="block text-sm text-ink-400">{t(option.eta)}</span>
 								</span>
 								<span class="text-sm font-medium">
-									{SHIPPING_RATES[option.id] === 0
+									{(rate(option.id) ?? 0) === 0
 										? t('checkout.free')
-										: formatMoney(SHIPPING_RATES[option.id], locale, currency)}
+										: formatMoney(rate(option.id) ?? 0, locale, currency)}
 								</span>
 							</label>
 						{/each}
@@ -435,7 +431,7 @@
 							{#each priced.lines as line (line.variantId)}
 								<li class="flex items-start justify-between gap-3 text-sm">
 									<div>
-										<p class="font-medium">{productName(line.slug)}</p>
+										<p class="font-medium">{line.title}</p>
 										<p class="text-ink-400">
 											{colourName(line.colour)} · {line.size} · {t('cart.quantity')}
 											{line.quantity}

@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
-import { CheckoutError, isShippingMethod, newEventId, toAmount } from '@chillmypet/commerce';
-import { buildFbc } from '@chillmypet/commerce/meta';
+import { CheckoutError, DEFAULT_SHIPPING_RATES, newEventId, toAmount } from 'ecomwithai';
+import { buildFbc } from 'ecomwithai/marketing';
 import { isCountryCode } from '$lib/countries';
 import type { Actions } from './$types';
 
@@ -50,7 +50,9 @@ export const actions: Actions = {
 		}
 
 		const methodInput = value('method');
-		const method = isShippingMethod(methodInput) ? methodInput : 'standard';
+		const method = DEFAULT_SHIPPING_RATES.some((r) => r.id === methodInput)
+			? methodInput
+			: 'standard';
 
 		let order;
 		try {
@@ -59,6 +61,9 @@ export const actions: Actions = {
 				method,
 				locale: locals.locale,
 				marketingConsent: form.get('marketingConsent') === 'on',
+				// Makes a double-submitted form return the first order rather than
+				// placing a second one.
+				idempotencyKey: value('submissionId') || undefined,
 				shipping: {
 					email,
 					phone: value('phone') || undefined,
@@ -74,7 +79,8 @@ export const actions: Actions = {
 			});
 		} catch (error) {
 			if (error instanceof CheckoutError) {
-				return fail(409, { errorCode: error.code, detail: error.detail ?? null });
+				const code = error.code === 'insufficient_stock' ? 'variant_unavailable' : error.code;
+				return fail(409, { errorCode: code, detail: error.detail ?? null });
 			}
 			console.error('checkout failed', error);
 			return fail(500, { errorCode: 'generic' as const, detail: null });

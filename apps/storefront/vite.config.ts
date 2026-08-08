@@ -6,7 +6,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
 	// The commerce package ships TypeScript source; without this Vite would
 	// externalize it for SSR and hand raw .ts to the runtime.
-	ssr: { noExternal: ['@chillmypet/commerce'] },
+	ssr: { noExternal: ['ecomwithai'] },
 	plugins: [
 		tailwindcss(),
 		sveltekit({

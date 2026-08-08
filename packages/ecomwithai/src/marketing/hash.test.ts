@@ -3,7 +3,7 @@
  * contacts Meta — the point is to catch silently-wrong hashes, which the live
  * API accepts happily while matching nobody.
  *
- *   npm test -w @chillmypet/commerce
+ *   npm test
  */
 import { createHash } from 'node:crypto';
 import { buildFbc, buildUserData, normalize, sha256Hex } from './hash.ts';

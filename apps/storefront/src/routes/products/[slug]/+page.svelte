@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { toAmount } from '@chillmypet/commerce/meta';
-	import { track } from '$lib/analytics/pixel';
+	import { toAmount } from 'ecomwithai/marketing';
 	import Faq from '$lib/components/Faq.svelte';
 	import ProductImage from '$lib/components/ProductImage.svelte';
-	import { createTranslator, defaultLocale, formatMoney, pack, type Messages } from '$lib/i18n';
+	import { track } from '$lib/analytics/pixel';
+	import { createTranslator, defaultLocale, formatMoney } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
 	import type { PageData } from './$types';
 
@@ -13,15 +13,21 @@
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let t = $derived(createTranslator(locale));
-	let messages = $derived(pack(locale));
 
-	type ProductCopy = Messages['products'][keyof Messages['products']];
-	let copy = $derived(
-		(messages.products as Record<string, ProductCopy | undefined>)[data.product.slug]
-	);
+	// Positional options: this catalogue is Colour then Size. The framework does
+	// not know that, which is the point — a different store orders them its way.
+	let colours = $derived(data.product.options[0]?.values ?? []);
+	let sizes = $derived(data.product.options[1]?.values ?? []);
 
-	let colours = $derived(data.product.colours);
-	let sizes = $derived(data.product.sizeChart.map((row) => row.size));
+	type SizeRow = {
+		size: string;
+		chestMinCm: number;
+		chestMaxCm: number;
+		weightMinKg: number;
+		weightMaxKg: number;
+	};
+	let sizeChart = $derived((data.product.metafields['specs.size_chart'] ?? []) as SizeRow[]);
+	let faq = $derived((data.product.metafields['content.faq'] ?? []) as { q: string; a: string }[]);
 
 	let selectedColour = $state('');
 	let selectedSize = $state('');
@@ -30,21 +36,25 @@
 
 	// Re-anchor the selection when the product changes (or on first render).
 	$effect(() => {
-		if (!colours.some((c) => c.code === selectedColour)) {
-			selectedColour = colours[0]?.code ?? '';
+		if (!colours.some((c) => c.value === selectedColour)) {
+			selectedColour = colours[0]?.value ?? '';
 		}
-		if (!sizes.includes(selectedSize)) {
-			selectedSize = sizes.includes('M') ? 'M' : (sizes[0] ?? '');
+		if (!sizes.some((s) => s.value === selectedSize)) {
+			selectedSize = sizes.some((s) => s.value === 'M') ? 'M' : (sizes[0]?.value ?? '');
 		}
 	});
 
-	let selectedVariant = $derived(
-		data.product.variants.find((v) => v.colour === selectedColour && v.size === selectedSize)
-	);
+	function variantFor(colour: string, size: string) {
+		return data.product.variants.find(
+			(v) => v.options[0] === colour && v.options[1] === size
+		);
+	}
+
+	let selectedVariant = $derived(variantFor(selectedColour, selectedSize));
 	let inStock = $derived((selectedVariant?.stock ?? 0) > 0);
-	let activeColour = $derived(colours.find((c) => c.code === selectedColour));
-	let activeHex = $derived(activeColour?.hex ?? '#1e4e8c');
-	let activeImage = $derived(activeColour?.imagePath ?? null);
+	let activeColour = $derived(colours.find((c) => c.value === selectedColour));
+	let activeHex = $derived(activeColour?.swatchHex ?? '#1e4e8c');
+	let activeImage = $derived(activeColour?.imageUrl ?? null);
 
 	let colourLabel = $derived(
 		selectedColour ? t(`product.colors.${selectedColour}` as never) : ''
@@ -56,7 +66,6 @@
 			: 0
 	);
 
-	// One ViewContent per product, not per variant click.
 	$effect(() => {
 		const slug = data.product.slug;
 		track('ViewContent', {
@@ -73,9 +82,9 @@
 			{
 				variantId: selectedVariant.id,
 				slug: data.product.slug,
-				colour: selectedVariant.colour,
-				size: selectedVariant.size,
-				unitPriceCents: data.product.priceCents
+				colour: selectedColour,
+				size: selectedSize,
+				unitPriceCents: selectedVariant.priceCents
 			},
 			quantity
 		);
@@ -84,15 +93,11 @@
 			content_type: 'product',
 			content_ids: [selectedVariant.sku],
 			contents: [
-				{
-					id: selectedVariant.sku,
-					quantity,
-					item_price: data.product.priceCents / 100
-				}
+				{ id: selectedVariant.sku, quantity, item_price: selectedVariant.priceCents / 100 }
 			],
 			num_items: quantity,
 			currency: data.product.currency,
-			value: toAmount(data.product.priceCents * quantity)
+			value: toAmount(selectedVariant.priceCents * quantity)
 		});
 
 		added = true;
@@ -111,8 +116,8 @@
 </script>
 
 <svelte:head>
-	<title>{copy?.name ?? data.product.slug} · {t('common.brand')}</title>
-	<meta name="description" content={copy?.description ?? ''} />
+	<title>{data.product.title} · {t('common.brand')}</title>
+	<meta name="description" content={data.product.description ?? ''} />
 </svelte:head>
 
 <article class="mx-auto max-w-6xl px-4 py-10">
@@ -125,7 +130,7 @@
 					hex={activeHex}
 					loading="eager"
 					label={t('product.galleryAlt', {
-						product: copy?.name ?? data.product.slug,
+						product: data.product.title,
 						colour: colourLabel,
 						index: 1
 					})}
@@ -134,21 +139,21 @@
 			</div>
 
 			<ul class="mt-3 flex flex-wrap gap-2">
-				{#each colours as colour (colour.code)}
+				{#each colours as colour (colour.value)}
 					<li>
 						<button
 							type="button"
-							onclick={() => (selectedColour = colour.code)}
-							aria-label={t(`product.colors.${colour.code}` as never)}
-							aria-current={colour.code === selectedColour ? 'true' : undefined}
+							onclick={() => (selectedColour = colour.value)}
+							aria-label={t(`product.colors.${colour.value}` as never)}
+							aria-current={colour.value === selectedColour ? 'true' : undefined}
 							class="overflow-hidden rounded-lg border transition
-								{colour.code === selectedColour
+								{colour.value === selectedColour
 								? 'border-ink-900 ring-2 ring-ink-900/15'
 								: 'border-ink-200 hover:border-ink-400'}"
 						>
 							<ProductImage
-								src={colour.imagePath}
-								hex={colour.hex}
+								src={colour.imageUrl}
+								hex={colour.swatchHex ?? '#1e4e8c'}
 								label=""
 								class="size-16"
 							/>
@@ -160,11 +165,9 @@
 
 		<!-- Buy box -->
 		<div>
-			<h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-				{copy?.name ?? data.product.slug}
-			</h1>
-			{#if copy?.tagline}
-				<p class="mt-2 text-lg text-ink-600">{copy.tagline}</p>
+			<h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">{data.product.title}</h1>
+			{#if data.product.subtitle}
+				<p class="mt-2 text-lg text-ink-600">{data.product.subtitle}</p>
 			{/if}
 
 			<div class="mt-5 flex flex-wrap items-baseline gap-3">
@@ -175,40 +178,36 @@
 					<span class="text-lg text-ink-400 line-through">
 						{formatMoney(data.product.compareAtCents, locale, data.product.currency)}
 					</span>
-					<span
-						class="rounded-full bg-coral-500 px-2.5 py-1 text-xs font-semibold text-white"
-					>
+					<span class="rounded-full bg-coral-500 px-2.5 py-1 text-xs font-semibold text-white">
 						{t('common.save', { percent: savePercent })}
 					</span>
 				{/if}
 			</div>
 
-			{#if copy?.description}
-				<p class="mt-5 text-ink-600">{copy.description}</p>
+			{#if data.product.description}
+				<p class="mt-5 text-ink-600">{data.product.description}</p>
 			{/if}
 
 			<!-- Colour -->
 			<fieldset class="mt-8">
 				<legend class="text-sm font-medium">
-					{t('product.colorLabel')}<span class="ms-2 font-normal text-ink-400"
-						>{colourLabel}</span
-					>
+					{t('product.colorLabel')}<span class="ms-2 font-normal text-ink-400">{colourLabel}</span>
 				</legend>
 				<div class="mt-3 flex flex-wrap gap-2">
-					{#each colours as colour (colour.code)}
+					{#each colours as colour (colour.value)}
 						<label class="cursor-pointer">
 							<input
 								type="radio"
 								name="colour"
 								class="peer sr-only"
-								value={colour.code}
+								value={colour.value}
 								bind:group={selectedColour}
 							/>
 							<span
 								class="block size-9 rounded-full border border-ink-200 ring-offset-2 transition peer-checked:ring-2 peer-checked:ring-ink-900 peer-focus-visible:ring-2 peer-focus-visible:ring-tide-500"
-								style="background-color: {colour.hex}"
+								style="background-color: {colour.swatchHex}"
 							></span>
-							<span class="sr-only">{t(`product.colors.${colour.code}` as never)}</span>
+							<span class="sr-only">{t(`product.colors.${colour.value}` as never)}</span>
 						</label>
 					{/each}
 				</div>
@@ -218,17 +217,15 @@
 			<fieldset class="mt-7">
 				<legend class="text-sm font-medium">{t('product.sizeLabel')}</legend>
 				<div class="mt-3 flex flex-wrap gap-2">
-					{#each data.product.sizeChart as row (row.size)}
-						{@const variant = data.product.variants.find(
-							(v) => v.colour === selectedColour && v.size === row.size
-						)}
+					{#each sizes as size (size.value)}
+						{@const variant = variantFor(selectedColour, size.value)}
 						{@const available = (variant?.stock ?? 0) > 0}
 						<label class:cursor-pointer={available} class:cursor-not-allowed={!available}>
 							<input
 								type="radio"
 								name="size"
 								class="peer sr-only"
-								value={row.size}
+								value={size.value}
 								disabled={!available}
 								bind:group={selectedSize}
 							/>
@@ -240,7 +237,7 @@
 									? 'border-ink-200 hover:border-ink-400'
 									: 'border-ink-100 text-ink-200 line-through'}"
 							>
-								{row.size}
+								{size.label ?? size.value}
 							</span>
 						</label>
 					{/each}
@@ -297,55 +294,57 @@
 			</p>
 
 			<!-- Size chart -->
-			<section class="mt-10">
-				<h2 class="text-sm font-semibold">{t('product.sizeChartTitle')}</h2>
-				<p class="mt-1 text-sm text-ink-600">{t('product.sizeChartHint')}</p>
-				<div class="mt-4 overflow-x-auto">
-					<table class="w-full min-w-md border-collapse text-sm">
-						<thead>
-							<tr class="border-b border-ink-200 text-left text-ink-600">
-								<th scope="col" class="py-2 pe-4 font-medium">
-									{t('product.sizeChartColumns.size')}
-								</th>
-								<th scope="col" class="py-2 pe-4 font-medium">
-									{t('product.sizeChartColumns.chest')}
-								</th>
-								<th scope="col" class="py-2 font-medium">
-									{t('product.sizeChartColumns.weight')}
-								</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each data.product.sizeChart as row (row.size)}
-								<tr class="border-b border-ink-100">
-									<th scope="row" class="py-2.5 pe-4 text-left font-medium">{row.size}</th>
-									<td class="py-2.5 pe-4 text-ink-600">
-										{cm(row.chestMinCm)}–{cm(row.chestMaxCm)}
-										<span class="text-ink-400">
-											({inches(row.chestMinCm)}–{inches(row.chestMaxCm)})
-										</span>
-									</td>
-									<td class="py-2.5 text-ink-600">
-										{kg(row.weightMinKg)}–{kg(row.weightMaxKg)}
-										<span class="text-ink-400">
-											({lb(row.weightMinKg)}–{lb(row.weightMaxKg)})
-										</span>
-									</td>
+			{#if sizeChart.length}
+				<section class="mt-10">
+					<h2 class="text-sm font-semibold">{t('product.sizeChartTitle')}</h2>
+					<p class="mt-1 text-sm text-ink-600">{t('product.sizeChartHint')}</p>
+					<div class="mt-4 overflow-x-auto">
+						<table class="w-full min-w-md border-collapse text-sm">
+							<thead>
+								<tr class="border-b border-ink-200 text-left text-ink-600">
+									<th scope="col" class="py-2 pe-4 font-medium">
+										{t('product.sizeChartColumns.size')}
+									</th>
+									<th scope="col" class="py-2 pe-4 font-medium">
+										{t('product.sizeChartColumns.chest')}
+									</th>
+									<th scope="col" class="py-2 font-medium">
+										{t('product.sizeChartColumns.weight')}
+									</th>
 								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			</section>
+							</thead>
+							<tbody>
+								{#each sizeChart as row (row.size)}
+									<tr class="border-b border-ink-100">
+										<th scope="row" class="py-2.5 pe-4 text-left font-medium">{row.size}</th>
+										<td class="py-2.5 pe-4 text-ink-600">
+											{cm(row.chestMinCm)}–{cm(row.chestMaxCm)}
+											<span class="text-ink-400">
+												({inches(row.chestMinCm)}–{inches(row.chestMaxCm)})
+											</span>
+										</td>
+										<td class="py-2.5 text-ink-600">
+											{kg(row.weightMinKg)}–{kg(row.weightMaxKg)}
+											<span class="text-ink-400">
+												({lb(row.weightMinKg)}–{lb(row.weightMaxKg)})
+											</span>
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				</section>
+			{/if}
 		</div>
 	</div>
 
 	<!-- FAQ -->
-	{#if copy?.faq?.length}
+	{#if faq.length}
 		<section class="mt-20 max-w-3xl">
 			<h2 class="text-2xl font-semibold tracking-tight">{t('product.faqTitle')}</h2>
 			<div class="mt-6">
-				<Faq items={copy.faq} />
+				<Faq items={faq} />
 			</div>
 		</section>
 	{/if}

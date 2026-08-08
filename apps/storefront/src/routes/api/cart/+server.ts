@@ -33,8 +33,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			{
 				variantId: variant.variantId,
 				slug: variant.productSlug,
-				colour: variant.colour,
-				size: variant.size,
+				title: variant.title,
+				// Positional option values: [colour, size] for this catalogue.
+				colour: variant.options[0] ?? '',
+				size: variant.options[1] ?? '',
 				sku: variant.sku,
 				unitPriceCents: variant.unitPriceCents,
 				quantity: line.quantity,
