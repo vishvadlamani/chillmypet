@@ -10,10 +10,26 @@ const browser = await chromium.launch({
 	executablePath: process.env.CHROMIUM_PATH || undefined
 });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
+// Block the real pixel lib: fbq stays a stub, so every call accumulates in
+// fbq.queue where we can assert on it without touching Meta.
+await ctx.route('**/connect.facebook.net/**', (route) => route.abort());
+await ctx.route('**/facebook.com/tr*', (route) => route.abort());
 const pageErrors = [];
 const page = await ctx.newPage();
 page.on('pageerror', (e) => pageErrors.push(String(e)));
-page.on('console', (m) => m.type() === 'error' && pageErrors.push(`console: ${m.text()}`));
+page.on('console', (m) => {
+	if (m.type() !== 'error') return;
+	const text = m.text();
+	// We abort the pixel requests ourselves; the resulting load errors aren't app bugs.
+	if (text.includes('ERR_FAILED') || text.includes('net::')) return;
+	pageErrors.push(`console: ${text}`);
+});
+
+const fbqCalls = () =>
+	page.evaluate(() => (window.fbq?.queue ?? []).map((args) => Array.from(args)));
+
+const tracked = (calls, event) =>
+	calls.find((c) => c[0] === 'track' && c[1] === event);
 
 function check(label, cond) {
 	console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}`);
@@ -44,6 +60,17 @@ check(
 	await page.locator('input[name="size"][value="XS"]').isDisabled()
 );
 
+{
+	const calls = await fbqCalls();
+	check('pixel init fired', calls.some((c) => c[0] === 'init' && c[1] === '28272021345717397'));
+	check('PageView fired', Boolean(tracked(calls, 'PageView')));
+	check('ViewContent fired', Boolean(tracked(calls, 'ViewContent')));
+	const addToCart = tracked(calls, 'AddToCart');
+	check('AddToCart fired', Boolean(addToCart));
+	check('AddToCart value is 2 x 44.97', addToCart?.[2]?.value === '89.94');
+	check('AddToCart carries the variant sku', addToCart?.[2]?.content_ids?.[0] === 'CMP-LJ-RED-L');
+}
+
 await page.screenshot({ path: shot('product.png'), fullPage: false });
 
 // --- cart survives reload ---
@@ -68,6 +95,13 @@ await page.waitForTimeout(200);
 const withExpress = await page.textContent('aside');
 check('express total 89.94 + 12.00', withExpress?.includes('$101.94'));
 
+{
+	const calls = await fbqCalls();
+	const initiate = tracked(calls, 'InitiateCheckout');
+	check('InitiateCheckout fired', Boolean(initiate));
+	check('InitiateCheckout value is subtotal', initiate?.[2]?.value === '89.94');
+}
+
 await page.screenshot({ path: shot('checkout.png'), fullPage: false });
 
 // submit with a bad email -> inline error, values retained
@@ -77,7 +111,7 @@ await page.fill('input[name="lastName"]', 'Adlamani');
 await page.fill('input[name="address1"]', '12 Harbour Way');
 await page.fill('input[name="city"]', 'Lisbon');
 await page.fill('input[name="postalCode"]', '1100-001');
-await page.fill('input[name="country"]', 'Portugal');
+await page.selectOption('select[name="country"]', 'PT');
 await page.locator('input[name="email"]').evaluate((el) => el.setAttribute('type', 'text'));
 await page.getByRole('button', { name: /place order/i }).click();
 await page.waitForTimeout(900);
@@ -96,6 +130,32 @@ const orderNo = done.match(/CMP-[A-Z0-9]{8}/)?.[0];
 check('order number rendered', Boolean(orderNo));
 console.log('      order:', orderNo);
 check('cart cleared after order', (await page.textContent('header a[href="/checkout"]'))?.includes('0'));
+{
+	const calls = await fbqCalls();
+	const purchase = tracked(calls, 'Purchase');
+	check('Purchase fired', Boolean(purchase));
+	check('Purchase value includes express shipping', purchase?.[2]?.value === '101.94');
+	check('Purchase currency', purchase?.[2]?.currency === 'USD');
+	const eventId = purchase?.[3]?.eventID;
+	check('Purchase carries an eventID for CAPI dedup', typeof eventId === 'string' && eventId.length > 20);
+	check(
+		'exactly one PageView on a full load',
+		calls.filter((c) => c[0] === 'track' && c[1] === 'PageView').length === 1
+	);
+}
+
+// Client-side navigation must also record a PageView. fbq.queue survives here
+// because SvelteKit navigates without a document reload.
+await page.getByRole('link', { name: /keep shopping/i }).click();
+await page.waitForURL('**/products/dog-life-jacket');
+{
+	const calls = await fbqCalls();
+	check(
+		'SPA navigation adds a second PageView',
+		calls.filter((c) => c[0] === 'track' && c[1] === 'PageView').length === 2
+	);
+}
+
 await page.screenshot({ path: shot('confirmation.png'), fullPage: false });
 
 // --- language pack switch ---

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { toAmount } from '$lib/analytics/meta';
+	import { track } from '$lib/analytics/pixel';
 	import Faq from '$lib/components/Faq.svelte';
 	import ProductImage from '$lib/components/ProductImage.svelte';
 	import { createTranslator, defaultLocale, formatMoney, pack, type Messages } from '$lib/i18n';
@@ -52,6 +54,17 @@
 			: 0
 	);
 
+	// One ViewContent per product, not per variant click.
+	$effect(() => {
+		const slug = data.product.slug;
+		track('ViewContent', {
+			content_type: 'product',
+			content_ids: [slug],
+			currency: data.product.currency,
+			value: toAmount(data.product.priceCents)
+		});
+	});
+
 	function addToCart() {
 		if (!selectedVariant || !inStock) return;
 		cart.add(
@@ -64,6 +77,22 @@
 			},
 			quantity
 		);
+
+		track('AddToCart', {
+			content_type: 'product',
+			content_ids: [selectedVariant.sku],
+			contents: [
+				{
+					id: selectedVariant.sku,
+					quantity,
+					item_price: data.product.priceCents / 100
+				}
+			],
+			num_items: quantity,
+			currency: data.product.currency,
+			value: toAmount(data.product.priceCents * quantity)
+		});
+
 		added = true;
 		setTimeout(() => (added = false), 2000);
 	}

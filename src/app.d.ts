@@ -14,6 +14,10 @@ declare global {
 			env?: {
 				TURSO_DATABASE_URL?: string;
 				TURSO_AUTH_TOKEN?: string;
+				META_CAPI_ACCESS_TOKEN?: string;
+			};
+			context?: {
+				waitUntil(promise: Promise<unknown>): void;
 			};
 		}
 	}

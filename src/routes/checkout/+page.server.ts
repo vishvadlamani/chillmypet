@@ -1,5 +1,8 @@
 import { fail } from '@sveltejs/kit';
+import { newEventId, toAmount } from '$lib/analytics/meta';
+import { isCountryCode } from '$lib/countries';
 import { CheckoutError, createOrder, isShippingMethod } from '$lib/server/orders';
+import { buildFbc, sendCapiEvent } from '$lib/server/meta-capi';
 import type { Actions } from './$types';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -16,17 +19,20 @@ const REQUIRED = [
 type RequiredField = (typeof REQUIRED)[number];
 
 export const actions: Actions = {
-	default: async ({ request, locals }) => {
+	default: async (event) => {
+		const { request, locals, url, cookies, platform } = event;
 		const form = await request.formData();
 		const value = (name: string) => String(form.get(name) ?? '').trim();
 
 		const email = value('email');
+		const country = value('country');
 		const fieldErrors: Partial<Record<RequiredField | 'email' | 'cart', string>> = {};
 
 		if (!EMAIL.test(email)) fieldErrors.email = 'emailInvalid';
 		for (const field of REQUIRED) {
 			if (!value(field)) fieldErrors[field] = 'fieldRequired';
 		}
+		if (country && !isCountryCode(country)) fieldErrors.country = 'fieldRequired';
 
 		let lines: { variantId: number; quantity: number }[] = [];
 		try {
@@ -52,8 +58,9 @@ export const actions: Actions = {
 		const methodInput = value('method');
 		const method = isShippingMethod(methodInput) ? methodInput : 'standard';
 
+		let order;
 		try {
-			const order = await createOrder({
+			order = await createOrder({
 				lines,
 				method,
 				locale: locals.locale,
@@ -67,11 +74,9 @@ export const actions: Actions = {
 					city: value('city'),
 					province: value('province') || undefined,
 					postalCode: value('postalCode'),
-					country: value('country')
+					country
 				}
 			});
-
-			return { success: true as const, order, email };
 		} catch (error) {
 			if (error instanceof CheckoutError) {
 				return fail(409, { errorCode: error.code, detail: error.detail ?? null });
@@ -79,5 +84,59 @@ export const actions: Actions = {
 			console.error('checkout failed', error);
 			return fail(500, { errorCode: 'generic' as const, detail: null });
 		}
+
+		// The order is committed from here on. Everything below is marketing
+		// telemetry and must never turn a placed order into an error response.
+		const eventId = newEventId();
+
+		try {
+			const fbclid = url.searchParams.get('fbclid');
+			const purchase = sendCapiEvent({
+				eventName: 'Purchase',
+				eventId,
+				eventSourceUrl: url.href,
+				user: {
+					email,
+					phone: value('phone') || undefined,
+					firstName: value('firstName'),
+					lastName: value('lastName'),
+					city: value('city'),
+					state: value('province') || undefined,
+					zip: value('postalCode'),
+					country,
+					clientIpAddress: event.getClientAddress(),
+					clientUserAgent: request.headers.get('user-agent') ?? undefined,
+					fbp: cookies.get('_fbp'),
+					fbc: cookies.get('_fbc') ?? (fbclid ? buildFbc(fbclid, Date.now()) : undefined)
+				},
+				customData: {
+					currency: order.currency,
+					value: toAmount(order.totalCents),
+					content_type: 'product',
+					content_ids: order.items.map((i) => i.sku),
+					contents: order.items.map((i) => ({
+						id: i.sku,
+						quantity: i.quantity,
+						item_price: i.unitPriceCents / 100
+					})),
+					num_items: order.items.reduce((sum, i) => sum + i.quantity, 0)
+				}
+			});
+
+			// Don't make the customer wait on Meta. On Workers `waitUntil` keeps the
+			// request alive past the response; elsewhere the promise just settles.
+			// Called as a method — destructuring it loses `this` and throws
+			// "Illegal invocation" on the Workers runtime.
+			const context = platform?.context;
+			if (context && typeof context.waitUntil === 'function') {
+				context.waitUntil(purchase);
+			} else {
+				purchase.catch(() => {});
+			}
+		} catch (error) {
+			console.error('Meta Purchase dispatch failed', error);
+		}
+
+		return { success: true as const, order, email, eventId };
 	}
 };

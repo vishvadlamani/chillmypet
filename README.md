@@ -72,6 +72,48 @@ Two invariants worth preserving:
   `update ... where id = ? and stock >= ?` inside a transaction and fails the
   order if `rowsAffected` is 0, so concurrent checkouts can't oversell.
 
+## Meta pixel and Conversions API
+
+Browser pixel and server-side Conversions API run together, deduplicated.
+
+- **Public, in the repo:** the pixel id (`src/lib/analytics/meta.ts`), the base
+  snippet and the `facebook-domain-verification` tag (`src/app.html`). All three
+  are visible in page source anyway.
+- **Secret, never in the repo:** `META_CAPI_ACCESS_TOKEN`. Set it as a Worker
+  secret in production and in `.env` locally.
+
+Events: `PageView` (initial load plus every client-side navigation),
+`ViewContent`, `AddToCart`, `InitiateCheckout`, and `Purchase`.
+
+**Deduplication.** The checkout action mints one `event_id` per order, sends it
+to the Conversions API, and returns it to the browser, which fires
+`fbq('track', 'Purchase', …, { eventID })` with the same value. Both copies
+reach Meta and are counted once. Break that and every sale is counted twice.
+
+**Advanced matching.** `src/lib/analytics/hash.ts` normalizes and SHA-256 hashes
+email, phone, name, city, state, zip and country before sending;
+`client_ip_address`, `client_user_agent`, `fbp` and `fbc` are sent unhashed, as
+Meta requires. Two rules worth keeping:
+
+- Absent fields are **omitted**, never sent as `null` — a null carries no signal
+  and lowers the reported match quality.
+- State and country are only sent when they are already 2-letter codes.
+  Truncating "Texas" to "te" would hash to something matching nobody, which is
+  worse than sending nothing. This is why the checkout country field is an ISO
+  select rather than free text.
+
+Tracking never affects orders: the Conversions API call happens after the order
+commits, is dispatched via `waitUntil` so the customer never waits on Meta, and
+any failure is logged rather than surfaced.
+
+**Verifying.** Set `META_CAPI_TEST_EVENT_CODE` and watch Events Manager >
+Test Events. To inspect the exact payload without contacting Meta, point
+`META_CAPI_ENDPOINT` at a local server and place an order.
+
+**Before taking EU traffic**, add a consent gate. The pixel currently loads for
+everyone, and GDPR/ePrivacy require prior consent for advertising cookies.
+`fbq('consent', 'revoke')` until granted is the usual approach.
+
 ## Payment
 
 No payment provider is wired up. Placing an order writes it with status
@@ -83,10 +125,15 @@ before taking real orders, and move the status transition into its webhook.
 
 ```sh
 npm run check                  # svelte-check
+npm test                       # CAPI normalization + hashing, offline
 npm i --no-save playwright     # not a dependency; deploys stay lean
 npm run dev                    # in another shell, with a seeded DB
 npm run test:e2e
 ```
+
+`npm test` runs `tests/capi.test.ts`, which pins the advanced-matching rules
+against a reference SHA-256. Those bugs are invisible in production — Meta
+accepts wrong hashes happily and simply matches nobody.
 
 If Playwright can't find a browser (sandboxes often ship their own), point it at
 one: `CHROMIUM_PATH=/path/to/chromium npm run test:e2e`.
@@ -114,6 +161,7 @@ Set the database secrets on the Worker too:
 ```sh
 npx wrangler secret put TURSO_DATABASE_URL
 npx wrangler secret put TURSO_AUTH_TOKEN
+npx wrangler secret put META_CAPI_ACCESS_TOKEN
 ```
 
 ### Pointing chillmypet.com at the Worker

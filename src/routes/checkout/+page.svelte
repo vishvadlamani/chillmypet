@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
+	import { toAmount } from '$lib/analytics/meta';
+	import { track } from '$lib/analytics/pixel';
+	import { countryOptions } from '$lib/countries';
 	import { createTranslator, defaultLocale, formatMoney, pack, type Messages } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
 	import { isShippingMethod, SHIPPING_RATES, type ShippingMethod } from '$lib/shipping';
@@ -17,6 +20,7 @@
 		slug: string;
 		colour: string;
 		size: string;
+		sku: string;
 		unitPriceCents: number;
 		quantity: number;
 	};
@@ -69,8 +73,42 @@
 		};
 	});
 
+	let checkoutTracked = false;
 	$effect(() => {
-		if (form && 'success' in form && form.success) cart.clear();
+		if (checkoutTracked || !priced || priced.lines.length === 0) return;
+		checkoutTracked = true;
+		track('InitiateCheckout', {
+			content_type: 'product',
+			content_ids: priced.lines.map((l) => l.sku),
+			num_items: priced.lines.reduce((sum, l) => sum + l.quantity, 0),
+			currency: priced.currency,
+			value: toAmount(priced.subtotalCents)
+		});
+	});
+
+	// Purchase carries the server's event id so Meta dedupes it against the
+	// Conversions API copy of the same order.
+	let purchaseTracked = false;
+	$effect(() => {
+		if (purchaseTracked || !form || !('success' in form) || !form.success) return;
+		purchaseTracked = true;
+		track(
+			'Purchase',
+			{
+				content_type: 'product',
+				content_ids: form.order.items.map((i) => i.sku),
+				contents: form.order.items.map((i) => ({
+					id: i.sku,
+					quantity: i.quantity,
+					item_price: i.unitPriceCents / 100
+				})),
+				num_items: form.order.items.reduce((sum, i) => sum + i.quantity, 0),
+				currency: form.order.currency,
+				value: toAmount(form.order.totalCents)
+			},
+			form.eventId
+		);
+		cart.clear();
 	});
 
 	let shippingCents = $derived(SHIPPING_RATES[method]);
@@ -78,6 +116,8 @@
 	let currency = $derived(priced?.currency ?? 'USD');
 	let totalCents = $derived(subtotalCents + shippingCents);
 	let isEmpty = $derived((priced?.lines.length ?? 0) === 0);
+
+	let countries = $derived(countryOptions(locale));
 
 	let linesPayload = $derived(
 		JSON.stringify(cart.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })))
@@ -308,14 +348,19 @@
 
 					<label class="mt-4 block">
 						<span class="text-sm font-medium">{t('checkout.country')}</span>
-						<input
+						<select
 							name="country"
 							value={prev('country')}
-							autocomplete="country-name"
+							autocomplete="country"
 							required
 							class={inputClass}
 							aria-invalid={fieldError('country') ? 'true' : undefined}
-						/>
+						>
+							<option value="" disabled selected={!prev('country')}></option>
+							{#each countries as option (option.code)}
+								<option value={option.code}>{option.name}</option>
+							{/each}
+						</select>
 						{#if fieldError('country')}
 							<span class="mt-1 block text-sm text-coral-600">{fieldError('country')}</span>
 						{/if}

@@ -12,7 +12,9 @@
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate.js",
     "db:seed": "node --env-file-if-exists=.env scripts/seed.js",
     "deploy": "npm run build && wrangler deploy",
-    "test:e2e": "node tests/e2e.mjs"
+    "test:e2e": "node tests/e2e.mjs",
+    "test:capi": "node --experimental-strip-types tests/capi.test.ts",
+    "test": "npm run test:capi"
   },
   "devDependencies": {
     "@sveltejs/adapter-cloudflare": "^7.2.7",

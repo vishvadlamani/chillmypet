@@ -25,6 +25,7 @@ export type PlacedOrder = {
 	shippingCents: number;
 	totalCents: number;
 	currency: string;
+	items: { sku: string; quantity: number; unitPriceCents: number }[];
 };
 
 export type CheckoutErrorCode = 'cart_empty' | 'variant_unavailable';
@@ -139,5 +140,16 @@ export async function createOrder(input: {
 		throw error;
 	}
 
-	return { orderNumber: number, subtotalCents, shippingCents, totalCents, currency };
+	return {
+		orderNumber: number,
+		subtotalCents,
+		shippingCents,
+		totalCents,
+		currency,
+		items: resolved.map((item) => ({
+			sku: item.sku,
+			quantity: item.quantity,
+			unitPriceCents: item.unitPriceCents
+		}))
+	};
 }

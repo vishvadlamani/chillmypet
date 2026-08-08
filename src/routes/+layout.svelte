@@ -1,10 +1,19 @@
 <script lang="ts">
 	import '../app.css';
+	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
+	import { track } from '$lib/analytics/pixel';
 	import { createTranslator, defaultLocale, locales, localeName } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
 
 	let { children } = $props();
+
+	// The snippet in app.html fires PageView for the initial load only; client-side
+	// navigations would otherwise go unrecorded.
+	afterNavigate((navigation) => {
+		if (navigation.type === 'enter') return;
+		track('PageView');
+	});
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let t = $derived(createTranslator(locale));
