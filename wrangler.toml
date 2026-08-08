@@ -1,0 +1,13 @@
+name = "chillmypet"
+main = "src/index.js"
+compatibility_date = "2026-08-08"
+
+# Custom-domain routes only resolve if chillmypet.com is an active zone on the
+# same Cloudflare account; deploys fail with "zone not found" until it is.
+[[routes]]
+pattern = "chillmypet.com"
+custom_domain = true
+
+[[routes]]
+pattern = "www.chillmypet.com"
+custom_domain = true
