@@ -1,0 +1,23 @@
+{
+  "name": "@chillmypet/commerce",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Store-agnostic commerce domain. No framework imports \u2014 all configuration is injected, so a module can be lifted into its own Worker without edits.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./catalog": "./src/catalog/index.ts",
+    "./customers": "./src/customers/index.ts",
+    "./orders": "./src/orders/index.ts",
+    "./stores": "./src/stores/index.ts",
+    "./shipping": "./src/shipping.ts",
+    "./meta": "./src/meta/index.ts",
+    "./db": "./src/db/index.ts"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types src/meta/hash.test.ts && node --experimental-strip-types src/tenancy.test.ts"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.15.15"
+  }
+}

@@ -3,32 +3,19 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "preview": "vite preview",
-    "prepare": "svelte-kit sync || echo ''",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "db:migrate": "node --env-file-if-exists=.env scripts/migrate.js",
-    "db:seed": "node --env-file-if-exists=.env scripts/seed.js",
-    "deploy": "npm run build && wrangler deploy",
-    "test:e2e": "node tests/e2e.mjs",
-    "test:capi": "node --experimental-strip-types tests/capi.test.ts",
-    "test": "npm run test:capi"
-  },
-  "devDependencies": {
-    "@sveltejs/adapter-cloudflare": "^7.2.7",
-    "@sveltejs/kit": "^2.63.0",
-    "@sveltejs/vite-plugin-svelte": "^7.1.2",
-    "@tailwindcss/vite": "^4.1.14",
-    "svelte": "^5.56.1",
-    "svelte-check": "^4.6.0",
-    "tailwindcss": "^4.1.14",
-    "typescript": "^6.0.3",
-    "vite": "^8.0.16",
-    "wrangler": "^4.42.0"
-  },
-  "dependencies": {
-    "@libsql/client": "^0.15.15"
+    "dev": "npm run dev -w @chillmypet/storefront --",
+    "build": "npm run build -w @chillmypet/storefront",
+    "preview": "npm run preview -w @chillmypet/storefront",
+    "check": "npm run check --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e -w @chillmypet/storefront",
+    "db:migrate": "npm run db:migrate -w @chillmypet/storefront",
+    "db:seed": "npm run db:seed -w @chillmypet/storefront",
+    "deploy": "npm run deploy -w @chillmypet/storefront"
   }
 }
