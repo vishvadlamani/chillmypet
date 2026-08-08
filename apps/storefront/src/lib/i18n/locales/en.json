@@ -13,7 +13,7 @@
 		"language": "Language"
 	},
 	"announcement": {
-		"banner": "Free shipping on every order — {discount}% off sitewide"
+		"banner": "Free shipping on all orders — {discount}% off sitewide"
 	},
 	"common": {
 		"brand": "ChillMyPet",
@@ -39,15 +39,14 @@
 		"selectColor": "Select a colour",
 		"selectSize": "Select a size",
 		"sizeChart": "Size chart",
-		"sizeChartTitle": "Find the right fit",
-		"sizeChartHint": "Measure your dog's chest at its widest point, just behind the front legs. Between sizes? Size up.",
+		"sizeChartTitle": "Sizing Chart",
+		"sizeChartHint": "If your dog is between sizes, we recommend sizing up for a more comfortable, secure fit.",
 		"sizeChartColumns": {
 			"size": "Size",
 			"chest": "Chest girth",
 			"weight": "Weight"
 		},
-		"featuresTitle": "Built for real water days",
-		"faqTitle": "Common questions",
+		"faqTitle": "Frequently asked questions",
 		"galleryAlt": "{product} in {colour}, view {index}",
 		"colors": {
 			"sailboat": "Sailboat",
@@ -65,50 +64,40 @@
 	"products": {
 		"dog-life-jacket": {
 			"name": "Dog Life Jacket",
-			"tagline": "Let them be the adventurous one.",
-			"description": "A buoyancy vest built for dogs who get to the water before you do. Closed-cell foam panels sit along the ribs and under the chest so your dog floats level instead of nose-down, and the whole thing drains and dries between swims.",
-			"features": [
-				{
-					"title": "Lift-assist handle",
-					"body": "A reinforced handle sits over the dog's centre of gravity, so lifting them onto a dock or into a boat keeps them level rather than tipping them forward."
-				},
-				{
-					"title": "Dries between swims",
-					"body": "Quick-dry shell and closed-cell foam shed water fast, so the jacket is ready for a second swim the same afternoon and stores without staying damp."
-				},
-				{
-					"title": "Proportioned chin float",
-					"body": "The front float is scaled to each size rather than reused across the range, so it holds the chin up without pushing against the throat on smaller dogs."
-				},
-				{
-					"title": "Adjustable through the chest",
-					"body": "Two belly straps and a neck strap adjust independently, which covers deep-chested and barrel-chested dogs that fall between standard sizes."
-				}
-			],
+			"tagline": "Let them be the adventurous one",
+			"description": "If the size you chose isn't quite right, we offer a 30 day - no questions asked - free exchange or return policy. If your dog is between sizes, we recommend sizing up for a more comfortable, secure fit.",
 			"faq": [
 				{
-					"q": "Will the chin float bother my dog?",
-					"a": "It shouldn't. The float is sized per jacket so it supports the head without pressing on the throat. If your dog is between sizes, the larger size gives the neck strap more room."
+					"q": "When will I get my order? 🚚",
+					"a": "Please allow us 2-4 business days to process your order. Once processed, 93% of orders arrive between 5-12 days later. You may review our shipping policy for full details. If you have any questions, please contact us at contact@chillmypet.com."
 				},
 				{
-					"q": "How long before my dog is comfortable in it?",
-					"a": "Most dogs settle after a couple of short sessions on dry land. Put it on before a walk or a meal a few times so the jacket is associated with something good before the first swim."
+					"q": "What if the size doesn't fit my dog? 📏",
+					"a": "We offer 30 day - no questions asked - free exchanges and returns. You may review our return and exchange policy for full details. If you have any questions or would like to begin an exchange, please email us at contact@chillmypet.com."
 				},
 				{
-					"q": "How do I dry and store it?",
-					"a": "Rinse with fresh water after salt or chlorine, then hang it by the handle out of direct sun. Don't machine dry — heat breaks down the foam."
+					"q": "Is the chin rest comfortable for smaller dogs?",
+					"a": "Yes - the chin rest is designed to sit naturally under the jaw without restricting movement, and it's proportioned across all sizes so smaller breeds get the same support as larger ones."
 				},
 				{
-					"q": "My dog is between two sizes. Which do I pick?",
-					"a": "Size up. Chest girth matters more than weight, and the straps take up the extra slack. A jacket that's slightly large adjusts down; one that's too small can't be let out."
+					"q": "Will this work for a dog who's never worn a life vest before?",
+					"a": "Most dogs adjust within the first few minutes, especially once they're in the water and feel the support. We recommend a quick 5-minute trial in shallow water before a big trip."
 				},
 				{
-					"q": "Can I lift my dog by the handle?",
-					"a": "Yes, that's what it's for — the handle is bar-tacked into the load-bearing seam. It's rated for lifting the dog the jacket is sized for, not for tethering or hoisting."
+					"q": "Can it get wet and dry quickly between uses?",
+					"a": "Absolutely - the materials are quick-dry and built for repeated water use, so you can use it one day and have it ready again the next."
 				},
 				{
-					"q": "What if the fit is wrong?",
-					"a": "Send it back within 30 days, unworn in water, and we'll exchange the size or refund it. See the refund policy for details."
+					"q": "How do I know which size to order?",
+					"a": "Check our size chart based on chest girth and weight. If your dog is between sizes, we recommend sizing up for a more comfortable, secure fit."
+				},
+				{
+					"q": "Is the handle strong enough to lift my dog out of water?",
+					"a": "Yes - the handle is reinforced and stitched to support a quick lift-assist, ideal for getting your dog back onto a dock, boat, or shore."
+				},
+				{
+					"q": "What if the size doesn't fit right when it arrives?",
+					"a": "No problem - reach out to our team and we'll help you exchange for the correct size, hassle-free."
 				}
 			]
 		}

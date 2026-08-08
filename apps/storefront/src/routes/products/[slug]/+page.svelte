@@ -42,7 +42,9 @@
 		data.product.variants.find((v) => v.colour === selectedColour && v.size === selectedSize)
 	);
 	let inStock = $derived((selectedVariant?.stock ?? 0) > 0);
-	let activeHex = $derived(colours.find((c) => c.code === selectedColour)?.hex ?? '#1e4e8c');
+	let activeColour = $derived(colours.find((c) => c.code === selectedColour));
+	let activeHex = $derived(activeColour?.hex ?? '#1e4e8c');
+	let activeImage = $derived(activeColour?.imagePath ?? null);
 
 	let colourLabel = $derived(
 		selectedColour ? t(`product.colors.${selectedColour}` as never) : ''
@@ -119,7 +121,9 @@
 		<div>
 			<div class="overflow-hidden rounded-2xl border border-ink-200">
 				<ProductImage
+					src={activeImage}
 					hex={activeHex}
+					loading="eager"
 					label={t('product.galleryAlt', {
 						product: copy?.name ?? data.product.slug,
 						colour: colourLabel,
@@ -143,6 +147,7 @@
 								: 'border-ink-200 hover:border-ink-400'}"
 						>
 							<ProductImage
+								src={colour.imagePath}
 								hex={colour.hex}
 								label=""
 								class="size-16"
@@ -334,21 +339,6 @@
 			</section>
 		</div>
 	</div>
-
-	<!-- Features -->
-	{#if copy?.features?.length}
-		<section class="mt-20">
-			<h2 class="text-2xl font-semibold tracking-tight">{t('product.featuresTitle')}</h2>
-			<div class="mt-8 grid gap-8 sm:grid-cols-2">
-				{#each copy.features as feature (feature.title)}
-					<div>
-						<h3 class="font-medium">{feature.title}</h3>
-						<p class="mt-2 text-ink-600">{feature.body}</p>
-					</div>
-				{/each}
-			</div>
-		</section>
-	{/if}
 
 	<!-- FAQ -->
 	{#if copy?.faq?.length}

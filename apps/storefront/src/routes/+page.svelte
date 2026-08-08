@@ -25,6 +25,12 @@
 		</a>
 	</div>
 	<div class="overflow-hidden rounded-2xl border border-ink-200">
-		<ProductImage hex="#1e4e8c" label={hero.name} class="aspect-square w-full" />
+		<ProductImage
+			src="/products/dog-life-jacket/sailboat.jpg"
+			hex="#1e4e8c"
+			loading="eager"
+			label={hero.name}
+			class="aspect-square w-full"
+		/>
 	</div>
 </section>

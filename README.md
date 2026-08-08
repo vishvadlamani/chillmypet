@@ -94,11 +94,13 @@ variants translate too. Past a handful of products, move product copy into a
 
 ## Content and imagery
 
-The layout follows standard e-commerce conventions, but **all copy is original
-and the artwork is placeholder**. `ProductImage.svelte` draws a tinted SVG per
-colour rather than shipping photography — swap it for real product images before
-launch. Nothing here reuses another store's brand name, photos, or marketing
-text.
+Product copy and photography were imported from floatpaw.store at the owner's
+direction. See the provenance note in [AGENTS.md](./AGENTS.md#content-and-assets--provenance)
+before adding or changing product assets.
+
+Images live in `apps/storefront/static/products/<slug>/<colour>.jpg` and are
+referenced per colour via `product_colours.image_path`, so a store without
+photography falls back to the tinted SVG placeholder in `ProductImage.svelte`.
 
 ## Database
 

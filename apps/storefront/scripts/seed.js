@@ -31,6 +31,21 @@ const COLOURS = [
 	['red', '#c63b3b']
 ];
 
+// Mirrors the source catalogue: '-' means the combination isn't sold at all,
+// 0 means listed but out of stock.
+const AVAILABILITY = {
+	sailboat:  { XS: 0,  S: 12, M: 0,  L: 12, XL: '-' },
+	blue_camo: { XS: 12, S: 12, M: 12, L: 12, XL: 12 },
+	green:     { XS: 12, S: 12, M: 12, L: 12, XL: 12 },
+	pink_camo: { XS: 12, S: 12, M: 12, L: 12, XL: 12 },
+	floral:    { XS: 12, S: 12, M: 12, L: 12, XL: '-' },
+	yellow:    { XS: 0,  S: 0,  M: 0,  L: 0,  XL: 12 },
+	blue:      { XS: 12, S: 12, M: 12, L: 0,  XL: 0 },
+	pink:      { XS: 0,  S: 12, M: 0,  L: 0,  XL: 12 },
+	purple:    { XS: 0,  S: 0,  M: 0,  L: 0,  XL: '-' },
+	red:       { XS: 12, S: 12, M: 0,  L: 0,  XL: 12 }
+};
+
 const SIZES = [
 	{ size: 'XS', chest: [33, 43], weight: [2, 5] },
 	{ size: 'S', chest: [43, 53], weight: [5, 9] },
@@ -75,9 +90,9 @@ const productId = Number(product.lastInsertRowid);
 
 for (const [index, [code, hex]] of COLOURS.entries()) {
 	await client.execute({
-		sql: `insert into product_colours (store_id, product_id, code, hex, position)
-		      values (?, ?, ?, ?, ?)`,
-		args: [STORE.id, productId, code, hex, index]
+		sql: `insert into product_colours (store_id, product_id, code, hex, image_path, position)
+		      values (?, ?, ?, ?, ?, ?)`,
+		args: [STORE.id, productId, code, hex, `/products/${SLUG}/${code}.jpg`, index]
 	});
 }
 
@@ -101,11 +116,15 @@ for (const [index, row] of SIZES.entries()) {
 }
 
 let variants = 0;
+let skipped = 0;
 for (const [code] of COLOURS) {
 	for (const { size } of SIZES) {
-		// One deliberately empty variant so the out-of-stock path is reachable
-		// without editing data by hand.
-		const stock = code === 'floral' && size === 'XS' ? 0 : 12;
+		const stock = AVAILABILITY[code][size];
+		// Not offered at all — no variant row, so the size renders unselectable.
+		if (stock === '-') {
+			skipped += 1;
+			continue;
+		}
 		await client.execute({
 			sql: `insert into product_variants (store_id, product_id, colour, size, sku, stock)
 			      values (?, ?, ?, ?, ?, ?)`,
@@ -117,6 +136,7 @@ for (const [code] of COLOURS) {
 
 console.log(
 	`Seeded store "${STORE.id}" (${STORE.domain}): ${SLUG} with ` +
-		`${COLOURS.length} colours, ${SIZES.length} sizes, ${variants} variants`
+		`${COLOURS.length} colours, ${SIZES.length} sizes, ${variants} variants ` +
+		`(${skipped} combinations not offered)`
 );
 client.close();

@@ -42,9 +42,9 @@ check('title renders', (await page.textContent('h1'))?.includes('Dog Life Jacket
 check('cart badge starts at 0', (await page.textContent('header a[href="/checkout"]'))?.includes('0'));
 
 // pick a colour + size
-await page.locator('input[name="colour"][value="red"]').check({ force: true });
+await page.locator('input[name="colour"][value="blue_camo"]').check({ force: true });
 await page.locator('input[name="size"][value="L"]').check({ force: true });
-check('colour label updates', (await page.textContent('fieldset legend'))?.includes('Red'));
+check('colour label updates', (await page.textContent('fieldset legend'))?.includes('Blue Camo'));
 
 await page.fill('input[type="number"]', '2');
 await page.getByRole('button', { name: /add to cart/i }).click();
@@ -52,13 +52,39 @@ await page.waitForTimeout(400);
 const badge = await page.textContent('header a[href="/checkout"]');
 check('cart badge shows 2', badge?.includes('2'));
 
-// out-of-stock: floral / XS should be disabled
-await page.locator('input[name="colour"][value="floral"]').check({ force: true });
+// Sold out: yellow is stocked in XL only.
+await page.locator('input[name="colour"][value="yellow"]').check({ force: true });
 await page.waitForTimeout(200);
 check(
-	'floral XS size is disabled',
+	'sold-out size is disabled',
 	await page.locator('input[name="size"][value="XS"]').isDisabled()
 );
+check(
+	'stocked size stays selectable',
+	await page.locator('input[name="size"][value="XL"]').isEnabled()
+);
+
+// Never offered: purple has no XL variant at all.
+await page.locator('input[name="colour"][value="purple"]').check({ force: true });
+await page.waitForTimeout(200);
+check(
+	'unoffered combination is disabled',
+	await page.locator('input[name="size"][value="XL"]').isDisabled()
+);
+
+// Real photography is wired up per colour.
+const heroSrc = await page.locator('article img').first().getAttribute('src');
+check('gallery renders a real image', heroSrc?.includes('/products/dog-life-jacket/'));
+const heroOk = await page.evaluate(() => {
+	const img = document.querySelector('article img');
+	return Boolean(img && img.naturalWidth > 100);
+});
+check('gallery image actually loaded', heroOk);
+
+// Re-select the in-stock combination for the rest of the run.
+await page.locator('input[name="colour"][value="blue_camo"]').check({ force: true });
+await page.locator('input[name="size"][value="L"]').check({ force: true });
+await page.waitForTimeout(200);
 
 {
 	const calls = await fbqCalls();
@@ -68,7 +94,7 @@ check(
 	const addToCart = tracked(calls, 'AddToCart');
 	check('AddToCart fired', Boolean(addToCart));
 	check('AddToCart value is 2 x 44.97', addToCart?.[2]?.value === '89.94');
-	check('AddToCart carries the variant sku', addToCart?.[2]?.content_ids?.[0] === 'CMP-LJ-RED-L');
+	check('AddToCart carries the variant sku', addToCart?.[2]?.content_ids?.[0] === 'CMP-LJ-BLUE_CAMO-L');
 }
 
 await page.screenshot({ path: shot('product.png'), fullPage: false });
@@ -86,7 +112,7 @@ await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(600);
 const summary = await page.textContent('aside');
 check('summary lists product', summary?.includes('Dog Life Jacket'));
-check('summary shows red / L', summary?.includes('Red') && summary?.includes('L'));
+check('summary shows blue camo / L', summary?.includes('Blue Camo') && summary?.includes('L'));
 check('subtotal is 2 x 44.97', summary?.includes('$89.94'));
 
 // express shipping updates total

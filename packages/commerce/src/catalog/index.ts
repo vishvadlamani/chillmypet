@@ -1,6 +1,6 @@
 import type { Client } from '../db/index.ts';
 
-export type Colour = { code: string; hex: string };
+export type Colour = { code: string; hex: string; imagePath: string | null };
 export type Variant = { id: number; colour: string; size: string; sku: string; stock: number };
 export type SizeRow = {
 	size: string;
@@ -59,7 +59,7 @@ export function createCatalogService(deps: { db: Client; storeId: string }): Cat
 
 			const [colours, variants, sizes] = await Promise.all([
 				db.execute({
-					sql: `select code, hex from product_colours
+					sql: `select code, hex, image_path from product_colours
 					      where store_id = ? and product_id = ? order by position, id`,
 					args: [storeId, id]
 				}),
@@ -81,7 +81,11 @@ export function createCatalogService(deps: { db: Client; storeId: string }): Cat
 				priceCents: Number(row.price_cents),
 				compareAtCents: row.compare_at_cents === null ? null : Number(row.compare_at_cents),
 				currency: String(row.currency),
-				colours: colours.rows.map((c) => ({ code: String(c.code), hex: String(c.hex) })),
+				colours: colours.rows.map((c) => ({
+					code: String(c.code),
+					hex: String(c.hex),
+					imagePath: c.image_path === null ? null : String(c.image_path)
+				})),
 				variants: variants.rows.map((v) => ({
 					id: Number(v.id),
 					colour: String(v.colour),

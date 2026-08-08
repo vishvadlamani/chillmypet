@@ -39,14 +39,13 @@
 		"selectColor": "Elige un color",
 		"selectSize": "Elige una talla",
 		"sizeChart": "Guía de tallas",
-		"sizeChartTitle": "Encuentra la talla correcta",
-		"sizeChartHint": "Mide el pecho de tu perro en su punto más ancho, justo detrás de las patas delanteras. ¿Entre dos tallas? Elige la mayor.",
+		"sizeChartTitle": "Guía de tallas",
+		"sizeChartHint": "Si tu perro está entre dos tallas, recomendamos elegir la mayor para un ajuste más cómodo y seguro.",
 		"sizeChartColumns": {
 			"size": "Talla",
 			"chest": "Contorno de pecho",
 			"weight": "Peso"
 		},
-		"featuresTitle": "Hecho para días de agua de verdad",
 		"faqTitle": "Preguntas frecuentes",
 		"galleryAlt": "{product} en {colour}, vista {index}",
 		"colors": {
@@ -65,50 +64,40 @@
 	"products": {
 		"dog-life-jacket": {
 			"name": "Chaleco salvavidas para perros",
-			"tagline": "Deja que sea el aventurero.",
-			"description": "Un chaleco de flotación pensado para perros que llegan al agua antes que tú. Los paneles de espuma de célula cerrada se colocan a lo largo de las costillas y bajo el pecho para que tu perro flote nivelado en vez de hundir el hocico, y el conjunto drena y se seca entre baños.",
-			"features": [
-				{
-					"title": "Asa de elevación",
-					"body": "Un asa reforzada queda sobre el centro de gravedad del perro, de modo que subirlo a un muelle o a una barca lo mantiene nivelado en lugar de inclinarlo hacia delante."
-				},
-				{
-					"title": "Se seca entre baños",
-					"body": "El tejido de secado rápido y la espuma de célula cerrada sueltan el agua enseguida, así el chaleco está listo para un segundo baño la misma tarde y se guarda sin quedar húmedo."
-				},
-				{
-					"title": "Flotador de barbilla proporcionado",
-					"body": "El flotador delantero está dimensionado para cada talla en lugar de reutilizarse en toda la gama, así sostiene la barbilla sin presionar la garganta en perros pequeños."
-				},
-				{
-					"title": "Ajustable en el pecho",
-					"body": "Dos correas abdominales y una de cuello se ajustan por separado, lo que cubre a perros de pecho profundo o ancho que quedan entre tallas estándar."
-				}
-			],
+			"tagline": "Deja que sea el aventurero",
+			"description": "Si la talla que elegiste no es la adecuada, ofrecemos cambios y devoluciones gratuitos durante 30 días, sin preguntas. Si tu perro está entre dos tallas, recomendamos elegir la mayor para un ajuste más cómodo y seguro.",
 			"faq": [
 				{
-					"q": "¿Le molestará el flotador de barbilla?",
-					"a": "No debería. El flotador se dimensiona por chaleco para sostener la cabeza sin presionar la garganta. Si tu perro está entre dos tallas, la mayor deja más holgura en la correa del cuello."
+					"q": "¿Cuándo recibiré mi pedido? 🚚",
+					"a": "Necesitamos entre 2 y 4 días laborables para preparar tu pedido. Una vez enviado, el 93% de los pedidos llega entre 5 y 12 días después. Puedes consultar nuestra política de envíos para más detalles. Si tienes cualquier duda, escríbenos a contact@chillmypet.com."
 				},
 				{
-					"q": "¿Cuánto tarda mi perro en acostumbrarse?",
-					"a": "La mayoría se adapta tras un par de sesiones cortas en tierra. Pónselo antes de un paseo o de comer varias veces para que asocie el chaleco con algo bueno antes del primer baño."
+					"q": "¿Y si la talla no le queda bien a mi perro? 📏",
+					"a": "Ofrecemos cambios y devoluciones gratuitos durante 30 días, sin preguntas. Puedes consultar nuestra política de devoluciones y cambios para más detalles. Si tienes dudas o quieres iniciar un cambio, escríbenos a contact@chillmypet.com."
 				},
 				{
-					"q": "¿Cómo lo seco y lo guardo?",
-					"a": "Aclara con agua dulce después de sal o cloro y cuélgalo por el asa fuera del sol directo. No uses secadora: el calor degrada la espuma."
+					"q": "¿El apoyo de barbilla es cómodo para perros pequeños?",
+					"a": "Sí: el apoyo de barbilla está diseñado para quedar de forma natural bajo la mandíbula sin limitar el movimiento, y está proporcionado en todas las tallas, así que las razas pequeñas reciben el mismo soporte que las grandes."
 				},
 				{
-					"q": "Mi perro está entre dos tallas. ¿Cuál elijo?",
-					"a": "La mayor. El contorno de pecho importa más que el peso, y las correas recogen la holgura sobrante. Un chaleco algo grande se ajusta; uno pequeño no se puede agrandar."
+					"q": "¿Sirve para un perro que nunca ha llevado chaleco salvavidas?",
+					"a": "La mayoría de los perros se adapta en los primeros minutos, sobre todo cuando están en el agua y notan el soporte. Recomendamos una prueba de 5 minutos en agua poco profunda antes de una salida larga."
 				},
 				{
-					"q": "¿Puedo levantar a mi perro por el asa?",
-					"a": "Sí, para eso está: el asa va rematada con costura de refuerzo en la costura portante. Está pensada para levantar al perro de la talla correspondiente, no para atarlo ni izarlo."
+					"q": "¿Se puede mojar y secar rápido entre usos?",
+					"a": "Por supuesto: los materiales son de secado rápido y están hechos para un uso repetido en el agua, así que puedes usarlo un día y tenerlo listo al siguiente."
 				},
 				{
-					"q": "¿Y si la talla no es la adecuada?",
-					"a": "Devuélvelo en 30 días, sin haberlo usado en el agua, y te cambiamos la talla o te reembolsamos. Consulta la política de reembolsos."
+					"q": "¿Cómo sé qué talla pedir?",
+					"a": "Consulta nuestra guía de tallas según el contorno de pecho y el peso. Si tu perro está entre dos tallas, recomendamos elegir la mayor para un ajuste más cómodo y seguro."
+				},
+				{
+					"q": "¿El asa aguanta para sacar a mi perro del agua?",
+					"a": "Sí: el asa está reforzada y cosida para permitir una elevación rápida, ideal para subir a tu perro a un muelle, una barca o la orilla."
+				},
+				{
+					"q": "¿Y si al llegar la talla no es la correcta?",
+					"a": "Sin problema: escríbenos y te ayudamos a cambiarla por la talla correcta, sin complicaciones."
 				}
 			]
 		}

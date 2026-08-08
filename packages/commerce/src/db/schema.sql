@@ -35,6 +35,7 @@ create table if not exists product_colours (
 	product_id integer not null references products (id) on delete cascade,
 	code text not null,
 	hex text not null,
+	image_path text,
 	position integer not null default 0,
 	unique (product_id, code)
 );
