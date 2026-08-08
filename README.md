@@ -1,46 +1,131 @@
 # chillmypet
 
-A Cloudflare Worker serving chillmypet.com. The page content is a placeholder.
+SvelteKit storefront for chillmypet.com — product detail page and checkout,
+backed by Turso/libSQL, deployed to Cloudflare Workers.
 
-## Local development
+## Quick start
 
 ```sh
 npm install
-npm run dev      # http://127.0.0.1:8787
+cp .env.example .env      # optional; without it you get a local SQLite file
+npm run db:migrate
+npm run db:seed
+npm run dev               # http://localhost:5173
 ```
 
-Routes: `/` serves the landing page, `/health` returns `{"status":"ok"}`.
+Routes: `/` (landing), `/products/dog-life-jacket`, `/checkout`,
+`POST /api/cart` (server-side re-pricing), `POST /locale` (language switch).
+
+## Content and imagery
+
+The layout follows standard e-commerce conventions, but **all copy is original
+and the artwork is placeholder**. `src/lib/components/ProductImage.svelte` draws
+a tinted SVG per colour rather than shipping photography — swap it for real
+product images before launch. Nothing here reuses another store's brand name,
+photos, or marketing text.
+
+## Languages
+
+Every customer-facing string lives in `src/lib/i18n/locales/<code>.json`.
+**Adding a language is adding one file** — `src/lib/i18n/index.ts` discovers
+packs with `import.meta.glob`, so no registry needs updating.
+
+```sh
+cp src/lib/i18n/locales/en.json src/lib/i18n/locales/fr.json
+# translate the values, keep the keys
+```
+
+The new language appears in the header switcher automatically. Anything missing
+from a pack falls back to English rather than rendering a raw key.
+
+How it resolves per request: `src/hooks.server.ts` reads the `locale` cookie,
+falls back to `Accept-Language`, and puts the result on `event.locals.locale`.
+The layout load passes it to the client, and components build a translator with
+`createTranslator(locale)`. Translators are created per render, never stored at
+module scope — the server handles many locales concurrently.
+
+Product copy is keyed by slug under `products.<slug>` in each pack; the database
+holds only commerce data (prices, SKUs, stock). Colour names are keyed by code
+(`product.colors.blue_camo`) so variants translate too. If the catalogue grows
+past a handful of products, move product copy into a `product_translations`
+table and keep the packs for UI chrome.
+
+## Database
+
+Turso in deployment, a local `local.db` file otherwise, so everything runs
+before credentials exist. Schema lives in `src/lib/server/schema.sql`.
+
+```sh
+npm run db:migrate    # apply schema (idempotent)
+npm run db:seed       # one product, 10 colours, 5 sizes, 50 variants
+```
+
+To point at Turso, set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` in `.env`,
+then re-run both commands to provision the remote database.
+
+Two invariants worth preserving:
+
+- **Prices are never trusted from the browser.** The cart stores prices for
+  display, but `priceVariants()` re-reads them from the database on both the
+  `/api/cart` summary and the checkout action.
+- **Stock decrements are guarded.** `createOrder()` runs
+  `update ... where id = ? and stock >= ?` inside a transaction and fails the
+  order if `rowsAffected` is 0, so concurrent checkouts can't oversell.
+
+## Payment
+
+No payment provider is wired up. Placing an order writes it with status
+`pending_payment` and the checkout page says so — **no card details are
+collected anywhere**. Add a provider (Stripe, Cloudflare's payment partners)
+before taking real orders, and move the status transition into its webhook.
+
+## Testing
+
+```sh
+npm run check                  # svelte-check
+npm i --no-save playwright     # not a dependency; deploys stay lean
+npm run dev                    # in another shell, with a seeded DB
+npm run test:e2e
+```
+
+If Playwright can't find a browser (sandboxes often ship their own), point it at
+one: `CHROMIUM_PATH=/path/to/chromium npm run test:e2e`.
+
+The end-to-end script drives a real browser through add-to-cart, cart
+persistence across reload, out-of-stock variants, shipping-method totals,
+checkout validation failure and recovery, a real order, and the language
+switch. It writes an order to whichever database `.env` points at, so run it
+against local SQLite, not production. Screenshots land in `tests/screenshots/`.
 
 ## Deploying
 
-Deployment has not happened yet. It requires Cloudflare credentials that are not
-in this repo.
+```sh
+npm run build
+npx wrangler deploy
+```
 
-1. Create an API token at **Cloudflare dashboard → My Profile → API Tokens**,
-   using the "Edit Cloudflare Workers" template. To let the token attach the
-   custom domains in `wrangler.toml`, it also needs **Zone → DNS → Edit** on
-   chillmypet.com.
-2. Deploy from a machine that has the token:
+Or push to `main` and let `.github/workflows/deploy.yml` do it, once
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are set as repository
+secrets. Give the token the "Edit Cloudflare Workers" template plus
+**Zone → DNS → Edit** on chillmypet.com so it can attach the custom domains.
 
-   ```sh
-   export CLOUDFLARE_API_TOKEN=...
-   npm run deploy
-   ```
+Set the database secrets on the Worker too:
 
-   Or push to `main` and let `.github/workflows/deploy.yml` run it, after adding
-   `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as repository secrets.
+```sh
+npx wrangler secret put TURSO_DATABASE_URL
+npx wrangler secret put TURSO_AUTH_TOKEN
+```
 
-## Pointing chillmypet.com at the Worker
+### Pointing chillmypet.com at the Worker
 
 `wrangler.toml` declares `chillmypet.com` and `www.chillmypet.com` as custom
 domains, so `wrangler deploy` creates the DNS records itself — but only once the
-domain is an active zone on the same Cloudflare account. If you registered the
-domain elsewhere, first add the site in the Cloudflare dashboard and update the
-nameservers at your registrar; propagation usually takes under an hour. Until
-the zone is active, deploys fail with a "zone not found" error.
+domain is an active zone on the same Cloudflare account. If you registered it
+elsewhere, add the site in the Cloudflare dashboard and update the nameservers
+at your registrar first. Until then, deploys fail with "zone not found".
 
-Verify afterwards with:
+Verify with:
 
 ```sh
-curl https://chillmypet.com/health
+curl https://chillmypet.com/api/cart -X POST -d '{"lines":[]}'
 ```

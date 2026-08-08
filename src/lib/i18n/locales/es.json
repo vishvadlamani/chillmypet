@@ -1,0 +1,174 @@
+{
+	"meta": {
+		"name": "Español",
+		"dir": "ltr",
+		"currency": "USD"
+	},
+	"nav": {
+		"home": "Inicio",
+		"shop": "Tienda",
+		"contact": "Contacto",
+		"trackOrder": "Seguir pedido",
+		"cart": "Carrito",
+		"language": "Idioma"
+	},
+	"announcement": {
+		"banner": "Envío gratis en todos los pedidos — {discount}% de descuento en toda la tienda"
+	},
+	"common": {
+		"brand": "ChillMyPet",
+		"save": "Ahorra {percent}%",
+		"from": "Desde",
+		"loading": "Cargando…",
+		"required": "Obligatorio",
+		"continue": "Continuar",
+		"back": "Volver",
+		"edit": "Cambiar"
+	},
+	"product": {
+		"colorLabel": "Color",
+		"sizeLabel": "Talla",
+		"quantityLabel": "Cantidad",
+		"addToCart": "Añadir al carrito",
+		"added": "Añadido al carrito",
+		"buyNow": "Comprar ahora",
+		"soldOut": "Agotado",
+		"outOfStockVariant": "Esta combinación está agotada",
+		"inStock": "En stock — se envía en 24 horas",
+		"lowStock": "Solo quedan {count}",
+		"selectColor": "Elige un color",
+		"selectSize": "Elige una talla",
+		"sizeChart": "Guía de tallas",
+		"sizeChartTitle": "Encuentra la talla correcta",
+		"sizeChartHint": "Mide el pecho de tu perro en su punto más ancho, justo detrás de las patas delanteras. ¿Entre dos tallas? Elige la mayor.",
+		"sizeChartColumns": {
+			"size": "Talla",
+			"chest": "Contorno de pecho",
+			"weight": "Peso"
+		},
+		"featuresTitle": "Hecho para días de agua de verdad",
+		"faqTitle": "Preguntas frecuentes",
+		"galleryAlt": "{product} en {colour}, vista {index}",
+		"colors": {
+			"sailboat": "Velero",
+			"blue_camo": "Camuflaje azul",
+			"green": "Verde",
+			"pink_camo": "Camuflaje rosa",
+			"floral": "Floral",
+			"yellow": "Amarillo",
+			"blue": "Azul",
+			"pink": "Rosa",
+			"purple": "Morado",
+			"red": "Rojo"
+		}
+	},
+	"products": {
+		"dog-life-jacket": {
+			"name": "Chaleco salvavidas para perros",
+			"tagline": "Deja que sea el aventurero.",
+			"description": "Un chaleco de flotación pensado para perros que llegan al agua antes que tú. Los paneles de espuma de célula cerrada se colocan a lo largo de las costillas y bajo el pecho para que tu perro flote nivelado en vez de hundir el hocico, y el conjunto drena y se seca entre baños.",
+			"features": [
+				{
+					"title": "Asa de elevación",
+					"body": "Un asa reforzada queda sobre el centro de gravedad del perro, de modo que subirlo a un muelle o a una barca lo mantiene nivelado en lugar de inclinarlo hacia delante."
+				},
+				{
+					"title": "Se seca entre baños",
+					"body": "El tejido de secado rápido y la espuma de célula cerrada sueltan el agua enseguida, así el chaleco está listo para un segundo baño la misma tarde y se guarda sin quedar húmedo."
+				},
+				{
+					"title": "Flotador de barbilla proporcionado",
+					"body": "El flotador delantero está dimensionado para cada talla en lugar de reutilizarse en toda la gama, así sostiene la barbilla sin presionar la garganta en perros pequeños."
+				},
+				{
+					"title": "Ajustable en el pecho",
+					"body": "Dos correas abdominales y una de cuello se ajustan por separado, lo que cubre a perros de pecho profundo o ancho que quedan entre tallas estándar."
+				}
+			],
+			"faq": [
+				{
+					"q": "¿Le molestará el flotador de barbilla?",
+					"a": "No debería. El flotador se dimensiona por chaleco para sostener la cabeza sin presionar la garganta. Si tu perro está entre dos tallas, la mayor deja más holgura en la correa del cuello."
+				},
+				{
+					"q": "¿Cuánto tarda mi perro en acostumbrarse?",
+					"a": "La mayoría se adapta tras un par de sesiones cortas en tierra. Pónselo antes de un paseo o de comer varias veces para que asocie el chaleco con algo bueno antes del primer baño."
+				},
+				{
+					"q": "¿Cómo lo seco y lo guardo?",
+					"a": "Aclara con agua dulce después de sal o cloro y cuélgalo por el asa fuera del sol directo. No uses secadora: el calor degrada la espuma."
+				},
+				{
+					"q": "Mi perro está entre dos tallas. ¿Cuál elijo?",
+					"a": "La mayor. El contorno de pecho importa más que el peso, y las correas recogen la holgura sobrante. Un chaleco algo grande se ajusta; uno pequeño no se puede agrandar."
+				},
+				{
+					"q": "¿Puedo levantar a mi perro por el asa?",
+					"a": "Sí, para eso está: el asa va rematada con costura de refuerzo en la costura portante. Está pensada para levantar al perro de la talla correspondiente, no para atarlo ni izarlo."
+				},
+				{
+					"q": "¿Y si la talla no es la adecuada?",
+					"a": "Devuélvelo en 30 días, sin haberlo usado en el agua, y te cambiamos la talla o te reembolsamos. Consulta la política de reembolsos."
+				}
+			]
+		}
+	},
+	"cart": {
+		"title": "Tu carrito",
+		"empty": "Tu carrito está vacío.",
+		"emptyAction": "Seguir comprando",
+		"item": "artículo",
+		"items": "artículos",
+		"remove": "Quitar",
+		"subtotal": "Subtotal",
+		"checkout": "Finalizar compra",
+		"quantity": "Cant."
+	},
+	"checkout": {
+		"title": "Finalizar compra",
+		"contactTitle": "Contacto",
+		"email": "Correo electrónico",
+		"emailHint": "Aquí enviaremos la confirmación y el seguimiento.",
+		"phone": "Teléfono",
+		"shippingTitle": "Dirección de envío",
+		"firstName": "Nombre",
+		"lastName": "Apellidos",
+		"address1": "Dirección",
+		"address2": "Piso, puerta, etc. (opcional)",
+		"city": "Ciudad",
+		"province": "Provincia / Estado",
+		"postalCode": "Código postal",
+		"country": "País",
+		"methodTitle": "Método de envío",
+		"methodStandard": "Estándar",
+		"methodStandardEta": "5–8 días laborables",
+		"methodExpress": "Exprés",
+		"methodExpressEta": "2–3 días laborables",
+		"free": "Gratis",
+		"summaryTitle": "Resumen del pedido",
+		"subtotal": "Subtotal",
+		"shipping": "Envío",
+		"discount": "Descuento",
+		"total": "Total",
+		"placeOrder": "Realizar pedido",
+		"placing": "Procesando pedido…",
+		"paymentTitle": "Pago",
+		"paymentPending": "Todavía no hay ninguna pasarela de pago conectada a esta tienda. Al realizar el pedido se registra y te enviamos un enlace de factura — en esta página no se recogen datos de tarjeta.",
+		"successTitle": "Pedido recibido",
+		"successBody": "Gracias — el pedido {orderNumber} ha quedado registrado. Te enviamos la confirmación a {email}.",
+		"successContinue": "Seguir comprando",
+		"errors": {
+			"emailInvalid": "Introduce un correo electrónico válido.",
+			"fieldRequired": "{field} es obligatorio.",
+			"cartEmpty": "Tu carrito está vacío.",
+			"variantUnavailable": "{item} ya no está disponible en esa talla o color.",
+			"generic": "Algo falló al realizar el pedido. No se ha cobrado nada — inténtalo de nuevo."
+		}
+	},
+	"footer": {
+		"shipping": "Política de envíos",
+		"refunds": "Política de reembolsos",
+		"contact": "Contacto",
+		"rights": "© {year} ChillMyPet. Todos los derechos reservados."
+	}
+}

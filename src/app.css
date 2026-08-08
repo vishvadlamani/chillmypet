@@ -1,0 +1,40 @@
+@import 'tailwindcss';
+
+@theme {
+	--color-ink-50: #f5f7f8;
+	--color-ink-100: #e7ecee;
+	--color-ink-200: #cfd8dc;
+	--color-ink-400: #7b8b93;
+	--color-ink-600: #47585f;
+	--color-ink-900: #16242a;
+
+	--color-tide-50: #eef7fb;
+	--color-tide-100: #d5ecf5;
+	--color-tide-500: #1a94c4;
+	--color-tide-600: #14789f;
+	--color-tide-700: #0f5c79;
+
+	--color-coral-500: #e2543f;
+	--color-coral-600: #c8412d;
+
+	--font-sans:
+		ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+html {
+	scroll-behavior: smooth;
+}
+
+body {
+	background: var(--color-white);
+	color: var(--color-ink-900);
+	font-family: var(--font-sans);
+	-webkit-font-smoothing: antialiased;
+}
+
+/* Focus ring that survives on both the light page and the dark header. */
+:focus-visible {
+	outline: 2px solid var(--color-tide-500);
+	outline-offset: 2px;
+	border-radius: 2px;
+}

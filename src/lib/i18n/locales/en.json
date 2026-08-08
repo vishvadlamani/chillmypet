@@ -1,0 +1,174 @@
+{
+	"meta": {
+		"name": "English",
+		"dir": "ltr",
+		"currency": "USD"
+	},
+	"nav": {
+		"home": "Home",
+		"shop": "Shop",
+		"contact": "Contact",
+		"trackOrder": "Track order",
+		"cart": "Cart",
+		"language": "Language"
+	},
+	"announcement": {
+		"banner": "Free shipping on every order — {discount}% off sitewide"
+	},
+	"common": {
+		"brand": "ChillMyPet",
+		"save": "Save {percent}%",
+		"from": "From",
+		"loading": "Loading…",
+		"required": "Required",
+		"continue": "Continue",
+		"back": "Back",
+		"edit": "Change"
+	},
+	"product": {
+		"colorLabel": "Colour",
+		"sizeLabel": "Size",
+		"quantityLabel": "Quantity",
+		"addToCart": "Add to cart",
+		"added": "Added to cart",
+		"buyNow": "Buy it now",
+		"soldOut": "Sold out",
+		"outOfStockVariant": "This combination is out of stock",
+		"inStock": "In stock — ships within 24 hours",
+		"lowStock": "Only {count} left",
+		"selectColor": "Select a colour",
+		"selectSize": "Select a size",
+		"sizeChart": "Size chart",
+		"sizeChartTitle": "Find the right fit",
+		"sizeChartHint": "Measure your dog's chest at its widest point, just behind the front legs. Between sizes? Size up.",
+		"sizeChartColumns": {
+			"size": "Size",
+			"chest": "Chest girth",
+			"weight": "Weight"
+		},
+		"featuresTitle": "Built for real water days",
+		"faqTitle": "Common questions",
+		"galleryAlt": "{product} in {colour}, view {index}",
+		"colors": {
+			"sailboat": "Sailboat",
+			"blue_camo": "Blue Camo",
+			"green": "Green",
+			"pink_camo": "Pink Camo",
+			"floral": "Floral",
+			"yellow": "Yellow",
+			"blue": "Blue",
+			"pink": "Pink",
+			"purple": "Purple",
+			"red": "Red"
+		}
+	},
+	"products": {
+		"dog-life-jacket": {
+			"name": "Dog Life Jacket",
+			"tagline": "Let them be the adventurous one.",
+			"description": "A buoyancy vest built for dogs who get to the water before you do. Closed-cell foam panels sit along the ribs and under the chest so your dog floats level instead of nose-down, and the whole thing drains and dries between swims.",
+			"features": [
+				{
+					"title": "Lift-assist handle",
+					"body": "A reinforced handle sits over the dog's centre of gravity, so lifting them onto a dock or into a boat keeps them level rather than tipping them forward."
+				},
+				{
+					"title": "Dries between swims",
+					"body": "Quick-dry shell and closed-cell foam shed water fast, so the jacket is ready for a second swim the same afternoon and stores without staying damp."
+				},
+				{
+					"title": "Proportioned chin float",
+					"body": "The front float is scaled to each size rather than reused across the range, so it holds the chin up without pushing against the throat on smaller dogs."
+				},
+				{
+					"title": "Adjustable through the chest",
+					"body": "Two belly straps and a neck strap adjust independently, which covers deep-chested and barrel-chested dogs that fall between standard sizes."
+				}
+			],
+			"faq": [
+				{
+					"q": "Will the chin float bother my dog?",
+					"a": "It shouldn't. The float is sized per jacket so it supports the head without pressing on the throat. If your dog is between sizes, the larger size gives the neck strap more room."
+				},
+				{
+					"q": "How long before my dog is comfortable in it?",
+					"a": "Most dogs settle after a couple of short sessions on dry land. Put it on before a walk or a meal a few times so the jacket is associated with something good before the first swim."
+				},
+				{
+					"q": "How do I dry and store it?",
+					"a": "Rinse with fresh water after salt or chlorine, then hang it by the handle out of direct sun. Don't machine dry — heat breaks down the foam."
+				},
+				{
+					"q": "My dog is between two sizes. Which do I pick?",
+					"a": "Size up. Chest girth matters more than weight, and the straps take up the extra slack. A jacket that's slightly large adjusts down; one that's too small can't be let out."
+				},
+				{
+					"q": "Can I lift my dog by the handle?",
+					"a": "Yes, that's what it's for — the handle is bar-tacked into the load-bearing seam. It's rated for lifting the dog the jacket is sized for, not for tethering or hoisting."
+				},
+				{
+					"q": "What if the fit is wrong?",
+					"a": "Send it back within 30 days, unworn in water, and we'll exchange the size or refund it. See the refund policy for details."
+				}
+			]
+		}
+	},
+	"cart": {
+		"title": "Your cart",
+		"empty": "Your cart is empty.",
+		"emptyAction": "Continue shopping",
+		"item": "item",
+		"items": "items",
+		"remove": "Remove",
+		"subtotal": "Subtotal",
+		"checkout": "Checkout",
+		"quantity": "Qty"
+	},
+	"checkout": {
+		"title": "Checkout",
+		"contactTitle": "Contact",
+		"email": "Email",
+		"emailHint": "Order confirmation and tracking go here.",
+		"phone": "Phone",
+		"shippingTitle": "Shipping address",
+		"firstName": "First name",
+		"lastName": "Last name",
+		"address1": "Address",
+		"address2": "Apartment, suite, etc. (optional)",
+		"city": "City",
+		"province": "State / Province",
+		"postalCode": "Postal code",
+		"country": "Country",
+		"methodTitle": "Shipping method",
+		"methodStandard": "Standard",
+		"methodStandardEta": "5–8 business days",
+		"methodExpress": "Express",
+		"methodExpressEta": "2–3 business days",
+		"free": "Free",
+		"summaryTitle": "Order summary",
+		"subtotal": "Subtotal",
+		"shipping": "Shipping",
+		"discount": "Discount",
+		"total": "Total",
+		"placeOrder": "Place order",
+		"placing": "Placing order…",
+		"paymentTitle": "Payment",
+		"paymentPending": "No payment provider is connected to this store yet. Placing an order records it and sends you an invoice link — no card details are collected on this page.",
+		"successTitle": "Order received",
+		"successBody": "Thanks — order {orderNumber} is recorded. A confirmation is on its way to {email}.",
+		"successContinue": "Keep shopping",
+		"errors": {
+			"emailInvalid": "Enter a valid email address.",
+			"fieldRequired": "{field} is required.",
+			"cartEmpty": "Your cart is empty.",
+			"variantUnavailable": "{item} is no longer available in that size or colour.",
+			"generic": "Something went wrong placing the order. Nothing was charged — please try again."
+		}
+	},
+	"footer": {
+		"shipping": "Shipping policy",
+		"refunds": "Refund policy",
+		"contact": "Contact us",
+		"rights": "© {year} ChillMyPet. All rights reserved."
+	}
+}

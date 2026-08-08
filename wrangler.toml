@@ -1,8 +1,13 @@
 name = "chillmypet"
-main = "src/index.js"
+main = ".svelte-kit/cloudflare/_worker.js"
 compatibility_date = "2026-08-08"
+compatibility_flags = ["nodejs_compat"]
 
-# Custom-domain routes only resolve if chillmypet.com is an active zone on the
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"
+
+# Custom-domain routes only resolve once chillmypet.com is an active zone on the
 # same Cloudflare account; deploys fail with "zone not found" until it is.
 [[routes]]
 pattern = "chillmypet.com"
