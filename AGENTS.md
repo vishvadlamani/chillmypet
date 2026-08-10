@@ -156,9 +156,28 @@ Not built, in rough priority order:
    consent for advertising cookies before taking EU traffic.
 4. **Admin.** No way to fulfil, refund, or look up a customer.
 5. **Transactional email.** No order confirmation is sent.
-6. **DNS.** chillmypet.com is not pointed at the Worker yet. `wrangler deploy`
-   fails with "zone not found" until the domain is an active zone on the same
-   Cloudflare account.
+6. **DNS.** chillmypet.com is an active Cloudflare zone with **zero DNS records**
+   — nothing resolves yet. The zone being active means `wrangler deploy` with
+   the production config would attach the custom domains immediately, so do not
+   run it until the store can actually serve a request.
+
+## Deploying
+
+`wrangler.staging.toml` deploys to `chillmypet-staging.<subdomain>.workers.dev`
+with **no custom domains**, so it can never take the live domain down. Use it to
+verify a build before touching production:
+
+```sh
+cd apps/storefront
+npm run build && npx wrangler deploy -c wrangler.staging.toml
+```
+
+The production config (`wrangler.toml`) declares chillmypet.com and www as
+custom domains. Deploying it points the live domain at whatever you just built,
+in one step, with no staged rollout — so the store must be able to serve a
+request first. That means `TURSO_DATABASE_URL` set as a Worker secret: on
+Workers `@libsql/client` resolves to its web build, which rejects `file:` URLs
+outright, so without it every request throws before any route runs.
 
 ## Content and assets — provenance
 

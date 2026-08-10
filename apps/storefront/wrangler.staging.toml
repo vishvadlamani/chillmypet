@@ -1,0 +1,10 @@
+# Staging: no custom domains, so this can never take chillmypet.com down.
+name = "chillmypet-staging"
+main = ".svelte-kit/cloudflare/_worker.js"
+compatibility_date = "2026-08-08"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"
