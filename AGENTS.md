@@ -116,6 +116,20 @@ console means you've done this somewhere.
 handle, keeps writing to the unlinked inode, and you'll chase phantom failures.
 Restart the server after reseeding.
 
+**Browser tests can't see SSR bugs.** Playwright hydrates before it asserts, so
+all 39 of them passed against a product page whose server-rendered HTML said
+"Sold out" with no variant selected. Anything that must be right in the *first*
+response — stock state, meta tags, canonical URLs, structured data — needs an
+assertion on the raw bytes. `tests/e2e.mjs` opens with a block that `fetch`es the
+HTML and never touches the browser; put such checks there.
+
+**A deploy is not visible everywhere at once.** Immediately after
+`wrangler deploy`, a plain request can still be served the previous version — I
+spent a while proving a fix worked before realising the fix was already live and
+the response was stale. Verify with a cache-busting query string, or retry for a
+minute, before concluding a deploy didn't take. Confirm against the version id
+that `wrangler deployments list` reports.
+
 ## Adding things
 
 **A language:** drop `apps/storefront/src/lib/i18n/locales/<code>.json` next to
@@ -143,9 +157,18 @@ reason; it costs a network hop and a deploy pipeline.
 ## State of play
 
 Working: product page, cart, checkout, orders, customers, multi-tenancy, i18n
-(en/es), Meta pixel + Conversions API, Cloudflare deploy pipeline. The store now
-runs on the framework: catalogue, options, translations and metafields all come
-from `packages/ecomwithai`.
+(en/es), Cloudflare deploy pipeline. The store now runs on the framework:
+catalogue, options, translations and metafields all come from
+`packages/ecomwithai`.
+
+Meta tracking is **fully live**: the browser pixel and the Conversions API both
+fire, deduplicated on `event_id`. The CAPI token is set on both Workers and was
+verified end to end against Meta's real API — payload built by the framework,
+`events_received: 1`, no warnings. Note the token's `debug_token` scopes read
+`read_ads_dataset_quality` only and a `GET /{pixel_id}` returns "Missing
+Permission"; that is expected. Posting to `/{dataset_id}/events` is a
+dataset-level grant, separate from the pixel-read scope, so don't take a failed
+metadata read as proof the token can't send.
 
 Payments are **wired but not switched on**. The Stripe module and the webhook
 route at `/api/stripe/webhook` exist and are tested; `commerce.payments` is null
@@ -174,10 +197,17 @@ Not built, in rough priority order:
 | Staging | `chillmypet-staging` → workers.dev, no custom domain |
 | Database | Turso `chillmypet-vish.aws-us-west-2.turso.io` (group `default`) |
 
-Both Workers hold `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` as secrets, and
-**both point at the same database** — a write test against staging is a write
-against production data. Clean up after yourself, or add a separate database
-for staging before doing anything destructive.
+Both Workers hold `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` and
+`META_CAPI_ACCESS_TOKEN` as secrets, and **both point at the same database** — a
+write test against staging is a write against production data. Clean up after
+yourself, or add a separate database for staging before doing anything
+destructive.
+
+Staging additionally sets `META_CAPI_TEST_EVENT_CODE`, so its Purchase events
+land in Events Manager > Test Events instead of ads reporting. Keep it set:
+without it, a checkout test on staging is a fabricated conversion in the numbers
+the ad account optimizes against. Change the value to whatever code Events
+Manager shows you when you want to watch a run live.
 
 Migrations run from a machine with the credentials, not from the Worker:
 
