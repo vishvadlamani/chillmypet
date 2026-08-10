@@ -62,8 +62,9 @@ fails when `rowsAffected` is 0. Replacing that with read-then-write reintroduces
 overselling under concurrency.
 
 **Tenant scoping is not optional.** Every query filters by `store_id`. A missing
-filter is a cross-store data leak, not a display bug. `tenancy.test.ts` exists
-to catch this — keep it green, and extend it when you add a module.
+filter is a cross-store data leak, not a display bug. The isolation suite in
+`packages/ecomwithai/src/commerce.test.ts` exists to catch this — keep it green,
+and extend it when you add a module.
 
 **Meta events dedupe on `event_id`.** The checkout action mints one id, sends it
 with the CAPI Purchase, and returns it so the browser fires
@@ -203,8 +204,8 @@ outright, so without it every request throws before any route runs.
 
 ## Content and assets — provenance
 
-Product copy (`products.dog-life-jacket` in the language packs), the variant
-availability matrix in `seed.js`, and the photography in
+Product copy (the `product_translations` and `content.faq` rows written by
+`seed.js`), the variant availability matrix, and the photography in
 `apps/storefront/static/products/` were taken from **floatpaw.store** on the
 owner's explicit instruction, after they stated they had verified the licensing.
 

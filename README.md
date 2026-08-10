@@ -76,10 +76,9 @@ every store; the `Host` header picks the tenant.
 
 ## Languages
 
-Every customer-facing string lives in
-`apps/storefront/src/lib/i18n/locales/<code>.json`. **Adding a language is
-adding one file** — packs are discovered with `import.meta.glob`, so no registry
-needs updating.
+UI chrome lives in `apps/storefront/src/lib/i18n/locales/<code>.json`. **Adding
+a pack is adding one file** — packs are discovered with `import.meta.glob`, so
+no registry needs updating.
 
 ```sh
 cp .../locales/en.json .../locales/fr.json   # translate values, keep keys
@@ -91,10 +90,14 @@ request from cookie, then `Accept-Language`, then the store's default.
 Translators are built per render, never stored at module scope — the server
 handles many locales concurrently.
 
-Product copy is keyed by slug under `products.<slug>`; the database holds only
-commerce data. Colour names are keyed by code (`product.colors.blue_camo`) so
-variants translate too. Past a handful of products, move product copy into a
-`product_translations` table and keep the packs for UI chrome.
+Product copy is **not** in the packs. Titles and descriptions live in
+`product_translations` and structured blocks — size chart, FAQ — in
+`product_metafields`, both keyed by locale, because they are catalogue data that
+changes per store rather than interface text shared across all of them. So a new
+language is one pack file *plus* a row per translated product; the seed writes
+both. What the packs still carry for the catalogue is option-value labels
+(`product.colors.blue_camo`), keyed by code so variant swatches translate
+without duplicating a row per colour.
 
 ## Content and imagery
 
@@ -103,8 +106,11 @@ direction. See the provenance note in [AGENTS.md](./AGENTS.md#content-and-assets
 before adding or changing product assets.
 
 Images live in `apps/storefront/static/products/<slug>/<colour>.jpg` and are
-referenced per colour via `product_colours.image_path`, so a store without
-photography falls back to the tinted SVG placeholder in `ProductImage.svelte`.
+rows in `product_media`. An image tied to a swatch carries the
+`option_value_id` it depicts, so selecting a colour scrolls the gallery to that
+photo; `option_value_id` null means the shot is for the product as a whole. A
+store without photography falls back to the tinted SVG placeholder in
+`ProductImage.svelte`.
 
 ## Database
 
