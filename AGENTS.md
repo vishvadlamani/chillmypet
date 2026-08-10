@@ -156,10 +156,32 @@ Not built, in rough priority order:
    consent for advertising cookies before taking EU traffic.
 4. **Admin.** No way to fulfil, refund, or look up a customer.
 5. **Transactional email.** No order confirmation is sent.
-6. **DNS.** chillmypet.com is an active Cloudflare zone with **zero DNS records**
-   — nothing resolves yet. The zone being active means `wrangler deploy` with
-   the production config would attach the custom domains immediately, so do not
-   run it until the store can actually serve a request.
+6. ~~**DNS.**~~ Done — chillmypet.com and www are live on the `chillmypet`
+   Worker, HTTPS enforced.
+
+## Live environment
+
+| | |
+|---|---|
+| Production | `chillmypet` Worker → chillmypet.com, www.chillmypet.com |
+| Staging | `chillmypet-staging` → workers.dev, no custom domain |
+| Database | Turso `chillmypet-vish.aws-us-west-2.turso.io` (group `default`) |
+
+Both Workers hold `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` as secrets, and
+**both point at the same database** — a write test against staging is a write
+against production data. Clean up after yourself, or add a separate database
+for staging before doing anything destructive.
+
+Migrations run from a machine with the credentials, not from the Worker:
+
+```sh
+export TURSO_DATABASE_URL=libsql://chillmypet-vish.aws-us-west-2.turso.io
+export TURSO_AUTH_TOKEN=...
+npm run db:migrate     # idempotent, create-if-not-exists
+```
+
+`npm run db:seed` deletes and recreates the product, so it is safe on an empty
+catalogue and destructive once real orders reference those variants.
 
 ## Deploying
 
