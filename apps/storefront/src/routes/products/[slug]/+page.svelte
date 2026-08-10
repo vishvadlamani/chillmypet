@@ -29,18 +29,46 @@
 	let sizeChart = $derived((data.product.metafields['specs.size_chart'] ?? []) as SizeRow[]);
 	let faq = $derived((data.product.metafields['content.faq'] ?? []) as { q: string; a: string }[]);
 
-	let selectedColour = $state('');
-	let selectedSize = $state('');
+	// Defaults are computed, not assigned by an effect: effects don't run during
+	// SSR, so starting these empty rendered the page with no variant selected —
+	// which reads as `inStock === false` and shipped "Sold out" to anyone seeing
+	// the HTML before hydration, crawlers and no-JS visitors included.
+	const firstValue = (values: { value: string }[]) => values[0]?.value ?? '';
+
+	// Colour order is merchandising, so the first one always wins. Size is not:
+	// defaulting to M when M happens to be out of stock in that colour presents
+	// a fully stocked product as sold out, so fall through to a size that is
+	// actually buyable before giving up.
+	function preferredSize(colour: string, values: { value: string }[]) {
+		const stocked = (size: string) => (variantFor(colour, size)?.stock ?? 0) > 0;
+		if (stocked('M')) return 'M';
+		const available = values.find((s) => stocked(s.value));
+		if (available) return available.value;
+		return values.some((s) => s.value === 'M') ? 'M' : firstValue(values);
+	}
+
+	// Capturing only the initial value is the intent — these are writable
+	// selections bound to the radios, and the effect below re-anchors them when
+	// `data` changes on navigation.
+	// svelte-ignore state_referenced_locally
+	let selectedColour = $state(firstValue(data.product.options[0]?.values ?? []));
+	// svelte-ignore state_referenced_locally
+	let selectedSize = $state(
+		preferredSize(
+			firstValue(data.product.options[0]?.values ?? []),
+			data.product.options[1]?.values ?? []
+		)
+	);
 	let quantity = $state(1);
 	let added = $state(false);
 
-	// Re-anchor the selection when the product changes (or on first render).
+	// Re-anchor when the product changes under us on client-side navigation.
 	$effect(() => {
 		if (!colours.some((c) => c.value === selectedColour)) {
-			selectedColour = colours[0]?.value ?? '';
+			selectedColour = firstValue(colours);
 		}
 		if (!sizes.some((s) => s.value === selectedSize)) {
-			selectedSize = sizes.some((s) => s.value === 'M') ? 'M' : (sizes[0]?.value ?? '');
+			selectedSize = preferredSize(selectedColour, sizes);
 		}
 	});
 

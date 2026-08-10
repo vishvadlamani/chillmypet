@@ -36,6 +36,19 @@ function check(label, cond) {
 	if (!cond) process.exitCode = 1;
 }
 
+// --- server-rendered HTML, before any JavaScript runs ---
+// Playwright hydrates, so every assertion below this block sees a page that has
+// already run its effects. That blind spot shipped a product page whose SSR
+// output said "Sold out" with no variant selected, which is what crawlers, slow
+// connections and no-JS visitors got. Assert on the raw bytes.
+{
+	const html = await fetch(`${BASE}/products/dog-life-jacket`).then((r) => r.text());
+	check('SSR selects a variant', !/Dog Life Jacket in ,/.test(html));
+	check('SSR offers a buyable default', /Add to cart/i.test(html) && !/Sold out/i.test(html));
+	check('SSR checks a colour radio', /name="colour"[^>]*checked/.test(html));
+	check('SSR checks a size radio', /name="size"[^>]*checked/.test(html));
+}
+
 // --- product page ---
 await page.goto(`${BASE}/products/dog-life-jacket`, { waitUntil: 'networkidle' });
 check('title renders', (await page.textContent('h1'))?.includes('Dog Life Jacket'));

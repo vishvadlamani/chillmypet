@@ -138,6 +138,28 @@ for (const [key, value] of Object.entries(SETTINGS)) {
 }
 
 // --- product ---
+// Deleting the product cascades to its variants, and `order_items.variant_id`
+// has no ON DELETE action, so an order referencing one blocks the whole seed.
+// That refusal is the schema protecting order history — but it surfaces as a
+// bare SQLITE_CONSTRAINT_FOREIGNKEY stack trace, so say what actually happened.
+const referenced = await db.execute({
+	sql: `select count(*) as count from order_items oi
+	      join product_variants v on v.id = oi.variant_id
+	      join products p on p.id = v.product_id
+	      where p.store_id = ? and p.slug = ?`,
+	args: [STORE.id, SLUG]
+});
+if (Number(referenced.rows[0].count) > 0) {
+	console.error(
+		`Refusing to reseed: ${referenced.rows[0].count} order line(s) reference ` +
+			`variants of "${SLUG}" in ${url}.\n` +
+			`Seeding recreates the product, which would orphan them.\n` +
+			`On a throwaway database, delete the file and reseed. Against a real ` +
+			`one, migrate the catalogue instead — those are customer orders.`
+	);
+	process.exit(1);
+}
+
 await db.execute({
 	sql: 'delete from products where store_id = ? and slug = ?',
 	args: [STORE.id, SLUG]

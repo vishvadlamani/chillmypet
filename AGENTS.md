@@ -187,8 +187,11 @@ export TURSO_AUTH_TOKEN=...
 npm run db:migrate     # idempotent, create-if-not-exists
 ```
 
-`npm run db:seed` deletes and recreates the product, so it is safe on an empty
-catalogue and destructive once real orders reference those variants.
+`npm run db:seed` deletes and recreates the product. It is safe on an empty
+catalogue, and **refuses to run** once an order line references one of those
+variants — `order_items.variant_id` has no ON DELETE action, so order history
+wins. On a throwaway database (after an e2e run, say) delete the file and reseed;
+against a real one, migrate the catalogue instead.
 
 ## Deploying
 
