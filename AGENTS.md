@@ -10,11 +10,17 @@ packages/ecomwithai/    the open-source framework — EDIT HERE
 apps/storefront/        BFF: SvelteKit UI, language packs, routes
 ```
 
-`packages/ecomwithai` is the editable copy of the framework, and the standalone
-public repo is a publishing artifact produced from it by
-`npm run sync:framework`. That direction matters: extending the framework and
-running real traffic through it happen against the same files, so they cannot
-drift. Never edit the standalone repo directly.
+`packages/ecomwithai` is the editable copy of the framework, and the public repo
+at **https://github.com/vishvadlamani/ecomwithai** is a publishing artifact
+produced from it by `npm run sync:framework`. That direction matters: extending
+the framework and running real traffic through it happen against the same files,
+so they cannot drift. Never edit the public repo directly — a commit made there
+is reverted by the next sync.
+
+Publishing a change: edit here, `npm run sync:framework`, then commit and push in
+the clone at `/home/user/ecomwithai`. The framework is **Apache-2.0** while this
+repo is private and unlicensed, so anything you move into `packages/ecomwithai`
+you are publishing under that licence.
 
 npm workspaces. Run everything from the repo root:
 

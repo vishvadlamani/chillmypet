@@ -8,9 +8,10 @@ packages/ecomwithai/   the open-source framework (edit here; sync out to publish
 apps/storefront/       SvelteKit BFF: UI, language packs, routes that compose modules
 ```
 
-This store runs on [ecomwithai](./packages/ecomwithai/README.md), the framework
-extracted from it. Dogfooding is deliberate: the storefront is the first real
-traffic the framework sees, and anything awkward here is a framework bug.
+This store runs on [ecomwithai](https://github.com/vishvadlamani/ecomwithai), the
+Apache-2.0 framework extracted from it. Dogfooding is deliberate: the storefront
+is the first real traffic the framework sees, and anything awkward here is a
+framework bug.
 
 ## Quick start
 

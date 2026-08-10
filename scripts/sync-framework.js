@@ -1,10 +1,11 @@
 /**
- * Copies packages/ecomwithai into the standalone framework repo and rebuilds the
- * handoff bundle.
+ * Copies packages/ecomwithai into a clone of the public framework repo
+ * (github.com/vishvadlamani/ecomwithai) and stages the result.
  *
  * packages/ecomwithai is the editable copy: extending the framework and running
  * real traffic through it happen against the same files, so they cannot drift.
- * The standalone repo is a publishing artifact produced from here.
+ * The public repo is a publishing artifact produced from here — this script only
+ * ever writes outward, so a commit made directly there is silently reverted.
  *
  *   node scripts/sync-framework.js /path/to/ecomwithai
  */
@@ -25,4 +26,4 @@ for (const entry of ['src', 'package.json', 'tsconfig.json', 'README.md', 'AGENT
 
 // The storefront's workspace link must not travel into the published package.
 execFileSync('git', ['-C', target, 'add', '-A'], { stdio: 'inherit' });
-console.log(`Synced packages/ecomwithai -> ${target}. Review, commit and re-bundle there.`);
+console.log(`Synced packages/ecomwithai -> ${target}. Review, commit and push there.`);

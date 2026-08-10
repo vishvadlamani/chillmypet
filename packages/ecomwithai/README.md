@@ -257,4 +257,5 @@ anything commits.
 
 ## Licence
 
-MIT.
+Apache-2.0. Permissive like MIT, with an explicit patent grant — which
+matters for a package you are putting in a checkout path.
