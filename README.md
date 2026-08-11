@@ -180,7 +180,12 @@ code:
 cd apps/storefront
 npx wrangler secret put STRIPE_SECRET_KEY
 npx wrangler secret put STRIPE_WEBHOOK_SECRET      # from the endpoint you create
+npx wrangler secret put STRIPE_STATEMENT_DESCRIPTOR_SUFFIX   # e.g. CHILLMYPET
 ```
+
+Set the descriptor if the Stripe account is not named ChillMyPet. It is what
+appears on the card statement, and a buyer who doesn't recognise the line
+disputes the charge — which costs the fee, the goods, and the dispute.
 
 Point a Stripe webhook endpoint at `https://<domain>/api/stripe/webhook` and
 subscribe it to `checkout.session.completed`, `checkout.session.expired` and
