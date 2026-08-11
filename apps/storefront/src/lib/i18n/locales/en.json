@@ -127,6 +127,207 @@
 		"shipping": "Shipping policy",
 		"refunds": "Refund policy",
 		"contact": "Contact us",
-		"rights": "© {year} ChillMyPet. All rights reserved."
+		"rights": "© {year} ChillMyPet. All rights reserved.",
+		"privacy": "Privacy policy",
+		"terms": "Terms of sale"
+	},
+	"policies": {
+		"updatedLabel": "Last updated",
+		"backHome": "Back to shop",
+		"questions": "Questions about this policy? Email {email}.",
+		"shipping": {
+			"title": "Shipping policy",
+			"sections": [
+				{
+					"heading": "Processing time",
+					"body": [
+						"Orders are picked and packed within 1–2 business days of payment clearing. Orders placed at a weekend or on a public holiday start processing the next business day.",
+						"You'll get a confirmation when your order is placed, and a second message with tracking once it ships."
+					]
+				},
+				{
+					"heading": "Delivery options and cost",
+					"body": [
+						"Standard shipping is free and takes 5–8 business days after dispatch.",
+						"Express shipping costs $12.00 and takes 2–3 business days after dispatch.",
+						"Delivery estimates are for transit time after dispatch and don't include the processing time above."
+					]
+				},
+				{
+					"heading": "Where we ship",
+					"body": [
+						"We ship to every destination you can select at checkout. If your country isn't listed, we can't currently deliver there.",
+						"Import duties and taxes for international orders are set by your country and are the recipient's responsibility. We can't calculate or pre-pay them."
+					]
+				},
+				{
+					"heading": "Delays and lost parcels",
+					"body": [
+						"Once a parcel is with the carrier, its progress is out of our hands. If tracking hasn't moved for 10 business days, email us and we'll open an investigation with the carrier.",
+						"If an order is confirmed lost in transit, we'll replace it or refund it in full — your choice."
+					]
+				},
+				{
+					"heading": "Wrong address",
+					"body": [
+						"We ship to the address entered at checkout. Email us as soon as possible if you spot a mistake — we can change it before dispatch, but not after.",
+						"Parcels returned to us because of an incorrect or incomplete address can be reshipped once you cover the postage."
+					]
+				}
+			]
+		},
+		"refunds": {
+			"title": "Refund and returns policy",
+			"sections": [
+				{
+					"heading": "Your right to return",
+					"body": [
+						"You can return anything within 30 days of delivery for a refund, for any reason.",
+						"Items must be unused, in the condition you received them, and in their original packaging. A jacket that's been worn in water can't be resold, so we can't accept it back unless it's faulty."
+					]
+				},
+				{
+					"heading": "How to start a return",
+					"body": [
+						"Email {email} with your order number and what you'd like to return. We'll reply with return instructions.",
+						"Please don't send anything back before contacting us — returns without instructions can't be tracked to your order, and we may not be able to refund them."
+					]
+				},
+				{
+					"heading": "Who pays return postage",
+					"body": [
+						"If the item is faulty, damaged in transit, or not what you ordered, we pay — we'll send you a prepaid label and refund your original shipping too.",
+						"If you've changed your mind, return postage is yours to cover. We recommend a tracked service; we can only refund items that reach us."
+					]
+				},
+				{
+					"heading": "When you get your money",
+					"body": [
+						"We inspect returns on arrival and issue the refund within 10 business days.",
+						"Refunds go back to the card or wallet you paid with — we can't send them anywhere else. Your bank may take a few more days to show it."
+					]
+				},
+				{
+					"heading": "Faulty items",
+					"body": [
+						"If something arrives damaged or develops a fault, email us with a photo and your order number. We'll replace it or refund it, including postage both ways.",
+						"This sits alongside your statutory rights, which nothing in this policy limits."
+					]
+				},
+				{
+					"heading": "Cancelling an order",
+					"body": [
+						"Email us as soon as you can. If the order hasn't been dispatched we'll cancel and refund it in full. After dispatch, treat it as a return."
+					]
+				}
+			]
+		},
+		"privacy": {
+			"title": "Privacy policy",
+			"sections": [
+				{
+					"heading": "What we collect",
+					"body": [
+						"To fulfil an order we collect your name, email address, delivery address, and phone number if you give one. We keep a record of what you bought and when.",
+						"We also collect basic technical information — IP address, browser type, pages viewed — which is normal for any website and helps us keep the shop working."
+					]
+				},
+				{
+					"heading": "Payment details",
+					"body": [
+						"We never see or store your card number. Payments are processed by Stripe on their own hosted page; we receive only the fact that a payment succeeded, the amount, and the last-four digits Stripe shows us.",
+						"Stripe's handling of your data is governed by their privacy policy at stripe.com/privacy."
+					]
+				},
+				{
+					"heading": "Advertising and analytics",
+					"body": [
+						"We use the Meta pixel and Meta's Conversions API to measure which adverts lead to sales. This means some information about your visit and purchase is shared with Meta, including a hashed (irreversibly scrambled) version of your email address and delivery details, so Meta can match it to an account without us handing over the raw values.",
+						"You can limit this in your Facebook and Instagram ad settings, and by using your browser's tracking protection or an ad blocker."
+					]
+				},
+				{
+					"heading": "Cookies",
+					"body": [
+						"We use a cookie to remember your language choice and your basket, and Meta sets cookies for advertising measurement as described above.",
+						"Blocking cookies in your browser will stop the advertising ones. The basket and language cookies are needed for the shop to work."
+					]
+				},
+				{
+					"heading": "How long we keep it",
+					"body": [
+						"Order records are kept for as long as we need them for accounting and tax purposes, which is typically several years.",
+						"If you ask us to delete your data we'll do so except where we're legally required to keep a record of a sale."
+					]
+				},
+				{
+					"heading": "Your rights",
+					"body": [
+						"You can ask for a copy of the data we hold about you, ask us to correct it, or ask us to delete it. Email {email} and we'll respond as quickly as we can.",
+						"If you're in the UK or EU you also have the right to complain to your national data protection authority."
+					]
+				},
+				{
+					"heading": "Who we share with",
+					"body": [
+						"Only the parties needed to run the shop: Stripe for payment, our shipping carrier for delivery, and Meta for advertising measurement as described above. We don't sell your data."
+					]
+				}
+			]
+		},
+		"terms": {
+			"title": "Terms of sale",
+			"sections": [
+				{
+					"heading": "Prices and currency",
+					"body": [
+						"All prices are in US dollars and include no taxes unless stated at checkout. The price you see at checkout is the price you pay.",
+						"We can change prices at any time, but never after you've placed an order."
+					]
+				},
+				{
+					"heading": "Orders",
+					"body": [
+						"An order is an offer to buy. It's accepted when we dispatch it, and we may decline it — for example if an item turns out to be out of stock or we spot a pricing error. If we decline, we refund you in full.",
+						"Product photographs are representative. Colours can vary between screens."
+					]
+				},
+				{
+					"heading": "Using a dog life jacket safely",
+					"body": [
+						"A dog life jacket is a buoyancy aid, not a lifesaving device, and it is not a substitute for supervision. Never leave a dog unattended in or near water, even wearing one.",
+						"Check the fit before every use and inspect the jacket, straps and buckles for wear. Stop using it if anything is damaged.",
+						"Choose the size from the size chart using your dog's measurements, not their breed or weight alone."
+					]
+				},
+				{
+					"heading": "Liability",
+					"body": [
+						"We're responsible for loss you suffer as a foreseeable result of us breaking these terms or failing to use reasonable care. We're not responsible for losses we couldn't have foreseen.",
+						"Nothing here limits liability for death or personal injury caused by our negligence, for fraud, or anything else that can't be limited by law."
+					]
+				},
+				{
+					"heading": "Contact",
+					"body": [
+						"ChillMyPet, contactable at {email}. Get in touch with any question about an order or these terms."
+					]
+				}
+			]
+		}
+	},
+	"contactPage": {
+		"title": "Contact us",
+		"intro": "Questions about an order, a size, or a return — we read everything and reply as quickly as we can.",
+		"emailLabel": "Email",
+		"responseLabel": "Response time",
+		"responseValue": "Within 1–2 business days",
+		"includeTitle": "To get a faster answer, include",
+		"include": [
+			"Your order number, if you have one",
+			"The email address you used at checkout",
+			"For a sizing question, your dog's chest measurement and weight",
+			"For a damaged item, a photo"
+		]
 	}
 }

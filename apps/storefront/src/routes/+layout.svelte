@@ -91,6 +91,8 @@
 			<ul class="flex flex-wrap gap-5">
 				<li><a class="hover:text-ink-900" href="/policies/shipping">{t('footer.shipping')}</a></li>
 				<li><a class="hover:text-ink-900" href="/policies/refunds">{t('footer.refunds')}</a></li>
+				<li><a class="hover:text-ink-900" href="/privacy">{t('footer.privacy')}</a></li>
+				<li><a class="hover:text-ink-900" href="/terms">{t('footer.terms')}</a></li>
 				<li><a class="hover:text-ink-900" href="/contact">{t('footer.contact')}</a></li>
 			</ul>
 			<p>{t('footer.rights', { year })}</p>

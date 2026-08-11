@@ -127,6 +127,207 @@
 		"shipping": "Política de envíos",
 		"refunds": "Política de reembolsos",
 		"contact": "Contacto",
-		"rights": "© {year} ChillMyPet. Todos los derechos reservados."
+		"rights": "© {year} ChillMyPet. Todos los derechos reservados.",
+		"privacy": "Privacidad",
+		"terms": "Condiciones"
+	},
+	"policies": {
+		"updatedLabel": "Última actualización",
+		"backHome": "Volver a la tienda",
+		"questions": "¿Dudas sobre esta política? Escribe a {email}.",
+		"shipping": {
+			"title": "Política de envíos",
+			"sections": [
+				{
+					"heading": "Tiempo de preparación",
+					"body": [
+						"Preparamos los pedidos en 1–2 días laborables desde que se confirma el pago. Los pedidos de fin de semana o festivo empiezan a prepararse el siguiente día laborable.",
+						"Recibirás una confirmación al hacer el pedido y un segundo mensaje con el seguimiento cuando salga."
+					]
+				},
+				{
+					"heading": "Opciones y coste",
+					"body": [
+						"El envío estándar es gratuito y tarda 5–8 días laborables tras la salida.",
+						"El envío exprés cuesta 12,00 $ y tarda 2–3 días laborables tras la salida.",
+						"Los plazos son de tránsito y no incluyen el tiempo de preparación."
+					]
+				},
+				{
+					"heading": "Dónde enviamos",
+					"body": [
+						"Enviamos a todos los destinos que puedes seleccionar al pagar. Si tu país no aparece, por ahora no podemos entregar allí.",
+						"Los aranceles e impuestos de importación los fija tu país y corren a cargo del destinatario. No podemos calcularlos ni adelantarlos."
+					]
+				},
+				{
+					"heading": "Retrasos y pérdidas",
+					"body": [
+						"Una vez el paquete está con el transportista, su avance no depende de nosotros. Si el seguimiento no se mueve en 10 días laborables, escríbenos y abriremos una investigación.",
+						"Si se confirma que el pedido se ha perdido, lo reponemos o lo reembolsamos íntegro — tú eliges."
+					]
+				},
+				{
+					"heading": "Dirección incorrecta",
+					"body": [
+						"Enviamos a la dirección introducida al pagar. Escríbenos cuanto antes si ves un error: podemos cambiarla antes de la salida, no después.",
+						"Los paquetes devueltos por dirección incorrecta o incompleta se pueden reenviar si cubres el franqueo."
+					]
+				}
+			]
+		},
+		"refunds": {
+			"title": "Política de devoluciones y reembolsos",
+			"sections": [
+				{
+					"heading": "Tu derecho a devolver",
+					"body": [
+						"Puedes devolver cualquier artículo en un plazo de 30 días desde la entrega, por el motivo que sea.",
+						"Los artículos deben estar sin usar, en el estado en que los recibiste y en su embalaje original. Un chaleco usado en el agua no se puede revender, así que no podemos aceptarlo salvo que esté defectuoso."
+					]
+				},
+				{
+					"heading": "Cómo iniciar una devolución",
+					"body": [
+						"Escribe a {email} con tu número de pedido y lo que quieres devolver. Te responderemos con las instrucciones.",
+						"No envíes nada antes de contactarnos: las devoluciones sin instrucciones no se pueden asociar a tu pedido y puede que no podamos reembolsarlas."
+					]
+				},
+				{
+					"heading": "Quién paga el envío de vuelta",
+					"body": [
+						"Si el artículo está defectuoso, dañado en el transporte o no es el que pediste, lo pagamos nosotros: te enviamos una etiqueta prepagada y te devolvemos también el envío original.",
+						"Si has cambiado de opinión, el envío de vuelta corre de tu cuenta. Recomendamos un servicio con seguimiento; solo podemos reembolsar lo que nos llegue."
+					]
+				},
+				{
+					"heading": "Cuándo recibes el dinero",
+					"body": [
+						"Revisamos las devoluciones al llegar y emitimos el reembolso en un plazo de 10 días laborables.",
+						"El reembolso vuelve a la tarjeta o monedero con el que pagaste; no podemos enviarlo a otro sitio. Tu banco puede tardar unos días más en mostrarlo."
+					]
+				},
+				{
+					"heading": "Artículos defectuosos",
+					"body": [
+						"Si algo llega dañado o falla, escríbenos con una foto y tu número de pedido. Lo reponemos o lo reembolsamos, incluido el envío de ida y vuelta.",
+						"Esto se suma a tus derechos legales, que esta política no limita."
+					]
+				},
+				{
+					"heading": "Cancelar un pedido",
+					"body": [
+						"Escríbenos cuanto antes. Si el pedido no ha salido, lo cancelamos y reembolsamos íntegro. Una vez enviado, se trata como una devolución."
+					]
+				}
+			]
+		},
+		"privacy": {
+			"title": "Política de privacidad",
+			"sections": [
+				{
+					"heading": "Qué recogemos",
+					"body": [
+						"Para gestionar un pedido recogemos tu nombre, correo electrónico, dirección de entrega y teléfono si lo facilitas. Guardamos un registro de lo que compraste y cuándo.",
+						"También recogemos información técnica básica — dirección IP, navegador, páginas vistas — habitual en cualquier web y necesaria para que la tienda funcione."
+					]
+				},
+				{
+					"heading": "Datos de pago",
+					"body": [
+						"Nunca vemos ni almacenamos tu número de tarjeta. Los pagos los procesa Stripe en su propia página; nosotros solo recibimos que el pago se completó, el importe y los últimos cuatro dígitos que Stripe nos muestra.",
+						"El tratamiento de tus datos por parte de Stripe se rige por su política en stripe.com/privacy."
+					]
+				},
+				{
+					"heading": "Publicidad y analítica",
+					"body": [
+						"Usamos el píxel de Meta y su Conversions API para medir qué anuncios generan ventas. Esto implica compartir con Meta información sobre tu visita y compra, incluida una versión cifrada (irreversible) de tu correo y datos de entrega, para que Meta pueda asociarla a una cuenta sin que le entreguemos los valores en claro.",
+						"Puedes limitarlo en la configuración de anuncios de Facebook e Instagram, y con la protección antiseguimiento de tu navegador o un bloqueador."
+					]
+				},
+				{
+					"heading": "Cookies",
+					"body": [
+						"Usamos una cookie para recordar tu idioma y tu carrito, y Meta instala cookies de medición publicitaria como se describe arriba.",
+						"Bloquear cookies en tu navegador detiene las publicitarias. Las de carrito e idioma son necesarias para que la tienda funcione."
+					]
+				},
+				{
+					"heading": "Cuánto tiempo lo guardamos",
+					"body": [
+						"Conservamos los registros de pedidos el tiempo necesario por motivos contables y fiscales, normalmente varios años.",
+						"Si nos pides borrar tus datos lo haremos, salvo cuando la ley nos obligue a conservar el registro de una venta."
+					]
+				},
+				{
+					"heading": "Tus derechos",
+					"body": [
+						"Puedes pedir una copia de los datos que tenemos sobre ti, su corrección o su supresión. Escribe a {email} y responderemos lo antes posible.",
+						"Si estás en la UE o el Reino Unido, también puedes reclamar ante tu autoridad de protección de datos."
+					]
+				},
+				{
+					"heading": "Con quién compartimos",
+					"body": [
+						"Solo con quien hace falta para operar la tienda: Stripe para el pago, el transportista para la entrega y Meta para la medición publicitaria descrita arriba. No vendemos tus datos."
+					]
+				}
+			]
+		},
+		"terms": {
+			"title": "Condiciones de venta",
+			"sections": [
+				{
+					"heading": "Precios y moneda",
+					"body": [
+						"Todos los precios están en dólares estadounidenses y no incluyen impuestos salvo que se indique al pagar. El precio que ves al pagar es el que pagas.",
+						"Podemos cambiar los precios en cualquier momento, pero nunca después de que hayas hecho un pedido."
+					]
+				},
+				{
+					"heading": "Pedidos",
+					"body": [
+						"Un pedido es una oferta de compra. Se acepta cuando lo enviamos, y podemos rechazarlo — por ejemplo si un artículo se ha agotado o detectamos un error de precio. Si lo rechazamos, te reembolsamos íntegro.",
+						"Las fotografías son orientativas. Los colores pueden variar según la pantalla."
+					]
+				},
+				{
+					"heading": "Uso seguro del chaleco salvavidas",
+					"body": [
+						"Un chaleco salvavidas para perros es una ayuda a la flotación, no un dispositivo de salvamento, y no sustituye a la supervisión. Nunca dejes a un perro solo en el agua o cerca de ella, aunque lo lleve puesto.",
+						"Comprueba el ajuste antes de cada uso y revisa el chaleco, las cinchas y las hebillas. Deja de usarlo si algo está dañado.",
+						"Elige la talla con la tabla de medidas a partir de las medidas de tu perro, no solo de su raza o peso."
+					]
+				},
+				{
+					"heading": "Responsabilidad",
+					"body": [
+						"Respondemos de los daños previsibles derivados de incumplir estas condiciones o de no actuar con diligencia razonable. No respondemos de daños que no pudiéramos prever.",
+						"Nada de lo anterior limita la responsabilidad por fallecimiento o daños personales causados por nuestra negligencia, por fraude, ni por cualquier otro supuesto que la ley no permita limitar."
+					]
+				},
+				{
+					"heading": "Contacto",
+					"body": [
+						"ChillMyPet, contacto en {email}. Escríbenos con cualquier duda sobre un pedido o estas condiciones."
+					]
+				}
+			]
+		}
+	},
+	"contactPage": {
+		"title": "Contacto",
+		"intro": "Dudas sobre un pedido, una talla o una devolución: leemos todo y respondemos lo antes posible.",
+		"emailLabel": "Correo",
+		"responseLabel": "Tiempo de respuesta",
+		"responseValue": "En 1–2 días laborables",
+		"includeTitle": "Para responderte más rápido, incluye",
+		"include": [
+			"Tu número de pedido, si lo tienes",
+			"El correo que usaste al pagar",
+			"Para una duda de talla, el contorno de pecho y el peso de tu perro",
+			"Para un artículo dañado, una foto"
+		]
 	}
 }
