@@ -75,7 +75,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 					webhookSecret: env.STRIPE_WEBHOOK_SECRET,
 					// What the buyer sees on their card statement. Set this when the
 					// Stripe account is not named ChillMyPet, or they will not
-					// recognise the charge and will dispute it.
+					// recognise the charge and will dispute it. Use the full form
+					// unless the account has a descriptor prefix configured.
+					statementDescriptor: env.STRIPE_STATEMENT_DESCRIPTOR,
 					statementDescriptorSuffix: env.STRIPE_STATEMENT_DESCRIPTOR_SUFFIX,
 					// Mirrors META_CAPI_ENDPOINT: lets the end-to-end test drive a real
 					// checkout against a local mock instead of charging a real card.

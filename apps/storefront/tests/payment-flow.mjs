@@ -154,8 +154,8 @@ if (sessionCall) {
 	check('the secret key is sent as a bearer token', sessionCall.auth.startsWith('Bearer sk_'));
 	check(
 		'the card statement carries a descriptor the buyer will recognise',
-		p.get('payment_intent_data[statement_descriptor_suffix]') === 'CHILLMYPET',
-		`got ${p.get('payment_intent_data[statement_descriptor_suffix]')} — an unrecognised descriptor is a chargeback`
+		p.get('payment_intent_data[statement_descriptor]') === 'CHILLMYPET',
+		`got ${p.get('payment_intent_data[statement_descriptor]')} — an unrecognised descriptor is a chargeback`
 	);
 
 	// --- the order must not look sold yet ---------------------------------

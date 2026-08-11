@@ -176,17 +176,20 @@ Permission"; that is expected. Posting to `/{dataset_id}/events` is a
 dataset-level grant, separate from the pixel-read scope, so don't take a failed
 metadata read as proof the token can't send.
 
-Payments are **built and tested end to end, but no keys are set**, so
-`commerce.payments` is null in every deployed environment and checkout still
-ends at `pending_payment`. The code path is complete: setting
-`STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` switches the store to
-redirecting into Stripe's hosted page, with no code change and no deploy.
+Payments are **live on production**. Checkout redirects to Stripe's hosted page
+and the order becomes `paid` only when a signed webhook says so; no card details
+touch this application. Staging deliberately has **no Stripe keys**, because it
+shares production's database — a card test there would be a real charge. With
+`commerce.payments` null it falls back to the old confirmation screen.
 
-The checkout action branches on `commerce.payments`. With it null the customer
-sees the old confirmation screen; with it set they are redirected to Stripe and
-land on `/checkout/success`, which reads the payment row rather than believing
-the query string. **No card details are collected by this application in either
-case.**
+⚠️ **The Stripe account is not ChillMyPet's.** It is `acct_1Au2A6BbNuiab9E2`,
+"Idea to Run" (`me@devyngreen.com`), used with the owner's agreement as a
+temporary arrangement until ChillMyPet has its own. Consequences to keep in
+mind: settlements land in that account, refunds and chargebacks are theirs to
+absorb, and `STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET` exists so buyers recognise
+the charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`. When
+ChillMyPet's own account is ready, swap three secrets and re-point the webhook;
+no code changes.
 
 `npm run test:payments` drives that whole path against a mock Stripe and a mock
 Conversions API — no account, no keys, nothing charged. Run it for any change to
@@ -201,7 +204,7 @@ Not built, in rough priority order:
 3. **Admin.** No way to fulfil, refund, or look up a customer.
 4. **Transactional email.** No order confirmation is sent. Once payments are on
    Stripe emails a payment receipt — that is not an order confirmation.
-5. ~~**Payments.**~~ Built and tested; needs keys, not code.
+5. ~~**Payments.**~~ Live, on a borrowed Stripe account — see above.
 6. ~~**DNS.**~~ Done — chillmypet.com and www are live on the `chillmypet`
    Worker, HTTPS enforced.
 
@@ -219,8 +222,10 @@ write test against staging is a write against production data. Clean up after
 yourself, or add a separate database for staging before doing anything
 destructive.
 
-Staging additionally sets `META_CAPI_TEST_EVENT_CODE`, so its Purchase events
-land in Events Manager > Test Events instead of ads reporting. Keep it set:
+Staging has **no Stripe keys**, so it falls back to the pre-payment flow: an
+order there completes without payment and reports Purchase immediately. That is
+survivable only because staging also sets `META_CAPI_TEST_EVENT_CODE`, so its
+Purchase events land in Events Manager > Test Events instead of ads reporting. Keep it set:
 without it, a checkout test on staging is a fabricated conversion in the numbers
 the ad account optimizes against. Change the value to whatever code Events
 Manager shows you when you want to watch a run live.

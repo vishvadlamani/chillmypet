@@ -180,12 +180,16 @@ code:
 cd apps/storefront
 npx wrangler secret put STRIPE_SECRET_KEY
 npx wrangler secret put STRIPE_WEBHOOK_SECRET      # from the endpoint you create
-npx wrangler secret put STRIPE_STATEMENT_DESCRIPTOR_SUFFIX   # e.g. CHILLMYPET
+npx wrangler secret put STRIPE_STATEMENT_DESCRIPTOR            # e.g. CHILLMYPET
 ```
 
 Set the descriptor if the Stripe account is not named ChillMyPet. It is what
 appears on the card statement, and a buyer who doesn't recognise the line
 disputes the charge — which costs the fee, the goods, and the dispute.
+`STRIPE_STATEMENT_DESCRIPTOR` replaces the account default outright; the
+`_SUFFIX` variant appends to a descriptor *prefix* and only works if the account
+has one configured, so an account already at Stripe's 22-character limit needs
+the full form.
 
 Point a Stripe webhook endpoint at `https://<domain>/api/stripe/webhook` and
 subscribe it to `checkout.session.completed`, `checkout.session.expired` and
