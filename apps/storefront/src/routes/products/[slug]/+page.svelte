@@ -32,6 +32,28 @@
 		(data.product.metafields['content.benefits'] ?? []) as { title: string; body: string }[]
 	);
 
+	// The first two entries answer delivery and sizing — the two questions asked
+	// while deciding, not after. They sit under the button; the rest go below.
+	let buyBoxFaq = $derived(faq.slice(0, 2));
+	let restFaq = $derived(faq.slice(2));
+
+	let sizeChartDialog = $state<HTMLDialogElement | null>(null);
+
+	// The sticky bar is a second copy of the CTA, so it only earns its space once
+	// the real one has scrolled away. Two identical buttons on screen at once
+	// reads as a mistake.
+	let buyButton = $state<HTMLButtonElement | null>(null);
+	let buyButtonVisible = $state(true);
+	$effect(() => {
+		if (!buyButton) return;
+		const observer = new IntersectionObserver(
+			([entry]) => (buyButtonVisible = entry.isIntersecting),
+			{ rootMargin: '-8px' }
+		);
+		observer.observe(buyButton);
+		return () => observer.disconnect();
+	});
+
 	// Defaults are computed, not assigned by an effect: effects don't run during
 	// SSR, so starting these empty rendered the page with no variant selected —
 	// which reads as `inStock === false` and shipped "Sold out" to anyone seeing
@@ -62,7 +84,9 @@
 			data.product.options[1]?.values ?? []
 		)
 	);
-	let quantity = $state(1);
+	// One per add. Quantity is adjusted in the cart, which keeps the buy box to a
+	// single decision: colour, size, buy.
+	const quantity = 1;
 	let added = $state(false);
 
 	// Re-anchor when the product changes under us on client-side navigation.
@@ -215,24 +239,6 @@
 				{/if}
 			</div>
 
-			{#if data.product.description}
-				<p class="mt-5 text-ink-600">{data.product.description}</p>
-			{/if}
-
-			{#if benefits.length}
-				<ul class="mt-6 space-y-3">
-					{#each benefits as benefit (benefit.title)}
-						<li class="flex gap-3">
-							<span class="mt-0.5 text-tide-600" aria-hidden="true">✓</span>
-							<span class="text-sm">
-								<span class="font-medium">{benefit.title}.</span>
-								<span class="text-ink-600">{benefit.body}</span>
-							</span>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-
 			<!-- Colour -->
 			<fieldset class="mt-8">
 				<legend class="text-sm font-medium">
@@ -260,12 +266,14 @@
 
 			<!-- Size -->
 			<fieldset class="mt-7">
-				<legend class="text-sm font-medium">{t('product.sizeLabel')}</legend>
+				<legend class="text-sm font-medium">
+					{t('product.sizeLabel')}<span class="ms-2 font-normal text-ink-400">{selectedSize}</span>
+				</legend>
 				<div class="mt-3 flex flex-wrap gap-2">
 					{#each sizes as size (size.value)}
-						{@const variant = variantFor(selectedColour, size.value)}
-						{@const available = (variant?.stock ?? 0) > 0}
-						<label class:cursor-pointer={available} class:cursor-not-allowed={!available}>
+						{@const available = (variantFor(selectedColour, size.value)?.stock ?? 0) > 0}
+						{@const offered = Boolean(variantFor(selectedColour, size.value))}
+						<label class:opacity-40={!available} class="cursor-pointer">
 							<input
 								type="radio"
 								name="size"
@@ -275,60 +283,44 @@
 								bind:group={selectedSize}
 							/>
 							<span
-								class="block min-w-14 rounded-lg border px-4 py-2 text-center text-sm font-medium transition
-									peer-checked:border-ink-900 peer-checked:bg-ink-900 peer-checked:text-white
-									peer-focus-visible:ring-2 peer-focus-visible:ring-tide-500
-									{available
-									? 'border-ink-200 hover:border-ink-400'
-									: 'border-ink-100 text-ink-200 line-through'}"
+								class="block min-w-14 rounded-lg border border-ink-200 px-4 py-2.5 text-center text-sm transition peer-checked:border-ink-900 peer-checked:bg-ink-900 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-tide-500"
+								class:line-through={!offered}
 							>
-								{size.label ?? size.value}
+								{size.value}
 							</span>
 						</label>
 					{/each}
 				</div>
 			</fieldset>
 
-			<!-- Quantity + actions -->
-			<div class="mt-7 flex flex-wrap items-end gap-4">
-				<label class="block">
-					<span class="text-sm font-medium">{t('product.quantityLabel')}</span>
-					<input
-						type="number"
-						min="1"
-						max="10"
-						bind:value={quantity}
-						class="mt-2 block w-24 rounded-lg border border-ink-200 px-3 py-2.5"
-					/>
-				</label>
-			</div>
+			<!-- Size chart opens over the page rather than pushing the button down
+			     the screen, which is what their layout does and why their CTA stays
+			     within a thumb's reach on a phone. -->
+			<button
+				type="button"
+				onclick={() => sizeChartDialog?.showModal()}
+				class="mt-5 text-sm font-medium underline underline-offset-4"
+			>
+				{t('product.sizeChart')}
+			</button>
 
-			<div class="mt-5 flex flex-col gap-3 sm:flex-row">
-				<button
-					type="button"
-					onclick={addToCart}
-					disabled={!inStock}
-					class="flex-1 rounded-xl border border-ink-900 px-6 py-3.5 font-medium transition hover:bg-ink-50 disabled:cursor-not-allowed disabled:border-ink-200 disabled:text-ink-400 disabled:hover:bg-transparent"
-				>
-					{#if !inStock}
-						{t('product.soldOut')}
-					{:else if added}
-						✓ {t('product.added')}
-					{:else}
-						{t('product.addToCart')}
-					{/if}
-				</button>
-				<button
-					type="button"
-					onclick={buyNow}
-					disabled={!inStock}
-					class="flex-1 rounded-xl bg-tide-600 px-6 py-3.5 font-medium text-white transition hover:bg-tide-700 disabled:cursor-not-allowed disabled:bg-ink-200"
-				>
-					{t('product.buyNow')}
-				</button>
-			</div>
+			<button
+				bind:this={buyButton}
+				type="button"
+				onclick={addToCart}
+				disabled={!inStock}
+				class="mt-6 w-full rounded-xl bg-tide-600 px-6 py-4 font-medium text-white transition hover:bg-tide-700 disabled:cursor-not-allowed disabled:bg-ink-200"
+			>
+				{#if !inStock}
+					{t('product.soldOut')}
+				{:else if added}
+					✓ {t('product.added')}
+				{:else}
+					{t('product.addToCart')}
+				{/if}
+			</button>
 
-			<p class="mt-4 text-sm text-ink-600">
+			<p class="mt-3 text-sm text-ink-600">
 				{#if !inStock}
 					{t('product.outOfStockVariant')}
 				{:else if selectedVariant && selectedVariant.stock <= 5}
@@ -338,94 +330,118 @@
 				{/if}
 			</p>
 
-			<!-- The three objections that stop a first-time buyer: cost of
-			     shipping, risk of the wrong size, and handing card details to a
-			     shop they have never used. -->
-			<ul class="mt-6 grid grid-cols-3 gap-2 border-y border-ink-200 py-4 text-center text-xs text-ink-600">
-				<li>{t('product.trustShipping')}</li>
-				<li>{t('product.trustReturns')}</li>
-				<li>{t('product.trustSecure')}</li>
-			</ul>
-
-			<div class="mt-6 space-y-4 text-sm">
-				<div>
-					<h2 class="font-medium">{t('product.reassureShippingTitle')}</h2>
-					<p class="mt-1 text-ink-600">
-						{t('product.reassureShippingBody')}
-						<a class="underline" href="/policies/shipping">{t('product.reassureMore')}</a>
-					</p>
+			{#if buyBoxFaq.length}
+				<div class="mt-7">
+					<Faq items={buyBoxFaq} />
 				</div>
-				<div>
-					<h2 class="font-medium">{t('product.reassureReturnsTitle')}</h2>
-					<p class="mt-1 text-ink-600">
-						{t('product.reassureReturnsBody')}
-						<a class="underline" href="/policies/refunds">{t('product.reassureMore')}</a>
-					</p>
-				</div>
-			</div>
-
-			<!-- Size chart -->
-			{#if sizeChart.length}
-				<section class="mt-10">
-					<h2 class="text-sm font-semibold">{t('product.sizeChartTitle')}</h2>
-					<p class="mt-1 text-sm text-ink-600">{t('product.sizeChartHint')}</p>
-					<div class="mt-4 overflow-x-auto">
-						<table class="w-full min-w-md border-collapse text-sm">
-							<thead>
-								<tr class="border-b border-ink-200 text-left text-ink-600">
-									<th scope="col" class="py-2 pe-4 font-medium">
-										{t('product.sizeChartColumns.size')}
-									</th>
-									<th scope="col" class="py-2 pe-4 font-medium">
-										{t('product.sizeChartColumns.chest')}
-									</th>
-									<th scope="col" class="py-2 font-medium">
-										{t('product.sizeChartColumns.weight')}
-									</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each sizeChart as row (row.size)}
-									<tr class="border-b border-ink-100">
-										<th scope="row" class="py-2.5 pe-4 text-left font-medium">{row.size}</th>
-										<td class="py-2.5 pe-4 text-ink-600">
-											{cm(row.chestMinCm)}–{cm(row.chestMaxCm)}
-											<span class="text-ink-400">
-												({inches(row.chestMinCm)}–{inches(row.chestMaxCm)})
-											</span>
-										</td>
-										<td class="py-2.5 text-ink-600">
-											{kg(row.weightMinKg)}–{kg(row.weightMaxKg)}
-											<span class="text-ink-400">
-												({lb(row.weightMinKg)}–{lb(row.weightMaxKg)})
-											</span>
-										</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				</section>
 			{/if}
 		</div>
 	</div>
 
+	<!-- Full-width band: the promise, then the detail. Theirs runs a lifestyle
+	     image behind this; ours uses the product shot until real photography
+	     lands. -->
+	{#if data.product.subtitle}
+		<section class="mt-16 overflow-hidden rounded-3xl bg-ink-50">
+			<div class="grid items-center gap-8 lg:grid-cols-2">
+				<ProductImage
+					src={activeImage}
+					hex={activeHex}
+					label=""
+					class="aspect-[4/3] w-full lg:aspect-square"
+				/>
+				<div class="px-6 pb-10 lg:px-10 lg:py-12">
+					<h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+						{data.product.subtitle}
+					</h2>
+					{#if data.product.description}
+						<p class="mt-4 text-ink-600">{data.product.description}</p>
+					{/if}
+					{#if benefits.length}
+						<ul class="mt-6 space-y-3">
+							{#each benefits as benefit (benefit.title)}
+								<li class="flex gap-3">
+									<span class="mt-0.5 text-tide-600" aria-hidden="true">✓</span>
+									<span class="text-sm">
+										<span class="font-medium">{benefit.title}.</span>
+										<span class="text-ink-600">{benefit.body}</span>
+									</span>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
+			</div>
+		</section>
+	{/if}
+
 	<!-- FAQ -->
-	{#if faq.length}
+	{#if restFaq.length}
 		<section class="mt-20 max-w-3xl">
 			<h2 class="text-2xl font-semibold tracking-tight">{t('product.faqTitle')}</h2>
 			<div class="mt-6">
-				<Faq items={faq} />
+				<Faq items={restFaq} />
 			</div>
 		</section>
 	{/if}
 </article>
 
+<!-- Size chart, as a dialog. Native <dialog> gives focus trapping, Escape to
+     close and inert background for free. -->
+<dialog
+	bind:this={sizeChartDialog}
+	class="w-[min(34rem,calc(100vw-2rem))] rounded-2xl p-0 backdrop:bg-ink-900/40"
+>
+	<div class="p-6">
+		<div class="flex items-start justify-between gap-4">
+			<h2 class="text-lg font-semibold">{t('product.sizeChartTitle')}</h2>
+			<button
+				type="button"
+				onclick={() => sizeChartDialog?.close()}
+				class="-m-2 p-2 text-ink-400 hover:text-ink-900"
+				aria-label={t('common.close')}
+			>
+				✕
+			</button>
+		</div>
+		<p class="mt-1 text-sm text-ink-600">{t('product.sizeChartHint')}</p>
+
+		<div class="mt-4 overflow-x-auto">
+			<table class="w-full text-left text-sm">
+				<thead class="border-b border-ink-200 text-ink-600">
+					<tr>
+						<th scope="col" class="py-2 pe-4 font-medium">{t('product.sizeChartColumns.size')}</th>
+						<th scope="col" class="py-2 pe-4 font-medium">{t('product.sizeChartColumns.chest')}</th>
+						<th scope="col" class="py-2 font-medium">{t('product.sizeChartColumns.weight')}</th>
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-ink-200">
+					{#each sizeChart as row (row.size)}
+						<tr>
+							<td class="py-2.5 pe-4 font-medium">{row.size}</td>
+							<td class="py-2.5 pe-4 text-ink-600">
+								{cm(row.chestMinCm)}–{cm(row.chestMaxCm)}
+								<span class="text-ink-400">({inches(row.chestMinCm)}–{inches(row.chestMaxCm)})</span>
+							</td>
+							<td class="py-2.5 text-ink-600">
+								{kg(row.weightMinKg)}–{kg(row.weightMaxKg)}
+								<span class="text-ink-400">({lb(row.weightMinKg)}–{lb(row.weightMaxKg)})</span>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	</div>
+</dialog>
+
 <!-- Phone-only buy bar. The desktop layout keeps the buy box beside the gallery,
      but on a phone everything is one column and the button is far above the size
      chart and FAQ people scroll through before deciding. -->
 <div
-	class="fixed inset-x-0 bottom-0 z-40 border-t border-ink-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden"
+	class="fixed inset-x-0 bottom-0 z-40 border-t border-ink-200 bg-white/95 px-4 py-3 backdrop-blur transition-transform duration-200 lg:hidden"
+	class:translate-y-full={buyButtonVisible}
+	aria-hidden={buyButtonVisible}
 >
 	<div class="mx-auto flex max-w-6xl items-center gap-3">
 		<div class="min-w-0 flex-1">

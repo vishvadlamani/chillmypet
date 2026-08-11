@@ -23,7 +23,8 @@
 		"required": "Obligatorio",
 		"continue": "Continuar",
 		"back": "Volver",
-		"edit": "Cambiar"
+		"edit": "Cambiar",
+		"close": "Cerrar"
 	},
 	"product": {
 		"colorLabel": "Color",

@@ -59,8 +59,11 @@ await page.locator('input[name="colour"][value="blue_camo"]').check({ force: tru
 await page.locator('input[name="size"][value="L"]').check({ force: true });
 check('colour label updates', (await page.textContent('fieldset legend'))?.includes('Blue Camo'));
 
-await page.fill('input[type="number"]', '2');
-await page.getByRole('button', { name: /add to cart/i }).click();
+// Quantity moved off the product page — the buy box is one decision now, and
+// the cart merges repeat adds of the same variant.
+await page.getByRole('button', { name: /add to cart/i }).first().click();
+await page.waitForTimeout(250);
+await page.getByRole('button', { name: /add to cart/i }).first().click();
 await page.waitForTimeout(400);
 const badge = await page.textContent('header a[href="/checkout"]');
 check('cart badge shows 2', badge?.includes('2'));
@@ -106,7 +109,13 @@ await page.waitForTimeout(200);
 	check('ViewContent fired', Boolean(tracked(calls, 'ViewContent')));
 	const addToCart = tracked(calls, 'AddToCart');
 	check('AddToCart fired', Boolean(addToCart));
-	check('AddToCart value is 2 x 44.97', addToCart?.[2]?.value === '89.94');
+	// One AddToCart per click now, each for a single unit — two clicks is
+	// two events, not one event carrying two.
+	check('AddToCart value is one unit', addToCart?.[2]?.value === '44.97');
+	check(
+		'each add fires its own AddToCart',
+		calls.filter((c) => c[0] === 'track' && c[1] === 'AddToCart').length === 2
+	);
 	check('AddToCart carries the variant sku', addToCart?.[2]?.content_ids?.[0] === 'CMP-LJ-BLUE_CAMO-L');
 }
 
