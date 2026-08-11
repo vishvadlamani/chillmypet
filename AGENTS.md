@@ -72,10 +72,16 @@ filter is a cross-store data leak, not a display bug. The isolation suite in
 `packages/ecomwithai/src/commerce.test.ts` exists to catch this — keep it green,
 and extend it when you add a module.
 
-**Meta events dedupe on `event_id`.** The checkout action mints one id, sends it
-with the CAPI Purchase, and returns it so the browser fires
-`fbq('track','Purchase', …, {eventID})` with the same value. Break the pairing
-and every sale is counted twice.
+**Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
+order number by `purchaseEventId()`, not minted per call — the server event fires
+from the Stripe webhook and the browser event from the success page, two requests
+that cannot pass a value to each other. Break that and every sale counts twice.
+
+**A conversion is reported when money moves, not when a row is written.** With
+payments on, Purchase fires from the webhook on `action === 'order_paid'` — a
+branch the framework only returns once, guarded by the event-id dedup table.
+Reporting at order creation counts every abandoned checkout as a sale, and Meta
+optimizes spend against whatever you tell it.
 
 **Tracking must never fail an order.** The CAPI call happens *after* the order
 commits, dispatches through `waitUntil`, and logs failures rather than
@@ -170,22 +176,32 @@ Permission"; that is expected. Posting to `/{dataset_id}/events` is a
 dataset-level grant, separate from the pixel-read scope, so don't take a failed
 metadata read as proof the token can't send.
 
-Payments are **wired but not switched on**. The Stripe module and the webhook
-route at `/api/stripe/webhook` exist and are tested; `commerce.payments` is null
-until `STRIPE_SECRET_KEY` is set, and until then checkout still ends at
-`pending_payment` with **no card details collected anywhere**.
+Payments are **built and tested end to end, but no keys are set**, so
+`commerce.payments` is null in every deployed environment and checkout still
+ends at `pending_payment`. The code path is complete: setting
+`STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` switches the store to
+redirecting into Stripe's hosted page, with no code change and no deploy.
+
+The checkout action branches on `commerce.payments`. With it null the customer
+sees the old confirmation screen; with it set they are redirected to Stripe and
+land on `/checkout/success`, which reads the payment row rather than believing
+the query string. **No card details are collected by this application in either
+case.**
+
+`npm run test:payments` drives that whole path against a mock Stripe and a mock
+Conversions API — no account, no keys, nothing charged. Run it for any change to
+checkout, the webhook, or conversion reporting.
 
 Not built, in rough priority order:
 
-1. **Turn payments on.** Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`,
-   point Stripe at `/api/stripe/webhook`, and have the checkout action call
-   `payments.startCheckout` instead of ending at the confirmation screen.
-2. **Tax.** Nothing. EU VAT/OSS and US nexus are genuinely hard — use Stripe Tax
+1. **Tax.** Nothing. EU VAT/OSS and US nexus are genuinely hard — use Stripe Tax
    rather than building it.
-3. **Consent gate.** The pixel loads for everyone. GDPR/ePrivacy require prior
+2. **Consent gate.** The pixel loads for everyone. GDPR/ePrivacy require prior
    consent for advertising cookies before taking EU traffic.
-4. **Admin.** No way to fulfil, refund, or look up a customer.
-5. **Transactional email.** No order confirmation is sent.
+3. **Admin.** No way to fulfil, refund, or look up a customer.
+4. **Transactional email.** No order confirmation is sent. Once payments are on
+   Stripe emails a payment receipt — that is not an order confirmation.
+5. ~~**Payments.**~~ Built and tested; needs keys, not code.
 6. ~~**DNS.**~~ Done — chillmypet.com and www are live on the `chillmypet`
    Worker, HTTPS enforced.
 

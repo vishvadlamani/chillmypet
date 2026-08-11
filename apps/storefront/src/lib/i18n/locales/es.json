@@ -110,8 +110,18 @@
 			"fieldRequired": "{field} es obligatorio.",
 			"cartEmpty": "Tu carrito está vacío.",
 			"variantUnavailable": "{item} ya no está disponible en esa talla o color.",
-			"generic": "Algo falló al realizar el pedido. No se ha cobrado nada — inténtalo de nuevo."
-		}
+			"generic": "Algo falló al realizar el pedido. No se ha cobrado nada — inténtalo de nuevo.",
+			"paymentUnavailable": "No pudimos contactar con la pasarela de pago, así que no se cobró nada. Tu pedido queda reservado unos minutos — inténtalo de nuevo."
+		},
+		"payWithCard": "Continuar al pago",
+		"payingRedirect": "Te llevamos a nuestra página de pago…",
+		"paymentCardNote": "Los datos de la tarjeta se introducen en la página segura de Stripe. Nunca pasan por este sitio.",
+		"cancelled": "El pago se canceló y no se cobró nada. Tus datos están abajo — puedes intentarlo de nuevo.",
+		"paidTitle": "Pago recibido",
+		"paidBody": "Gracias — el pedido {orderNumber} está pagado y en preparación.",
+		"processingTitle": "El pago se está procesando",
+		"processingBody": "El pedido {orderNumber} está registrado y esperamos la confirmación de tu banco. Esta página se actualizará cuando se complete — no hace falta pagar otra vez.",
+		"orderLabel": "Pedido"
 	},
 	"footer": {
 		"shipping": "Política de envíos",

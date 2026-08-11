@@ -140,10 +140,16 @@ Browser pixel and server-side Conversions API run together, deduplicated.
 Events: `PageView` (initial load plus every client-side navigation),
 `ViewContent`, `AddToCart`, `InitiateCheckout`, `Purchase`.
 
-**Deduplication.** The checkout action mints one `event_id` per order, sends it
-with the CAPI Purchase, and returns it to the browser, which fires
-`fbq('track', 'Purchase', …, { eventID })` with the same value. Break that and
-every sale is counted twice.
+**Deduplication.** Purchase's `event_id` is derived from the order number by
+`purchaseEventId()` rather than minted per call: the server event fires from the
+Stripe webhook and the browser event from the success page, two separate requests
+that cannot hand each other a value. Break the pairing and every sale is counted
+twice.
+
+**Timing.** Purchase is reported when the payment settles, not when the order row
+is written — otherwise every abandoned checkout is a conversion, and Meta
+optimizes spend against whatever it is told. With no payment provider configured
+there is nothing to settle, so it fires at order creation instead.
 
 **Advanced matching.** `packages/ecomwithai/src/marketing/hash.ts` normalizes and
 SHA-256 hashes email, phone, name, city, state, zip and country;
@@ -166,14 +172,40 @@ everyone, and GDPR/ePrivacy require prior consent for advertising cookies.
 
 ## Payment
 
-The Stripe module and the webhook route at `/api/stripe/webhook` exist and are
-tested, but payments are **not switched on**: `commerce.payments` is null until
-`STRIPE_SECRET_KEY` is set, and checkout still ends at `pending_payment` with
-**no card details collected anywhere**.
+Complete and tested, but **no keys are set**, so `commerce.payments` is null and
+checkout still ends at `pending_payment`. Turning it on is configuration, not
+code:
 
-To turn it on: set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`, point Stripe
-at `/api/stripe/webhook`, and have the checkout action call
-`payments.startCheckout` instead of rendering the confirmation screen directly.
+```sh
+cd apps/storefront
+npx wrangler secret put STRIPE_SECRET_KEY
+npx wrangler secret put STRIPE_WEBHOOK_SECRET      # from the endpoint you create
+```
+
+Point a Stripe webhook endpoint at `https://<domain>/api/stripe/webhook` and
+subscribe it to `checkout.session.completed`, `checkout.session.expired` and
+`charge.refunded`.
+
+With keys set, the checkout action creates the order, then redirects to Stripe's
+hosted page; the customer returns to `/checkout/success`, which reads the payment
+row rather than trusting the query string, and shows "processing" until the
+webhook confirms. **No card details reach this application either way.**
+
+The conversion is reported when the payment settles, not when the order row is
+written — otherwise every abandoned checkout is a sale as far as Meta is
+concerned. Both halves share an event id derived from the order number, so the
+browser event on the success page and the Conversions API event from the webhook
+count once.
+
+```sh
+npm run test:payments   # whole flow against a mock Stripe and a mock CAPI
+```
+
+That test needs no Stripe account and charges nothing. It asserts the things
+that are expensive to get wrong: an unsigned webhook is refused, a redelivery is
+a no-op, underpayment does not settle an order, an unpaid order never renders as
+paid, and the confirmation page — reachable by guessing an order number — shows
+a receipt and not an address.
 
 Tax (EU VAT/OSS, US nexus) is still unhandled; use Stripe Tax rather than
 building it.

@@ -110,8 +110,18 @@
 			"fieldRequired": "{field} is required.",
 			"cartEmpty": "Your cart is empty.",
 			"variantUnavailable": "{item} is no longer available in that size or colour.",
-			"generic": "Something went wrong placing the order. Nothing was charged — please try again."
-		}
+			"generic": "Something went wrong placing the order. Nothing was charged — please try again.",
+			"paymentUnavailable": "We couldn't reach our payment provider, so nothing was charged. Your order is held for a few minutes — please try again."
+		},
+		"payWithCard": "Continue to payment",
+		"payingRedirect": "Taking you to our payment page…",
+		"paymentCardNote": "Card details are entered on Stripe's secure page. They never touch this site.",
+		"cancelled": "Payment was cancelled and nothing was charged. Your details are below — you can try again.",
+		"paidTitle": "Payment received",
+		"paidBody": "Thanks — order {orderNumber} is paid and on its way to being packed.",
+		"processingTitle": "Payment is processing",
+		"processingBody": "Order {orderNumber} is recorded and we're waiting for your bank to confirm the payment. This page updates once it clears — you don't need to pay again.",
+		"orderLabel": "Order"
 	},
 	"footer": {
 		"shipping": "Shipping policy",

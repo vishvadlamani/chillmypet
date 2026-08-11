@@ -72,7 +72,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		stripe: env.STRIPE_SECRET_KEY
 			? {
 					secretKey: env.STRIPE_SECRET_KEY,
-					webhookSecret: env.STRIPE_WEBHOOK_SECRET
+					webhookSecret: env.STRIPE_WEBHOOK_SECRET,
+					// Mirrors META_CAPI_ENDPOINT: lets the end-to-end test drive a real
+					// checkout against a local mock instead of charging a real card.
+					// Unset in every deployed environment.
+					baseUrl: env.STRIPE_API_BASE
 				}
 			: undefined,
 		meta: {

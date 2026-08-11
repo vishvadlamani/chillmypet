@@ -1,8 +1,16 @@
-import { fail } from '@sveltejs/kit';
-import { CheckoutError, DEFAULT_SHIPPING_RATES, newEventId, toAmount } from 'ecomwithai';
-import { buildFbc } from 'ecomwithai/marketing';
+import { fail, redirect } from '@sveltejs/kit';
+import { CheckoutError, DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 import { isCountryCode } from '$lib/countries';
-import type { Actions } from './$types';
+import { attributionFrom, purchaseEventId, sendPurchase } from '$lib/server/purchase';
+import type { Actions, PageServerLoad } from './$types';
+
+export const load: PageServerLoad = ({ locals, url }) => ({
+	// Drives the copy and the button label. The form posts to the same action
+	// either way — this only decides what the customer is told happens next.
+	paymentsEnabled: Boolean(locals.commerce.payments),
+	// Stripe sends the customer back here when they abandon the hosted page.
+	cancelled: url.searchParams.has('cancelled')
+});
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -86,56 +94,51 @@ export const actions: Actions = {
 			return fail(500, { errorCode: 'generic' as const, detail: null });
 		}
 
-		// The order is committed from here on. Everything below is marketing
-		// telemetry and must never turn a placed order into an error response.
-		const eventId = newEventId();
+		// The order is committed from here on. Nothing below may turn a placed
+		// order into an error response.
 
-		try {
-			if (commerce.meta) {
-				const fbclid = url.searchParams.get('fbclid');
-				const purchase = commerce.meta.send({
-					eventName: 'Purchase',
-					eventId,
-					eventSourceUrl: url.href,
-					user: {
-						email,
-						phone: value('phone') || undefined,
-						firstName: value('firstName'),
-						lastName: value('lastName'),
-						city: value('city'),
-						state: value('province') || undefined,
-						zip: value('postalCode'),
-						country,
-						clientIpAddress: event.getClientAddress(),
-						clientUserAgent: request.headers.get('user-agent') ?? undefined,
-						fbp: cookies.get('_fbp'),
-						fbc: cookies.get('_fbc') ?? (fbclid ? buildFbc(fbclid, Date.now()) : undefined)
-					},
-					customData: {
-						currency: order.currency,
-						value: toAmount(order.totalCents),
-						content_type: 'product',
-						content_ids: order.items.map((i) => i.sku),
-						contents: order.items.map((i) => ({
-							id: i.sku,
-							quantity: i.quantity,
-							item_price: i.unitPriceCents / 100
-						})),
-						num_items: order.items.reduce((sum, i) => sum + i.quantity, 0)
+		// With payments on, the sale is not a sale until Stripe says so, so hand
+		// the customer to the hosted page and let the webhook report the
+		// conversion. `_fbp`/`_fbc` ride along in metadata because the webhook is
+		// a request from Stripe and has none of this customer's cookies.
+		if (commerce.payments) {
+			const attribution = attributionFrom(cookies, url, request.headers);
+			let checkout;
+			try {
+				checkout = await commerce.payments.startCheckout({
+					orderNumber: order.orderNumber,
+					successUrl: `${url.origin}/checkout/success?order=${encodeURIComponent(order.orderNumber)}`,
+					cancelUrl: `${url.origin}/checkout?cancelled=${encodeURIComponent(order.orderNumber)}`,
+					metadata: {
+						...(attribution.fbp ? { fbp: attribution.fbp } : {}),
+						...(attribution.fbc ? { fbc: attribution.fbc } : {})
 					}
 				});
-
-				// Don't make the customer wait on Meta. Called as a method —
-				// destructuring waitUntil loses `this` and throws on Workers.
-				const context = platform?.context;
-				if (context && typeof context.waitUntil === 'function') {
-					context.waitUntil(purchase);
-				} else {
-					purchase.catch(() => {});
-				}
+			} catch (error) {
+				// The order exists and holds stock, but there is nowhere to pay. Say
+				// so rather than showing a confirmation for money we never took.
+				// startCheckout throws rather than returning a session without a URL,
+				// so this covers that too.
+				console.error('Stripe checkout session failed', order.orderNumber, error);
+				return fail(502, { errorCode: 'payment_unavailable' as const, detail: null });
 			}
-		} catch (error) {
-			console.error('Meta Purchase dispatch failed', error);
+
+			redirect(303, checkout.url);
+		}
+
+		// No payment provider configured: the order is as complete as it will get,
+		// so report it here. This is the path the store ran on before Stripe.
+		const eventId = purchaseEventId(order.orderNumber);
+		const purchase = sendPurchase(commerce, order, {
+			eventSourceUrl: url.href,
+			attribution: attributionFrom(cookies, url, request.headers, event.getClientAddress())
+		});
+
+		// Don't make the customer wait on Meta. Called as a method —
+		// destructuring waitUntil loses `this` and throws on Workers.
+		const context = platform?.context;
+		if (context && typeof context.waitUntil === 'function') {
+			context.waitUntil(purchase);
 		}
 
 		return { success: true as const, order, email, eventId };

@@ -7,9 +7,9 @@
 	import { createTranslator, defaultLocale, formatMoney } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
 	import { DEFAULT_SHIPPING_RATES } from 'ecomwithai';
-	import type { ActionData } from './$types';
+	import type { ActionData, PageData } from './$types';
 
-	let { form }: { form: ActionData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let t = $derived(createTranslator(locale));
@@ -163,6 +163,7 @@
 			if (code === 'variant_unavailable') {
 				return t('checkout.errors.variantUnavailable', { item: form.detail ?? '' });
 			}
+			if (code === 'payment_unavailable') return t('checkout.errors.paymentUnavailable');
 			return t('checkout.errors.generic');
 		}
 		if ('fieldErrors' in form && form.fieldErrors?.cart) return t('checkout.errors.cartEmpty');
@@ -212,6 +213,13 @@
 				role="alert"
 			>
 				{topLevelError}
+			</p>
+		{:else if data.cancelled}
+			<!-- Backing out of Stripe is not an error, and saying "nothing was
+			     charged" up front stops the second attempt people make when they
+			     aren't sure. -->
+			<p class="mt-6 rounded-lg border border-ink-200 bg-ink-50 px-4 py-3 text-sm text-ink-600">
+				{t('checkout.cancelled')}
 			</p>
 		{/if}
 
@@ -398,7 +406,9 @@
 					<p
 						class="mt-3 rounded-xl border border-ink-200 bg-ink-50 px-4 py-3.5 text-sm text-ink-600"
 					>
-						{t('checkout.paymentPending')}
+						{data.paymentsEnabled
+							? t('checkout.paymentCardNote')
+							: t('checkout.paymentPending')}
 					</p>
 				</section>
 
@@ -407,7 +417,11 @@
 					disabled={submitting || isEmpty}
 					class="mt-8 w-full rounded-xl bg-ink-900 px-6 py-4 font-medium text-white transition hover:bg-ink-600 disabled:cursor-not-allowed disabled:bg-ink-200"
 				>
-					{submitting ? t('checkout.placing') : t('checkout.placeOrder')}
+					{#if submitting}
+						{data.paymentsEnabled ? t('checkout.payingRedirect') : t('checkout.placing')}
+					{:else}
+						{data.paymentsEnabled ? t('checkout.payWithCard') : t('checkout.placeOrder')}
+					{/if}
 				</button>
 			</form>
 
