@@ -14,7 +14,8 @@
 		"db:seed": "node --env-file-if-exists=.env scripts/seed.js",
 		"test:e2e": "node tests/e2e.mjs",
 		"deploy": "npm run build && wrangler deploy",
-		"test:payments": "node tests/payment-flow.mjs"
+		"test:payments": "node tests/payment-flow.mjs",
+		"db:content": "node --env-file-if-exists=.env scripts/sync-content.js"
 	},
 	"dependencies": {
 		"@libsql/client": "^0.15.15",

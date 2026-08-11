@@ -28,6 +28,9 @@
 	};
 	let sizeChart = $derived((data.product.metafields['specs.size_chart'] ?? []) as SizeRow[]);
 	let faq = $derived((data.product.metafields['content.faq'] ?? []) as { q: string; a: string }[]);
+	let benefits = $derived(
+		(data.product.metafields['content.benefits'] ?? []) as { title: string; body: string }[]
+	);
 
 	// Defaults are computed, not assigned by an effect: effects don't run during
 	// SSR, so starting these empty rendered the page with no variant selected —
@@ -148,7 +151,7 @@
 	<meta name="description" content={data.product.description ?? ''} />
 </svelte:head>
 
-<article class="mx-auto max-w-6xl px-4 py-10">
+<article class="mx-auto max-w-6xl px-4 pt-10 pb-28 lg:pb-10">
 	<div class="grid gap-10 lg:grid-cols-2 lg:gap-16">
 		<!-- Gallery -->
 		<div>
@@ -214,6 +217,20 @@
 
 			{#if data.product.description}
 				<p class="mt-5 text-ink-600">{data.product.description}</p>
+			{/if}
+
+			{#if benefits.length}
+				<ul class="mt-6 space-y-3">
+					{#each benefits as benefit (benefit.title)}
+						<li class="flex gap-3">
+							<span class="mt-0.5 text-tide-600" aria-hidden="true">✓</span>
+							<span class="text-sm">
+								<span class="font-medium">{benefit.title}.</span>
+								<span class="text-ink-600">{benefit.body}</span>
+							</span>
+						</li>
+					{/each}
+				</ul>
 			{/if}
 
 			<!-- Colour -->
@@ -321,6 +338,32 @@
 				{/if}
 			</p>
 
+			<!-- The three objections that stop a first-time buyer: cost of
+			     shipping, risk of the wrong size, and handing card details to a
+			     shop they have never used. -->
+			<ul class="mt-6 grid grid-cols-3 gap-2 border-y border-ink-200 py-4 text-center text-xs text-ink-600">
+				<li>{t('product.trustShipping')}</li>
+				<li>{t('product.trustReturns')}</li>
+				<li>{t('product.trustSecure')}</li>
+			</ul>
+
+			<div class="mt-6 space-y-4 text-sm">
+				<div>
+					<h2 class="font-medium">{t('product.reassureShippingTitle')}</h2>
+					<p class="mt-1 text-ink-600">
+						{t('product.reassureShippingBody')}
+						<a class="underline" href="/policies/shipping">{t('product.reassureMore')}</a>
+					</p>
+				</div>
+				<div>
+					<h2 class="font-medium">{t('product.reassureReturnsTitle')}</h2>
+					<p class="mt-1 text-ink-600">
+						{t('product.reassureReturnsBody')}
+						<a class="underline" href="/policies/refunds">{t('product.reassureMore')}</a>
+					</p>
+				</div>
+			</div>
+
 			<!-- Size chart -->
 			{#if sizeChart.length}
 				<section class="mt-10">
@@ -377,3 +420,28 @@
 		</section>
 	{/if}
 </article>
+
+<!-- Phone-only buy bar. The desktop layout keeps the buy box beside the gallery,
+     but on a phone everything is one column and the button is far above the size
+     chart and FAQ people scroll through before deciding. -->
+<div
+	class="fixed inset-x-0 bottom-0 z-40 border-t border-ink-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden"
+>
+	<div class="mx-auto flex max-w-6xl items-center gap-3">
+		<div class="min-w-0 flex-1">
+			<p class="truncate text-sm font-medium">{data.product.title}</p>
+			<p class="text-sm text-ink-600">
+				{formatMoney(data.product.priceCents, locale, data.product.currency)}
+				<span class="ms-1 text-ink-400">{colourLabel} · {selectedSize}</span>
+			</p>
+		</div>
+		<button
+			type="button"
+			onclick={addToCart}
+			disabled={!inStock}
+			class="shrink-0 rounded-xl bg-tide-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-tide-700 disabled:cursor-not-allowed disabled:bg-ink-200"
+		>
+			{inStock ? t('product.stickyAdd') : t('product.soldOut')}
+		</button>
+	</div>
+</div>

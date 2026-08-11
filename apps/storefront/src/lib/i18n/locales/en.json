@@ -34,7 +34,7 @@
 		"buyNow": "Buy it now",
 		"soldOut": "Sold out",
 		"outOfStockVariant": "This combination is out of stock",
-		"inStock": "In stock — ships within 24 hours",
+		"inStock": "In stock — dispatched in 2–4 business days",
 		"lowStock": "Only {count} left",
 		"selectColor": "Select a colour",
 		"selectSize": "Select a size",
@@ -59,7 +59,17 @@
 			"pink": "Pink",
 			"purple": "Purple",
 			"red": "Red"
-		}
+		},
+		"benefitsTitle": "Why dogs swim better in it",
+		"trustShipping": "Free shipping",
+		"trustReturns": "30-day free returns",
+		"trustSecure": "Secure checkout",
+		"reassureShippingTitle": "When will I get it?",
+		"reassureShippingBody": "We pack your order in 2–4 business days. After that, 93% of orders arrive within 5–12 days.",
+		"reassureReturnsTitle": "What if the size is wrong?",
+		"reassureReturnsBody": "30 days, no questions asked, and we cover the postage on exchanges and returns.",
+		"reassureMore": "Read the full policy",
+		"stickyAdd": "Add to cart"
 	},
 	"cart": {
 		"title": "Your cart",
@@ -141,7 +151,7 @@
 				{
 					"heading": "Processing time",
 					"body": [
-						"Orders are picked and packed within 1–2 business days of payment clearing. Orders placed at a weekend or on a public holiday start processing the next business day.",
+						"Orders are picked and packed within 2–4 business days of payment clearing. Orders placed at a weekend or on a public holiday start processing the next business day.",
 						"You'll get a confirmation when your order is placed, and a second message with tracking once it ships."
 					]
 				},
@@ -196,8 +206,8 @@
 				{
 					"heading": "Who pays return postage",
 					"body": [
-						"If the item is faulty, damaged in transit, or not what you ordered, we pay — we'll send you a prepaid label and refund your original shipping too.",
-						"If you've changed your mind, return postage is yours to cover. We recommend a tracked service; we can only refund items that reach us."
+						"We cover it. Returns and exchanges are free within 30 days — email us and we'll send you a prepaid label.",
+						"We recommend using the label we send rather than your own service, so the parcel can be tracked back to your order."
 					]
 				},
 				{

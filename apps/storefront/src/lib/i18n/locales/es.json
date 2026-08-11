@@ -34,7 +34,7 @@
 		"buyNow": "Comprar ahora",
 		"soldOut": "Agotado",
 		"outOfStockVariant": "Esta combinación está agotada",
-		"inStock": "En stock — se envía en 24 horas",
+		"inStock": "En stock — sale en 2–4 días laborables",
 		"lowStock": "Solo quedan {count}",
 		"selectColor": "Elige un color",
 		"selectSize": "Elige una talla",
@@ -59,7 +59,17 @@
 			"pink": "Rosa",
 			"purple": "Morado",
 			"red": "Rojo"
-		}
+		},
+		"benefitsTitle": "Por qué nadan mejor con él",
+		"trustShipping": "Envío gratis",
+		"trustReturns": "30 días de devolución gratuita",
+		"trustSecure": "Pago seguro",
+		"reassureShippingTitle": "¿Cuándo lo recibiré?",
+		"reassureShippingBody": "Preparamos tu pedido en 2–4 días laborables. Después, el 93% llega entre 5 y 12 días.",
+		"reassureReturnsTitle": "¿Y si la talla no es la correcta?",
+		"reassureReturnsBody": "30 días, sin preguntas, y nosotros pagamos el envío de cambios y devoluciones.",
+		"reassureMore": "Ver la política completa",
+		"stickyAdd": "Añadir al carrito"
 	},
 	"cart": {
 		"title": "Tu carrito",
@@ -141,7 +151,7 @@
 				{
 					"heading": "Tiempo de preparación",
 					"body": [
-						"Preparamos los pedidos en 1–2 días laborables desde que se confirma el pago. Los pedidos de fin de semana o festivo empiezan a prepararse el siguiente día laborable.",
+						"Preparamos los pedidos en 2–4 días laborables desde que se confirma el pago. Los pedidos de fin de semana o festivo empiezan a prepararse el siguiente día laborable.",
 						"Recibirás una confirmación al hacer el pedido y un segundo mensaje con el seguimiento cuando salga."
 					]
 				},
@@ -196,8 +206,8 @@
 				{
 					"heading": "Quién paga el envío de vuelta",
 					"body": [
-						"Si el artículo está defectuoso, dañado en el transporte o no es el que pediste, lo pagamos nosotros: te enviamos una etiqueta prepagada y te devolvemos también el envío original.",
-						"Si has cambiado de opinión, el envío de vuelta corre de tu cuenta. Recomendamos un servicio con seguimiento; solo podemos reembolsar lo que nos llegue."
+						"Lo pagamos nosotros. Las devoluciones y los cambios son gratuitos durante 30 días: escríbenos y te enviamos una etiqueta prepagada.",
+						"Usa la etiqueta que te enviamos en lugar de otro servicio, para que el paquete se pueda asociar a tu pedido."
 					]
 				},
 				{

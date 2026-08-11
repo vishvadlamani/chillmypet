@@ -6,18 +6,11 @@
  * and any agent still get a readable `label`.
  */
 import { createDb, createStoreService } from 'ecomwithai';
+import { BENEFITS, EMAIL, FAQ, SLUG, STORE, TRANSLATIONS } from './content.js';
 
 const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
 const authToken = process.env.TURSO_AUTH_TOKEN;
 const db = createDb(authToken ? { url, authToken } : { url });
-
-const STORE = {
-	id: process.env.SEED_STORE_ID ?? 'chillmypet',
-	domain: process.env.SEED_STORE_DOMAIN ?? 'chillmypet.com',
-	name: 'ChillMyPet',
-	locale: 'en',
-	currency: 'USD'
-};
 
 // Public identifiers — both appear in the served page source.
 const SETTINGS = {
@@ -25,7 +18,6 @@ const SETTINGS = {
 	meta_domain_verification: '0d821f82wjdsr4q7owd17wo659qt6h'
 };
 
-const SLUG = 'dog-life-jacket';
 const PRICE_CENTS = 4497;
 const COMPARE_AT_CENTS = 6397;
 
@@ -65,62 +57,6 @@ const SIZE_CHART = [
 	{ size: 'L', chestMinCm: 64, chestMaxCm: 76, weightMinKg: 16, weightMaxKg: 27 },
 	{ size: 'XL', chestMinCm: 76, chestMaxCm: 91, weightMinKg: 27, weightMaxKg: 45 }
 ];
-
-const TRANSLATIONS = {
-	en: {
-		title: 'Dog Life Jacket',
-		subtitle: 'Let them be the adventurous one',
-		description:
-			"If the size you chose isn't quite right, we offer a 30 day - no questions asked - free exchange or return policy. If your dog is between sizes, we recommend sizing up for a more comfortable, secure fit."
-	},
-	es: {
-		title: 'Chaleco salvavidas para perros',
-		subtitle: 'Deja que sea el aventurero',
-		description:
-			'Si la talla que elegiste no es la adecuada, ofrecemos cambios y devoluciones gratuitos durante 30 días, sin preguntas. Si tu perro está entre dos tallas, recomendamos elegir la mayor para un ajuste más cómodo y seguro.'
-	}
-};
-
-const EMAIL = 'contact@chillmypet.com';
-
-const FAQ = {
-	en: [
-		['When will I get my order? 🚚',
-		 `Please allow us 2-4 business days to process your order. Once processed, 93% of orders arrive between 5-12 days later. You may review our shipping policy for full details. If you have any questions, please contact us at ${EMAIL}.`],
-		["What if the size doesn't fit my dog? 📏",
-		 `We offer 30 day - no questions asked - free exchanges and returns. You may review our return and exchange policy for full details. If you have any questions or would like to begin an exchange, please email us at ${EMAIL}.`],
-		['Is the chin rest comfortable for smaller dogs?',
-		 "Yes - the chin rest is designed to sit naturally under the jaw without restricting movement, and it's proportioned across all sizes so smaller breeds get the same support as larger ones."],
-		["Will this work for a dog who's never worn a life vest before?",
-		 'Most dogs adjust within the first few minutes, especially once they’re in the water and feel the support. We recommend a quick 5-minute trial in shallow water before a big trip.'],
-		['Can it get wet and dry quickly between uses?',
-		 'Absolutely - the materials are quick-dry and built for repeated water use, so you can use it one day and have it ready again the next.'],
-		['How do I know which size to order?',
-		 'Check our size chart based on chest girth and weight. If your dog is between sizes, we recommend sizing up for a more comfortable, secure fit.'],
-		['Is the handle strong enough to lift my dog out of water?',
-		 'Yes - the handle is reinforced and stitched to support a quick lift-assist, ideal for getting your dog back onto a dock, boat, or shore.'],
-		["What if the size doesn't fit right when it arrives?",
-		 "No problem - reach out to our team and we'll help you exchange for the correct size, hassle-free."]
-	],
-	es: [
-		['¿Cuándo recibiré mi pedido? 🚚',
-		 `Necesitamos entre 2 y 4 días laborables para preparar tu pedido. Una vez enviado, el 93% de los pedidos llega entre 5 y 12 días después. Puedes consultar nuestra política de envíos para más detalles. Si tienes cualquier duda, escríbenos a ${EMAIL}.`],
-		['¿Y si la talla no le queda bien a mi perro? 📏',
-		 `Ofrecemos cambios y devoluciones gratuitos durante 30 días, sin preguntas. Puedes consultar nuestra política de devoluciones y cambios para más detalles. Si tienes dudas o quieres iniciar un cambio, escríbenos a ${EMAIL}.`],
-		['¿El apoyo de barbilla es cómodo para perros pequeños?',
-		 'Sí: el apoyo de barbilla está diseñado para quedar de forma natural bajo la mandíbula sin limitar el movimiento, y está proporcionado en todas las tallas, así que las razas pequeñas reciben el mismo soporte que las grandes.'],
-		['¿Sirve para un perro que nunca ha llevado chaleco salvavidas?',
-		 'La mayoría de los perros se adapta en los primeros minutos, sobre todo cuando están en el agua y notan el soporte. Recomendamos una prueba de 5 minutos en agua poco profunda antes de una salida larga.'],
-		['¿Se puede mojar y secar rápido entre usos?',
-		 'Por supuesto: los materiales son de secado rápido y están hechos para un uso repetido en el agua, así que puedes usarlo un día y tenerlo listo al siguiente.'],
-		['¿Cómo sé qué talla pedir?',
-		 'Consulta nuestra guía de tallas según el contorno de pecho y el peso. Si tu perro está entre dos tallas, recomendamos elegir la mayor para un ajuste más cómodo y seguro.'],
-		['¿El asa aguanta para sacar a mi perro del agua?',
-		 'Sí: el asa está reforzada y cosida para permitir una elevación rápida, ideal para subir a tu perro a un muelle, una barca o la orilla.'],
-		['¿Y si al llegar la talla no es la correcta?',
-		 'Sin problema: escríbenos y te ayudamos a cambiarla por la talla correcta, sin complicaciones.']
-	]
-};
 
 // --- store ---
 await db.execute({
@@ -261,6 +197,19 @@ await db.execute({
 	      values (?, ?, 'specs', 'size_chart', null, ?)`,
 	args: [STORE.id, productId, JSON.stringify(SIZE_CHART)]
 });
+
+for (const [locale, entries] of Object.entries(BENEFITS)) {
+	await db.execute({
+		sql: `insert into product_metafields (store_id, product_id, namespace, key, locale, value_json)
+		      values (?, ?, 'content', 'benefits', ?, ?)`,
+		args: [
+			STORE.id,
+			productId,
+			locale,
+			JSON.stringify(entries.map(([title, body]) => ({ title, body })))
+		]
+	});
+}
 
 for (const [locale, entries] of Object.entries(FAQ)) {
 	await db.execute({
