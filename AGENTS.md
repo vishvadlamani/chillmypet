@@ -183,18 +183,27 @@ Permission"; that is expected. Posting to `/{dataset_id}/events` is a
 dataset-level grant, separate from the pixel-read scope, so don't take a failed
 metadata read as proof the token can't send.
 
-Payments are **live on production**. The card form is embedded on the checkout
-page when `STRIPE_PUBLISHABLE_KEY` is set, and falls back to Stripe's hosted page
-when it is not — the copy under the Payment heading follows whichever is active,
-so don't hard-code it. The publishable key is public by design; it identifies
-the account to Stripe.js and is meant to reach the browser.
+Payments are **live on production**, and checkout is one page: Stripe's Payment
+Element renders inline under the shipping method, and a single Place order
+button creates the order, mints a payment intent and confirms it against the
+fields already filled. No redirect, no second step.
 
-If the embedded form cannot mount, the page posts to `/api/checkout/session`
-and fails over to the hosted page. That covers a publishable key belonging to
-the wrong account, and — the common case on paid social — an ad blocker eating
-`js.stripe.com`. The endpoint only serves orders still in `pending_payment`,
-because order numbers are guessable and a settled order must not be handed a
-fresh payment page. Checkout redirects to Stripe's hosted page
+That is Stripe's **deferred intent** flow — `elements({ mode: 'payment', amount })`
+renders before an order exists, `elements.submit()` validates, then
+`confirmPayment` runs against the intent the action returned. `submit()` before
+`confirmPayment` is required in this mode; skipping it fails at confirm time.
+
+The form posts `cardReady`. When Stripe.js could not mount — an ad blocker on
+`js.stripe.com` is the usual reason on paid social — it is `0` and the action
+uses the hosted page instead, because an intent with nothing to confirm it is a
+dead end. `/api/checkout/session` serves the same fallback for an order that
+already exists, and only for orders still in `pending_payment`: order numbers are
+guessable, and a settled one must not be handed a fresh payment page.
+
+Do not reach for `initEmbeddedCheckout`. It was tried first, and current
+Stripe.js wants `fetchClientSecret` rather than a raw `clientSecret` — passing
+the secret throws, which on a live store looks exactly like a bad publishable
+key. The Payment Element is the right tool for an inline form anyway. Checkout redirects to Stripe's hosted page
 and the order becomes `paid` only when a signed webhook says so; no card details
 touch this application. Staging deliberately has **no Stripe keys**, because it
 shares production's database — a card test there would be a real charge. With
