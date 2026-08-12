@@ -193,12 +193,22 @@ renders before an order exists, `elements.submit()` validates, then
 `confirmPayment` runs against the intent the action returned. `submit()` before
 `confirmPayment` is required in this mode; skipping it fails at confirm time.
 
+Which methods appear is scoped by `STRIPE_PAYMENT_METHOD_CONFIGURATION`
+(`pmc_1U3QlJBbNuiab9E2mZmVymgE` — card, Apple Pay, Google Pay, Link, Cash App;
+Amazon Pay off). Do **not** change the account default instead: the Stripe
+account is shared with another business, and its default configuration is
+theirs.
+
 The form posts `cardReady`. When Stripe.js could not mount — an ad blocker on
 `js.stripe.com` is the usual reason on paid social — it is `0` and the action
 uses the hosted page instead, because an intent with nothing to confirm it is a
 dead end. `/api/checkout/session` serves the same fallback for an order that
 already exists, and only for orders still in `pending_payment`: order numbers are
 guessable, and a settled one must not be handed a fresh payment page.
+
+Stripe.js is loaded with three attempts and a backoff before the inline form
+gives up. Most failed loads are a flaky connection, not an ad blocker, and
+treating the two alike sends a payable customer to a redirect they didn't need.
 
 Do not reach for `initEmbeddedCheckout`. It was tried first, and current
 Stripe.js wants `fetchClientSecret` rather than a raw `clientSecret` — passing

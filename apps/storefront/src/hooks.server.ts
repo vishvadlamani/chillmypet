@@ -89,6 +89,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 					// unless the account has a descriptor prefix configured.
 					statementDescriptor: env.STRIPE_STATEMENT_DESCRIPTOR,
 					statementDescriptorSuffix: env.STRIPE_STATEMENT_DESCRIPTOR_SUFFIX,
+					// Scopes the offered methods to this store. The Stripe account is
+					// shared with another business, so the account default is not ours
+					// to edit.
+					paymentMethodConfiguration: env.STRIPE_PAYMENT_METHOD_CONFIGURATION,
 					// Mirrors META_CAPI_ENDPOINT: lets the end-to-end test drive a real
 					// checkout against a local mock instead of charging a real card.
 					// Unset in every deployed environment.

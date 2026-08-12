@@ -34,27 +34,51 @@
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let elements: any = null;
 
-	function loadStripeJs(): Promise<unknown> {
-		const w = window as unknown as { Stripe?: unknown };
-		if (w.Stripe) return Promise.resolve(w.Stripe);
-
-		const existing = document.querySelector<HTMLScriptElement>('script[data-stripe-js]');
-		if (existing) {
-			return new Promise((resolve, reject) => {
-				existing.addEventListener('load', () => resolve((window as { Stripe?: unknown }).Stripe));
-				existing.addEventListener('error', () => reject(new Error('Stripe.js failed to load')));
-			});
-		}
-
+	function injectStripeJs(): Promise<unknown> {
 		return new Promise((resolve, reject) => {
 			const script = document.createElement('script');
 			script.src = 'https://js.stripe.com/v3/';
 			script.async = true;
 			script.dataset.stripeJs = 'true';
 			script.addEventListener('load', () => resolve((window as { Stripe?: unknown }).Stripe));
-			script.addEventListener('error', () => reject(new Error('Stripe.js failed to load')));
+			script.addEventListener('error', () => {
+				script.remove();
+				reject(new Error('Stripe.js failed to load'));
+			});
 			document.head.appendChild(script);
 		});
+	}
+
+	/**
+	 * A failed script load is usually a flaky connection, not an ad blocker — and
+	 * treating the two the same sends a payable customer to a redirect they did
+	 * not need. Retry before giving up on the inline form.
+	 */
+	async function loadStripeJs(): Promise<unknown> {
+		const w = window as unknown as { Stripe?: unknown };
+		if (w.Stripe) return w.Stripe;
+
+		const existing = document.querySelector<HTMLScriptElement>('script[data-stripe-js]');
+		if (existing) {
+			await new Promise<void>((resolve, reject) => {
+				existing.addEventListener('load', () => resolve());
+				existing.addEventListener('error', () => reject(new Error('Stripe.js failed to load')));
+			});
+			return (window as unknown as { Stripe?: unknown }).Stripe;
+		}
+
+		let lastError: unknown;
+		for (let attempt = 0; attempt < 3; attempt += 1) {
+			try {
+				const stripeGlobal = await injectStripeJs();
+				if (stripeGlobal) return stripeGlobal;
+				lastError = new Error('Stripe.js loaded without a global');
+			} catch (error) {
+				lastError = error;
+			}
+			await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+		}
+		throw lastError ?? new Error('Stripe.js unavailable');
 	}
 
 	$effect(() => {
