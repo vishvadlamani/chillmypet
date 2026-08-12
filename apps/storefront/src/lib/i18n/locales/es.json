@@ -144,7 +144,8 @@
 		"paymentStepTitle": "Pago",
 		"paymentBack": "Editar datos",
 		"paymentLoading": "Cargando el pago seguro…",
-		"paymentHostedNote": "Los datos de la tarjeta se introducen en la página segura de Stripe. Nunca pasan por este sitio."
+		"paymentHostedNote": "Los datos de la tarjeta se introducen en la página segura de Stripe. Nunca pasan por este sitio.",
+		"paymentFallback": "Abriendo nuestra página de pago segura…"
 	},
 	"footer": {
 		"shipping": "Política de envíos",

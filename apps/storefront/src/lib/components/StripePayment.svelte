@@ -12,8 +12,16 @@
 	let {
 		clientSecret,
 		publishableKey,
-		loadingLabel
-	}: { clientSecret: string; publishableKey: string; loadingLabel: string } = $props();
+		orderNumber,
+		loadingLabel,
+		fallbackLabel
+	}: {
+		clientSecret: string;
+		publishableKey: string;
+		orderNumber: string;
+		loadingLabel: string;
+		fallbackLabel: string;
+	} = $props();
 
 	let container = $state<HTMLDivElement | null>(null);
 	let ready = $state(false);
@@ -60,8 +68,26 @@
 				instance.mount(container!);
 				ready = true;
 			} catch (error) {
-				console.error('Embedded checkout failed to mount', error);
+				// A mismatched publishable key, or an ad blocker eating js.stripe.com
+				// — common on paid social. The customer has decided to buy either
+				// way, so fail over to the hosted page rather than stranding them on
+				// an empty payment step.
+				console.error('Embedded checkout failed to mount, falling back to hosted', error);
 				failed = true;
+				try {
+					const res = await fetch('/api/checkout/session', {
+						method: 'POST',
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify({ orderNumber })
+					});
+					const data = (await res.json()) as { url?: string };
+					if (data.url) {
+						window.location.href = data.url;
+						return;
+					}
+				} catch (fallbackError) {
+					console.error('Hosted fallback also failed', fallbackError);
+				}
 			}
 		})();
 
@@ -82,7 +108,9 @@
 </script>
 
 <div bind:this={container} class="min-h-[28rem]">
-	{#if !ready && !failed}
-		<p class="py-10 text-center text-sm text-ink-600">{loadingLabel}</p>
+	{#if !ready}
+		<p class="py-10 text-center text-sm text-ink-600">
+			{failed ? fallbackLabel : loadingLabel}
+		</p>
 	{/if}
 </div>

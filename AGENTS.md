@@ -187,7 +187,14 @@ Payments are **live on production**. The card form is embedded on the checkout
 page when `STRIPE_PUBLISHABLE_KEY` is set, and falls back to Stripe's hosted page
 when it is not — the copy under the Payment heading follows whichever is active,
 so don't hard-code it. The publishable key is public by design; it identifies
-the account to Stripe.js and is meant to reach the browser. Checkout redirects to Stripe's hosted page
+the account to Stripe.js and is meant to reach the browser.
+
+If the embedded form cannot mount, the page posts to `/api/checkout/session`
+and fails over to the hosted page. That covers a publishable key belonging to
+the wrong account, and — the common case on paid social — an ad blocker eating
+`js.stripe.com`. The endpoint only serves orders still in `pending_payment`,
+because order numbers are guessable and a settled order must not be handed a
+fresh payment page. Checkout redirects to Stripe's hosted page
 and the order becomes `paid` only when a signed webhook says so; no card details
 touch this application. Staging deliberately has **no Stripe keys**, because it
 shares production's database — a card test there would be a real charge. With

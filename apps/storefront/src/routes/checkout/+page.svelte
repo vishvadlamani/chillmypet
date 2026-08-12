@@ -206,7 +206,9 @@
 				<StripePayment
 					clientSecret={payment.clientSecret}
 					publishableKey={data.stripePublishableKey}
+					orderNumber={payment.orderNumber}
 					loadingLabel={t('checkout.paymentLoading')}
+					fallbackLabel={t('checkout.paymentFallback')}
 				/>
 			</div>
 			<a href="/checkout" class="mt-6 inline-block text-sm underline">

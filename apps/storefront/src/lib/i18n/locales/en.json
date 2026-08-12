@@ -144,7 +144,8 @@
 		"paymentStepTitle": "Payment",
 		"paymentBack": "Edit details",
 		"paymentLoading": "Loading secure payment…",
-		"paymentHostedNote": "Card details are entered on Stripe's secure page. They never touch this site."
+		"paymentHostedNote": "Card details are entered on Stripe's secure page. They never touch this site.",
+		"paymentFallback": "Opening our secure payment page…"
 	},
 	"footer": {
 		"shipping": "Shipping policy",
