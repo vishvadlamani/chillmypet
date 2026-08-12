@@ -70,7 +70,14 @@
 		"reassureReturnsTitle": "¿Y si la talla no es la correcta?",
 		"reassureReturnsBody": "30 días, sin preguntas, y nosotros pagamos el envío de cambios y devoluciones.",
 		"reassureMore": "Ver la política completa",
-		"stickyAdd": "Añadir al carrito"
+		"stickyAdd": "Añadir al carrito",
+		"bundleTitle": "Compra más y ahorra",
+		"bundleOne": "Lleva 1",
+		"bundleMany": "Lleva {count}",
+		"bundleSave": "AHORRA {percent}%",
+		"bundlePopular": "El más elegido",
+		"bundleEach": "{price} cada uno",
+		"bundleFree": "Envío gratis"
 	},
 	"cart": {
 		"title": "Tu carrito",
@@ -132,7 +139,8 @@
 		"paidBody": "Gracias — el pedido {orderNumber} está pagado y en preparación.",
 		"processingTitle": "El pago se está procesando",
 		"processingBody": "El pedido {orderNumber} está registrado y esperamos la confirmación de tu banco. Esta página se actualizará cuando se complete — no hace falta pagar otra vez.",
-		"orderLabel": "Pedido"
+		"orderLabel": "Pedido",
+		"bundleDiscount": "Descuento por lote"
 	},
 	"footer": {
 		"shipping": "Política de envíos",

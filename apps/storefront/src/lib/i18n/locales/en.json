@@ -70,7 +70,14 @@
 		"reassureReturnsTitle": "What if the size is wrong?",
 		"reassureReturnsBody": "30 days, no questions asked, and we cover the postage on exchanges and returns.",
 		"reassureMore": "Read the full policy",
-		"stickyAdd": "Add to cart"
+		"stickyAdd": "Add to cart",
+		"bundleTitle": "Bundle & Save",
+		"bundleOne": "Buy 1",
+		"bundleMany": "Buy {count}",
+		"bundleSave": "SAVE {percent}%",
+		"bundlePopular": "Most popular",
+		"bundleEach": "{price} each",
+		"bundleFree": "Free shipping"
 	},
 	"cart": {
 		"title": "Your cart",
@@ -132,7 +139,8 @@
 		"paidBody": "Thanks — order {orderNumber} is paid and on its way to being packed.",
 		"processingTitle": "Payment is processing",
 		"processingBody": "Order {orderNumber} is recorded and we're waiting for your bank to confirm the payment. This page updates once it clears — you don't need to pay again.",
-		"orderLabel": "Order"
+		"orderLabel": "Order",
+		"bundleDiscount": "Bundle discount"
 	},
 	"footer": {
 		"shipping": "Shipping policy",

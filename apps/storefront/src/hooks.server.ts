@@ -69,6 +69,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 		db,
 		store,
 		orderNumberPrefix: 'CMP',
+		// Buy-more-save-more. The storefront renders these; the server decides
+		// them, from the quantity it counts after merging duplicate lines.
+		quantityBreaks: [
+			{ minQuantity: 2, percentOff: 7 },
+			{ minQuantity: 3, percentOff: 9 }
+		],
 		stripe: env.STRIPE_SECRET_KEY
 			? {
 					secretKey: env.STRIPE_SECRET_KEY,

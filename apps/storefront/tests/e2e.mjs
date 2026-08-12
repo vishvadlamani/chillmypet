@@ -141,7 +141,9 @@ check('subtotal is 2 x 44.97', summary?.includes('$89.94'));
 await page.locator('input[name="method"][value="express"]').check();
 await page.waitForTimeout(200);
 const withExpress = await page.textContent('aside');
-check('express total 89.94 + 12.00', withExpress?.includes('$101.94'));
+// Two units now hit the 7% bundle tier: 89.94 - 6.30 + 12.00.
+check('bundle discount is applied in the summary', withExpress?.includes('$6.30'));
+check('express total 89.94 - 6.30 + 12.00', withExpress?.includes('$95.64'));
 
 {
 	const calls = await fbqCalls();
@@ -182,7 +184,7 @@ check('cart cleared after order', (await page.textContent('header a[href="/check
 	const calls = await fbqCalls();
 	const purchase = tracked(calls, 'Purchase');
 	check('Purchase fired', Boolean(purchase));
-	check('Purchase value includes express shipping', purchase?.[2]?.value === '101.94');
+	check('Purchase value is what was actually charged', purchase?.[2]?.value === '95.64');
 	check('Purchase currency', purchase?.[2]?.currency === 'USD');
 	const eventId = purchase?.[3]?.eventID;
 	check('Purchase carries an eventID for CAPI dedup', typeof eventId === 'string' && eventId.length > 20);

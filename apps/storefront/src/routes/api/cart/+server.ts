@@ -1,4 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
+import { applyQuantityBreak } from 'ecomwithai';
 
 /**
  * Re-prices a client cart against the database. The browser stores prices for
@@ -46,9 +47,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	});
 
 	const subtotalCents = lines.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0);
+	// Same tiers, same arithmetic as the order, so the total the customer reads
+	// is the total they are charged.
+	const units = lines.reduce((sum, l) => sum + l.quantity, 0);
+	const bundle = applyQuantityBreak(locals.commerce.quantityBreaks, subtotalCents, units);
 	const currency = lines[0]
 		? priced.get(lines[0].variantId)!.currency
 		: locals.store.currency;
 
-	return json({ lines, subtotalCents, currency });
+	return json({
+		lines,
+		subtotalCents,
+		discountCents: bundle.discountCents,
+		totalCents: bundle.totalCents,
+		bundlePercentOff: bundle.applied?.percentOff ?? 0,
+		currency
+	});
 };

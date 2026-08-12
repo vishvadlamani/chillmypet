@@ -25,9 +25,14 @@
 		quantity: number;
 	};
 
-	let priced = $state<{ lines: PricedLine[]; subtotalCents: number; currency: string } | null>(
-		null
-	);
+	type Priced = {
+		lines: PricedLine[];
+		subtotalCents: number;
+		discountCents: number;
+		bundlePercentOff: number;
+		currency: string;
+	};
+	let priced = $state<Priced | null>(null);
 	let method = $state('standard');
 	let submitting = $state(false);
 	// Stable per page view: a double-submitted form returns the first order
@@ -53,7 +58,7 @@
 		const payload = cart.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity }));
 
 		if (payload.length === 0) {
-			priced = { lines: [], subtotalCents: 0, currency: 'USD' };
+			priced = { lines: [], subtotalCents: 0, discountCents: 0, bundlePercentOff: 0, currency: 'USD' };
 			return;
 		}
 
@@ -68,7 +73,7 @@
 				if (!cancelled) priced = data;
 			})
 			.catch(() => {
-				if (!cancelled) priced = { lines: [], subtotalCents: 0, currency: 'USD' };
+				if (!cancelled) priced = { lines: [], subtotalCents: 0, discountCents: 0, bundlePercentOff: 0, currency: 'USD' };
 			});
 
 		return () => {
@@ -117,8 +122,10 @@
 	const rate = (id: string) => DEFAULT_SHIPPING_RATES.find((r) => r.id === id)?.priceCents;
 	let shippingCents = $derived(rate(method) ?? 0);
 	let subtotalCents = $derived(priced?.subtotalCents ?? 0);
+	let discountCents = $derived(priced?.discountCents ?? 0);
+	let bundlePercentOff = $derived(priced?.bundlePercentOff ?? 0);
 	let currency = $derived(priced?.currency ?? 'USD');
-	let totalCents = $derived(subtotalCents + shippingCents);
+	let totalCents = $derived(subtotalCents - discountCents + shippingCents);
 	let isEmpty = $derived((priced?.lines.length ?? 0) === 0);
 
 	let countries = $derived(countryOptions(locale));
@@ -470,6 +477,12 @@
 								<dt class="text-ink-600">{t('checkout.subtotal')}</dt>
 								<dd>{formatMoney(subtotalCents, locale, currency)}</dd>
 							</div>
+							{#if discountCents > 0}
+								<div class="flex justify-between text-tide-700">
+									<dt>{t('checkout.bundleDiscount')} ({bundlePercentOff}%)</dt>
+									<dd>−{formatMoney(discountCents, locale, currency)}</dd>
+								</div>
+							{/if}
 							<div class="flex justify-between">
 								<dt class="text-ink-600">{t('checkout.shipping')}</dt>
 								<dd>

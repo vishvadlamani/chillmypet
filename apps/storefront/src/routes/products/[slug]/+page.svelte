@@ -84,10 +84,21 @@
 			data.product.options[1]?.values ?? []
 		)
 	);
-	// One per add. Quantity is adjusted in the cart, which keeps the buy box to a
-	// single decision: colour, size, buy.
-	const quantity = 1;
+	// Bundle tiers come off `commerce.quantityBreaks` via the loader — the server
+	// owns the discount, this only renders it. A tier the browser invents buys
+	// nothing, because the order re-derives the discount from the quantity it
+	// counts.
+	let tiers = $derived(data.quantityBreaks);
+	let bundles = $derived([
+		{ quantity: 1, percentOff: 0 },
+		...tiers.map((t) => ({ quantity: t.minQuantity, percentOff: t.percentOff }))
+	].sort((a, b) => a.quantity - b.quantity));
+
+	let quantity = $state(1);
 	let added = $state(false);
+
+	const unitPriceFor = (percentOff: number) =>
+		Math.round((data.product.priceCents * (100 - percentOff)) / 100);
 
 	// Re-anchor when the product changes under us on client-side navigation.
 	$effect(() => {
@@ -293,6 +304,78 @@
 				</div>
 			</fieldset>
 
+			{#if bundles.length > 1}
+				<fieldset class="mt-7">
+					<legend class="text-sm font-medium">{t('product.bundleTitle')}</legend>
+					<div class="mt-3 space-y-2">
+						{#each bundles as bundle (bundle.quantity)}
+							{@const each = unitPriceFor(bundle.percentOff)}
+							<label
+								class="flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition
+									{quantity === bundle.quantity
+									? 'border-ink-900 bg-ink-50 ring-1 ring-ink-900'
+									: 'border-ink-200 hover:border-ink-400'}"
+							>
+								<input
+									type="radio"
+									name="bundle"
+									class="peer sr-only"
+									value={bundle.quantity}
+									bind:group={quantity}
+								/>
+								<span
+									class="grid size-5 shrink-0 place-items-center rounded-full border
+										{quantity === bundle.quantity ? 'border-ink-900' : 'border-ink-300'}"
+									aria-hidden="true"
+								>
+									{#if quantity === bundle.quantity}
+										<span class="size-2.5 rounded-full bg-ink-900"></span>
+									{/if}
+								</span>
+								<span class="min-w-0 flex-1">
+									<span class="flex flex-wrap items-center gap-2">
+										<span class="font-medium">
+											{bundle.quantity === 1
+												? t('product.bundleOne')
+												: t('product.bundleMany', { count: bundle.quantity })}
+										</span>
+										{#if bundle.percentOff > 0}
+											<span
+												class="rounded-full bg-coral-500 px-2 py-0.5 text-[11px] font-semibold text-white"
+											>
+												{t('product.bundleSave', { percent: bundle.percentOff })}
+											</span>
+										{/if}
+										{#if bundle.quantity === 2}
+											<span class="text-xs text-ink-400">{t('product.bundlePopular')}</span>
+										{/if}
+									</span>
+									<span class="mt-0.5 block text-sm text-ink-600">
+										{t('product.bundleEach', {
+											price: formatMoney(each, locale, data.product.currency)
+										})}
+									</span>
+								</span>
+								<span class="shrink-0 text-right">
+									<span class="block font-semibold">
+										{formatMoney(each * bundle.quantity, locale, data.product.currency)}
+									</span>
+									{#if bundle.percentOff > 0}
+										<span class="block text-xs text-ink-400 line-through">
+											{formatMoney(
+												data.product.priceCents * bundle.quantity,
+												locale,
+												data.product.currency
+											)}
+										</span>
+									{/if}
+								</span>
+							</label>
+						{/each}
+					</div>
+				</fieldset>
+			{/if}
+
 			<!-- Size chart opens over the page rather than pushing the button down
 			     the screen, which is what their layout does and why their CTA stays
 			     within a thumb's reach on a phone. -->
@@ -344,12 +427,18 @@
 	{#if data.product.subtitle}
 		<section class="mt-16 overflow-hidden rounded-3xl bg-ink-50">
 			<div class="grid items-center gap-8 lg:grid-cols-2">
-				<ProductImage
-					src={activeImage}
-					hex={activeHex}
-					label=""
-					class="aspect-[4/3] w-full lg:aspect-square"
-				/>
+				<picture>
+					<source srcset="/products/dog-life-jacket/lifestyle-1.webp" type="image/webp" />
+					<img
+						src="/products/dog-life-jacket/lifestyle-1.jpg"
+						alt={data.product.subtitle ?? data.product.title}
+						loading="lazy"
+						decoding="async"
+						width="1200"
+						height="1200"
+						class="aspect-[4/3] w-full object-cover lg:aspect-square"
+					/>
+				</picture>
 				<div class="px-6 pb-10 lg:px-10 lg:py-12">
 					<h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
 						{data.product.subtitle}
