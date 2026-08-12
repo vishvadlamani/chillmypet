@@ -193,6 +193,13 @@ renders before an order exists, `elements.submit()` validates, then
 `confirmPayment` runs against the intent the action returned. `submit()` before
 `confirmPayment` is required in this mode; skipping it fails at confirm time.
 
+**The method list has to be scoped in two places.** The payment intent takes
+`payment_method_configuration`, but in deferred mode the Payment Element draws
+its list *before* any intent exists, so it reads the `paymentMethodConfiguration`
+passed to `elements()` in the browser. Restricting only the intent changes what
+can be charged, not what is shown — which is exactly how Amazon Pay survived
+being turned off once already.
+
 Which methods appear is scoped by `STRIPE_PAYMENT_METHOD_CONFIGURATION`
 (`pmc_1U3QlJBbNuiab9E2mZmVymgE` — card, Apple Pay, Google Pay, Link, Cash App;
 Amazon Pay off). Do **not** change the account default instead: the Stripe
