@@ -107,26 +107,48 @@ export const actions: Actions = {
 		// a request from Stripe and has none of this customer's cookies.
 		if (commerce.payments) {
 			const attribution = attributionFrom(cookies, url, request.headers);
-			// Embedded keeps the card form on this page. It needs a publishable key
-			// to mount, so without one we fall back to the hosted page rather than
-			// showing the customer an empty payment step.
-			const embedded = Boolean(locals.stripePublishableKey);
+			const metadata = {
+				...(attribution.fbp ? { fbp: attribution.fbp } : {}),
+				...(attribution.fbc ? { fbc: attribution.fbc } : {})
+			};
 			const successUrl = `${url.origin}/checkout/success?order=${encodeURIComponent(order.orderNumber)}`;
+
+			// The card form is already on the page, so what it needs back is a
+			// payment intent to confirm against — not somewhere else to go. A
+			// payment intent is the order total outright, which is also why the
+			// bundle discount needs no coupon on this path.
+			// The browser reports whether the inline fields mounted. When they did
+			// not — an ad blocker on js.stripe.com is the usual reason — an intent
+			// would have nothing to confirm it, so use the hosted page.
+			const cardReady = value('cardReady') !== '0';
+			if (locals.stripePublishableKey && cardReady) {
+				try {
+					const intent = await commerce.payments.startPayment({
+						orderNumber: order.orderNumber,
+						metadata
+					});
+					return {
+						pay: {
+							clientSecret: intent.clientSecret,
+							orderNumber: order.orderNumber,
+							returnUrl: successUrl
+						}
+					};
+				} catch (error) {
+					console.error('Payment intent failed', order.orderNumber, error);
+					return fail(502, { errorCode: 'payment_unavailable' as const, detail: null });
+				}
+			}
+
+			// No publishable key: nothing can mount, so use the hosted page.
 			let checkout;
 			try {
 				checkout = await commerce.payments.startCheckout({
 					orderNumber: order.orderNumber,
-					uiMode: embedded ? 'embedded' : 'hosted',
-					...(embedded
-						? { returnUrl: successUrl }
-						: {
-								successUrl,
-								cancelUrl: `${url.origin}/checkout?cancelled=${encodeURIComponent(order.orderNumber)}`
-							}),
-					metadata: {
-						...(attribution.fbp ? { fbp: attribution.fbp } : {}),
-						...(attribution.fbc ? { fbc: attribution.fbc } : {})
-					}
+					uiMode: 'hosted',
+					successUrl,
+					cancelUrl: `${url.origin}/checkout?cancelled=${encodeURIComponent(order.orderNumber)}`,
+					metadata
 				});
 			} catch (error) {
 				// The order exists and holds stock, but there is nowhere to pay. Say
@@ -137,16 +159,6 @@ export const actions: Actions = {
 				return fail(502, { errorCode: 'payment_unavailable' as const, detail: null });
 			}
 
-			// Embedded: hand the secret back and let the page mount the form in
-			// place. Hosted: the old redirect.
-			if (embedded && checkout.clientSecret) {
-				return {
-					payment: {
-						clientSecret: checkout.clientSecret,
-						orderNumber: order.orderNumber
-					}
-				};
-			}
 			redirect(303, checkout.url!);
 		}
 

@@ -6,7 +6,7 @@
 	import { countryOptions } from '$lib/countries';
 	import { createTranslator, defaultLocale, formatMoney } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
-	import StripePayment from '$lib/components/StripePayment.svelte';
+	import CardFields from '$lib/components/CardFields.svelte';
 	import { DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 	import type { ActionData, PageData } from './$types';
 
@@ -164,15 +164,36 @@
 		return t('checkout.errors.fieldRequired', { field: t(FIELD_LABELS[field]) });
 	}
 
-	// The action returns a client secret instead of redirecting when the card
-	// form can be mounted here. Swapping the form for the payment step keeps the
-	// customer on the page — a redirect to another domain is where checkouts
-	// leak people.
-	let payment = $derived(
-		form && 'payment' in form && form.payment
-			? (form.payment as { clientSecret: string; orderNumber: string })
-			: null
-	);
+	// Card fields live in the form itself. `cardApi` is handed over once Stripe
+	// has mounted; null means it could not, and the submit falls through to the
+	// server's hosted-page path instead of stranding the customer.
+	let cardApi = $state<{ confirm: (i: { clientSecret: string; returnUrl: string }) => Promise<{ error?: { message?: string } }> } | null>(null);
+	let cardUnavailable = $state(false);
+	let payError = $state<string | null>(null);
+
+	function onCardReady(api: typeof cardApi) {
+		cardApi = api;
+		cardUnavailable = api === null;
+	}
+
+	// The action hands back an intent for the fields already on screen.
+	$effect(() => {
+		const pay = form && 'pay' in form ? (form.pay as { clientSecret: string; returnUrl: string } | undefined) : undefined;
+		if (!pay || !cardApi) return;
+		let done = false;
+		(async () => {
+			if (done) return;
+			done = true;
+			const result = await cardApi!.confirm(pay);
+			if (result.error) {
+				payError = result.error.message ?? t('checkout.errors.generic');
+				submitting = false;
+				return;
+			}
+			cart.clear();
+			window.location.href = pay.returnUrl;
+		})();
+	});
 
 	let topLevelError = $derived.by(() => {
 		if (!form) return null;
@@ -198,24 +219,7 @@
 </svelte:head>
 
 <div class="mx-auto max-w-6xl px-4 py-10">
-	{#if payment}
-		<section class="mx-auto max-w-xl py-10">
-			<h1 class="text-2xl font-semibold tracking-tight">{t('checkout.paymentStepTitle')}</h1>
-			<p class="mt-2 text-sm text-ink-600">{t('checkout.paymentCardNote')}</p>
-			<div class="mt-6">
-				<StripePayment
-					clientSecret={payment.clientSecret}
-					publishableKey={data.stripePublishableKey}
-					orderNumber={payment.orderNumber}
-					loadingLabel={t('checkout.paymentLoading')}
-					fallbackLabel={t('checkout.paymentFallback')}
-				/>
-			</div>
-			<a href="/checkout" class="mt-6 inline-block text-sm underline">
-				{t('checkout.paymentBack')}
-			</a>
-		</section>
-	{:else if form && 'success' in form && form.success}
+	{#if form && 'success' in form && form.success}
 		<section class="mx-auto max-w-xl py-16 text-center">
 			<h1 class="text-3xl font-semibold tracking-tight">{t('checkout.successTitle')}</h1>
 			<p class="mt-4 text-ink-600">
@@ -271,6 +275,10 @@
 				}}
 			>
 				<input type="hidden" name="lines" value={linesPayload} />
+				<!-- Tells the server whether the card fields are actually usable. If
+				     Stripe.js was blocked, there is nothing on this page to confirm
+				     against, so the order has to go via the hosted page instead. -->
+				<input type="hidden" name="cardReady" value={cardApi ? '1' : '0'} />
 				<input type="hidden" name="submissionId" value={submissionId} />
 
 				<fieldset>
@@ -438,17 +446,34 @@
 
 				<section class="mt-10">
 					<h2 class="text-lg font-medium">{t('checkout.paymentTitle')}</h2>
-					<p
-						class="mt-3 rounded-xl border border-ink-200 bg-ink-50 px-4 py-3.5 text-sm text-ink-600"
-					>
-						{#if !data.paymentsEnabled}
-							{t('checkout.paymentPending')}
-						{:else if data.stripePublishableKey}
-							{t('checkout.paymentCardNote')}
-						{:else}
-							{t('checkout.paymentHostedNote')}
-						{/if}
-					</p>
+
+					{#if data.paymentsEnabled && data.stripePublishableKey && !cardUnavailable}
+						<div class="mt-4">
+							<CardFields
+								publishableKey={data.stripePublishableKey}
+								amountCents={totalCents}
+								currency={currency}
+								onready={onCardReady}
+							/>
+						</div>
+					{:else}
+						<p
+							class="mt-3 rounded-xl border border-ink-200 bg-ink-50 px-4 py-3.5 text-sm text-ink-600"
+						>
+							{data.paymentsEnabled
+								? t('checkout.paymentHostedNote')
+								: t('checkout.paymentPending')}
+						</p>
+					{/if}
+
+					{#if payError}
+						<p
+							class="mt-3 rounded-lg border border-coral-500 bg-coral-500/5 px-4 py-3 text-sm text-coral-600"
+							role="alert"
+						>
+							{payError}
+						</p>
+					{/if}
 				</section>
 
 				<button
@@ -456,11 +481,7 @@
 					disabled={submitting || isEmpty}
 					class="mt-8 w-full rounded-xl bg-ink-900 px-6 py-4 font-medium text-white transition hover:bg-ink-600 disabled:cursor-not-allowed disabled:bg-ink-200"
 				>
-					{#if submitting}
-						{data.paymentsEnabled ? t('checkout.payingRedirect') : t('checkout.placing')}
-					{:else}
-						{data.paymentsEnabled ? t('checkout.payWithCard') : t('checkout.placeOrder')}
-					{/if}
+					{submitting ? t('checkout.placing') : t('checkout.placeOrder')}
 				</button>
 			</form>
 

@@ -108,6 +108,7 @@ const form = new URLSearchParams({
 	postalCode: '94103',
 	country: 'US',
 	method: 'standard',
+	cardReady: '0',
 	submissionId: `payflow-${Date.now()}`,
 	lines: JSON.stringify([{ variantId: variant, quantity: 1 }])
 });
