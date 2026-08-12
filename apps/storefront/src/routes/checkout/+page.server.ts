@@ -12,6 +12,7 @@ export const load: PageServerLoad = ({ locals, url }) => ({
 	// card form mounts on this page. Without it there is nothing to mount, so
 	// checkout falls back to the hosted page rather than dead-ending.
 	stripePublishableKey: locals.stripePublishableKey,
+	stripePaymentMethodConfiguration: locals.stripePaymentMethodConfiguration,
 	// Stripe sends the customer back here when they abandon the hosted page.
 	cancelled: url.searchParams.has('cancelled')
 });

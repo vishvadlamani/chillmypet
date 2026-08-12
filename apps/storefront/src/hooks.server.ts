@@ -68,6 +68,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// meant to ship to the browser. Without it there is nothing to mount the
 	// embedded form with, so checkout falls back to the hosted page.
 	event.locals.stripePublishableKey = env.STRIPE_PUBLISHABLE_KEY ?? '';
+	// Also needed in the browser: in deferred mode the Payment Element decides
+	// which methods to draw before any intent exists, so restricting the intent
+	// alone leaves the form still offering everything on the account.
+	event.locals.stripePaymentMethodConfiguration = env.STRIPE_PAYMENT_METHOD_CONFIGURATION ?? '';
 	event.locals.settings = settings;
 	event.locals.commerce = createCommerce({
 		db,

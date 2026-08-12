@@ -11,11 +11,16 @@
 
 	let {
 		publishableKey,
+		paymentMethodConfiguration,
 		amountCents,
 		currency,
 		onready
 	}: {
 		publishableKey: string;
+		/** Scopes which methods the form draws. Required here as well as on the
+		 *  intent: in deferred mode the element renders before the intent exists,
+		 *  so it reads this rather than the intent's method list. */
+		paymentMethodConfiguration: string;
 		amountCents: number;
 		currency: string;
 		/** Hands the parent a confirm function, or reports that Stripe is unusable. */
@@ -95,6 +100,9 @@
 					mode: 'payment',
 					amount: amountCents,
 					currency: currency.toLowerCase(),
+					...(paymentMethodConfiguration
+						? { paymentMethodConfiguration }
+						: {}),
 					appearance: { theme: 'stripe', variables: { borderRadius: '8px' } }
 				});
 				const element = elements.create('payment', { layout: 'tabs' });

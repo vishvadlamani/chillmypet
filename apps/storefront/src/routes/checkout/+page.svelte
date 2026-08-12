@@ -451,6 +451,7 @@
 						<div class="mt-4">
 							<CardFields
 								publishableKey={data.stripePublishableKey}
+								paymentMethodConfiguration={data.stripePaymentMethodConfiguration}
 								amountCents={totalCents}
 								currency={currency}
 								onready={onCardReady}
