@@ -6,6 +6,7 @@
 	import { countryOptions } from '$lib/countries';
 	import { createTranslator, defaultLocale, formatMoney } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
+	import StripePayment from '$lib/components/StripePayment.svelte';
 	import { DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 	import type { ActionData, PageData } from './$types';
 
@@ -163,6 +164,16 @@
 		return t('checkout.errors.fieldRequired', { field: t(FIELD_LABELS[field]) });
 	}
 
+	// The action returns a client secret instead of redirecting when the card
+	// form can be mounted here. Swapping the form for the payment step keeps the
+	// customer on the page — a redirect to another domain is where checkouts
+	// leak people.
+	let payment = $derived(
+		form && 'payment' in form && form.payment
+			? (form.payment as { clientSecret: string; orderNumber: string })
+			: null
+	);
+
 	let topLevelError = $derived.by(() => {
 		if (!form) return null;
 		if ('errorCode' in form && form.errorCode) {
@@ -187,7 +198,22 @@
 </svelte:head>
 
 <div class="mx-auto max-w-6xl px-4 py-10">
-	{#if form && 'success' in form && form.success}
+	{#if payment}
+		<section class="mx-auto max-w-xl py-10">
+			<h1 class="text-2xl font-semibold tracking-tight">{t('checkout.paymentStepTitle')}</h1>
+			<p class="mt-2 text-sm text-ink-600">{t('checkout.paymentCardNote')}</p>
+			<div class="mt-6">
+				<StripePayment
+					clientSecret={payment.clientSecret}
+					publishableKey={data.stripePublishableKey}
+					loadingLabel={t('checkout.paymentLoading')}
+				/>
+			</div>
+			<a href="/checkout" class="mt-6 inline-block text-sm underline">
+				{t('checkout.paymentBack')}
+			</a>
+		</section>
+	{:else if form && 'success' in form && form.success}
 		<section class="mx-auto max-w-xl py-16 text-center">
 			<h1 class="text-3xl font-semibold tracking-tight">{t('checkout.successTitle')}</h1>
 			<p class="mt-4 text-ink-600">
@@ -413,9 +439,13 @@
 					<p
 						class="mt-3 rounded-xl border border-ink-200 bg-ink-50 px-4 py-3.5 text-sm text-ink-600"
 					>
-						{data.paymentsEnabled
-							? t('checkout.paymentCardNote')
-							: t('checkout.paymentPending')}
+						{#if !data.paymentsEnabled}
+							{t('checkout.paymentPending')}
+						{:else if data.stripePublishableKey}
+							{t('checkout.paymentCardNote')}
+						{:else}
+							{t('checkout.paymentHostedNote')}
+						{/if}
 					</p>
 				</section>
 

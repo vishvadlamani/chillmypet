@@ -11,6 +11,7 @@ declare global {
 			settings: Record<string, string>;
 			/** Commerce modules already scoped to this store. */
 			commerce: Commerce;
+			stripePublishableKey: string;
 		}
 
 		interface PageData {

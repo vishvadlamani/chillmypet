@@ -77,6 +77,13 @@ order number by `purchaseEventId()`, not minted per call — the server event fi
 from the Stripe webhook and the browser event from the success page, two requests
 that cannot pass a value to each other. Break that and every sale counts twice.
 
+**A discounted order needs a coupon on the Stripe session.** Line items sum to
+subtotal plus shipping, and `handleWebhook` asserts the session total equals the
+order total — so a bundle order without one is charged the *full* amount and
+then has its own payment refused as a mismatch. `startCheckout` creates a
+single-use coupon for exactly `order.discountCents`. If you add another kind of
+discount, it goes through the same path or it reintroduces this.
+
 **A conversion is reported when money moves, not when a row is written.** With
 payments on, Purchase fires from the webhook on `action === 'order_paid'` — a
 branch the framework only returns once, guarded by the event-id dedup table.
@@ -176,7 +183,11 @@ Permission"; that is expected. Posting to `/{dataset_id}/events` is a
 dataset-level grant, separate from the pixel-read scope, so don't take a failed
 metadata read as proof the token can't send.
 
-Payments are **live on production**. Checkout redirects to Stripe's hosted page
+Payments are **live on production**. The card form is embedded on the checkout
+page when `STRIPE_PUBLISHABLE_KEY` is set, and falls back to Stripe's hosted page
+when it is not — the copy under the Payment heading follows whichever is active,
+so don't hard-code it. The publishable key is public by design; it identifies
+the account to Stripe.js and is meant to reach the browser. Checkout redirects to Stripe's hosted page
 and the order becomes `paid` only when a signed webhook says so; no card details
 touch this application. Staging deliberately has **no Stripe keys**, because it
 shares production's database — a card test there would be a real charge. With

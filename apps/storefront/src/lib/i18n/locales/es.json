@@ -133,14 +133,18 @@
 		},
 		"payWithCard": "Continuar al pago",
 		"payingRedirect": "Te llevamos a nuestra página de pago…",
-		"paymentCardNote": "Los datos de la tarjeta se introducen en la página segura de Stripe. Nunca pasan por este sitio.",
+		"paymentCardNote": "Los datos de la tarjeta se introducen abajo, en esta página. Van directos a Stripe y nunca pasan por nuestros servidores.",
 		"cancelled": "El pago se canceló y no se cobró nada. Tus datos están abajo — puedes intentarlo de nuevo.",
 		"paidTitle": "Pago recibido",
 		"paidBody": "Gracias — el pedido {orderNumber} está pagado y en preparación.",
 		"processingTitle": "El pago se está procesando",
 		"processingBody": "El pedido {orderNumber} está registrado y esperamos la confirmación de tu banco. Esta página se actualizará cuando se complete — no hace falta pagar otra vez.",
 		"orderLabel": "Pedido",
-		"bundleDiscount": "Descuento por lote"
+		"bundleDiscount": "Descuento por lote",
+		"paymentStepTitle": "Pago",
+		"paymentBack": "Editar datos",
+		"paymentLoading": "Cargando el pago seguro…",
+		"paymentHostedNote": "Los datos de la tarjeta se introducen en la página segura de Stripe. Nunca pasan por este sitio."
 	},
 	"footer": {
 		"shipping": "Política de envíos",

@@ -8,6 +8,10 @@ export const load: PageServerLoad = ({ locals, url }) => ({
 	// Drives the copy and the button label. The form posts to the same action
 	// either way — this only decides what the customer is told happens next.
 	paymentsEnabled: Boolean(locals.commerce.payments),
+	// Publishable by design; it identifies the account to Stripe.js. With it the
+	// card form mounts on this page. Without it there is nothing to mount, so
+	// checkout falls back to the hosted page rather than dead-ending.
+	stripePublishableKey: locals.stripePublishableKey,
 	// Stripe sends the customer back here when they abandon the hosted page.
 	cancelled: url.searchParams.has('cancelled')
 });
@@ -103,12 +107,22 @@ export const actions: Actions = {
 		// a request from Stripe and has none of this customer's cookies.
 		if (commerce.payments) {
 			const attribution = attributionFrom(cookies, url, request.headers);
+			// Embedded keeps the card form on this page. It needs a publishable key
+			// to mount, so without one we fall back to the hosted page rather than
+			// showing the customer an empty payment step.
+			const embedded = Boolean(locals.stripePublishableKey);
+			const successUrl = `${url.origin}/checkout/success?order=${encodeURIComponent(order.orderNumber)}`;
 			let checkout;
 			try {
 				checkout = await commerce.payments.startCheckout({
 					orderNumber: order.orderNumber,
-					successUrl: `${url.origin}/checkout/success?order=${encodeURIComponent(order.orderNumber)}`,
-					cancelUrl: `${url.origin}/checkout?cancelled=${encodeURIComponent(order.orderNumber)}`,
+					uiMode: embedded ? 'embedded' : 'hosted',
+					...(embedded
+						? { returnUrl: successUrl }
+						: {
+								successUrl,
+								cancelUrl: `${url.origin}/checkout?cancelled=${encodeURIComponent(order.orderNumber)}`
+							}),
 					metadata: {
 						...(attribution.fbp ? { fbp: attribution.fbp } : {}),
 						...(attribution.fbc ? { fbc: attribution.fbc } : {})
@@ -123,7 +137,17 @@ export const actions: Actions = {
 				return fail(502, { errorCode: 'payment_unavailable' as const, detail: null });
 			}
 
-			redirect(303, checkout.url);
+			// Embedded: hand the secret back and let the page mount the form in
+			// place. Hosted: the old redirect.
+			if (embedded && checkout.clientSecret) {
+				return {
+					payment: {
+						clientSecret: checkout.clientSecret,
+						orderNumber: order.orderNumber
+					}
+				};
+			}
+			redirect(303, checkout.url!);
 		}
 
 		// No payment provider configured: the order is as complete as it will get,

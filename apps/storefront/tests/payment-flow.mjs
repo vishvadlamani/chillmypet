@@ -37,13 +37,19 @@ const mock = createServer((req, res) => {
 	req.on('data', (c) => (body += c));
 	req.on('end', () => {
 		seen.push({ path: req.url, body, auth: req.headers.authorization ?? '' });
+		if (req.url === '/v1/coupons') {
+			res.writeHead(200, { 'content-type': 'application/json' });
+			res.end(JSON.stringify({ id: 'coupon_mock_1' }));
+			return;
+		}
 		if (req.url === '/v1/checkout/sessions') {
 			const params = new URLSearchParams(body);
 			res.writeHead(200, { 'content-type': 'application/json' });
 			res.end(
 				JSON.stringify({
 					id: 'cs_test_mock_1',
-					url: `${BASE}/__stripe-hosted-page`,
+					url: params.get('ui_mode') === 'embedded' ? null : `${BASE}/__stripe-hosted-page`,
+					client_secret: params.get('ui_mode') === 'embedded' ? 'cs_test_mock_1_secret' : null,
 					status: 'open',
 					amount_total: null,
 					currency: params.get('line_items[0][price_data][currency]')

@@ -133,14 +133,18 @@
 		},
 		"payWithCard": "Continue to payment",
 		"payingRedirect": "Taking you to our payment page…",
-		"paymentCardNote": "Card details are entered on Stripe's secure page. They never touch this site.",
+		"paymentCardNote": "Card details are entered below, on this page. They go straight to Stripe and never touch our servers.",
 		"cancelled": "Payment was cancelled and nothing was charged. Your details are below — you can try again.",
 		"paidTitle": "Payment received",
 		"paidBody": "Thanks — order {orderNumber} is paid and on its way to being packed.",
 		"processingTitle": "Payment is processing",
 		"processingBody": "Order {orderNumber} is recorded and we're waiting for your bank to confirm the payment. This page updates once it clears — you don't need to pay again.",
 		"orderLabel": "Order",
-		"bundleDiscount": "Bundle discount"
+		"bundleDiscount": "Bundle discount",
+		"paymentStepTitle": "Payment",
+		"paymentBack": "Edit details",
+		"paymentLoading": "Loading secure payment…",
+		"paymentHostedNote": "Card details are entered on Stripe's secure page. They never touch this site."
 	},
 	"footer": {
 		"shipping": "Shipping policy",
