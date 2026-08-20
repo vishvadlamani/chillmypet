@@ -1,15 +1,11 @@
 /**
- * Delivery options and what they cost.
+ * Shipping options, read from the rates the order is actually priced against.
  *
- * Prices are pre-formatted here because currency and locale are the store's
- * business, not the block's — "Free" and "$12.00" are two different shapes and
- * the block should render whichever it's handed.
- *
- * These are flat rates. Real carrier pricing depends on the destination, so once
- * an address exists this should be recomputed against it rather than served as a
- * fixed list — quoting $12.00 to a rural postcode that costs $28 to reach is a
- * margin leak that only shows up in the fulfilment bill.
+ * Restating them here would let the checkout show a price the server does not
+ * charge — the rate table is the same one `orders.create()` resolves against.
  */
+import { DEFAULT_SHIPPING_RATES } from 'ecomwithai';
+import { createTranslator, formatMoney, type Locale } from '$lib/i18n';
 
 export interface ShippingRate {
 	id: string;
@@ -19,22 +15,15 @@ export interface ShippingRate {
 	selected?: boolean;
 }
 
-export function loadShippingRates(): ShippingRate[] {
-	return [
-		{
-			id: 'standard',
-			label: 'Standard',
-			detail: '5–8 business days',
-			price: 'Free',
-			// Pre-selected: the free option should never be the one someone has to
-			// find, and defaulting to the paid tier is a dark pattern.
-			selected: true
-		},
-		{
-			id: 'express',
-			label: 'Express',
-			detail: '2–3 business days',
-			price: '$12.00'
-		}
-	];
+export function loadShippingRates(locale: Locale, currency = 'USD'): ShippingRate[] {
+	const t = createTranslator(locale);
+
+	return DEFAULT_SHIPPING_RATES.map((rate, index) => ({
+		id: rate.id,
+		label: rate.id === 'express' ? t('checkout.methodExpress') : t('checkout.methodStandard'),
+		detail:
+			rate.id === 'express' ? t('checkout.methodExpressEta') : t('checkout.methodStandardEta'),
+		price: rate.priceCents === 0 ? t('checkout.free') : formatMoney(rate.priceCents, locale, currency),
+		selected: index === 0
+	}));
 }

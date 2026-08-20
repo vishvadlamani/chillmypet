@@ -1,22 +1,24 @@
 /**
- * Where the store ships.
+ * Where we ship to.
  *
- * One source for two consumers that must not disagree: the country select shows
- * `names`, the address lookup biases suggestions by `codes`. Written twice they
- * drift, and the failure is quiet — suggestions for a country the select can't
- * offer, so the visitor picks an address the form then rejects.
+ * The same list the checkout country select is built from, so a market offered
+ * on the page is one the order will actually accept — `isCountryCode` rejects
+ * anything outside it.
  */
+import { countryOptions } from '$lib/countries';
+import type { Locale } from '$lib/i18n';
 
 export interface Markets {
-	/** Display names, in the order the select should list them. */
 	names: string[];
-	/** ISO alpha-2, for biasing address suggestions. */
 	codes: string[];
 }
 
-export function loadMarkets(): Markets {
+export function loadMarkets(locale: Locale): Markets {
+	const options = countryOptions(locale);
 	return {
-		names: ['United States', 'Canada', 'United Kingdom', 'Australia'],
-		codes: ['us', 'ca', 'gb', 'au']
+		names: options.map((o) => o.name),
+		// Lowercased for the block's flag lookup; the order action re-validates
+		// against the canonical uppercase ISO list.
+		codes: options.map((o) => o.code.toLowerCase())
 	};
 }

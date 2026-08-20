@@ -70,7 +70,7 @@ export const STORE_PAGE: FunnelDefinition = {
 					// The only real product shot there is — studio, on white, showing the
 					// handle, buckles and reflective strips. The rest are customer
 					// photos standing in until there's proper photography.
-					{ src: '/product-floatly.webp', alt: 'Floatly life jacket, side view' },
+					{ src: '/product-floatly.webp', alt: 'Dog life jacket, side view' },
 					{ src: '/reviews/tile-bulldog.jpg', alt: 'Worn, full view in coral' },
 					{ src: '/reviews/indoor-purple.jpg', alt: 'Side profile showing the reflective strips' },
 					{ src: '/reviews/boat-merle.jpg', alt: 'Worn on a boat in ocean blue' },
@@ -107,7 +107,7 @@ export const STORE_PAGE: FunnelDefinition = {
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
 			props: {
-				text: 'Floatly™ Life Jacket',
+				text: { $ref: 'product.title' },
 				level: 1,
 				// 33/40 on a phone, 40/48 on desktop — measured against the live
 				// storefront, which runs 39/48 at 1440.
@@ -202,12 +202,12 @@ export const STORE_PAGE: FunnelDefinition = {
 				items: [
 					{
 						label: 'When will I get my order? 🚚',
-						body: 'Please allow us 2–4 business days to process your order.\n\nOnce processed, 93% of orders arrive between 5–12 days later.\n\nIf you have any questions, please contact us at contact@floatly.store.',
+						body: 'Please allow us 2–4 business days to process your order.\n\nOnce processed, 93% of orders arrive between 5–12 days later.\n\nIf you have any questions, please contact us at contact@chillmypet.com.',
 						link: { label: 'Read our shipping policy', href: '/shipping-policy' }
 					},
 					{
 						label: 'What if the size doesn’t fit my dog? 📏',
-						body: 'We offer 30 day — no questions asked — free exchanges and returns.\n\nIf you have any questions or would like to begin an exchange, please email us at contact@floatly.store.',
+						body: 'We offer 30 day — no questions asked — free exchanges and returns.\n\nIf you have any questions or would like to begin an exchange, please email us at contact@chillmypet.com.',
 						link: { label: 'Read our return and exchange policy', href: '/returns-policy' }
 					}
 				]

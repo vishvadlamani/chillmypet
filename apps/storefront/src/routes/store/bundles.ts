@@ -1,12 +1,15 @@
 /**
- * Bundle tiers and the add-ons attached to them.
+ * Bundle tiers, add-ons and colour options.
  *
- * Every price here is a number someone is charged, so it lives in the data
- * layer and reaches the manifest through `$ref`. The compare-at figures are the
- * ones with legal weight — a struck price has to be a price the product was
- * genuinely sold at, and hardcoding it in a manifest is how it quietly stops
- * being true.
+ * The tiers ARE the quantity breaks the server prices against — read from
+ * `commerce.quantityBreaks` rather than restated here, because a tier that
+ * advertises a discount the order won't apply is a checkout that quotes two
+ * different totals.
  */
+import type { Commerce } from 'ecomwithai';
+import { applyQuantityBreak } from 'ecomwithai';
+import { formatMoney, type Locale } from '$lib/i18n';
+import { PRODUCT_SLUG } from './product';
 
 export interface BundleTier {
 	id: string;
@@ -17,7 +20,6 @@ export interface BundleTier {
 	badge?: string;
 	image?: string;
 	alt?: string;
-	/** How many variant pickers the tier shows when chosen. */
 	units?: number;
 	selected?: boolean;
 }
@@ -32,63 +34,54 @@ export interface BundleAddon {
 	fixed?: boolean;
 }
 
-export function loadBundles(): { tiers: BundleTier[]; addons: BundleAddon[]; colours: string[] } {
+export async function loadBundles(
+	commerce: Commerce,
+	locale: Locale
+): Promise<{ tiers: BundleTier[]; addons: BundleAddon[]; colours: string[] }> {
+	const product = await commerce.catalog.getProduct(PRODUCT_SLUG, locale);
+	if (!product) return { tiers: [], addons: [], colours: [] };
+
+	const money = (cents: number) => formatMoney(cents, locale, product.currency);
+
+	// One tier per quantity the server gives a break at, plus the single unit.
+	const quantities = [1, ...commerce.quantityBreaks.map((b) => b.minQuantity)].sort(
+		(a, b) => a - b
+	);
+	const best = Math.max(...quantities);
+
+	const tiers: BundleTier[] = quantities.map((units) => {
+		const subtotal = product.priceCents * units;
+		const applied = applyQuantityBreak(commerce.quantityBreaks, subtotal, units);
+		const compareAt = (product.compareAtCents ?? product.priceCents) * units;
+		const savedPct = Math.round((1 - applied.totalCents / compareAt) * 100);
+
+		return {
+			id: `qty-${units}`,
+			title: units === 1 ? product.title : `${units} × ${product.title}`,
+			subtitle: savedPct > 0 ? `You save ${savedPct}%` : undefined,
+			price: money(applied.totalCents),
+			compareAt: compareAt > applied.totalCents ? money(compareAt) : undefined,
+			// The middle tier is the one most stores want pushed; with three
+			// quantities that is the 2-pack, and it is also where the first
+			// discount appears.
+			badge: units === best ? 'Best value' : units > 1 ? 'Most popular' : undefined,
+			image:
+				product.media.find((m) => m.optionValue === product.options[0]?.values[0]?.value)?.url ??
+				product.media[0]?.url,
+			alt: product.title,
+			units,
+			selected: units === 1
+		};
+	});
+
 	return {
-		tiers: [
-			{
-				id: 'standard',
-				title: 'Floatly™ Standard',
-				subtitle: 'You save 52%',
-				price: '$85',
-				compareAt: '$178',
-				// PLACEHOLDER image — no product photography in this repo.
-				image: '/product-floatly.webp',
-				alt: 'Floatly Standard',
-				units: 1,
-				selected: true
-			},
-			{
-				id: 'pro',
-				title: 'Floatly™ Pro',
-				subtitle: 'Free shipping · You save 51%',
-				price: '$93',
-				compareAt: '$188',
-				badge: 'Most popular',
-				image: '/reviews/boat-merle.jpg',
-				alt: 'Floatly Pro',
-				units: 1
-			},
-			{
-				id: 'duo',
-				title: 'Floatly™ Duo',
-				subtitle: 'Keep one, gift one · You save 63%',
-				price: '$149',
-				compareAt: '$376',
-				badge: 'Best value',
-				image: '/reviews/kayak-fawn.jpg',
-				alt: 'Floatly Duo',
-				units: 2
-			}
-		],
-		addons: [
-			{
-				id: 'ebook',
-				label: 'Dog Water-Safety Guide',
-				price: '$0.00',
-				compareAt: '$7.00',
-				control: 'toggle',
-				on: true
-			},
-			{
-				id: 'insured-shipping',
-				label: 'Free and insured shipping',
-				price: '$0.00',
-				compareAt: '$9.00',
-				control: 'toggle',
-				on: true
-			}
-		],
-		// Matches what the customer photos actually show.
-		colours: ['Hi-Vis Yellow', 'Ocean Blue', 'Coral', 'Tropical']
+		tiers,
+		// No add-on products exist in the catalogue yet. An empty array still
+		// resolves, so the picker renders without an add-on row rather than the
+		// whole block being dropped.
+		addons: [],
+		// `label` is nullable in the catalogue — a store can ship option values
+		// with no display text and translate them in the UI instead.
+		colours: (product.options[0]?.values ?? []).map((v) => v.label ?? v.value)
 	};
 }

@@ -1,22 +1,37 @@
 /**
- * The store's live offer. Everything the top bars need and nothing else — this
- * grows a field at a time as the page grows a block at a time.
- *
- * It exists so the manifest holds no numbers. A discount typed into copy is
- * correct until the first campaign change and silently wrong after it, the same
- * way "August Sale" is correct until the 1st.
+ * The headline offer — the discount the page shouts, and the countdown window.
  */
+import type { Commerce } from 'ecomwithai';
+import type { Locale } from '$lib/i18n';
+import { PRODUCT_SLUG } from './product';
 
 export interface Offer {
-	/** Headline discount, in percent. */
 	discountPct: number;
-	/** Per-visitor urgency window for the top timer, in minutes. */
 	urgencyMinutes: number;
 }
 
-export function loadOffer(): Offer {
-	return {
-		discountPct: 48,
-		urgencyMinutes: 15
-	};
+/** Fallback when the store has no sale window configured. */
+const DEFAULT_URGENCY_MINUTES = 15;
+
+export async function loadOffer(
+	commerce: Commerce,
+	locale: Locale,
+	settings: Record<string, string> = {}
+): Promise<Offer> {
+	const product = await commerce.catalog.getProduct(PRODUCT_SLUG, locale);
+
+	// Derived from the real prices rather than typed in, so the strip can never
+	// advertise a discount the product doesn't actually carry.
+	const discountPct =
+		product && product.compareAtCents
+			? Math.round((1 - product.priceCents / product.compareAtCents) * 100)
+			: 0;
+
+	// Per-visitor window, persisted by the host so a reload doesn't hand out a
+	// fresh countdown. Configurable per store; nothing here invents a deadline.
+	const configured = Number(settings.offer_urgency_minutes);
+	const urgencyMinutes =
+		Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_URGENCY_MINUTES;
+
+	return { discountPct, urgencyMinutes };
 }
