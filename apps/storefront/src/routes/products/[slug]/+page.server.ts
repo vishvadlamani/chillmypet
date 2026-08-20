@@ -19,11 +19,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	// Every source is a live query. They run together because none depends on
 	// another, and the page renders behind the slowest one either way.
-	const [product, bundles, offer, stock, sizeChart, catalogue] = await Promise.all([
+	const [product, bundles, offer, sizeChart, catalogue] = await Promise.all([
 		loadProduct(commerce, locale, slug),
 		loadBundles(commerce, locale, slug),
 		loadOffer(commerce, locale, settings, slug),
-		loadStock(commerce, locale, slug),
 		loadSizeChart(commerce, locale, slug),
 		commerce.catalog.getProduct(slug, locale)
 	]);
@@ -45,7 +44,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			spotlight: loadSpotlightQuotes()
 		},
 		sizes: sizeChart,
-		stock
+		// Not a query: the scarcity bar is a marketing number from store
+		// settings, and inventory is maintained outside this system.
+		stock: loadStock(settings)
 	});
 
 	// Version the AUTHORED manifest, then bind. The other order compiles and

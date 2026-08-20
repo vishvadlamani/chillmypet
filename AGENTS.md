@@ -184,6 +184,14 @@ are the host's business, not the block's. `pages.ts` maps a slug to the manifest
 that renders it: a manifest is per-product (its FAQ, gallery and size chart are
 one product's), so an unmapped slug is a 404 even when the product exists.
 
+**The scarcity bar is a marketing number, not inventory.** Stock is maintained
+outside this system, so `loadStock` reads `stock_sold_pct` from store settings
+(default 70) rather than counting the `stock` column — a bar computed from this
+database reported 0% sold on a store that had sold units elsewhere. It is
+display only, and it cannot cause an oversell: `orders.create()` still holds and
+decrements real stock in a transaction, and that is what decides whether a
+variant is buyable.
+
 **One announcement strip, not two.** The site layout's promo bar stands down on
 any page whose data carries a `definition`, because those pages bring their own
 from the manifest. Two strips saying the same thing read as a bug and cost the
