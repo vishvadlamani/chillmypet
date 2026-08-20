@@ -36,9 +36,10 @@ export interface BundleAddon {
 
 export async function loadBundles(
 	commerce: Commerce,
-	locale: Locale
+	locale: Locale,
+	slug: string = PRODUCT_SLUG
 ): Promise<{ tiers: BundleTier[]; addons: BundleAddon[]; colours: string[] }> {
-	const product = await commerce.catalog.getProduct(PRODUCT_SLUG, locale);
+	const product = await commerce.catalog.getProduct(slug, locale);
 	if (!product) return { tiers: [], addons: [], colours: [] };
 
 	const money = (cents: number) => formatMoney(cents, locale, product.currency);

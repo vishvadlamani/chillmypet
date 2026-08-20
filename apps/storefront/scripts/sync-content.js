@@ -13,7 +13,7 @@
  * the copy there and run this to publish it.
  */
 import { createDb } from 'ecomwithai';
-import { BENEFITS, FAQ, SLUG, STORE, TRANSLATIONS } from './content.js';
+import { BENEFITS, FAQ, SIZE_CHART, SLUG, STORE, TRANSLATIONS } from './content.js';
 
 const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
 const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -52,13 +52,13 @@ for (const [locale, t] of Object.entries(TRANSLATIONS)) {
 
 // The unique index is (product_id, namespace, key, locale), so upsert rather
 // than delete-then-insert — a failed run must not leave the page with no copy.
-const upsertMetafield = async (key, locale, value) => {
+const upsertMetafield = async (key, locale, value, namespace = 'content') => {
 	await db.execute({
 		sql: `insert into product_metafields (store_id, product_id, namespace, key, locale, value_json)
-		      values (?, ?, 'content', ?, ?, ?)
+		      values (?, ?, ?, ?, ?, ?)
 		      on conflict (product_id, namespace, key, locale)
 		        do update set value_json = excluded.value_json`,
-		args: [STORE.id, productId, key, locale, JSON.stringify(value)]
+		args: [STORE.id, productId, namespace, key, locale, JSON.stringify(value)]
 	});
 	changed += 1;
 };
@@ -72,5 +72,10 @@ for (const [locale, entries] of Object.entries(FAQ)) {
 	await upsertMetafield('faq', locale, entries.map(([q, a]) => ({ q, a })));
 	console.log(`faq ${locale}: ${entries.length} entries`);
 }
+
+// Locale-independent: the numbers are the same everywhere and the storefront
+// labels them in the visitor's language.
+await upsertMetafield('size_chart', null, SIZE_CHART, 'specs');
+console.log(`size chart: ${SIZE_CHART.length} sizes`);
 
 console.log(`\nUpdated ${changed} content rows in ${url}. Stock, prices and orders untouched.`);

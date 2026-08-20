@@ -6,7 +6,7 @@
  * and any agent still get a readable `label`.
  */
 import { createDb, createStoreService } from 'ecomwithai';
-import { BENEFITS, EMAIL, FAQ, SLUG, STORE, TRANSLATIONS } from './content.js';
+import { BENEFITS, EMAIL, FAQ, SIZE_CHART, SLUG, STORE, TRANSLATIONS } from './content.js';
 
 const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
 const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -50,13 +50,6 @@ const AVAILABILITY = {
 	red: { XS: 12, S: 12, M: 0, L: 0, XL: 12 }
 };
 
-const SIZE_CHART = [
-	{ size: 'XS', chestMinCm: 33, chestMaxCm: 43, weightMinKg: 2, weightMaxKg: 5 },
-	{ size: 'S', chestMinCm: 43, chestMaxCm: 53, weightMinKg: 5, weightMaxKg: 9 },
-	{ size: 'M', chestMinCm: 53, chestMaxCm: 64, weightMinKg: 9, weightMaxKg: 16 },
-	{ size: 'L', chestMinCm: 64, chestMaxCm: 76, weightMinKg: 16, weightMaxKg: 27 },
-	{ size: 'XL', chestMinCm: 76, chestMaxCm: 91, weightMinKg: 27, weightMaxKg: 45 }
-];
 
 // --- store ---
 await db.execute({

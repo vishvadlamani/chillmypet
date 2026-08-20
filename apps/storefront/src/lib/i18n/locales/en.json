@@ -97,6 +97,7 @@
 		"emailHint": "Order confirmation and tracking go here.",
 		"phone": "Phone",
 		"shippingTitle": "Shipping address",
+		"shippingNote": "Free and insured delivery on every order.",
 		"firstName": "First name",
 		"lastName": "Last name",
 		"address1": "Address",

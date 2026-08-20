@@ -1,7 +1,21 @@
+/**
+ * Site-level browser checks: what the first response contains, what the pixel
+ * fires, whether the cart survives, and whether the site still speaks Spanish.
+ *
+ * The funnel itself — product → checkout → order — is tests/store-flow.mjs.
+ * Splitting them keeps this file about the things that are true of the site
+ * regardless of which page is selling today, which is what let the product page
+ * be replaced without rewriting the assertions that mattered.
+ *
+ *   node tests/e2e.mjs
+ *
+ * Expects a dev server with no STRIPE_SECRET_KEY.
+ */
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
+const PRODUCT = `${BASE}/products/dog-life-jacket`;
 const shotDir = new URL('./screenshots/', import.meta.url);
 await mkdir(shotDir, { recursive: true });
 const shot = (name) => new URL(name, shotDir).pathname;
@@ -28,8 +42,7 @@ page.on('console', (m) => {
 const fbqCalls = () =>
 	page.evaluate(() => (window.fbq?.queue ?? []).map((args) => Array.from(args)));
 
-const tracked = (calls, event) =>
-	calls.find((c) => c[0] === 'track' && c[1] === event);
+const tracked = (calls, event) => calls.find((c) => c[0] === 'track' && c[1] === event);
 
 function check(label, cond) {
 	console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}`);
@@ -42,162 +55,119 @@ function check(label, cond) {
 // output said "Sold out" with no variant selected, which is what crawlers, slow
 // connections and no-JS visitors got. Assert on the raw bytes.
 {
-	const html = await fetch(`${BASE}/products/dog-life-jacket`).then((r) => r.text());
-	check('SSR selects a variant', !/Dog Life Jacket in ,/.test(html));
-	check('SSR offers a buyable default', /Add to cart/i.test(html) && !/Sold out/i.test(html));
-	check('SSR checks a colour radio', /name="colour"[^>]*checked/.test(html));
-	check('SSR checks a size radio', /name="size"[^>]*checked/.test(html));
+	const html = await fetch(PRODUCT).then((r) => r.text());
+	check('SSR renders the product title', /<title>Dog Life Jacket/.test(html));
+	check('SSR carries a description for search and social', /name="description" content=".{40}/.test(html));
+	check('SSR quotes a price', /\$\d+\.\d{2}/.test(html));
+	check('SSR offers a way to buy', /Buy now/i.test(html) && !/Sold out/i.test(html));
+	check('SSR renders the bundle picker', /Bundle &amp; Save|Bundle & Save/.test(html));
+
+	// The words are invented and the rating was never counted. They must not
+	// reach a shopper — see $lib/store/reviews-wall.ts.
+	check(
+		'SSR ships no invented reviews',
+		!/1,127|Pet Parents|What owners are saying|500\+ dogs/.test(html)
+	);
+	check('the page is indexable', !/noindex/.test(html));
+}
+
+{
+	const html = await fetch(`${BASE}/checkout`).then((r) => r.text());
+	check('SSR renders the checkout forms', /Contact/.test(html) && /Shipping address/.test(html));
+	check('SSR renders the pay button', /Place order|Pay \$/.test(html));
+	check('checkout stays out of search results', /noindex/.test(html));
+}
+
+{
+	const moved = await fetch(`${BASE}/store`, { redirect: 'manual' });
+	check('the build URL redirects to the real one', moved.status === 308);
+	check(
+		'and lands on the product page',
+		(moved.headers.get('location') ?? '').endsWith('/products/dog-life-jacket')
+	);
 }
 
 // --- product page ---
-await page.goto(`${BASE}/products/dog-life-jacket`, { waitUntil: 'networkidle' });
+await page.goto(PRODUCT, { waitUntil: 'networkidle' });
 check('title renders', (await page.textContent('h1'))?.includes('Dog Life Jacket'));
 check('cart badge starts at 0', (await page.textContent('header a[href="/checkout"]'))?.includes('0'));
 
-// pick a colour + size
-await page.locator('input[name="colour"][value="blue_camo"]').check({ force: true });
-await page.locator('input[name="size"][value="L"]').check({ force: true });
-check('colour label updates', (await page.textContent('fieldset legend'))?.includes('Blue Camo'));
-
-// Quantity moved off the product page — the buy box is one decision now, and
-// the cart merges repeat adds of the same variant.
-await page.getByRole('button', { name: /add to cart/i }).first().click();
-await page.waitForTimeout(250);
-await page.getByRole('button', { name: /add to cart/i }).first().click();
-await page.waitForTimeout(400);
-const badge = await page.textContent('header a[href="/checkout"]');
-check('cart badge shows 2', badge?.includes('2'));
-
-// Sold out: yellow is stocked in XL only.
-await page.locator('input[name="colour"][value="yellow"]').check({ force: true });
-await page.waitForTimeout(200);
-check(
-	'sold-out size is disabled',
-	await page.locator('input[name="size"][value="XS"]').isDisabled()
-);
-check(
-	'stocked size stays selectable',
-	await page.locator('input[name="size"][value="XL"]').isEnabled()
-);
-
-// Never offered: purple has no XL variant at all.
-await page.locator('input[name="colour"][value="purple"]').check({ force: true });
-await page.waitForTimeout(200);
-check(
-	'unoffered combination is disabled',
-	await page.locator('input[name="size"][value="XL"]').isDisabled()
-);
-
-// Real photography is wired up per colour.
-const heroSrc = await page.locator('article img').first().getAttribute('src');
-check('gallery renders a real image', heroSrc?.includes('/products/dog-life-jacket/'));
+// Gallery images are real files, not placeholders that 404.
 const heroOk = await page.evaluate(() => {
-	const img = document.querySelector('article img');
+	const img = document.querySelector('main img');
 	return Boolean(img && img.naturalWidth > 100);
 });
 check('gallery image actually loaded', heroOk);
-
-// Re-select the in-stock combination for the rest of the run.
-await page.locator('input[name="colour"][value="blue_camo"]').check({ force: true });
-await page.locator('input[name="size"][value="L"]').check({ force: true });
-await page.waitForTimeout(200);
 
 {
 	const calls = await fbqCalls();
 	check('pixel init fired', calls.some((c) => c[0] === 'init' && c[1] === '28272021345717397'));
 	check('PageView fired', Boolean(tracked(calls, 'PageView')));
 	check('ViewContent fired', Boolean(tracked(calls, 'ViewContent')));
-	const addToCart = tracked(calls, 'AddToCart');
-	check('AddToCart fired', Boolean(addToCart));
-	// One AddToCart per click now, each for a single unit — two clicks is
-	// two events, not one event carrying two.
-	check('AddToCart value is one unit', addToCart?.[2]?.value === '44.97');
-	check(
-		'each add fires its own AddToCart',
-		calls.filter((c) => c[0] === 'track' && c[1] === 'AddToCart').length === 2
-	);
-	check('AddToCart carries the variant sku', addToCart?.[2]?.content_ids?.[0] === 'CMP-LJ-BLUE_CAMO-L');
+	check('ViewContent carries the product', tracked(calls, 'ViewContent')?.[2]?.content_ids?.[0] === 'dog-life-jacket');
 }
 
 await page.screenshot({ path: shot('product.png'), fullPage: false });
+
+// --- the sticky bar must buy what the picker chose ---
+// It sends a tier id and no quantity. Read that back wrong and someone who
+// picked the 3-pack, scrolled, and tapped the bar buys one.
+// The tiers are radio rows, so the label is the control.
+await page.locator('label').filter({ hasText: /3 ×/ }).first().click();
+await page.waitForTimeout(400);
+await page.getByRole('button', { name: /buy now/i }).last().click();
+await page.waitForURL('**/checkout', { timeout: 15000 });
+
+const units = await page.evaluate(() =>
+	JSON.parse(localStorage.getItem('chillmypet.cart.v1') ?? '[]').reduce((n, l) => n + l.quantity, 0)
+);
+check('the sticky bar bought the chosen tier, not one unit', units === 3);
+check('cart badge counts them', (await page.textContent('header a[href="/checkout"]'))?.includes('3'));
+
+{
+	const calls = await fbqCalls();
+	const addToCart = tracked(calls, 'AddToCart');
+	check('AddToCart fired', Boolean(addToCart));
+	check('AddToCart is worth the whole bundle', addToCart?.[2]?.value === '134.91');
+	check('AddToCart carries variant skus', /^CMP-LJ-/.test(addToCart?.[2]?.content_ids?.[0] ?? ''));
+	check(
+		'one AddToCart per click, not one per unit',
+		calls.filter((c) => c[0] === 'track' && c[1] === 'AddToCart').length === 1
+	);
+}
+
+// --- checkout ---
+await page.waitForSelector('form dl');
+const summary = await page.textContent('form dl');
+check('subtotal is 3 x 44.97', summary?.includes('$134.91'));
+check('the 3-pack discount is applied', summary?.includes('$12.14'));
+
+{
+	const calls = await fbqCalls();
+	const initiate = tracked(calls, 'InitiateCheckout');
+	check('InitiateCheckout fired', Boolean(initiate));
+	check('InitiateCheckout value is subtotal', initiate?.[2]?.value === '134.91');
+	check('InitiateCheckout counts the units', initiate?.[2]?.num_items === 3);
+}
+
+await page.screenshot({ path: shot('checkout.png'), fullPage: false });
 
 // --- cart survives reload ---
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
 check(
 	'cart persists across reload',
-	(await page.textContent('header a[href="/checkout"]'))?.includes('2')
+	(await page.textContent('header a[href="/checkout"]'))?.includes('3')
 );
-
-// --- checkout ---
-await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
-await page.waitForTimeout(600);
-const summary = await page.textContent('aside');
-check('summary lists product', summary?.includes('Dog Life Jacket'));
-check('summary shows blue camo / L', summary?.includes('Blue Camo') && summary?.includes('L'));
-check('subtotal is 2 x 44.97', summary?.includes('$89.94'));
-
-// express shipping updates total
-await page.locator('input[name="method"][value="express"]').check();
-await page.waitForTimeout(200);
-const withExpress = await page.textContent('aside');
-// Two units now hit the 7% bundle tier: 89.94 - 6.30 + 12.00.
-check('bundle discount is applied in the summary', withExpress?.includes('$6.30'));
-check('express total 89.94 - 6.30 + 12.00', withExpress?.includes('$95.64'));
-
-{
-	const calls = await fbqCalls();
-	const initiate = tracked(calls, 'InitiateCheckout');
-	check('InitiateCheckout fired', Boolean(initiate));
-	check('InitiateCheckout value is subtotal', initiate?.[2]?.value === '89.94');
-}
-
-await page.screenshot({ path: shot('checkout.png'), fullPage: false });
-
-// submit with a bad email -> inline error, values retained
-await page.fill('input[name="email"]', 'nope');
-await page.fill('input[name="firstName"]', 'Vish');
-await page.fill('input[name="lastName"]', 'Adlamani');
-await page.fill('input[name="address1"]', '12 Harbour Way');
-await page.fill('input[name="city"]', 'Lisbon');
-await page.fill('input[name="postalCode"]', '1100-001');
-await page.selectOption('select[name="country"]', 'PT');
-await page.locator('input[name="email"]').evaluate((el) => el.setAttribute('type', 'text'));
-await page.getByRole('button', { name: /place order/i }).click();
-await page.waitForTimeout(900);
-const afterFail = await page.content();
-check('invalid email shows error', afterFail.includes('Enter a valid email address'));
-check('address retained after failure', (await page.inputValue('input[name="city"]')) === 'Lisbon');
-check('method retained after failure', await page.locator('input[name="method"][value="express"]').isChecked());
-
-// fix email and submit for real
-await page.fill('input[name="email"]', 'vish@example.com');
-await page.getByRole('button', { name: /place order/i }).click();
-await page.waitForTimeout(1500);
-const done = await page.content();
-check('order confirmation shown', done.includes('Order received'));
-const orderNo = done.match(/CMP-[A-Z0-9]{8}/)?.[0];
-check('order number rendered', Boolean(orderNo));
-console.log('      order:', orderNo);
-check('cart cleared after order', (await page.textContent('header a[href="/checkout"]'))?.includes('0'));
-{
-	const calls = await fbqCalls();
-	const purchase = tracked(calls, 'Purchase');
-	check('Purchase fired', Boolean(purchase));
-	check('Purchase value is what was actually charged', purchase?.[2]?.value === '95.64');
-	check('Purchase currency', purchase?.[2]?.currency === 'USD');
-	const eventId = purchase?.[3]?.eventID;
-	check('Purchase carries an eventID for CAPI dedup', typeof eventId === 'string' && eventId.length > 20);
-	check(
-		'exactly one PageView on a full load',
-		calls.filter((c) => c[0] === 'track' && c[1] === 'PageView').length === 1
-	);
-}
+check(
+	'exactly one PageView on a full load',
+	(await fbqCalls()).filter((c) => c[0] === 'track' && c[1] === 'PageView').length === 1
+);
 
 // Client-side navigation must also record a PageView. fbq.queue survives here
 // because SvelteKit navigates without a document reload.
-await page.getByRole('link', { name: /keep shopping/i }).click();
-await page.waitForURL('**/products/dog-life-jacket');
+await page.click('header a[href="/products/dog-life-jacket"]');
+await page.waitForURL('**/products/dog-life-jacket', { timeout: 10000 });
 {
 	const calls = await fbqCalls();
 	check(
@@ -206,21 +176,23 @@ await page.waitForURL('**/products/dog-life-jacket');
 	);
 }
 
-await page.screenshot({ path: shot('confirmation.png'), fullPage: false });
-
 // --- language pack switch ---
-await page.goto(`${BASE}/products/dog-life-jacket`, { waitUntil: 'networkidle' });
+await page.goto(PRODUCT, { waitUntil: 'networkidle' });
 await page.getByRole('button', { name: 'Español' }).click();
 await page.waitForLoadState('networkidle');
 check('html lang is es', (await page.getAttribute('html', 'lang')) === 'es');
 check('product name translated', (await page.textContent('h1'))?.includes('Chaleco salvavidas'));
-const esBody = await page.content();
-check('size chart translated', esBody.includes('Contorno de pecho'));
-check('colour names translated', esBody.includes('Camuflaje azul'));
 await page.screenshot({ path: shot('product-es.png'), fullPage: false });
 
 await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
 check('checkout translated', (await page.textContent('h1')) === 'Finalizar compra');
+check('checkout forms translated', (await page.content()).includes('Dirección de envío'));
+
+// --- the pages the page links to must exist ---
+for (const path of ['/policies/shipping', '/policies/refunds', '/privacy', '/terms', '/contact']) {
+	const res = await fetch(`${BASE}${path}`);
+	check(`${path} resolves`, res.status === 200);
+}
 
 console.log(pageErrors.length ? `\nPAGE ERRORS:\n${pageErrors.join('\n')}` : '\nNo page errors.');
 if (pageErrors.length) process.exitCode = 1;

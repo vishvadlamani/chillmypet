@@ -24,9 +24,10 @@ export const PRODUCT_SLUG = 'dog-life-jacket';
 
 export async function loadProduct(
 	commerce: Commerce,
-	locale: Locale
+	locale: Locale,
+	slug: string = PRODUCT_SLUG
 ): Promise<Product | null> {
-	const product = await commerce.catalog.getProduct(PRODUCT_SLUG, locale);
+	const product = await commerce.catalog.getProduct(slug, locale);
 	if (!product) return null;
 
 	// Positional options: this catalogue is Colour then Size. The default the

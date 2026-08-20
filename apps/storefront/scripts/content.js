@@ -19,6 +19,23 @@ export const STORE = {
 
 export const SLUG = 'dog-life-jacket';
 
+/**
+ * Sizing, in centimetres and kilograms — the storefront converts for display.
+ *
+ * Here rather than in `seed.js` because a live store needs it too: the product
+ * page renders its size chart from this metafield, and the image it replaced
+ * carried a competitor's measurements as well as their logo. A store that never
+ * gets these rows shows no chart at all.
+ */
+export const SIZE_CHART = [
+	{ size: 'XS', chestMinCm: 33, chestMaxCm: 43, weightMinKg: 2, weightMaxKg: 5 },
+	{ size: 'S', chestMinCm: 43, chestMaxCm: 53, weightMinKg: 5, weightMaxKg: 9 },
+	{ size: 'M', chestMinCm: 53, chestMaxCm: 64, weightMinKg: 9, weightMaxKg: 16 },
+	{ size: 'L', chestMinCm: 64, chestMaxCm: 76, weightMinKg: 16, weightMaxKg: 27 },
+	{ size: 'XL', chestMinCm: 76, chestMaxCm: 91, weightMinKg: 27, weightMaxKg: 45 }
+];
+
+
 export const TRANSLATIONS = {
 	en: {
 		title: 'Dog Life Jacket',

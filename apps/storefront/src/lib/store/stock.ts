@@ -16,8 +16,12 @@ export interface StockLevel {
 	total: number;
 }
 
-export async function loadStock(commerce: Commerce, locale: Locale): Promise<StockLevel> {
-	const product = await commerce.catalog.getProduct(PRODUCT_SLUG, locale);
+export async function loadStock(
+	commerce: Commerce,
+	locale: Locale,
+	slug: string = PRODUCT_SLUG
+): Promise<StockLevel> {
+	const product = await commerce.catalog.getProduct(slug, locale);
 	if (!product) return { soldPct: 0, remaining: 0, total: 0 };
 
 	const remaining = product.variants.reduce((sum, v) => sum + v.stock, 0);
@@ -27,7 +31,7 @@ export async function loadStock(commerce: Commerce, locale: Locale): Promise<Sto
 		      from order_items oi
 		      join orders o on o.id = oi.order_id
 		      where oi.store_id = ? and oi.product_slug = ? and o.status <> 'cancelled'`,
-		args: [commerce.store.id, PRODUCT_SLUG]
+		args: [commerce.store.id, slug]
 	});
 	const soldUnits = Number(sold.rows[0]?.sold ?? 0);
 

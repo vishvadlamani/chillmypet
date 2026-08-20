@@ -16,9 +16,10 @@ const DEFAULT_URGENCY_MINUTES = 15;
 export async function loadOffer(
 	commerce: Commerce,
 	locale: Locale,
-	settings: Record<string, string> = {}
+	settings: Record<string, string> = {},
+	slug: string = PRODUCT_SLUG
 ): Promise<Offer> {
-	const product = await commerce.catalog.getProduct(PRODUCT_SLUG, locale);
+	const product = await commerce.catalog.getProduct(slug, locale);
 
 	// Derived from the real prices rather than typed in, so the strip can never
 	// advertise a discount the product doesn't actually carry.

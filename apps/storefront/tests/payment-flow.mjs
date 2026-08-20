@@ -107,9 +107,9 @@ const settle = () => new Promise((r) => setTimeout(r, 2000));
 
 // --- place an order --------------------------------------------------------
 const product = await fetch(`${BASE}/products/dog-life-jacket`).then((r) => r.text());
-const variantId = Number(/"variants":\[\{"id":(\d+)/.exec(product)?.[1] ?? 0) || null;
-const idFromEmbed = Number(/id:(\d+),sku:"CMP-LJ-[A-Z_]+-L"/.exec(product)?.[1] ?? 0) || null;
-const variant = variantId ?? idFromEmbed;
+// The page ships a variant index for the host's own submit handler — colour to
+// variant id — which is the only place a real id appears in the markup now.
+const variant = Number(/variantId["'\s:]+(\d+)/.exec(product)?.[1] ?? 0) || null;
 check('found a variant to buy', Boolean(variant), 'could not parse a variant id from the page');
 
 const form = new URLSearchParams({
@@ -365,8 +365,8 @@ if (sessionCall) {
 }
 
 // --- the inline card path --------------------------------------------------
-// What the block-rendered checkout posts, in its own field names — one name
-// field rather than two, and the card already mounted. The action answers with
+// What the checkout's own form posts, in the field names the blocks write —
+// one name field rather than two, and the card already mounted. The action answers with
 // an intent to confirm against instead of somewhere else to go, so a rename on
 // that page fails here rather than in production.
 {
@@ -387,7 +387,7 @@ if (sessionCall) {
 		lines: JSON.stringify([{ variantId: variant, quantity: 2 }])
 	});
 
-	const placed = await fetch(`${BASE}/store/checkout`, {
+	const placed = await fetch(`${BASE}/checkout`, {
 		method: 'POST',
 		redirect: 'manual',
 		headers: {

@@ -151,12 +151,13 @@ the response was stale. Verify with a cache-busting query string, or retry for a
 minute, before concluding a deploy didn't take. Confirm against the version id
 that `wrangler deployments list` reports.
 
-## The block framework — how the /store pages are built
+## The block framework — how the storefront pages are built
 
-`/store` and `/store/checkout` are not hand-written pages. They are **data**: an
-ordered array of blocks in `manifest.ts`, bound to live commerce data in
-`+page.server.ts`, rendered by `PageLayout`. The older `/products/[slug]` and
-`/checkout` pages are the hand-written ones and still run — nothing was deleted.
+`/products/[slug]` and `/checkout` are not hand-written pages any more. They are
+**data**: an ordered array of blocks in a manifest under `$lib/store`, bound to
+live commerce data in `+page.server.ts`, rendered by `PageLayout`. The
+hand-written versions they replaced are in the history, not the tree. `/store`
+and `/store/checkout`, where they were built, now 308 to the real URLs.
 
 ```ts
 const resolve = createRefResolver({ product, bundles, stock, … });
@@ -176,10 +177,18 @@ rather than rendering "undefined" at a customer. A block can also declare
 `requires: ['bundles.tiers']` and be omitted entirely when that data is missing,
 which is how one manifest serves a catalogue.
 
-The nine loaders in `src/routes/store/*.ts` are the whole data contract — 19
+The nine loaders in `src/lib/store/*.ts` are the whole data contract — 19
 reference paths, each backed by a real query against `locals.commerce`. Prices
 are **pre-formatted strings** (`"$93"`, `"Free"`), because currency and locale
-are the host's business, not the block's.
+are the host's business, not the block's. `pages.ts` maps a slug to the manifest
+that renders it: a manifest is per-product (its FAQ, gallery and size chart are
+one product's), so an unmapped slug is a 404 even when the product exists.
+
+**Manifest copy is English.** The checkout's headings are bound from the
+language packs via a `copy` namespace, so that page reads in one language. The
+product page's marketing prose — bullets, FAQ answers, the guarantee — is still
+literals, so a Spanish visitor gets a translated title, prices and checkout with
+English body copy. Fixing it is the same `copy` pattern plus translations.
 
 **`packages/blocks-dr` and `packages/funnel-core` are copies.** There is no
 registry between this repo and the project they came from, so anything you
@@ -270,14 +279,23 @@ Working: product page, cart, checkout, orders, customers, multi-tenancy, i18n
 catalogue, options, translations and metafields all come from
 `packages/ecomwithai`.
 
-The block-rendered pages at `/store` and `/store/checkout` are wired end to end:
-the bundle picker adds real cart lines, the checkout prices through `/api/cart`,
-the Payment Element mounts under the shipping method, and Place order runs the
-same `placeOrder` the old `/checkout` does. They are still `noindex` — the copy,
-testimonials, review counts and gallery images in those manifests are the other
-project's placeholders and are the owner's to replace before this page is the
-one campaigns land on. Live traffic goes to `/products/dog-life-jacket` until
-then.
+The block-rendered pages ARE the storefront: `/products/dog-life-jacket` is the
+page the campaign lands on and `/checkout` is where it pays. The bundle picker
+adds real cart lines, the checkout prices through `/api/cart`, the Payment
+Element mounts under the shipping method, and Place order runs `placeOrder`.
+
+⚠️ **The invented reviews do not ship, and that is deliberate.** The 22
+testimonials that came with the block library are written words attributed to
+named people who never said them, the 4.9-from-1,127 rating was never counted,
+and "500+ dogs already have theirs" was never true. On a page nobody sees that
+is placeholder copy; in front of shoppers it is a fake testimonial under the
+FTC's rule on consumer reviews (16 CFR 465), which carries per-violation
+penalties. `REVIEWS_ARE_REAL` in `$lib/store/reviews-wall.ts` is the single
+switch: false, and the loaders return nothing, every block that needs review
+data declares `requires` and drops out, and the page renders without them.
+Put real customer text in those arrays and flip it, and the rating, the hero
+quotes and the wall all come back. Do not flip it to make the page look
+fuller.
 
 Meta tracking is **fully live**: the browser pixel and the Conversions API both
 fire, deduplicated on `event_id`. The CAPI token is set on both Workers and was
@@ -429,6 +447,21 @@ Two things a future agent should know rather than rediscover:
   "it's not copyrighted" does not answer) and `contact@floatpaw.store` (it would
   route this store's customers to theirs). Store branding stays ChillMyPet, and
   the support address is `contact@chillmypet.com`.
+
+The block library arrived with a third asset set, and one of them shipped a
+competitor's mark: `static/size-chart.webp` carried the **FloatPaw** wordmark
+across the top. It was deleted rather than reused, and the same slot on the
+product page now renders the chart from this catalogue's own
+`specs.size_chart` measurements (`$lib/store/sizes.ts`), in both unit systems
+and both languages. That was not only a trademark problem — their XL runs to
+43" where this jacket's runs to 36", so anyone who measured against it ordered
+a size that does not fit. A branded chart graphic can go back in that slot as a
+`media` block whenever one exists that is ours.
+
+Still placeholders, and known to be: `product-floatly.webp` (a supplier photo,
+no visible branding), the customer UGC in `static/reviews/` standing in for
+product photography, and `avatar-floatly.webp`, which only renders if the
+spotlight quotes are switched back on.
 
 Don't add further third-party branding, photography, or marketing text without
 the owner confirming rights for that specific source.

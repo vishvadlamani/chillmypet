@@ -6,12 +6,18 @@
  * is already reading.
  *
  * The photos are real customer UGC, resized from the product folder into
- * `static/reviews`. The WORDS ARE NOT REAL. Each one is written against what its
- * own photo actually shows — the kayak, the pool float, the paddleboard, the
- * zip — so nothing contradicts the picture beside it, but a testimonial is a
- * claim attributed to a named person, and inventing both the person and the
- * claim is what draws regulators rather than merely reading as filler. Replace
- * with real review text before this takes traffic.
+ * `static/reviews`. The WORDS BELOW ARE NOT REAL. Each one was written against
+ * what its own photo shows — the kayak, the pool float, the paddleboard, the
+ * zip — so nothing contradicts the picture beside it. That still makes each one
+ * a claim attributed to a named person who never made it, which is a fake
+ * testimonial under the FTC's rule on consumer reviews (16 CFR 465) and is
+ * exactly what carries penalties, not merely what reads as filler.
+ *
+ * So they do not ship. `REVIEWS_ARE_REAL` is the switch: the loaders return
+ * nothing while it is false, every block that needs review data declares
+ * `requires` and drops out of the page, and the rest of the page is unaffected.
+ * Replace the words below with real customer text, flip the flag, and the
+ * rating, the hero quotes and the wall all come back.
  *
  * 22 of the 23 source images are here. The one left out shows a poodle asleep in
  * a car wearing a mint harness — a different product entirely, and a review
@@ -32,7 +38,20 @@ export interface FeaturedReview {
  * because the buy column is narrow — a four-line review that reads fine in a
  * masonry card pushes the CTA off the screen here.
  */
+/**
+ * Are the words below written by actual customers?
+ *
+ * One switch for all three review sources — the summary, the hero quotes and
+ * the wall — because they make the same kind of claim and half of them being
+ * real is not a state worth having.
+ */
+export const REVIEWS_ARE_REAL = false;
+
 export function loadSpotlightQuotes() {
+	// `undefined`, not `[]`: `requires` drops a block when its path does not
+	// resolve, and an empty array resolves — which would render an empty quote
+	// carousel instead of no carousel.
+	if (!REVIEWS_ARE_REAL) return undefined;
 	return [
 		{
 			quote: 'He panicked the first time we got in the boat. Second trip he fell asleep in it.',
@@ -55,7 +74,8 @@ export function loadSpotlightQuotes() {
 	];
 }
 
-export function loadFeaturedReviews(): FeaturedReview[] {
+export function loadFeaturedReviews(): FeaturedReview[] | undefined {
+	if (!REVIEWS_ARE_REAL) return undefined;
 	return [
 		{
 			name: 'Marisol V.',

@@ -8,6 +8,7 @@
  * it stops being true — which is the version of this bug that has legal weight,
  * not just a stale page.
  */
+import { REVIEWS_ARE_REAL } from './reviews-wall';
 
 export interface ReviewSummary {
 	average: number;
@@ -16,7 +17,13 @@ export interface ReviewSummary {
 	histogram: Array<{ stars: number; count: number }>;
 }
 
-export function loadReviews(): ReviewSummary {
+export function loadReviews(): ReviewSummary | Record<string, never> {
+	// 4.9 from 1,127 was never counted from anything. An aggregate is a claim
+	// about other people, and this one is on the page a paid campaign lands on,
+	// beside a buy button — see reviews-wall.ts for the switch that turns the
+	// whole set back on once there is something real to average.
+	if (!REVIEWS_ARE_REAL) return {};
+
 	const count = 1127;
 	return {
 		average: 4.9,

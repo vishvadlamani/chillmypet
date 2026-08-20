@@ -1,6 +1,9 @@
 /**
  * The block-rendered storefront, end to end in a real browser.
  *
+ * These are the live product and checkout pages — /products/[slug] and
+ * /checkout — rendered from block manifests.
+ *
  * Covers the seams the blocks deliberately leave to the host: turning
  * "add_to_cart" into cart lines and a destination, reading what the forms wrote
  * into host state, checking across all three of them, and posting an order the
@@ -44,10 +47,10 @@ function check(label, cond, detail) {
 }
 
 // --- product page: a block states intent, the host routes it ---------------
-await page.goto(`${BASE}/store`, { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/products/dog-life-jacket`, { waitUntil: 'networkidle' });
 await page.getByRole('button', { name: /buy now/i }).first().click();
-await page.waitForURL('**/store/checkout**', { timeout: 15000 });
-check('buy now lands on the checkout', page.url().includes('/store/checkout'));
+await page.waitForURL('**/checkout**', { timeout: 15000 });
+check('buy now lands on the checkout', page.url().endsWith('/checkout'));
 
 const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('chillmypet.cart.v1') ?? '[]'));
 check('the selection became real cart lines', stored.length > 0 && stored[0].variantId > 0,
@@ -68,7 +71,7 @@ check('the button offers a total, not just a verb', /Pay \$/.test(await payButto
 await payButton.click();
 await page.waitForSelector('form [role="alert"]');
 const issues = await page.locator('form [role="alert"]').last().innerText();
-check('an empty checkout does not post', page.url().includes('/store/checkout'));
+check('an empty checkout does not post', page.url().endsWith('/checkout'));
 check('it says the name is missing', /Full name is required/i.test(issues), issues);
 check('it says the email is missing', /Email is required/i.test(issues), issues);
 check('it says the address is missing', /Address is required/i.test(issues), issues);

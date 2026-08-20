@@ -92,6 +92,9 @@ export const STORE_PAGE: FunnelDefinition = {
 			component: 'rating_summary',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
+			// No rating, no stars. A summary of reviews that don't exist is the
+			// one thing on this page that would be a claim about other people.
+			requires: ['reviews.average'],
 			props: {
 				variant: 'inline',
 				average: { $ref: 'reviews.average' },
@@ -161,7 +164,11 @@ export const STORE_PAGE: FunnelDefinition = {
 			component: 'payment_badges',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
-			props: { width: 'full' }
+			// Cards only, because that is what the checkout takes — the Stripe
+			// payment method configuration for this store is card-only, so a PayPal
+			// or Google Pay badge here promises a button that isn't on the next
+			// page. Add them back to both places together, never to one.
+			props: { methods: ['visa', 'mastercard', 'amex', 'discover'], width: 'full' }
 		},
 		{
 			id: 'stock-bar',
@@ -213,22 +220,43 @@ export const STORE_PAGE: FunnelDefinition = {
 				]
 			}
 		},
+		// Was `/size-chart.webp`, a chart image that came with the block library
+		// carrying a competitor's wordmark AND their measurements. Both had to go:
+		// the mark isn't ours to display, and their sizing isn't this jacket's, so
+		// anyone who measured against it ordered the wrong size. This renders the
+		// catalogue's own numbers, in both unit systems, in the visitor's
+		// language. A branded chart graphic can replace it here whenever there is
+		// one — same slot, one `media` block.
 		{
-			id: 'size-chart',
-			component: 'media',
+			id: 'size-chart-heading',
+			component: 'heading',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
+			requires: ['sizes.rows'],
+			props: { text: { $ref: 'sizes.title' }, level: 3, size: 'sm', width: 'full' }
+		},
+		{
+			id: 'size-chart',
+			component: 'bullet_list',
+			version: 1,
+			layout: { row: 'hero', col: 'right' },
+			requires: ['sizes.rows'],
 			props: {
-				variant: 'single',
-				// `auto` — the chart is a fixed-ratio graphic, and cropping it to a
-				// square would cut rows off the table.
-				aspect: 'auto',
-				items: [
-					{
-						src: '/size-chart.webp',
-						alt: 'Life jacket size chart: XS to XL with chest circumference, neck circumference, back length, recommended weight and example breeds'
-					}
-				],
+				items: { $ref: 'sizes.rows' },
+				size: 'sm',
+				spacing: 'tight',
+				width: 'full'
+			}
+		},
+		{
+			id: 'size-chart-hint',
+			component: 'bullet_list',
+			version: 1,
+			layout: { row: 'hero', col: 'right' },
+			requires: ['sizes.hint'],
+			props: {
+				items: [{ icon: '📏', text: { $ref: 'sizes.hint' } }],
+				size: 'sm',
 				width: 'full'
 			}
 		},
@@ -290,8 +318,11 @@ export const STORE_PAGE: FunnelDefinition = {
 			version: 1,
 			props: {
 				image: '/guarantee-30day.webp',
-				eyebrow: '500+ dogs already have theirs',
-				body: 'It’s not just a life jacket — it’s the one piece of kit hundreds of owners won’t put a paw in the water without. Shop with total confidence: you’re covered by our **Ironclad 30-Day Guarantee**. If you don’t absolutely love it, or if it arrives damaged, we’ll refund your money immediately. No questions asked. **100% risk-free.**',
+				// Was "500+ dogs already have theirs", beside "hundreds of owners" —
+				// numbers nobody counted. The guarantee itself is real: it's the
+				// refund policy at /policies/refunds, word for word.
+				eyebrow: 'Backed for 30 days',
+				body: 'It’s not just a life jacket — it’s the piece of kit you don’t get in the water without. Shop with total confidence: you’re covered by our **Ironclad 30-Day Guarantee**. If you don’t absolutely love it, or if it arrives damaged, we’ll refund your money immediately. No questions asked. **100% risk-free.**',
 				align: 'center',
 				width: 'article'
 			}
@@ -306,6 +337,9 @@ export const STORE_PAGE: FunnelDefinition = {
 			id: 'review-wall-heading',
 			component: 'heading',
 			version: 1,
+			// Heading and rule follow the wall they introduce, or the page keeps a
+			// "What owners are saying" section with nothing under it.
+			requires: ['reviews.featured'],
 			props: { text: 'What owners are saying', level: 2, size: 'lg', width: 'shell' }
 		},
 		{
@@ -343,6 +377,7 @@ export const STORE_PAGE: FunnelDefinition = {
 			id: 'rule-after-reviews',
 			component: 'divider',
 			version: 1,
+			requires: ['reviews.featured'],
 			props: { width: 'shell', spacing: 'loose' }
 		},
 		// ── The dock. Not in the hero row: it's `fixed`, so where it sits in the
