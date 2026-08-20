@@ -19,15 +19,26 @@
 	let t = $derived(createTranslator(locale));
 	let year = new Date().getFullYear();
 
+	/**
+	 * Block-rendered pages carry their own announcement strip, from the manifest.
+	 * Site chrome and page content stating the same offer one above the other
+	 * reads as a mistake, and on a landing page it costs the two lines of screen
+	 * that matter most — so the site's strip stands down where a page brings its
+	 * own. A page is one of those if its data carries a definition.
+	 */
+	let ownsAnnouncement = $derived(Boolean(page.data.definition));
+
 	$effect(() => {
 		cart.hydrate();
 	});
 </script>
 
 <div class="flex min-h-screen flex-col">
-	<p class="bg-tide-700 px-4 py-2 text-center text-sm text-white">
-		{t('announcement.banner', { discount: 30 })}
-	</p>
+	{#if !ownsAnnouncement}
+		<p class="bg-tide-700 px-4 py-2 text-center text-sm text-white">
+			{t('announcement.banner', { discount: 30 })}
+		</p>
+	{/if}
 
 	<header class="border-b border-ink-200">
 		<nav
