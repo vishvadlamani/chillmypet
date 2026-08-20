@@ -118,6 +118,8 @@
 		"total": "Total",
 		"placeOrder": "Place order",
 		"placing": "Placing order…",
+		"fullName": "Full name",
+		"payNow": "Pay {total}",
 		"paymentTitle": "Payment",
 		"paymentPending": "No payment provider is connected to this store yet. Placing an order records it and sends you an invoice link — no card details are collected on this page.",
 		"successTitle": "Order received",

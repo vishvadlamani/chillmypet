@@ -118,6 +118,8 @@
 		"total": "Total",
 		"placeOrder": "Realizar pedido",
 		"placing": "Procesando pedido…",
+		"fullName": "Nombre completo",
+		"payNow": "Pagar {total}",
 		"paymentTitle": "Pago",
 		"paymentPending": "Todavía no hay ninguna pasarela de pago conectada a esta tienda. Al realizar el pedido se registra y te enviamos un enlace de factura — en esta página no se recogen datos de tarjeta.",
 		"successTitle": "Pedido recibido",

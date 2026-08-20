@@ -17,6 +17,11 @@
 			"svelte": "./src/lib/tokens.ts",
 			"default": "./src/lib/tokens.ts"
 		},
+		"./subdivisions": {
+			"types": "./src/lib/subdivisions.ts",
+			"svelte": "./src/lib/subdivisions.ts",
+			"default": "./src/lib/subdivisions.ts"
+		},
 		"./fields": {
 			"types": "./src/lib/fields.ts",
 			"svelte": "./src/lib/fields.ts",

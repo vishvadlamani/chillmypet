@@ -2,9 +2,10 @@ import { bindDefinition, createRefResolver } from '@funnel/core';
 import { CHECKOUT_PAGE } from './manifest';
 import { loadMarkets } from '../markets';
 import { loadShippingRates } from '../shipping-rates';
-import type { PageServerLoad } from './$types';
+import { placeOrder } from '$lib/server/checkout';
+import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	const { locale, store } = locals;
 
 	const resolve = createRefResolver({
@@ -22,6 +23,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		// needs what mounts it.
 		paymentsEnabled: Boolean(locals.commerce.payments),
 		stripePublishableKey: locals.stripePublishableKey,
-		stripePaymentMethodConfiguration: locals.stripePaymentMethodConfiguration
+		stripePaymentMethodConfiguration: locals.stripePaymentMethodConfiguration,
+		// Set when Stripe's hosted page sends someone back without paying.
+		cancelled: url.searchParams.has('cancelled')
 	};
+};
+
+// Same order-placing code as /checkout. The blocks draw the fields; what
+// happens when they're submitted is not something a manifest gets to vary.
+export const actions: Actions = {
+	default: (event) => placeOrder(event, { cancelPath: '/store/checkout' })
 };

@@ -203,12 +203,12 @@ export const STORE_PAGE: FunnelDefinition = {
 					{
 						label: 'When will I get my order? 🚚',
 						body: 'Please allow us 2–4 business days to process your order.\n\nOnce processed, 93% of orders arrive between 5–12 days later.\n\nIf you have any questions, please contact us at contact@chillmypet.com.',
-						link: { label: 'Read our shipping policy', href: '/shipping-policy' }
+						link: { label: 'Read our shipping policy', href: '/policies/shipping' }
 					},
 					{
 						label: 'What if the size doesn’t fit my dog? 📏',
 						body: 'We offer 30 day — no questions asked — free exchanges and returns.\n\nIf you have any questions or would like to begin an exchange, please email us at contact@chillmypet.com.',
-						link: { label: 'Read our return and exchange policy', href: '/returns-policy' }
+						link: { label: 'Read our return and exchange policy', href: '/policies/refunds' }
 					}
 				]
 			}

@@ -7,6 +7,8 @@ project does; this file covers **how to change it without breaking things**.
 
 ```
 packages/ecomwithai/    the open-source framework — EDIT HERE
+packages/funnel-core/   block runtime: manifests, $ref binding, page layout
+packages/blocks-dr/     direct-response block library — A COPY, see below
 apps/storefront/        BFF: SvelteKit UI, language packs, routes
 ```
 
@@ -37,7 +39,13 @@ Browser tests need a running dev server and a seeded DB:
 ```sh
 npm i --no-save playwright
 npm run test:e2e       # BASE_URL= and CHROMIUM_PATH= to override
+npm run test:store     # the block-rendered /store pages, product → order
 ```
+
+`test:e2e` and `test:store` want a dev server with **no** `STRIPE_SECRET_KEY`:
+both place an order and read the confirmation off the page, which with payments
+on is a redirect to Stripe instead. `test:payments` wants the opposite — see
+Deploying.
 
 ## The one rule
 
@@ -143,6 +151,94 @@ the response was stale. Verify with a cache-busting query string, or retry for a
 minute, before concluding a deploy didn't take. Confirm against the version id
 that `wrangler deployments list` reports.
 
+## The block framework — how the /store pages are built
+
+`/store` and `/store/checkout` are not hand-written pages. They are **data**: an
+ordered array of blocks in `manifest.ts`, bound to live commerce data in
+`+page.server.ts`, rendered by `PageLayout`. The older `/products/[slug]` and
+`/checkout` pages are the hand-written ones and still run — nothing was deleted.
+
+```ts
+const resolve = createRefResolver({ product, bundles, stock, … });
+const { definition, version } = bindDefinition(STORE_PAGE, resolve);
+```
+
+**Always `bindDefinition`, never `funnelVersion` + `resolveRefs` by hand.** Both
+orders render identically, but versioning *after* binding mints a new version
+every time stock or a price moves, so no two conversions share a version and the
+funnel's own reporting goes quietly useless. Pass both `definition` and
+`version` to the layout; omitting `version` makes it hash the bound definition,
+which is the same bug.
+
+A prop can be `{ $ref: 'product.price' }` instead of a literal — refs resolve
+server-side and unresolvable ones are dropped, so the block's own default wins
+rather than rendering "undefined" at a customer. A block can also declare
+`requires: ['bundles.tiers']` and be omitted entirely when that data is missing,
+which is how one manifest serves a catalogue.
+
+The nine loaders in `src/routes/store/*.ts` are the whole data contract — 19
+reference paths, each backed by a real query against `locals.commerce`. Prices
+are **pre-formatted strings** (`"$93"`, `"Free"`), because currency and locale
+are the host's business, not the block's.
+
+**`packages/blocks-dr` and `packages/funnel-core` are copies.** There is no
+registry between this repo and the project they came from, so anything you
+change there diverges silently and permanently. Fix blocks upstream and re-copy.
+Two additive exceptions exist and are worth knowing about rather than
+rediscovering: `blocks-dr/package.json` gained a `./subdivisions` export (the
+host needs `countryForm` to know whether a country requires a state), and
+`workspace:*` became `*` because that protocol is pnpm-only and npm links the
+workspace siblings anyway.
+
+**Tailwind emits nothing for a package it cannot see.** `app.css` carries
+`@source` lines for both packages plus the `--color-fx-*`, `--text-*`,
+`--tracking-*`, `--radius-*` and `--spacing-gutter` tokens the blocks reference
+by name. Delete either and the page renders as unstyled HTML while types pass
+and the build succeeds. Inside a block, use utility classes (`class="text-17"`)
+and never `var(--text-17)` in hand-written CSS: Tailwind tree-shakes theme
+variables, so a token only becomes a real custom property once a generated
+utility references it.
+
+### The two seams, and what stays host code
+
+Blocks state intent and stop. `track(event, subject, props)` and
+`submit(action, subject, payload)` are the only ways out, and both are the
+host's.
+
+**Navigation must never become a block prop.** A `href` or `redirectTo` on the
+bundle picker puts routing in a manifest and couples every block to a router.
+"Buy now" calls `submit('add_to_cart', …)` with the full selection; turning that
+into cart lines and `goto('/store/checkout')` is `+page.svelte`'s job. The same
+goes for analytics destinations, API endpoints and currency formatting.
+
+Deliberately NOT blocks, because a checkout that looks complete and silently
+cannot take money is the worst failure this page has:
+
+- **Card entry.** Unknown block types are skipped by design. `CardFields.svelte`
+  mounts next to the blocks, and both checkouts post to the same
+  `$lib/server/checkout.ts` — the fields differ, what a sale means does not.
+- **The cross-form check.** Each form validates only its own fields and none of
+  them has a submit button, so nothing on the page knows the address is missing
+  an email except the thing that posts the order. It sits by the pay button.
+- **Country and name mapping.** The blocks write a display name (`Canada`) and
+  one `fullName`; the order takes an ISO code and two name fields. That
+  translation happens in the host — `isCountryCode` rejects the rest.
+- **Server-side field errors.** The action validates again and can disagree with
+  the page. Its `fieldErrors` are rendered into the same list, or the button
+  posts, comes back rejected, and visibly does nothing.
+
+Contact and shipping fields land in host state as they are typed, under
+`fullName, email, phone, country, address, address2, city, state, zip,
+shippingMethod, bundle` — `state` normalised to an ISO subdivision code on the
+way in. The adapter must be `$state`: its reads are methods precisely so a live
+host returns a fresh value per call, and a plain object leaves the sticky bar
+frozen on whatever it saw first.
+
+`/api/address` proxies Google Places server-side so the key never reaches the
+browser. Without `GOOGLE_PLACES_API_KEY` it degrades to manual entry, and in dev
+serves a small Canadian fixture — deliberately, because a missing env var must
+not take checkout down.
+
 ## Adding things
 
 **A language:** drop `apps/storefront/src/lib/i18n/locales/<code>.json` next to
@@ -173,6 +269,15 @@ Working: product page, cart, checkout, orders, customers, multi-tenancy, i18n
 (en/es), Cloudflare deploy pipeline. The store now runs on the framework:
 catalogue, options, translations and metafields all come from
 `packages/ecomwithai`.
+
+The block-rendered pages at `/store` and `/store/checkout` are wired end to end:
+the bundle picker adds real cart lines, the checkout prices through `/api/cart`,
+the Payment Element mounts under the shipping method, and Place order runs the
+same `placeOrder` the old `/checkout` does. They are still `noindex` — the copy,
+testimonials, review counts and gallery images in those manifests are the other
+project's placeholders and are the owner's to replace before this page is the
+one campaigns land on. Live traffic goes to `/products/dog-life-jacket` until
+then.
 
 Meta tracking is **fully live**: the browser pixel and the Conversions API both
 fire, deduplicated on `event_id`. The CAPI token is set on both Workers and was

@@ -42,6 +42,20 @@ const mock = createServer((req, res) => {
 			res.end(JSON.stringify({ id: 'coupon_mock_1' }));
 			return;
 		}
+		if (req.url === '/v1/payment_intents') {
+			const params = new URLSearchParams(body);
+			res.writeHead(200, { 'content-type': 'application/json' });
+			res.end(
+				JSON.stringify({
+					id: `pi_test_mock_${RUN}`,
+					client_secret: `pi_test_mock_${RUN}_secret`,
+					amount: Number(params.get('amount')),
+					currency: params.get('currency'),
+					status: 'requires_payment_method'
+				})
+			);
+			return;
+		}
 		if (req.url === '/v1/checkout/sessions') {
 			const params = new URLSearchParams(body);
 			res.writeHead(200, { 'content-type': 'application/json' });
@@ -348,6 +362,119 @@ if (sessionCall) {
 
 	const missing = await fetch(`${BASE}/checkout/success?order=CMP-DOESNOTEXIST`);
 	check('an unknown order 404s rather than rendering', missing.status === 404, `got ${missing.status}`);
+}
+
+// --- the inline card path --------------------------------------------------
+// What the block-rendered checkout posts, in its own field names — one name
+// field rather than two, and the card already mounted. The action answers with
+// an intent to confirm against instead of somewhere else to go, so a rename on
+// that page fails here rather than in production.
+{
+	const submissionId = `inline-${RUN}`;
+	const inline = new URLSearchParams({
+		email: 'inline@example.com',
+		fullName: 'Inline Buyer',
+		address1: '2 Test St',
+		city: 'Delta',
+		province: 'BC',
+		postalCode: 'V3W 3N1',
+		country: 'CA',
+		method: 'express',
+		cardReady: '1',
+		submissionId,
+		// Two units, which is a bundle discount — the figure the intent charges
+		// has to be the discounted one.
+		lines: JSON.stringify([{ variantId: variant, quantity: 2 }])
+	});
+
+	const placed = await fetch(`${BASE}/store/checkout`, {
+		method: 'POST',
+		redirect: 'manual',
+		headers: {
+			'content-type': 'application/x-www-form-urlencoded',
+			origin: BASE,
+			cookie: '_fbp=fb.1.1700000000000.1234567890'
+		},
+		body: inline
+	});
+	const raw = await placed.text();
+
+	check(
+		'the inline checkout answers with an intent, not a redirect',
+		placed.status === 200 && raw.includes(`pi_test_mock_${RUN}_secret`),
+		`${placed.status} ${raw.slice(0, 200)}`
+	);
+
+	const intentCall = seen.find((c) => c.path === '/v1/payment_intents');
+	check('a payment intent was created', Boolean(intentCall));
+
+	if (intentCall) {
+		const p = new URLSearchParams(intentCall.body);
+		// 2 × $44.97 = $89.94, less the 7% two-pack break ($6.30), plus $12
+		// express. The intent is the order total outright, so unlike the hosted
+		// session there is no coupon to reconcile — which is exactly why the
+		// discount has to already be in this number.
+		check(
+			'the intent charges the discounted total, not the list price',
+			Number(p.get('amount')) === 8994 - 630 + 1200,
+			`charged ${p.get('amount')} for an order worth ${8994 - 630 + 1200}`
+		);
+		check('the order number travels with the intent', /^CMP-/.test(p.get('metadata[order_number]') ?? ''));
+		check('store id is in metadata for tenant routing', p.get('metadata[store_id]') === 'chillmypet');
+		check(
+			'the click identifier rides along for the webhook',
+			p.get('metadata[fbp]') === 'fb.1.1700000000000.1234567890'
+		);
+		check(
+			'the card statement carries a descriptor the buyer will recognise',
+			p.get('statement_descriptor') === 'CHILLMYPET',
+			`got ${p.get('statement_descriptor')}`
+		);
+
+		// --- an intent that succeeds settles the order ---------------------
+		const orderNumber = p.get('metadata[order_number]');
+		const paidBody = JSON.stringify({
+			id: `evt_intent_${RUN}`,
+			type: 'payment_intent.succeeded',
+			data: {
+				object: {
+					id: `pi_test_mock_${RUN}`,
+					amount_received: Number(p.get('amount')),
+					currency: 'usd',
+					metadata: {
+						store_id: 'chillmypet',
+						order_number: orderNumber,
+						fbp: 'fb.1.1700000000000.1234567890'
+					}
+				}
+			}
+		});
+		const ts = Math.floor(Date.now() / 1000);
+		const sig = createHmac('sha256', WEBHOOK_SECRET).update(`${ts}.${paidBody}`).digest('hex');
+		const hook = await fetch(`${BASE}/api/stripe/webhook`, {
+			method: 'POST',
+			headers: {
+				'content-type': 'application/json',
+				'stripe-signature': `t=${ts},v1=${sig}`
+			},
+			body: paidBody
+		});
+		const outcome = await hook.json();
+		check(
+			'a succeeded intent marks the order paid',
+			outcome.handled && outcome.action === 'order_paid',
+			JSON.stringify(outcome)
+		);
+
+		await settle();
+		const purchase = capiPurchases().find((e) => e.event_id === `purchase-${orderNumber}`);
+		check('the inline sale reports its own conversion', Boolean(purchase));
+		check(
+			'for the amount actually charged',
+			purchase?.custom_data?.value === (Number(p.get('amount')) / 100).toFixed(2),
+			`${purchase?.custom_data?.value} vs ${(Number(p.get('amount')) / 100).toFixed(2)}`
+		);
+	}
 }
 
 mock.close();

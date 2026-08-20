@@ -20,6 +20,7 @@
 		"typecheck": "npm run typecheck -w ecomwithai",
 		"sync:framework": "node scripts/sync-framework.js",
 		"test:payments": "npm run test:payments -w @chillmypet/storefront",
+		"test:store": "npm run test:store -w @chillmypet/storefront",
 		"db:content": "npm run db:content -w @chillmypet/storefront"
 	}
 }
