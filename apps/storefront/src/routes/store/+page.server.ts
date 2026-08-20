@@ -3,7 +3,7 @@ import { bindDefinition, createRefResolver } from '@funnel/core';
 import { STORE_PAGE } from './manifest';
 import { loadBundles } from './bundles';
 import { loadOffer } from './offer';
-import { loadProduct } from './product';
+import { loadProduct, PRODUCT_SLUG } from './product';
 import { loadReviews } from './reviews';
 import { loadFeaturedReviews, loadSpotlightQuotes } from './reviews-wall';
 import { loadStock } from './stock';
@@ -45,5 +45,33 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// reporting goes quietly useless.
 	const { definition, version } = bindDefinition(STORE_PAGE, resolve);
 
-	return { definition, version };
+	// The blocks choose a colour; they know nothing of variant ids, and they
+	// must not — a block that carried one would be coupled to this catalogue.
+	// So the host ships the lookup and does the resolving in its own submit
+	// handler. Size is the host's call too: the first one actually buyable in
+	// that colour, the same rule the product page's buy box uses.
+	const catalogue = await commerce.catalog.getProduct(PRODUCT_SLUG, locale);
+	const sizes = catalogue?.options[1]?.values ?? [];
+	const variantIndex = (catalogue?.options[0]?.values ?? []).flatMap((colour) => {
+		const match = sizes
+			.map((size) =>
+				catalogue!.variants.find(
+					(v) => v.options[0] === colour.value && v.options[1] === size.value
+				)
+			)
+			.find((v) => v && v.stock > 0);
+		if (!match) return [];
+		return [
+			{
+				colour: colour.label ?? colour.value,
+				colourCode: colour.value,
+				size: match.options[1] ?? '',
+				variantId: match.id,
+				unitPriceCents: match.priceCents,
+				sku: match.sku
+			}
+		];
+	});
+
+	return { definition, version, variantIndex, slug: PRODUCT_SLUG, currency: catalogue!.currency };
 };
