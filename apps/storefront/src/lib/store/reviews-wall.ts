@@ -47,11 +47,14 @@ export interface FeaturedReview {
  */
 export const REVIEWS_ARE_REAL = false;
 
+/** Same answer, for the summary loader next door. */
+export const showPlaceholderReviews = (): boolean => REVIEWS_ARE_REAL;
+
 export function loadSpotlightQuotes() {
 	// `undefined`, not `[]`: `requires` drops a block when its path does not
 	// resolve, and an empty array resolves — which would render an empty quote
 	// carousel instead of no carousel.
-	if (!REVIEWS_ARE_REAL) return undefined;
+	if (!showPlaceholderReviews()) return undefined;
 	return [
 		{
 			quote: 'He panicked the first time we got in the boat. Second trip he fell asleep in it.',
@@ -75,7 +78,7 @@ export function loadSpotlightQuotes() {
 }
 
 export function loadFeaturedReviews(): FeaturedReview[] | undefined {
-	if (!REVIEWS_ARE_REAL) return undefined;
+	if (!showPlaceholderReviews()) return undefined;
 	return PLACEHOLDER_REVIEWS;
 }
 
@@ -88,7 +91,7 @@ export function loadFeaturedReviews(): FeaturedReview[] | undefined {
  * real thing, quotes and all.
  */
 export function loadPhotoWall(): { src: string; alt: string }[] | undefined {
-	if (REVIEWS_ARE_REAL) return undefined;
+	if (showPlaceholderReviews()) return undefined;
 	return PLACEHOLDER_REVIEWS.map(({ src, alt }) => ({ src, alt }));
 }
 
