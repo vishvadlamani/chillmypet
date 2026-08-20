@@ -1,0 +1,32 @@
+{
+	"name": "@funnel/blocks-dr",
+	"version": "0.1.0",
+	"description": "Direct-response block library — countdowns, proof, scarcity, forms.",
+	"private": true,
+	"type": "module",
+	"license": "UNLICENSED",
+	"files": ["src"],
+	"exports": {
+		".": {
+			"types": "./src/lib/index.ts",
+			"svelte": "./src/lib/index.ts",
+			"default": "./src/lib/index.ts"
+		},
+		"./tokens": {
+			"types": "./src/lib/tokens.ts",
+			"svelte": "./src/lib/tokens.ts",
+			"default": "./src/lib/tokens.ts"
+		},
+		"./fields": {
+			"types": "./src/lib/fields.ts",
+			"svelte": "./src/lib/fields.ts",
+			"default": "./src/lib/fields.ts"
+		}
+	},
+	"dependencies": {
+		"@funnel/core": "*"
+	},
+	"peerDependencies": {
+		"svelte": "^5.0.0"
+	}
+}

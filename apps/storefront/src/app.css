@@ -1,5 +1,12 @@
 @import 'tailwindcss';
 
+/* The block library lives outside this app's src/, and Tailwind v4 only
+   generates utilities it can literally see. Without these two lines every
+   block renders completely unstyled — types pass, the build succeeds, and the
+   page comes out looking like raw HTML. */
+@source '../../../packages/blocks-dr/src/lib';
+@source '../../../packages/funnel-core/src/lib';
+
 @theme {
 	--color-ink-50: #f5f7f8;
 	--color-ink-100: #e7ecee;
@@ -19,6 +26,54 @@
 
 	--font-sans:
 		ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+	/* --- tokens the direct-response blocks resolve by name --------------- */
+	/* Resolved to concrete hex upstream: the fx-* colours pointed at --ob-*
+	   variables that only exist in the source project's theme. */
+	--color-fx-bg: #f2f1ef;
+	--color-fx-surface: #e8e6e3;
+	--color-fx-surface-hover: #e2e0dc;
+	--color-fx-ink: #0a0a0a;
+	--color-fx-sub: #2b2b2b;
+	--color-fx-muted: #8a877f;
+
+	--text-11: 11px;
+	--text-11--line-height: 16px;
+	--text-13: 13px;
+	--text-13--line-height: 20px;
+	--text-15: 15px;
+	--text-15--line-height: 20px;
+	--text-17: 17px;
+	--text-17--line-height: 24px;
+	--text-19: 19px;
+	--text-19--line-height: 24px;
+	--text-21: 21px;
+	--text-21--line-height: 28px;
+	--text-23: 23px;
+	--text-23--line-height: 28px;
+	--text-33: 33px;
+	--text-33--line-height: 40px;
+	--text-40: 40px;
+	--text-40--line-height: 48px;
+	--text-56: 56px;
+	--text-56--line-height: 64px;
+
+	--tracking-display: -0.02em;
+	--tracking-headline: -0.015em;
+	--tracking-label: 0.06em;
+	--tracking-eyebrow: 0.12em;
+
+	--radius-field: 14px;
+	--radius-panel: 16px;
+	--radius-card: 24px;
+	--radius-pill: 9999px;
+
+	--container-shell: 1300px;
+	--container-page: 600px;
+	--container-article: 680px;
+	--container-measure: 480px;
+
+	--spacing-gutter: 1.5rem;
 }
 
 html {
