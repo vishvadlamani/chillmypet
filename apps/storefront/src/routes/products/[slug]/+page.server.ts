@@ -4,7 +4,7 @@ import { loadBundles } from '$lib/store/bundles';
 import { loadOffer } from '$lib/store/offer';
 import { loadProduct } from '$lib/store/product';
 import { loadReviews } from '$lib/store/reviews';
-import { loadFeaturedReviews, loadSpotlightQuotes } from '$lib/store/reviews-wall';
+import { loadFeaturedReviews, loadPhotoWall, loadSpotlightQuotes } from '$lib/store/reviews-wall';
 import { loadSizeChart } from '$lib/store/sizes';
 import { loadStock } from '$lib/store/stock';
 import { PRODUCT_PAGES } from '$lib/store/pages';
@@ -41,7 +41,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		reviews: {
 			...loadReviews(),
 			featured: loadFeaturedReviews(),
-			spotlight: loadSpotlightQuotes()
+			spotlight: loadSpotlightQuotes(),
+			// The photos without the words, for as long as the words aren't real.
+			photos: loadPhotoWall()
 		},
 		sizes: sizeChart,
 		// Not a query: the scarcity bar is a marketing number from store

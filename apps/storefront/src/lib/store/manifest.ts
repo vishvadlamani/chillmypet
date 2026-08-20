@@ -364,6 +364,31 @@ export const STORE_PAGE: FunnelDefinition = {
 				width: 'shell'
 			}
 		},
+		// Until there are reviews to quote, the same photos run as a plain gallery:
+		// no names, no stars, no words. Every one of them shows the product in the
+		// water, which is a claim the pictures make themselves. `loadPhotoWall`
+		// returns nothing once the reviews are real, so this section swaps itself
+		// out for the wall above rather than sitting under it.
+		{
+			id: 'photo-wall-heading',
+			component: 'heading',
+			version: 1,
+			requires: ['reviews.photos'],
+			props: { text: 'Out on the water', level: 2, size: 'lg', width: 'shell' }
+		},
+		{
+			id: 'photo-wall',
+			component: 'reviews',
+			version: 1,
+			requires: ['reviews.photos'],
+			props: {
+				items: { $ref: 'reviews.photos' },
+				layout: 'masonry',
+				columns: 3,
+				mediaAspect: 'auto',
+				width: 'shell'
+			}
+		},
 		{
 			id: 'rule-after-reviews',
 			component: 'divider',
