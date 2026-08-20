@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 980" role="img"
+     aria-labelledby="sc-title sc-desc" font-family="Poppins, Helvetica, Arial, sans-serif">
+  <title id="sc-title">Dog life jacket size chart</title>
+  <desc id="sc-desc">Manufacturer sizing. XS: chest 13.0–17.7 in, neck 9.8–11.8 in, back 7.9 in,
+    0–6 lb. S: chest 16.9–21.7 in, neck 11.8–13.8 in, back 9.8 in, 6–13 lb.
+    M: chest 22.8–27.6 in, neck 15.7–21.7 in, back 12.2 in, 13–24 lb.
+    L: chest 26.4–32.7 in, neck 20.5–23.6 in, back 15.7 in, 24–55 lb.
+    XL: chest 29.5–43.3 in, neck 23.6–29.5 in, back 19.7 in, 55–88 lb.
+    Measure the chest at its widest point; between sizes, size up.</desc>
+
+  <rect width="1200" height="980" rx="24" fill="#ffffff"/>
+
+  <rect x="0" y="0" width="1200" height="150" rx="24" fill="#0f5c79"/>
+  <rect x="0" y="110" width="1200" height="40" fill="#0f5c79"/>
+  <text x="600" y="62" text-anchor="middle" fill="#ffffff" font-size="26" font-weight="600"
+        letter-spacing="6">CHILLMYPET</text>
+  <text x="600" y="116" text-anchor="middle" fill="#ffffff" font-size="46" font-weight="700"
+        letter-spacing="1">LIFE JACKET SIZE CHART</text>
+
+  <rect x="290" y="176" width="620" height="46" rx="23" fill="#eef7fb"/>
+  <text x="600" y="206" text-anchor="middle" fill="#0f5c79" font-size="19" font-weight="500">
+    Manufacturer measurements · inches (cm) &amp; pounds (kg)
+  </text>
+
+  <rect x="40" y="256" width="1120" height="64" rx="12" fill="#14789f"/>
+  <g fill="#ffffff" font-size="18" font-weight="600" text-anchor="middle">
+    <text x="110" y="296">SIZE</text>
+    <text x="310" y="296">CHEST GIRTH</text>
+    <text x="530" y="296">NECK GIRTH</text>
+    <text x="700" y="296">BACK LENGTH</text>
+    <text x="850" y="296">WEIGHT</text>
+    <text x="1030" y="296">EXAMPLE DOGS</text>
+  </g>
+
+  <g fill="#16242a" font-size="18" text-anchor="middle">
+    <rect x="40" y="320" width="1120" height="100" fill="#f5f7f8"/>
+    <text x="110" y="378" font-size="30" font-weight="700" fill="#14789f">XS</text>
+    <text x="310" y="371">13.0–17.7"</text><text x="310" y="395" font-size="15" fill="#47585f">33–45 cm</text>
+    <text x="530" y="371">9.8–11.8"</text><text x="530" y="395" font-size="15" fill="#47585f">25–30 cm</text>
+    <text x="700" y="371">7.9"</text><text x="700" y="395" font-size="15" fill="#47585f">20 cm</text>
+    <text x="850" y="371">0–6 lb</text><text x="850" y="395" font-size="15" fill="#47585f">0–2.7 kg</text>
+    <text x="1030" y="366" font-size="16">Chihuahua, Yorkie,</text>
+    <text x="1030" y="388" font-size="16">Pomeranian</text>
+
+    <rect x="40" y="420" width="1120" height="100" fill="#ffffff"/>
+    <text x="110" y="478" font-size="30" font-weight="700" fill="#14789f">S</text>
+    <text x="310" y="471">16.9–21.7"</text><text x="310" y="495" font-size="15" fill="#47585f">43–55 cm</text>
+    <text x="530" y="471">11.8–13.8"</text><text x="530" y="495" font-size="15" fill="#47585f">30–35 cm</text>
+    <text x="700" y="471">9.8"</text><text x="700" y="495" font-size="15" fill="#47585f">25 cm</text>
+    <text x="850" y="471">6–13 lb</text><text x="850" y="495" font-size="15" fill="#47585f">2.7–5.9 kg</text>
+    <text x="1030" y="466" font-size="16">Dachshund, Pug,</text>
+    <text x="1030" y="488" font-size="16">Boston Terrier</text>
+
+    <rect x="40" y="520" width="1120" height="100" fill="#f5f7f8"/>
+    <text x="110" y="578" font-size="30" font-weight="700" fill="#14789f">M</text>
+    <text x="310" y="571">22.8–27.6"</text><text x="310" y="595" font-size="15" fill="#47585f">58–70 cm</text>
+    <text x="530" y="571">15.7–21.7"</text><text x="530" y="595" font-size="15" fill="#47585f">40–55 cm</text>
+    <text x="700" y="571">12.2"</text><text x="700" y="595" font-size="15" fill="#47585f">31 cm</text>
+    <text x="850" y="571">13–24 lb</text><text x="850" y="595" font-size="15" fill="#47585f">5.9–10.9 kg</text>
+    <text x="1030" y="566" font-size="16">Beagle, Cocker Spaniel,</text>
+    <text x="1030" y="588" font-size="16">French Bulldog</text>
+
+    <rect x="40" y="620" width="1120" height="100" fill="#ffffff"/>
+    <text x="110" y="678" font-size="30" font-weight="700" fill="#14789f">L</text>
+    <text x="310" y="671">26.4–32.7"</text><text x="310" y="695" font-size="15" fill="#47585f">67–83 cm</text>
+    <text x="530" y="671">20.5–23.6"</text><text x="530" y="695" font-size="15" fill="#47585f">52–60 cm</text>
+    <text x="700" y="671">15.7"</text><text x="700" y="695" font-size="15" fill="#47585f">40 cm</text>
+    <text x="850" y="671">24–55 lb</text><text x="850" y="695" font-size="15" fill="#47585f">10.9–25 kg</text>
+    <text x="1030" y="666" font-size="16">Border Collie, Labrador,</text>
+    <text x="1030" y="688" font-size="16">Australian Shepherd</text>
+
+    <rect x="40" y="720" width="1120" height="100" fill="#f5f7f8"/>
+    <text x="110" y="778" font-size="30" font-weight="700" fill="#14789f">XL</text>
+    <text x="310" y="771">29.5–43.3"</text><text x="310" y="795" font-size="15" fill="#47585f">75–110 cm</text>
+    <text x="530" y="771">23.6–29.5"</text><text x="530" y="795" font-size="15" fill="#47585f">60–75 cm</text>
+    <text x="700" y="771">19.7"</text><text x="700" y="795" font-size="15" fill="#47585f">50 cm</text>
+    <text x="850" y="771">55–88 lb</text><text x="850" y="795" font-size="15" fill="#47585f">25–40 kg</text>
+    <text x="1030" y="766" font-size="16">Golden Retriever,</text>
+    <text x="1030" y="788" font-size="16">German Shepherd, Rottweiler</text>
+  </g>
+
+  <g stroke="#cfd8dc" stroke-width="1">
+    <line x1="180" y1="320" x2="180" y2="820"/>
+    <line x1="440" y1="320" x2="440" y2="820"/>
+    <line x1="620" y1="320" x2="620" y2="820"/>
+    <line x1="780" y1="320" x2="780" y2="820"/>
+    <line x1="920" y1="320" x2="920" y2="820"/>
+  </g>
+  <rect x="40" y="320" width="1120" height="500" fill="none" stroke="#cfd8dc" stroke-width="2" rx="4"/>
+
+  <rect x="40" y="852" width="545" height="76" rx="12" fill="#eef7fb"/>
+  <text x="66" y="883" font-size="18" fill="#0f5c79" font-weight="600">Measure the chest at its widest point,</text>
+  <text x="66" y="909" font-size="18" fill="#0f5c79">just behind the front legs.</text>
+
+  <rect x="615" y="852" width="545" height="76" rx="12" fill="#eef7fb"/>
+  <text x="641" y="883" font-size="18" fill="#0f5c79" font-weight="600">Between two sizes? Size up —</text>
+  <text x="641" y="909" font-size="18" fill="#0f5c79">a jacket that rides loose is safer than tight.</text>
+
+  <text x="600" y="958" text-anchor="middle" font-size="15" fill="#7b8b93">
+    Breed examples are a guide. Always measure your dog.
+  </text>
+</svg>

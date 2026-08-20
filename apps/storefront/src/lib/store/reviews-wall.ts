@@ -76,7 +76,23 @@ export function loadSpotlightQuotes() {
 
 export function loadFeaturedReviews(): FeaturedReview[] | undefined {
 	if (!REVIEWS_ARE_REAL) return undefined;
-	return [
+	return PLACEHOLDER_REVIEWS;
+}
+
+/**
+ * The photos on their own — no name, no stars, no words.
+ *
+ * This is what a proof section can honestly show before there are reviews to
+ * quote: the product in the water, which every one of these pictures does show.
+ * The moment `REVIEWS_ARE_REAL` is true the wall above replaces it with the
+ * real thing, quotes and all.
+ */
+export function loadPhotoWall(): { src: string; alt: string }[] | undefined {
+	if (REVIEWS_ARE_REAL) return undefined;
+	return PLACEHOLDER_REVIEWS.map(({ src, alt }) => ({ src, alt }));
+}
+
+const PLACEHOLDER_REVIEWS: FeaturedReview[] = [
 		{
 			name: 'Marisol V.',
 			verified: true,
@@ -253,5 +269,4 @@ export function loadFeaturedReviews(): FeaturedReview[] | undefined {
 			src: '/reviews/doorway-yellow.jpg',
 			alt: 'French bulldog in a yellow life jacket at home'
 		}
-	];
-}
+];

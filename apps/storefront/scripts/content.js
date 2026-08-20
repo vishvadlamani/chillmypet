@@ -20,7 +20,15 @@ export const STORE = {
 export const SLUG = 'dog-life-jacket';
 
 /**
- * Sizing, in centimetres and kilograms — the storefront converts for display.
+ * Sizing, from the MANUFACTURER'S table — the same factory jacket every store
+ * shipping this product sells, so these are the numbers a dog gets fitted
+ * against. Do not "tidy" them: the ranges overlap between sizes and the XL
+ * spans 75–110 cm because that is what the supplier specifies, and a rounded
+ * approximation is how a dog ends up in a jacket that rides up.
+ *
+ * Held in centimetres and kilograms; the storefront converts for display, and
+ * `static/size-chart.svg` shows the full table including neck girth and back
+ * length, which this shape doesn't carry.
  *
  * Here rather than in `seed.js` because a live store needs it too: the product
  * page renders its size chart from this metafield, and the image it replaced
@@ -28,11 +36,11 @@ export const SLUG = 'dog-life-jacket';
  * gets these rows shows no chart at all.
  */
 export const SIZE_CHART = [
-	{ size: 'XS', chestMinCm: 33, chestMaxCm: 43, weightMinKg: 2, weightMaxKg: 5 },
-	{ size: 'S', chestMinCm: 43, chestMaxCm: 53, weightMinKg: 5, weightMaxKg: 9 },
-	{ size: 'M', chestMinCm: 53, chestMaxCm: 64, weightMinKg: 9, weightMaxKg: 16 },
-	{ size: 'L', chestMinCm: 64, chestMaxCm: 76, weightMinKg: 16, weightMaxKg: 27 },
-	{ size: 'XL', chestMinCm: 76, chestMaxCm: 91, weightMinKg: 27, weightMaxKg: 45 }
+	{ size: 'XS', chestMinCm: 33, chestMaxCm: 45, weightMinKg: 0, weightMaxKg: 2.7 },
+	{ size: 'S', chestMinCm: 43, chestMaxCm: 55, weightMinKg: 2.7, weightMaxKg: 5.9 },
+	{ size: 'M', chestMinCm: 58, chestMaxCm: 70, weightMinKg: 5.9, weightMaxKg: 10.9 },
+	{ size: 'L', chestMinCm: 67, chestMaxCm: 83, weightMinKg: 10.9, weightMaxKg: 25 },
+	{ size: 'XL', chestMinCm: 75, chestMaxCm: 110, weightMinKg: 25, weightMaxKg: 40 }
 ];
 
 

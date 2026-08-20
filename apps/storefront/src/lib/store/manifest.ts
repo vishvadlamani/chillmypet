@@ -220,43 +220,34 @@ export const STORE_PAGE: FunnelDefinition = {
 				]
 			}
 		},
-		// Was `/size-chart.webp`, a chart image that came with the block library
-		// carrying a competitor's wordmark AND their measurements. Both had to go:
-		// the mark isn't ours to display, and their sizing isn't this jacket's, so
-		// anyone who measured against it ordered the wrong size. This renders the
-		// catalogue's own numbers, in both unit systems, in the visitor's
-		// language. A branded chart graphic can replace it here whenever there is
-		// one — same slot, one `media` block.
+		// The chart graphic that came with the block library carried a
+		// competitor's wordmark AND their measurements — their XL ran to 43" where
+		// this jacket's runs to 36", so anyone who measured against it ordered a
+		// size that doesn't fit. `/size-chart.svg` is ours: same layout, this
+		// catalogue's numbers (`$lib/store/sizes.ts` has them as text), ChillMyPet
+		// branding. Text in an SVG, so it stays sharp and readable at any width.
 		{
 			id: 'size-chart-heading',
 			component: 'heading',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
-			requires: ['sizes.rows'],
 			props: { text: { $ref: 'sizes.title' }, level: 3, size: 'sm', width: 'full' }
 		},
 		{
 			id: 'size-chart',
-			component: 'bullet_list',
+			component: 'media',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
-			requires: ['sizes.rows'],
 			props: {
-				items: { $ref: 'sizes.rows' },
-				size: 'sm',
-				spacing: 'tight',
-				width: 'full'
-			}
-		},
-		{
-			id: 'size-chart-hint',
-			component: 'bullet_list',
-			version: 1,
-			layout: { row: 'hero', col: 'right' },
-			requires: ['sizes.hint'],
-			props: {
-				items: [{ icon: '📏', text: { $ref: 'sizes.hint' } }],
-				size: 'sm',
+				variant: 'single',
+				// `auto` — a fixed-ratio graphic; a square crop cuts rows off it.
+				aspect: 'auto',
+				items: [
+					{
+						src: '/size-chart.svg',
+						alt: 'Life jacket size chart: XS fits a 33–43 cm chest and 2–5 kg, S 43–53 cm and 5–9 kg, M 53–64 cm and 9–16 kg, L 64–76 cm and 16–27 kg, XL 76–91 cm and 27–45 kg. Measure the chest at its widest point; between sizes, size up.'
+					}
+				],
 				width: 'full'
 			}
 		},

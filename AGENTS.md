@@ -463,13 +463,16 @@ Two things a future agent should know rather than rediscover:
 
 The block library arrived with a third asset set, and one of them shipped a
 competitor's mark: `static/size-chart.webp` carried the **FloatPaw** wordmark
-across the top. It was deleted rather than reused, and the same slot on the
-product page now renders the chart from this catalogue's own
-`specs.size_chart` measurements (`$lib/store/sizes.ts`), in both unit systems
-and both languages. That was not only a trademark problem — their XL runs to
-43" where this jacket's runs to 36", so anyone who measured against it ordered
-a size that does not fit. A branded chart graphic can go back in that slot as a
-`media` block whenever one exists that is ours.
+across the top. The image is gone; `static/size-chart.svg` replaces it — same
+table, ChillMyPet branding, text in an SVG so it stays sharp at any width.
+
+**The measurements on it are the manufacturer's, and that is deliberate.** Both
+stores dropship the same factory jacket, so the supplier's table is the one a
+dog gets fitted against. The rows that were in `seed.js` were a tidied
+approximation of it and were wrong — they have been corrected in `content.js`
+to the supplier's figures, overlapping ranges and all. Do not "fix" the
+overlaps or round the XL's 75–110 cm span. On a flotation device a size that
+rides up is an animal in the water in a jacket that does not hold it.
 
 Still placeholders, and known to be: `product-floatly.webp` (a supplier photo,
 no visible branding), the customer UGC in `static/reviews/` standing in for
