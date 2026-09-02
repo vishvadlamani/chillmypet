@@ -80,6 +80,17 @@ filter is a cross-store data leak, not a display bug. The isolation suite in
 `packages/ecomwithai/src/commerce.test.ts` exists to catch this — keep it green,
 and extend it when you add a module.
 
+**Two pixels means every PageView has to name one.** `/checkout` carries a
+second pixel (`META_CHECKOUT_PIXEL_ID` in wrangler.toml) alongside the store's.
+Once two are initialised a plain `fbq('track', 'PageView')` reports to both, so
+navigations go through `pageView(storePixelId)` — `trackSingle`, scoped — and
+each extra pixel reports its own arrival when `addPixel` initialises it. That is
+one PageView per pixel per navigation, on a hard load and on a SvelteKit one.
+Conversions are deliberately left unscoped: `InitiateCheckout` and `Purchase`
+should reach every pixel measuring the page. The CAPI copy still goes to the
+store's dataset only — a second pixel needs its own token to be matched
+server-side.
+
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires
 from the Stripe webhook and the browser event from the success page, two requests

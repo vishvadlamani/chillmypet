@@ -3,6 +3,11 @@ main = ".svelte-kit/cloudflare/_worker.js"
 compatibility_date = "2026-08-08"
 compatibility_flags = ["nodejs_compat"]
 
+# The second Meta pixel on /checkout. A pixel id is public — it ships to the
+# browser by design — so it is a var, not a secret.
+[vars]
+META_CHECKOUT_PIXEL_ID = "1363695699271757"
+
 [assets]
 directory = ".svelte-kit/cloudflare"
 binding = "ASSETS"

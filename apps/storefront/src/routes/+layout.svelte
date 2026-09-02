@@ -2,7 +2,7 @@
 	import '../app.css';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import { track } from '$lib/analytics/pixel';
+	import { pageView } from '$lib/analytics/pixel';
 	import { createTranslator, defaultLocale, locales, localeName } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
 
@@ -12,7 +12,7 @@
 	// navigations would otherwise go unrecorded.
 	afterNavigate((navigation) => {
 		if (navigation.type === 'enter') return;
-		track('PageView');
+		pageView(page.data.metaPixelId);
 	});
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
