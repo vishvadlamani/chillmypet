@@ -44,6 +44,23 @@ const fbqCalls = () =>
 
 const tracked = (calls, event) => calls.find((c) => c[0] === 'track' && c[1] === event);
 
+/**
+ * PageViews reported to one pixel, counted across both call shapes.
+ *
+ * The snippet in app.html fires a plain `track`; every navigation after it
+ * fires `trackSingle` naming the pixel, because a page carrying two pixels
+ * would otherwise count one navigation on both.
+ */
+const pageViews = (calls, pixelId) =>
+	calls.filter(
+		(c) =>
+			(c[0] === 'track' && c[1] === 'PageView') ||
+			(c[0] === 'trackSingle' && c[1] === pixelId && c[2] === 'PageView')
+	).length;
+
+const STORE_PIXEL = '28272021345717397';
+const CHECKOUT_PIXEL = '1363695699271757';
+
 function check(label, cond) {
 	console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}`);
 	if (!cond) process.exitCode = 1;
@@ -144,6 +161,20 @@ check('the 3-pack discount is applied', summary?.includes('$12.14'));
 
 {
 	const calls = await fbqCalls();
+
+	// The checkout carries a second pixel for another ad account. Both have to
+	// be initialised, and the arrival must count once on each — a plain
+	// `track('PageView')` after two inits reports to both and doubles one.
+	check('the checkout pixel initialises', calls.some((c) => c[0] === 'init' && c[1] === CHECKOUT_PIXEL));
+	check('the store pixel is still there', calls.some((c) => c[0] === 'init' && c[1] === STORE_PIXEL));
+	// Only scoped calls count for it: the plain PageView in this queue is the
+	// snippet's, fired on the product page before this pixel existed.
+	check(
+		'checkout counts once on the second pixel',
+		calls.filter((c) => c[0] === 'trackSingle' && c[1] === CHECKOUT_PIXEL && c[2] === 'PageView')
+			.length === 1
+	);
+
 	const initiate = tracked(calls, 'InitiateCheckout');
 	check('InitiateCheckout fired', Boolean(initiate));
 	check('InitiateCheckout value is subtotal', initiate?.[2]?.value === '134.91');
@@ -161,7 +192,7 @@ check(
 );
 check(
 	'exactly one PageView on a full load',
-	(await fbqCalls()).filter((c) => c[0] === 'track' && c[1] === 'PageView').length === 1
+	pageViews(await fbqCalls(), STORE_PIXEL) === 1
 );
 
 // Client-side navigation must also record a PageView. fbq.queue survives here
@@ -172,7 +203,7 @@ await page.waitForURL('**/products/dog-life-jacket', { timeout: 10000 });
 	const calls = await fbqCalls();
 	check(
 		'SPA navigation adds a second PageView',
-		calls.filter((c) => c[0] === 'track' && c[1] === 'PageView').length === 2
+		pageViews(calls, STORE_PIXEL) === 2
 	);
 }
 
