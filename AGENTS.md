@@ -80,16 +80,22 @@ filter is a cross-store data leak, not a display bug. The isolation suite in
 `packages/ecomwithai/src/commerce.test.ts` exists to catch this — keep it green,
 and extend it when you add a module.
 
-**Two pixels means every PageView has to name one.** `/checkout` carries a
-second pixel (`META_CHECKOUT_PIXEL_ID` in wrangler.toml) alongside the store's.
-Once two are initialised a plain `fbq('track', 'PageView')` reports to both, so
-navigations go through `pageView(storePixelId)` — `trackSingle`, scoped — and
-each extra pixel reports its own arrival when `addPixel` initialises it. That is
-one PageView per pixel per navigation, on a hard load and on a SvelteKit one.
-Conversions are deliberately left unscoped: `InitiateCheckout` and `Purchase`
-should reach every pixel measuring the page. The CAPI copy still goes to the
-store's dataset only — a second pixel needs its own token to be matched
-server-side.
+**Every pixel is initialised in one place, and that is what keeps counting
+honest.** `pixelSnippet` in `hooks.server.ts` inits the store's pixel plus
+`META_EXTRA_PIXEL_IDS` (comma-separated, wrangler.toml) and fires one
+`PageView`. Because `fbq('track', …)` reports to every initialised pixel, one
+call gives each of them exactly one event — so nothing in the app needs
+`trackSingle`, and adding a pixel needs no code. Initialise one late, on a
+single page, and that stops being true: the base snippet's PageView has already
+gone without it while every later event double-counts on the pixels that were
+there from the start. The CAPI copy still goes to the store's dataset only — a
+second pixel needs its own token to be matched server-side.
+
+**GTM is a second publishing surface, not just a tag.** `GTM_CONTAINER_ID`
+loads `GTM-N3Q25P9X` on every page. Anything published inside that container
+runs with the same reach as this codebase, by whoever holds container access —
+and a Meta pixel published in it would double-count against the ones the
+snippet already initialises.
 
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires

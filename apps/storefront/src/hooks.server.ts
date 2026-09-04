@@ -20,9 +20,27 @@ function getDirectory() {
 	return directory;
 }
 
-/** Guards against database content reaching the page as markup. */
-function pixelSnippet(pixelId: string): string {
-	if (!/^\d{1,20}$/.test(pixelId)) return '';
+/**
+ * Meta's loader, initialising every pixel measuring this store.
+ *
+ * More than one is normal — a second ad account, an agency, an affiliate. They
+ * share one loader and one `PageView`: `fbq('track', …)` reports to every
+ * initialised pixel, so each gets exactly one, and the same holds for the
+ * events the app fires later.
+ *
+ * Guards against database content reaching the page as markup.
+ */
+function pixelSnippet(pixelIds: string[]): string {
+	const ids = pixelIds.filter((id) => /^\d{1,20}$/.test(id));
+	if (ids.length === 0) return '';
+
+	const inits = ids.map((id) => `fbq('init', '${id}');`).join('\n');
+	const noscript = ids
+		.map(
+			(id) => `<noscript><img height="1" width="1" style="display:none" alt=""
+src="https://www.facebook.com/tr?id=${id}&ev=PageView&noscript=1" /></noscript>`
+		)
+		.join('\n');
 
 	return `<script>
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -30,11 +48,32 @@ n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
 n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '${pixelId}');
+${inits}
 fbq('track', 'PageView');
 </script>
-<noscript><img height="1" width="1" style="display:none" alt=""
-src="https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1" /></noscript>`;
+${noscript}`;
+}
+
+/**
+ * Google Tag Manager, on every page.
+ *
+ * A container is a second place tags can be published from, by whoever holds
+ * access to it, and anything it loads runs with the same reach as this file's
+ * own code. The id is validated here; note that a Meta pixel published inside
+ * the container would double-count against the ones initialised above.
+ */
+function gtmSnippet(containerId: string): { head: string; body: string } {
+	if (!/^GTM-[A-Z0-9]{4,12}$/.test(containerId)) return { head: '', body: '' };
+
+	return {
+		head: `<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','${containerId}');</script>`,
+		body: `<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${containerId}"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`
+	};
 }
 
 function verificationTag(token: string): string {
@@ -113,6 +152,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	});
 
+	// The store's own pixel, plus any other account measuring the same pages.
+	// Comma-separated, so adding one is a config change rather than a code one.
+	const extraPixels = (env.META_EXTRA_PIXEL_IDS ?? settings.meta_extra_pixel_ids ?? '')
+		.split(',')
+		.map((id) => id.trim())
+		.filter(Boolean);
+	const pixelIds = [settings.meta_pixel_id, ...extraPixels].filter(Boolean);
+	const gtm = gtmSnippet(env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? '');
+
 	const saved = event.cookies.get(LOCALE_COOKIE);
 	const locale = isLocale(saved)
 		? saved
@@ -125,7 +173,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 			html
 				.replace('%lang%', locale)
 				.replace('%dir%', textDirection(locale))
-				.replace('%meta_pixel%', settings.meta_pixel_id ? pixelSnippet(settings.meta_pixel_id) : '')
+				.replace('%meta_pixel%', pixelSnippet(pixelIds))
+				.replace('%gtm_head%', gtm.head)
+				.replace('%gtm_body%', gtm.body)
 				.replace(
 					'%meta_domain_verification%',
 					settings.meta_domain_verification

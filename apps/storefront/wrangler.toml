@@ -3,10 +3,12 @@ main = ".svelte-kit/cloudflare/_worker.js"
 compatibility_date = "2026-08-08"
 compatibility_flags = ["nodejs_compat"]
 
-# The second Meta pixel on /checkout. A pixel id is public — it ships to the
-# browser by design — so it is a var, not a secret.
+# Extra Meta pixels measuring this store, beyond the one in store_settings.
+# Comma-separated. A pixel id is public — it ships to the browser by design —
+# so these are vars, not secrets, and the same goes for the GTM container.
 [vars]
-META_CHECKOUT_PIXEL_ID = "1363695699271757"
+META_EXTRA_PIXEL_IDS = "1363695699271757"
+GTM_CONTAINER_ID = "GTM-N3Q25P9X"
 
 [assets]
 directory = ".svelte-kit/cloudflare"

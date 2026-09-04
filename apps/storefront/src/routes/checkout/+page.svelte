@@ -7,7 +7,7 @@
 	import type { FunnelStateAdapter, SubmitFn, TrackFn } from '@funnel/core';
 	import { DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 	import { toAmount } from 'ecomwithai/marketing';
-	import { addPixel, track as pixel } from '$lib/analytics/pixel';
+	import { track as pixel } from '$lib/analytics/pixel';
 	import { countryOptions } from '$lib/countries';
 	import { createTranslator, defaultLocale, formatMoney } from '$lib/i18n';
 	import { PRODUCT_SLUG } from '$lib/store/product';
@@ -231,13 +231,6 @@
 		cardApi = api;
 		cardUnavailable = api === null;
 	}
-
-	// The checkout's own pixel, alongside the store's. Attached here rather than
-	// in app.html because it belongs to this page only — every other page keeps
-	// reporting to the store's pixel alone.
-	$effect(() => {
-		if (data.checkoutPixelId) addPixel(data.checkoutPixelId);
-	});
 
 	let checkoutTracked = false;
 	$effect(() => {

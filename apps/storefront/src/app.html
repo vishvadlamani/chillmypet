@@ -4,11 +4,15 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		%meta_domain_verification%
+		%gtm_head%
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
 		%meta_pixel%
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
+		<!-- Immediately after <body>, which is where Google's own instructions put
+		     it and where a tag that has to run without JavaScript belongs. -->
+		%gtm_body%
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>

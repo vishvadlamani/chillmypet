@@ -45,21 +45,16 @@ const fbqCalls = () =>
 const tracked = (calls, event) => calls.find((c) => c[0] === 'track' && c[1] === event);
 
 /**
- * PageViews reported to one pixel, counted across both call shapes.
+ * PageViews on the page.
  *
- * The snippet in app.html fires a plain `track`; every navigation after it
- * fires `trackSingle` naming the pixel, because a page carrying two pixels
- * would otherwise count one navigation on both.
+ * Every pixel is initialised by the one snippet in app.html, so a single
+ * `track('PageView')` reports to all of them — the count is per page view, not
+ * per pixel.
  */
-const pageViews = (calls, pixelId) =>
-	calls.filter(
-		(c) =>
-			(c[0] === 'track' && c[1] === 'PageView') ||
-			(c[0] === 'trackSingle' && c[1] === pixelId && c[2] === 'PageView')
-	).length;
+const pageViews = (calls) => calls.filter((c) => c[0] === 'track' && c[1] === 'PageView').length;
 
 const STORE_PIXEL = '28272021345717397';
-const CHECKOUT_PIXEL = '1363695699271757';
+const EXTRA_PIXEL = '1363695699271757';
 
 function check(label, cond) {
 	console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}`);
@@ -86,6 +81,12 @@ function check(label, cond) {
 		!/1,127|Pet Parents|What owners are saying|500\+ dogs/.test(html)
 	);
 	check('the page is indexable', !/noindex/.test(html));
+
+	// Both tags ship server-rendered, on every page, before any JavaScript runs.
+	check('SSR carries the GTM container', /googletagmanager\.com\/gtm\.js/.test(html));
+	check('and its noscript iframe', /ns\.html\?id=GTM-N3Q25P9X/.test(html));
+	check('SSR initialises the store pixel', html.includes("fbq('init', '28272021345717397')"));
+	check('SSR initialises the second pixel', html.includes("fbq('init', '1363695699271757')"));
 }
 
 {
@@ -162,17 +163,14 @@ check('the 3-pack discount is applied', summary?.includes('$12.14'));
 {
 	const calls = await fbqCalls();
 
-	// The checkout carries a second pixel for another ad account. Both have to
-	// be initialised, and the arrival must count once on each — a plain
-	// `track('PageView')` after two inits reports to both and doubles one.
-	check('the checkout pixel initialises', calls.some((c) => c[0] === 'init' && c[1] === CHECKOUT_PIXEL));
+	// A second ad account measures the same pages. Both pixels are initialised
+	// by the snippet, so every event above reaches both — and each is
+	// initialised exactly once, since a repeat init resets that pixel's state.
+	check('the second pixel initialises', calls.some((c) => c[0] === 'init' && c[1] === EXTRA_PIXEL));
 	check('the store pixel is still there', calls.some((c) => c[0] === 'init' && c[1] === STORE_PIXEL));
-	// Only scoped calls count for it: the plain PageView in this queue is the
-	// snippet's, fired on the product page before this pixel existed.
 	check(
-		'checkout counts once on the second pixel',
-		calls.filter((c) => c[0] === 'trackSingle' && c[1] === CHECKOUT_PIXEL && c[2] === 'PageView')
-			.length === 1
+		'neither pixel is initialised twice',
+		calls.filter((c) => c[0] === 'init').length === 2
 	);
 
 	const initiate = tracked(calls, 'InitiateCheckout');
@@ -192,7 +190,7 @@ check(
 );
 check(
 	'exactly one PageView on a full load',
-	pageViews(await fbqCalls(), STORE_PIXEL) === 1
+	pageViews(await fbqCalls()) === 1
 );
 
 // Client-side navigation must also record a PageView. fbq.queue survives here
@@ -203,7 +201,7 @@ await page.waitForURL('**/products/dog-life-jacket', { timeout: 10000 });
 	const calls = await fbqCalls();
 	check(
 		'SPA navigation adds a second PageView',
-		pageViews(calls, STORE_PIXEL) === 2
+		pageViews(calls) === 2
 	);
 }
 

@@ -4,7 +4,6 @@ import { loadMarkets } from '$lib/store/markets';
 import { loadShippingRates } from '$lib/store/shipping-rates';
 import { placeOrder } from '$lib/server/checkout';
 import { createTranslator } from '$lib/i18n';
-import { env } from '$env/dynamic/private';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -43,11 +42,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		// Also needed in the browser: in deferred mode the Payment Element decides
 		// which methods to draw before any intent exists.
 		stripePaymentMethodConfiguration: locals.stripePaymentMethodConfiguration,
-		// A second Meta pixel, for an ad account that measures this checkout
-		// separately from the store's own. Public by nature — it identifies the
-		// dataset to the browser — and set as a plain var in wrangler.toml, so
-		// changing ad accounts is a config change rather than a code one.
-		checkoutPixelId: env.META_CHECKOUT_PIXEL_ID ?? locals.settings.meta_checkout_pixel_id ?? '',
 		// Stripe sends the customer back here when they abandon the hosted page.
 		cancelled: url.searchParams.has('cancelled')
 	};
