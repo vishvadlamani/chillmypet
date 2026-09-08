@@ -81,15 +81,28 @@ filter is a cross-store data leak, not a display bug. The isolation suite in
 and extend it when you add a module.
 
 **Every pixel is initialised in one place, and that is what keeps counting
-honest.** `pixelSnippet` in `hooks.server.ts` inits the store's pixel plus
+honest.** `pixelSnippet` in `hooks.server.ts` inits `META_PIXEL_ID` plus
 `META_EXTRA_PIXEL_IDS` (comma-separated, wrangler.toml) and fires one
 `PageView`. Because `fbq('track', …)` reports to every initialised pixel, one
 call gives each of them exactly one event — so nothing in the app needs
 `trackSingle`, and adding a pixel needs no code. Initialise one late, on a
 single page, and that stops being true: the base snippet's PageView has already
 gone without it while every later event double-counts on the pixels that were
-there from the start. The CAPI copy still goes to the store's dataset only — a
-second pixel needs its own token to be matched server-side.
+there from the start.
+
+**`META_PIXEL_ID` must be the pixel the ad account optimises against.** It is
+the only one the Conversions API reports to — `primaryPixelId` feeds both
+`pixelSnippet` and the `meta` config — because a CAPI access token is scoped to
+a single dataset. Every other pixel in `META_EXTRA_PIXEL_IDS` gets browser
+events only, which is the half that iOS and ad blockers eat, and Purchase is
+the event that dies most. This was live for a month with the ad account's pixel
+in the extras list: the campaign reported no conversions the whole time, while
+the unused pixel collected clean server-side data. If you change
+`META_PIXEL_ID`, generate a matching token for that dataset in the same change.
+Neither failure is loud: with no token `send()` returns `not_configured` and
+posts nothing, and with a token belonging to another dataset Meta rejects the
+event — both only reach `console.error`, because tracking must never fail an
+order. Events Manager, not the logs, is where you notice.
 
 **GTM is a second publishing surface, not just a tag.** `GTM_CONTAINER_ID`
 loads `GTM-T446VNH9` on every page. Anything published inside that container

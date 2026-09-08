@@ -102,6 +102,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 		settingsCache.set(store.id, settings);
 	}
 
+	// The pixel that owns this store's dataset. Both the browser events and the
+	// Conversions API copy report to this one, and a CAPI token is scoped to a
+	// single dataset — so this must be the pixel the ad account optimises
+	// against, or its conversions are browser-only and die on iOS and blockers.
+	// An env override so correcting it is a config change, not a database write.
+	const primaryPixelId = env.META_PIXEL_ID ?? settings.meta_pixel_id ?? '';
+
 	event.locals.store = store;
 	// Publishable, not secret — it identifies the account to Stripe.js and is
 	// meant to ship to the browser. Without it there is nothing to mount the
@@ -143,7 +150,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				}
 			: undefined,
 		meta: {
-			pixelId: settings.meta_pixel_id,
+			pixelId: primaryPixelId,
 			accessToken: env.META_CAPI_ACCESS_TOKEN,
 			apiVersion: env.META_CAPI_API_VERSION,
 			endpoint: env.META_CAPI_ENDPOINT,
@@ -158,7 +165,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		.split(',')
 		.map((id) => id.trim())
 		.filter(Boolean);
-	const pixelIds = [settings.meta_pixel_id, ...extraPixels].filter(Boolean);
+	const pixelIds = [primaryPixelId, ...extraPixels].filter(Boolean);
 	const gtm = gtmSnippet(env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? '');
 
 	const saved = event.cookies.get(LOCALE_COOKIE);
