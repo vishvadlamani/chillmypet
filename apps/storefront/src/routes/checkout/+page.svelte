@@ -8,6 +8,7 @@
 	import { DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 	import { toAmount } from 'ecomwithai/marketing';
 	import { track as pixel } from '$lib/analytics/pixel';
+	import { amount, pushEcommerce } from '$lib/analytics/datalayer';
 	import { countryOptions } from '$lib/countries';
 	import { createTranslator, defaultLocale, formatMoney } from '$lib/i18n';
 	import { PRODUCT_SLUG } from '$lib/store/product';
@@ -243,6 +244,16 @@
 			currency: priced.currency,
 			value: toAmount(priced.subtotalCents)
 		});
+		pushEcommerce('begin_checkout', {
+			currency: priced.currency,
+			value: amount(priced.subtotalCents),
+			items: priced.lines.map((l) => ({
+				item_id: l.sku,
+				item_name: l.title,
+				price: amount(l.unitPriceCents),
+				quantity: l.quantity
+			}))
+		});
 	});
 
 	// The action hands back an intent for the fields already on screen.
@@ -290,6 +301,17 @@
 			},
 			form.eventId
 		);
+		pushEcommerce('purchase', {
+			transaction_id: form.order.orderNumber,
+			currency: form.order.currency,
+			value: amount(form.order.totalCents),
+			items: form.order.items.map((i) => ({
+				item_id: i.sku,
+				item_name: i.title,
+				price: amount(i.unitPriceCents),
+				quantity: i.quantity
+			}))
+		});
 		cart.clear();
 	});
 
@@ -408,6 +430,16 @@
 					content_ids: priced?.lines.map((l) => l.sku) ?? [],
 					currency,
 					value: toAmount(totalCents)
+				});
+				pushEcommerce('add_payment_info', {
+					currency,
+					value: amount(totalCents),
+					items: (priced?.lines ?? []).map((l) => ({
+						item_id: l.sku,
+						item_name: l.title,
+						price: amount(l.unitPriceCents),
+						quantity: l.quantity
+					}))
 				});
 				return async ({ update }) => {
 					await update({ reset: false });

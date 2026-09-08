@@ -104,6 +104,19 @@ posts nothing, and with a token belonging to another dataset Meta rejects the
 event — both only reach `console.error`, because tracking must never fail an
 order. Events Manager, not the logs, is where you notice.
 
+**The dataLayer is the container's whole view of the app.** GTM tags cannot
+reach into the store, so `$lib/analytics/datalayer.ts` pushes GA4 ecommerce
+events — `view_item`, `add_to_cart`, `begin_checkout`, `add_payment_info`,
+`purchase` — beside each Meta event, from the same data. Each push nulls
+`ecommerce` first, because Google's data model merges pushes and the previous
+event's items otherwise leak into the next one; `tests/store-flow.mjs` counts
+the nulls against the payloads to keep that true. `purchase` carries the order
+number as `transaction_id`, which is what GA4 dedupes a re-sent sale on.
+**Do not build a Meta tag on it.** Meta stays on the pixel in `hooks.server.ts`:
+a container-published pixel double-counts against it, and no GTM tag can carry
+the derived Purchase `event_id` that keeps the browser and CAPI halves as one
+sale.
+
 **GTM is a second publishing surface, not just a tag.** `GTM_CONTAINER_ID`
 loads `GTM-T446VNH9` on every page. Anything published inside that container
 runs with the same reach as this codebase, by whoever holds container access —
