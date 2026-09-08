@@ -8,7 +8,7 @@ compatibility_flags = ["nodejs_compat"]
 # so these are vars, not secrets, and the same goes for the GTM container.
 [vars]
 META_EXTRA_PIXEL_IDS = "1363695699271757"
-GTM_CONTAINER_ID = "GTM-N3Q25P9X"
+GTM_CONTAINER_ID = "GTM-T446VNH9"
 
 [assets]
 directory = ".svelte-kit/cloudflare"

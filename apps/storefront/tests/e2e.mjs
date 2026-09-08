@@ -84,7 +84,7 @@ function check(label, cond) {
 
 	// Both tags ship server-rendered, on every page, before any JavaScript runs.
 	check('SSR carries the GTM container', /googletagmanager\.com\/gtm\.js/.test(html));
-	check('and its noscript iframe', /ns\.html\?id=GTM-N3Q25P9X/.test(html));
+	check('and its noscript iframe', /ns\.html\?id=GTM-T446VNH9/.test(html));
 	check('SSR initialises the store pixel', html.includes("fbq('init', '28272021345717397')"));
 	check('SSR initialises the second pixel', html.includes("fbq('init', '1363695699271757')"));
 }

@@ -92,7 +92,7 @@ there from the start. The CAPI copy still goes to the store's dataset only — a
 second pixel needs its own token to be matched server-side.
 
 **GTM is a second publishing surface, not just a tag.** `GTM_CONTAINER_ID`
-loads `GTM-N3Q25P9X` on every page. Anything published inside that container
+loads `GTM-T446VNH9` on every page. Anything published inside that container
 runs with the same reach as this codebase, by whoever holds container access —
 and a Meta pixel published in it would double-count against the ones the
 snippet already initialises.
