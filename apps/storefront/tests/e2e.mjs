@@ -53,8 +53,8 @@ const tracked = (calls, event) => calls.find((c) => c[0] === 'track' && c[1] ===
  */
 const pageViews = (calls) => calls.filter((c) => c[0] === 'track' && c[1] === 'PageView').length;
 
-const STORE_PIXEL = '28272021345717397';
-const EXTRA_PIXEL = '1363695699271757';
+const STORE_PIXEL = '1363695699271757';
+const EXTRA_PIXEL = '28272021345717397';
 
 function check(label, cond) {
 	console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}`);
@@ -84,9 +84,9 @@ function check(label, cond) {
 
 	// Both tags ship server-rendered, on every page, before any JavaScript runs.
 	check('SSR carries the GTM container', /googletagmanager\.com\/gtm\.js/.test(html));
-	check('and its noscript iframe', /ns\.html\?id=GTM-N3Q25P9X/.test(html));
-	check('SSR initialises the store pixel', html.includes("fbq('init', '28272021345717397')"));
-	check('SSR initialises the second pixel', html.includes("fbq('init', '1363695699271757')"));
+	check('and its noscript iframe', /ns\.html\?id=GTM-T446VNH9/.test(html));
+	check('SSR initialises the store pixel', html.includes("fbq('init', '1363695699271757')"));
+	check('SSR initialises the second pixel', html.includes("fbq('init', '28272021345717397')"));
 }
 
 {
@@ -119,7 +119,7 @@ check('gallery image actually loaded', heroOk);
 
 {
 	const calls = await fbqCalls();
-	check('pixel init fired', calls.some((c) => c[0] === 'init' && c[1] === '28272021345717397'));
+	check('pixel init fired', calls.some((c) => c[0] === 'init' && c[1] === STORE_PIXEL));
 	check('PageView fired', Boolean(tracked(calls, 'PageView')));
 	check('ViewContent fired', Boolean(tracked(calls, 'ViewContent')));
 	check('ViewContent carries the product', tracked(calls, 'ViewContent')?.[2]?.content_ids?.[0] === 'dog-life-jacket');

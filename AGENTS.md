@@ -81,18 +81,31 @@ filter is a cross-store data leak, not a display bug. The isolation suite in
 and extend it when you add a module.
 
 **Every pixel is initialised in one place, and that is what keeps counting
-honest.** `pixelSnippet` in `hooks.server.ts` inits the store's pixel plus
+honest.** `pixelSnippet` in `hooks.server.ts` inits `META_PIXEL_ID` plus
 `META_EXTRA_PIXEL_IDS` (comma-separated, wrangler.toml) and fires one
 `PageView`. Because `fbq('track', …)` reports to every initialised pixel, one
 call gives each of them exactly one event — so nothing in the app needs
 `trackSingle`, and adding a pixel needs no code. Initialise one late, on a
 single page, and that stops being true: the base snippet's PageView has already
 gone without it while every later event double-counts on the pixels that were
-there from the start. The CAPI copy still goes to the store's dataset only — a
-second pixel needs its own token to be matched server-side.
+there from the start.
+
+**`META_PIXEL_ID` must be the pixel the ad account optimises against.** It is
+the only one the Conversions API reports to — `primaryPixelId` feeds both
+`pixelSnippet` and the `meta` config — because a CAPI access token is scoped to
+a single dataset. Every other pixel in `META_EXTRA_PIXEL_IDS` gets browser
+events only, which is the half that iOS and ad blockers eat, and Purchase is
+the event that dies most. This was live for a month with the ad account's pixel
+in the extras list: the campaign reported no conversions the whole time, while
+the unused pixel collected clean server-side data. If you change
+`META_PIXEL_ID`, generate a matching token for that dataset in the same change.
+Neither failure is loud: with no token `send()` returns `not_configured` and
+posts nothing, and with a token belonging to another dataset Meta rejects the
+event — both only reach `console.error`, because tracking must never fail an
+order. Events Manager, not the logs, is where you notice.
 
 **GTM is a second publishing surface, not just a tag.** `GTM_CONTAINER_ID`
-loads `GTM-N3Q25P9X` on every page. Anything published inside that container
+loads `GTM-T446VNH9` on every page. Anything published inside that container
 runs with the same reach as this codebase, by whoever holds container access —
 and a Meta pixel published in it would double-count against the ones the
 snippet already initialises.
@@ -114,6 +127,17 @@ payments on, Purchase fires from the webhook on `action === 'order_paid'` — a
 branch the framework only returns once, guarded by the event-id dedup table.
 Reporting at order creation counts every abandoned checkout as a sale, and Meta
 optimizes spend against whatever you tell it.
+
+**The receipt has to re-ask, because Stripe redirects before the webhook lands.**
+`/checkout/success` reads `paid` once in its load, and the customer arrives the
+moment the card is authorised — routinely ahead of the webhook that flips the
+order. So the page polls `invalidateAll` with a backoff for 90s and fires
+Purchase when it flips; without that it sits on "processing" and the browser
+half of the sale is simply never sent, because nobody reloads a receipt. Keep
+the poll out of a `$effect`: `invalidateAll` replaces `data`, which re-runs the
+effect and resets its own backoff and deadline. `tests/store-flow.mjs` replays
+this by putting a real order back to `pending_payment` and paying it while the
+page is open — the only way to make the race deterministic in a browser test.
 
 **Tracking must never fail an order.** The CAPI call happens *after* the order
 commits, dispatches through `waitUntil`, and logs failures rather than

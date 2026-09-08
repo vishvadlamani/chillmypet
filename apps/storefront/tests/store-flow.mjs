@@ -17,6 +17,7 @@
  * tests/payment-flow.mjs.
  */
 import { chromium } from 'playwright';
+import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
 
@@ -144,6 +145,58 @@ check('Purchase is worth what was charged', purchase?.[2]?.value === afterExpres
 check('Purchase carries an eventID for CAPI dedup', /^purchase-CMP-/.test(purchase?.[3]?.eventID ?? ''));
 check('the cart was emptied', (await page.evaluate(() =>
 	JSON.parse(localStorage.getItem('chillmypet.cart.v1') ?? '[]'))).length === 0);
+
+// --- the success page must survive a late webhook ----------------------------
+// With Stripe on, the customer is redirected the moment the card is authorised,
+// which is routinely before the webhook flips the order to paid. The load runs
+// once, so without a re-ask the receipt stays on "processing" and its Purchase
+// never fires — and nobody reloads a receipt, they close the tab. Replayed here
+// by putting a real order back to pending_payment and paying it while the page
+// is open, because a browser test cannot make Stripe race.
+{
+	const orderNumber = /CMP-[0-9A-F]{8}/.exec(body ?? '')?.[0];
+	// The same database the server just wrote the order to, remote or local.
+	const db = createClient({
+		url: process.env.TURSO_DATABASE_URL ?? 'file:local.db',
+		authToken: process.env.TURSO_AUTH_TOKEN
+	});
+	const setStatus = (status) =>
+		db.execute({
+			sql: 'update orders set status = ? where order_number = ?',
+			args: [status, orderNumber]
+		});
+
+	await setStatus('pending_payment');
+
+	// A fresh page so fbq.queue starts empty and any Purchase seen is this one's.
+	const receipt = await ctx.newPage();
+	const purchases = async () =>
+		(await receipt.evaluate(() => (window.fbq?.queue ?? []).map((a) => Array.from(a))))
+			.filter((c) => c[0] === 'track' && c[1] === 'Purchase');
+
+	await receipt.goto(`${BASE}/checkout/success?order=${orderNumber}`, { waitUntil: 'networkidle' });
+	check('an unpaid receipt does not claim a sale', (await purchases()).length === 0);
+
+	await setStatus('paid');
+
+	let seen = [];
+	for (let i = 0; i < 30 && seen.length === 0; i++) {
+		await receipt.waitForTimeout(1000);
+		seen = await purchases();
+	}
+	check('the receipt notices the webhook without a reload', seen.length === 1, `fired ${seen.length}x`);
+	check(
+		'and carries the derived event id, so CAPI still dedupes',
+		seen[0]?.[3]?.eventID === `purchase-${orderNumber}`,
+		JSON.stringify(seen[0]?.[3])
+	);
+
+	// The poll keeps running for a beat after; it must not report twice.
+	await receipt.waitForTimeout(3000);
+	check('still exactly one Purchase after further polls', (await purchases()).length === 1);
+
+	await receipt.close();
+}
 
 if (pageErrors.length) {
 	console.log('\nPage errors:');

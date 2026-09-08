@@ -14,7 +14,7 @@ const db = createDb(authToken ? { url, authToken } : { url });
 
 // Public identifiers — both appear in the served page source.
 const SETTINGS = {
-	meta_pixel_id: '28272021345717397',
+	meta_pixel_id: '1363695699271757',
 	meta_domain_verification: '0d821f82wjdsr4q7owd17wo659qt6h'
 };
 
