@@ -57,3 +57,45 @@ export async function loadSizeChart(
 		}))
 	};
 }
+
+export interface SizeOption {
+	value: string;
+	label: string;
+	/** False when nothing in the catalogue stocks it — struck through, not hidden. */
+	available: boolean;
+}
+
+/**
+ * The sizes a visitor can actually choose, for the `size_picker` block.
+ *
+ * Separate from the chart above because they answer different questions and one
+ * can exist without the other: this catalogue's costume has three sizes and no
+ * published measurements, and the page has to sell it anyway.
+ *
+ * ⚠️ AVAILABILITY HERE IS ACROSS ALL COLOURWAYS. For a product with one
+ * colourway — which is the only kind currently carrying a `size_picker` — that
+ * is exact. For a sparse colour × size matrix like the life jacket's it is not:
+ * "M" would read as available because SOME colour stocks it, and a visitor who
+ * picked a colour that doesn't would choose a combination that cannot be built.
+ * Before putting this block on a multi-colourway page, the colour choice has to
+ * reach it — today the bundle picker keeps that choice to itself and only hands
+ * it over on submit.
+ */
+export async function loadSizeOptions(
+	commerce: Commerce,
+	locale: Locale,
+	slug: string = PRODUCT_SLUG
+): Promise<{ options?: SizeOption[] }> {
+	const product = await commerce.catalog.getProduct(slug, locale);
+	const values = product?.options[1]?.values ?? [];
+	// Undefined, not an empty array: `requires` has to be able to drop the block.
+	if (values.length === 0) return {};
+
+	return {
+		options: values.map((v) => ({
+			value: v.value,
+			label: v.label ?? v.value,
+			available: product!.variants.some((variant) => variant.options[1] === v.value && variant.stock > 0)
+		}))
+	};
+}

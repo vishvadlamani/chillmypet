@@ -41,10 +41,13 @@ export async function loadProduct(
 			?.stock ?? 0) > 0;
 	const size = sizes.find((s) => stocked(s.value))?.label ?? sizes[0]?.label ?? '';
 
+	// Empty, not a default file: the fallback used to be the life jacket's own
+	// studio shot, which on any other product is a picture of something else.
+	// Every consumer of this treats '' as "no image" and renders without one.
 	const hero =
 		product.media.find((m) => m.optionValue === colour?.value)?.url ??
 		product.media[0]?.url ??
-		'/product-floatly.webp';
+		'';
 
 	return {
 		title: product.title,

@@ -54,7 +54,7 @@
 			<ul class="flex items-center gap-5 text-sm text-ink-600">
 				<li><a class="hover:text-ink-900" href="/">{t('nav.home')}</a></li>
 				<li>
-					<a class="hover:text-ink-900" href="/products/dog-life-jacket">{t('nav.shop')}</a>
+					<a class="hover:text-ink-900" href="/#shop">{t('nav.shop')}</a>
 				</li>
 			</ul>
 

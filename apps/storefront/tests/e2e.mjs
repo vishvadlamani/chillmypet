@@ -195,8 +195,10 @@ check(
 
 // Client-side navigation must also record a PageView. fbq.queue survives here
 // because SvelteKit navigates without a document reload.
-await page.click('header a[href="/products/dog-life-jacket"]');
-await page.waitForURL('**/products/dog-life-jacket', { timeout: 10000 });
+// The header's Shop link is `/#shop` — the homepage grid — rather than one
+// hard-coded product, which stopped being a shop when the catalogue grew.
+await page.click('header a[href="/#shop"]');
+await page.waitForURL((url) => url.pathname === '/', { timeout: 10000 });
 {
 	const calls = await fbqCalls();
 	check(

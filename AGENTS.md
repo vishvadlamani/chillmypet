@@ -218,12 +218,17 @@ rather than rendering "undefined" at a customer. A block can also declare
 `requires: ['bundles.tiers']` and be omitted entirely when that data is missing,
 which is how one manifest serves a catalogue.
 
-The nine loaders in `src/lib/store/*.ts` are the whole data contract — 19
-reference paths, each backed by a real query against `locals.commerce`. Prices
+The loaders in `src/lib/store/*.ts` are the whole data contract — every
+reference path is backed by a real query against `locals.commerce`, or, for the
+two that are not queries (`loadStock`, `loadSeason`), by something the page is
+allowed to assert without one. Prices
 are **pre-formatted strings** (`"$93"`, `"Free"`), because currency and locale
 are the host's business, not the block's. `pages.ts` maps a slug to the manifest
 that renders it: a manifest is per-product (its FAQ, gallery and size chart are
-one product's), so an unmapped slug is a 404 even when the product exists.
+one product's), so an unmapped slug is a 404 even when the product exists. Two
+of them exist now — `manifest.ts` for the life jacket, `halloween-manifest.ts`
+for the costume — and the differences between them are all arguments about what
+the page is allowed to claim, written up at the top of the second one.
 
 **The scarcity bar is a marketing number, not inventory.** Stock is maintained
 outside this system, so `loadStock` reads `stock_sold_pct` from store settings
@@ -268,6 +273,13 @@ Blocks state intent and stop. `track(event, subject, props)` and
 `submit(action, subject, payload)` are the only ways out, and both are the
 host's.
 
+**A block the library doesn't have goes in the host, not in `blocks-dr`.**
+`components={{ ...DR_BLOCKS, size_picker: { render: SizePicker } }}` — the
+component map is injected precisely so a host can bring its own, and the host's
+keys win on collision. `$lib/components/blocks/SizePicker.svelte` is the first
+one. Adding it to `packages/blocks-dr` instead would have diverged from upstream
+silently and permanently, because nothing syncs that copy.
+
 **Navigation must never become a block prop.** A `href` or `redirectTo` on the
 bundle picker puts routing in a manifest and couples every block to a router.
 "Buy now" calls `submit('add_to_cart', …)` with the full selection; turning that
@@ -311,6 +323,16 @@ packs**: titles and descriptions live in `product_translations` and the FAQ in a
 `content.faq` metafield, both per locale, so add a row in the seed for the new
 locale too.
 
+**A product:** an entry in `PRODUCTS` in `scripts/content.js` (copy, prices,
+options, availability, photos, size chart), a manifest in `$lib/store/`, and a
+line in `pages.ts` mapping the slug to it. `db:seed` and `db:content` both walk
+that list, so nothing else needs to know how many products there are. Two things
+the seed deliberately will not invent for you: a product with an empty
+`sizeChart` writes no metafield at all, and one with no `photos` gets no media
+rows — in both cases the blocks that need them declare `requires` and drop out,
+which is the difference between a page that is missing a section and a page that
+makes something up.
+
 **A store:** `SEED_STORE_ID=x SEED_STORE_DOMAIN=x.com npm run db:seed`, then add
 the domain to `apps/storefront/wrangler.toml`. One Worker serves all tenants;
 the `Host` header picks which. No code change.
@@ -337,6 +359,40 @@ The block-rendered pages ARE the storefront: `/products/dog-life-jacket` is the
 page the campaign lands on and `/checkout` is where it pays. The bundle picker
 adds real cart lines, the checkout prices through `/api/cart`, the Payment
 Element mounts under the shipping method, and Place order runs `placeOrder`.
+
+The catalogue is **two products**, and the storefront stopped assuming one:
+`listProducts` on the homepage is no longer `limit: 1`, the header's Shop link
+points at that grid rather than at one hard-coded slug, and `scripts/content.js`
+is a list the seed walks.
+
+⚠️ **The life jacket page still has no size selector, and that is a live bug.**
+`/products/grim-reaper-dog-costume` has one — `size_picker`, a host block — and
+`variantIndex` now carries every buyable (colour, size) so the host can honour
+the choice. The jacket's manifest does not carry the block, so it still resolves
+each order to the first size in stock for the chosen colour, under a size chart
+telling the customer to measure their dog. Fixing it needs more than adding the
+block: colour and size are a sparse matrix there (10 colourways, 3 combinations
+not offered at all), and `loadSizeOptions` marks a size available if ANY colour
+stocks it, so a visitor could pick a pair that cannot be built. The colour choice
+has to reach the size picker first — today `bundles` keeps it to itself and only
+hands it over on submit.
+
+⚠️ **The Halloween costume is not launch-ready, and its page says so in code.**
+Three things are missing and none of them can be invented: real photography (the
+gallery carries an illustration we drew, because the only photos that exist
+belong to the ad and to the resellers), the supplier's own size chart (every
+reseller lists S/M/L and publishes no measurements — paste real rows into
+`COSTUME_SIZE_CHART` and the chart section appears on its own), and real stock
+counts from whoever is shipping. The page is honest without them; it is not
+persuasive without the first one.
+
+**The Halloween deadline is real, and it expires by itself.** `loadSeason`
+works the order-by date back from the shipping promise — 4 business days to
+process, 12 in transit, a day of slack, so October 12 — and the countdown binds
+`endsAt` to it rather than running the life jacket's evergreen 15-minute window.
+Past the cut-off every seasonal block drops out via `requires`, so the page stops
+promising October 31 without anyone deploying. `tests/season.test.ts` pins the
+arithmetic, the rollover to next year, and the 60-day visibility window.
 
 ⚠️ **The invented reviews do not ship, and that is deliberate.** The 22
 testimonials that came with the block library are written words attributed to

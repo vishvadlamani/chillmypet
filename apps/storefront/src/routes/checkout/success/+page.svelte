@@ -114,7 +114,7 @@
 		</dl>
 
 		<a
-			href="/products/dog-life-jacket"
+			href="/#shop"
 			class="mt-8 inline-block rounded-xl bg-ink-900 px-6 py-3 font-medium text-white"
 		>
 			{t('checkout.successContinue')}

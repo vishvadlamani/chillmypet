@@ -59,7 +59,8 @@
 			"blue": "Azul",
 			"pink": "Rosa",
 			"purple": "Morado",
-			"red": "Rojo"
+			"red": "Rojo",
+			"black": "Negro"
 		},
 		"benefitsTitle": "Por qué nadan mejor con él",
 		"trustShipping": "Envío gratis",
@@ -77,7 +78,8 @@
 		"bundleSave": "AHORRA {percent}%",
 		"bundlePopular": "El más elegido",
 		"bundleEach": "{price} cada uno",
-		"bundleFree": "Envío gratis"
+		"bundleFree": "Envío gratis",
+		"sizeMeasureHint": "Mide el contorno del pecho en su punto más ancho, justo detrás de las patas delanteras. Si está entre dos tallas, elige la mayor: los cambios son gratuitos."
 	},
 	"cart": {
 		"title": "Tu carrito",
@@ -356,5 +358,9 @@
 			"Para una duda de talla, el contorno de pecho y el peso de tu perro",
 			"Para un artículo dañado, una foto"
 		]
+	},
+	"season": {
+		"cutoffHeadline": "🎃 El plazo para tenerlo en Halloween cierra en",
+		"cutoffLine": "Pide antes del {date} para tenerlo antes del 31 de octubre"
 	}
 }

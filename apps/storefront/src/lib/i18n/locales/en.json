@@ -59,7 +59,8 @@
 			"blue": "Blue",
 			"pink": "Pink",
 			"purple": "Purple",
-			"red": "Red"
+			"red": "Red",
+			"black": "Black"
 		},
 		"benefitsTitle": "Why dogs swim better in it",
 		"trustShipping": "Free shipping",
@@ -77,7 +78,8 @@
 		"bundleSave": "SAVE {percent}%",
 		"bundlePopular": "Most popular",
 		"bundleEach": "{price} each",
-		"bundleFree": "Free shipping"
+		"bundleFree": "Free shipping",
+		"sizeMeasureHint": "Measure the chest at its widest point, just behind the front legs. Between sizes, size up — exchanges are free."
 	},
 	"cart": {
 		"title": "Your cart",
@@ -356,5 +358,9 @@
 			"For a sizing question, your dog's chest measurement and weight",
 			"For a damaged item, a photo"
 		]
+	},
+	"season": {
+		"cutoffHeadline": "🎃 Halloween delivery cut-off in",
+		"cutoffLine": "Order by {date} to have it before October 31"
 	}
 }

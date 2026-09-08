@@ -1,4 +1,5 @@
 import type { FunnelDefinition } from '@funnel/core';
+import { HALLOWEEN_PAGE } from './halloween-manifest';
 import { STORE_PAGE } from './manifest';
 import { PRODUCT_SLUG } from './product';
 
@@ -11,5 +12,6 @@ import { PRODUCT_SLUG } from './product';
  * why an unmapped slug is a 404 even when the product exists.
  */
 export const PRODUCT_PAGES: Record<string, FunnelDefinition> = {
-	[PRODUCT_SLUG]: STORE_PAGE
+	[PRODUCT_SLUG]: STORE_PAGE,
+	'grim-reaper-dog-costume': HALLOWEEN_PAGE
 };

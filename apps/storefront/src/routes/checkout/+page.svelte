@@ -343,7 +343,17 @@
 	});
 
 	function colourName(code: string): string {
-		return t(`product.colors.${code}` as never);
+		const key = `product.colors.${code}`;
+		const translated = t(key as never);
+		// The translator returns the KEY when no pack has an entry, which on this
+		// page means "product.colors.black · S · Qty 1" on the line someone is
+		// about to pay for — which is exactly what a colourway added with the
+		// second product did. A colour the packs have not heard of is a new
+		// product, not a broken checkout: fall back to the code, spelled the way
+		// a label would be, and translate it properly when someone gets to it.
+		return translated === key
+			? code.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+			: translated;
 	}
 </script>
 

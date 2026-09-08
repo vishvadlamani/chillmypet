@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import PageLayout from '@funnel/core/PageLayout.svelte';
 	import { DR_BLOCKS } from '@funnel/blocks-dr';
+	import SizePicker from '$lib/components/blocks/SizePicker.svelte';
 	import type { FunnelStateAdapter, SubmitFn, TrackFn } from '@funnel/core';
 	import { toAmount } from 'ecomwithai/marketing';
 	import { page } from '$app/state';
@@ -74,9 +75,23 @@
 		const picks = Array.isArray(payload.variants) ? (payload.variants as string[]) : [];
 		const chosen = picks.length ? picks.slice(0, units) : Array(units).fill(undefined);
 
+		// The size the `size_picker` block wrote, if the manifest carries one.
+		// Blocks never see a variant id, so the two halves of a selection arrive
+		// separately — colour on the payload, size in funnel state — and get put
+		// back together here, which is the only place that knows what a variant is.
+		const size = funnelState.get('size');
+
 		const added: { sku: string; unitPriceCents: number }[] = [];
 		for (const label of chosen) {
-			const entry = data.variantIndex.find((v) => v.colour === label) ?? data.variantIndex[0];
+			// Exact match first. The fallbacks are ordered by how much they still
+			// honour: same size in another colour beats same colour in another size
+			// beats neither. The last one is what a page with no size picker has
+			// always done — first buyable variant in the chosen colour.
+			const entry =
+				data.variantIndex.find((v) => v.colour === label && v.size === size) ??
+				(size ? data.variantIndex.find((v) => v.size === size) : undefined) ??
+				data.variantIndex.find((v) => v.colour === label) ??
+				data.variantIndex[0];
 			if (!entry) continue;
 			cart.add(
 				{
@@ -132,6 +147,14 @@
 	);
 	const persist = () => sessionStorage.setItem(KEY, JSON.stringify(bag));
 
+	/**
+	 * The block library plus this store's own. `size_picker` is a host block
+	 * because `packages/blocks-dr` is a copy with nothing syncing it upstream —
+	 * `PageComponentMap` is injected so a host can bring its own, and the host's
+	 * keys win on collision.
+	 */
+	const COMPONENTS = { ...DR_BLOCKS, size_picker: { render: SizePicker } };
+
 	const funnelState: FunnelStateAdapter = {
 		begin: () => {},
 		get: (f) => bag[f] ?? '',
@@ -162,7 +185,7 @@
 <PageLayout
 	definition={data.definition}
 	version={data.version}
-	components={DR_BLOCKS}
+	components={COMPONENTS}
 	{track}
 	{submit}
 	state={funnelState}
