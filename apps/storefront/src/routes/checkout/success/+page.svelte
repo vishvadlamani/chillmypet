@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import { invalidateAll } from '$app/navigation';
 	import { toAmount } from 'ecomwithai/marketing';
 	import { track } from '$lib/analytics/pixel';
 	import { createTranslator, defaultLocale, formatMoney } from '$lib/i18n';
@@ -37,6 +39,48 @@
 			data.eventId
 		);
 		cart.clear();
+	});
+
+	// Card authorisations settle in seconds. Anything still unpaid after this
+	// window is a delayed payment method that can take hours, and the webhook's
+	// Conversions API copy is what reports those — polling on would only cost
+	// the worker requests nobody reads.
+	const POLL_FIRST_MS = 1000;
+	const POLL_MAX_MS = 8000;
+	const POLL_WINDOW_MS = 90_000;
+
+	// Stripe redirects the moment the card is authorised, which is routinely
+	// before the webhook that flips the order to paid has landed. The load ran
+	// once, so a customer arriving inside that window sees "processing" and the
+	// Purchase above never fires for them — they don't reload, they close the
+	// tab. Ask the server again instead of waiting for them to.
+	//
+	// Deliberately not a `$effect`: `invalidateAll` replaces `data`, which would
+	// re-run the effect and reset both the backoff and the deadline, leaving it
+	// polling at the opening interval until the tab closed.
+	onMount(() => {
+		if (data.paid) return;
+
+		let timer: ReturnType<typeof setTimeout>;
+		let stopped = false;
+		let delay = POLL_FIRST_MS;
+		const deadline = Date.now() + POLL_WINDOW_MS;
+
+		const poll = async () => {
+			if (stopped) return;
+			// A failed refresh is not worth surfacing on a receipt, and it must
+			// not end the loop: the next tick asks again.
+			await invalidateAll().catch(() => {});
+			if (stopped || data.paid || Date.now() >= deadline) return;
+			delay = Math.min(delay * 2, POLL_MAX_MS);
+			timer = setTimeout(poll, delay);
+		};
+
+		timer = setTimeout(poll, delay);
+		return () => {
+			stopped = true;
+			clearTimeout(timer);
+		};
 	});
 </script>
 

@@ -128,6 +128,17 @@ branch the framework only returns once, guarded by the event-id dedup table.
 Reporting at order creation counts every abandoned checkout as a sale, and Meta
 optimizes spend against whatever you tell it.
 
+**The receipt has to re-ask, because Stripe redirects before the webhook lands.**
+`/checkout/success` reads `paid` once in its load, and the customer arrives the
+moment the card is authorised — routinely ahead of the webhook that flips the
+order. So the page polls `invalidateAll` with a backoff for 90s and fires
+Purchase when it flips; without that it sits on "processing" and the browser
+half of the sale is simply never sent, because nobody reloads a receipt. Keep
+the poll out of a `$effect`: `invalidateAll` replaces `data`, which re-runs the
+effect and resets its own backoff and deadline. `tests/store-flow.mjs` replays
+this by putting a real order back to `pending_payment` and paying it while the
+page is open — the only way to make the race deterministic in a browser test.
+
 **Tracking must never fail an order.** The CAPI call happens *after* the order
 commits, dispatches through `waitUntil`, and logs failures rather than
 surfacing them. Do not move it inside the try block that owns the order.
