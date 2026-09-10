@@ -12,7 +12,7 @@ src/catalog/    products, options, variants, media, metafields
 src/customers/  identity and lifetime totals
 src/orders/     order creation, stock safety, idempotency
 src/payments/   Stripe over REST, webhook verification, refunds
-src/marketing/  Meta Conversions API and advanced-matching hashing
+src/marketing/  Meta Conversions API, advanced-matching hashing, event dedupe
 src/agent/      tool definitions, validation, MCP server
 src/testing.ts  fixtures for tests and demos
 ```
