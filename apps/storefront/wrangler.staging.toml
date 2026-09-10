@@ -5,6 +5,21 @@ compatibility_date = "2026-08-08"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
+# Staging shares production's database, so every id it does not pin here falls
+# back to that store's own settings — which is how a preview build ends up
+# loading the live GTM container and firing at the live pixel. Empty is not an
+# oversight: it is the same reasoning as having no Stripe keys here. A browse
+# test on staging must not become a PageView in the ad account, and since the
+# Conversions API token is set on this Worker too, it would now arrive
+# server-side as well, where no ad blocker drops it.
+#
+# GTM-T446VNH9 is the container for this store, and it belongs on production
+# only. There is no second container.
+[vars]
+GTM_CONTAINER_ID = ""
+META_PIXEL_ID = ""
+META_EXTRA_PIXEL_IDS = ""
+
 [assets]
 directory = ".svelte-kit/cloudflare"
 binding = "ASSETS"

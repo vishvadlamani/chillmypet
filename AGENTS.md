@@ -125,6 +125,17 @@ a container-published pixel double-counts against it, and no GTM tag can carry
 the derived Purchase `event_id` that keeps the browser and CAPI halves as one
 sale.
 
+**There is one container, `GTM-T446VNH9`, and the id must not drift from what
+is deployed.** The site shipped `GTM-N3Q25P9X` until `045a10e` changed it, and
+the deploy never followed — so for weeks the pages loaded one container while
+every tag anyone built went into the other, firing into nothing. `test:e2e`
+asserts the loader, the noscript iframe, and that no *second* container id
+appears anywhere in the HTML. Staging pins `GTM_CONTAINER_ID`, `META_PIXEL_ID`
+and `META_EXTRA_PIXEL_IDS` to empty in `wrangler.staging.toml`, because it
+shares production's database and would otherwise inherit the live ids and report
+preview traffic into the real container and ad account — server-side too, now
+that the Conversions API token is on that Worker.
+
 **GTM is a second publishing surface, not just a tag.** `GTM_CONTAINER_ID`
 loads `GTM-T446VNH9` on every page. Anything published inside that container
 runs with the same reach as this codebase, by whoever holds container access —
