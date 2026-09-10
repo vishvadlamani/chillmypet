@@ -104,11 +104,36 @@ posts nothing, and with a token belonging to another dataset Meta rejects the
 event — both only reach `console.error`, because tracking must never fail an
 order. Events Manager, not the logs, is where you notice.
 
+**The dataLayer is the container's whole view of the app.** GTM tags cannot
+reach into the store, so `$lib/analytics/datalayer.ts` pushes GA4 ecommerce
+events — `view_item`, `add_to_cart`, `begin_checkout`, `add_payment_info`,
+`purchase` — beside each Meta event, from the same data. Each push nulls
+`ecommerce` first, because Google's data model merges pushes and the previous
+event's items otherwise leak into the next one; `tests/store-flow.mjs` counts
+the nulls against the payloads to keep that true. `purchase` carries the order
+number as `transaction_id`, which is what GA4 dedupes a re-sent sale on.
+**Do not build a Meta tag on it.** Meta stays on the pixel in `hooks.server.ts`:
+a container-published pixel double-counts against it, and no GTM tag can carry
+the derived Purchase `event_id` that keeps the browser and CAPI halves as one
+sale.
+
 **GTM is a second publishing surface, not just a tag.** `GTM_CONTAINER_ID`
 loads `GTM-T446VNH9` on every page. Anything published inside that container
 runs with the same reach as this codebase, by whoever holds container access —
 and a Meta pixel published in it would double-count against the ones the
 snippet already initialises.
+
+**Every browser event has a server copy, and they share an `event_id`.**
+`track()` mints one id, hands it to `fbq` as `eventID`, and posts the same id to
+`/api/track`, which sends the Conversions API copy using the cookies, address
+and user agent of that request. The exception is the SSR snippet's PageView: it
+never reaches `track()`, so `hooks.server.ts` mints the id, writes it into the
+inline script, and sends its own copy for `text/html` responses only. Without
+that, five of the six events the browser fires had no server half at all, which
+Events Manager reports as the server sending fewer events — and the half that
+goes missing to iOS and ad blockers is the one worth having. `/api/track`
+refuses `Purchase` and ignores any `user_data` in its body: a sale is reported
+from the order, and a public endpoint must not be able to claim identity.
 
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires

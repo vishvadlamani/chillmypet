@@ -6,6 +6,7 @@
 	import { toAmount } from 'ecomwithai/marketing';
 	import { page } from '$app/state';
 	import { track as pixel } from '$lib/analytics/pixel';
+	import { amount, pushEcommerce } from '$lib/analytics/datalayer';
 	import { createTranslator, defaultLocale } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
 	import type { PageData } from './$types';
@@ -30,6 +31,18 @@
 			content_ids: [data.slug],
 			currency: data.currency,
 			value: toAmount(data.seo.priceCents)
+		});
+		pushEcommerce('view_item', {
+			currency: data.currency,
+			value: amount(data.seo.priceCents),
+			items: [
+				{
+					item_id: data.slug,
+					item_name: data.seo.title,
+					price: amount(data.seo.priceCents),
+					quantity: 1
+				}
+			]
 		});
 	});
 
@@ -102,6 +115,15 @@
 				num_items: added.length,
 				currency: data.currency,
 				value: toAmount(added.reduce((sum, l) => sum + l.unitPriceCents, 0))
+			});
+			pushEcommerce('add_to_cart', {
+				currency: data.currency,
+				value: amount(added.reduce((sum, l) => sum + l.unitPriceCents, 0)),
+				items: added.map((l) => ({
+					item_id: l.sku,
+					price: amount(l.unitPriceCents),
+					quantity: 1
+				}))
 			});
 		}
 

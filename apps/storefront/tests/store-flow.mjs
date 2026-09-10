@@ -146,6 +146,47 @@ check('Purchase carries an eventID for CAPI dedup', /^purchase-CMP-/.test(purcha
 check('the cart was emptied', (await page.evaluate(() =>
 	JSON.parse(localStorage.getItem('chillmypet.cart.v1') ?? '[]'))).length === 0);
 
+// --- the GTM dataLayer must carry the same funnel ----------------------------
+// Whatever is published in the container reads this and nothing else: the tags
+// cannot reach into the app. Both pages in this flow are one document (the
+// product page hands off to /checkout with goto), so one dataLayer holds the lot.
+{
+	const dl = await page.evaluate(() => (window.dataLayer ?? []).filter((e) => e && e.event));
+	const of = (name) => dl.find((e) => e.event === name);
+
+	check('view_item reached the dataLayer', Boolean(of('view_item')));
+	check('add_to_cart reached the dataLayer', Boolean(of('add_to_cart')));
+	check('begin_checkout reached the dataLayer', Boolean(of('begin_checkout')));
+
+	const buy = of('purchase');
+	check('purchase reached the dataLayer', Boolean(buy));
+	check(
+		'purchase carries the order number as transaction_id',
+		/^CMP-[0-9A-F]{8}$/.test(buy?.ecommerce?.transaction_id ?? ''),
+		buy?.ecommerce?.transaction_id
+	);
+	check(
+		'purchase value matches what was charged',
+		buy?.ecommerce?.value === afterExpress,
+		`${buy?.ecommerce?.value} vs ${afterExpress}`
+	);
+	check(
+		'purchase items carry ids, names and quantities',
+		(buy?.ecommerce?.items ?? []).length > 0 &&
+			buy.ecommerce.items.every((i) => i.item_id && i.item_name && i.quantity > 0),
+		JSON.stringify(buy?.ecommerce?.items)
+	);
+
+	// Google's data model merges pushes, so each event nulls `ecommerce` first;
+	// without that the previous event's items leak into the next one.
+	const raw = await page.evaluate(() => (window.dataLayer ?? []).map((e) => (e && 'ecommerce' in e ? (e.ecommerce === null ? 'null' : 'obj') : 'other')));
+	check(
+		'every ecommerce push is preceded by a null reset',
+		raw.filter((t) => t === 'null').length === raw.filter((t) => t === 'obj').length,
+		raw.join(',')
+	);
+}
+
 // --- the success page must survive a late webhook ----------------------------
 // With Stripe on, the customer is redirected the moment the card is authorised,
 // which is routinely before the webhook flips the order to paid. The load runs
