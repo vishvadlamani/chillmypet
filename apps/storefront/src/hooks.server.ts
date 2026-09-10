@@ -2,7 +2,6 @@ import { error, type Handle } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
 import { newEventId } from 'ecomwithai/marketing';
-import { attributionFrom } from '$lib/server/purchase';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
 export const LOCALE_COOKIE = 'locale';
@@ -30,11 +29,19 @@ function getDirectory() {
  * initialised pixel, so each gets exactly one, and the same holds for the
  * events the app fires later.
  *
+ * The PageView carries an `eventID` so its Conversions API twin is recognised
+ * as the same event rather than counted as a second page view.
+ *
  * Guards against database content reaching the page as markup.
  */
 function pixelSnippet(pixelIds: string[], pageViewEventId: string): string {
 	const ids = pixelIds.filter((id) => /^\d{1,20}$/.test(id));
 	if (ids.length === 0) return '';
+
+	// Same rule the bridge applies to an id it is handed. An id that cannot be
+	// written into the page safely is left out; a PageView with no id still
+	// counts, it just cannot dedupe.
+	const eventId = /^[A-Za-z0-9._:-]{1,120}$/.test(pageViewEventId) ? pageViewEventId : '';
 
 	const inits = ids.map((id) => `fbq('init', '${id}');`).join('\n');
 	const noscript = ids
@@ -51,7 +58,7 @@ n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
 ${inits}
-fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
+fbq('track', 'PageView'${eventId ? `, {}, { eventID: '${eventId}' }` : ''});
 </script>
 ${noscript}`;
 }
@@ -111,6 +118,20 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// An env override so correcting it is a config change, not a database write.
 	const primaryPixelId = env.META_PIXEL_ID ?? settings.meta_pixel_id ?? '';
 
+	// This snippet's PageView is the only event the browser fires that never
+	// reaches the `track()` wrapper, so it cannot mint its own id. One is minted
+	// here, written into the inline script, and handed to the layout through page
+	// data, which posts the Conversions API half to `/api/events` once the page
+	// hydrates.
+	//
+	// The server copy is deliberately NOT sent from here. `handle` runs for every
+	// HTML request, and most of those are not people: crawlers, uptime monitors,
+	// security scanners and link previews all fetch a document and never run a
+	// line of JavaScript. Sending from here gives each of them a server PageView
+	// with no browser half — unmatched events that push reported coverage *down*
+	// while filling the dataset with traffic no campaign should optimise against.
+	// Posting from the browser costs one request and keeps the two halves 1:1.
+	event.locals.pageViewEventId = newEventId();
 	event.locals.store = store;
 	// Publishable, not secret — it identifies the account to Stripe.js and is
 	// meant to ship to the browser. Without it there is nothing to mount the
@@ -177,20 +198,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	event.locals.locale = locale;
 
-	// This snippet's PageView is the only event the browser fires that never
-	// reaches the `track()` wrapper, so it is the only one that cannot mint its
-	// own id and post its own server copy. Both halves are issued here instead:
-	// the id goes into the inline script, and the Conversions API copy goes out
-	// from this same request, which already holds the cookies, address and user
-	// agent that make it matchable.
-	const pageViewEventId = newEventId();
-
 	const response = await resolve(event, {
 		transformPageChunk: ({ html }) =>
 			html
 				.replace('%lang%', locale)
 				.replace('%dir%', textDirection(locale))
-				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId))
+				.replace('%meta_pixel%', pixelSnippet(pixelIds, event.locals.pageViewEventId))
 				.replace('%gtm_head%', gtm.head)
 				.replace('%gtm_body%', gtm.body)
 				.replace(
@@ -200,26 +213,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 						: ''
 				)
 	});
-
-	// Documents only. `handle` also runs for data requests, form posts and the
-	// API, and none of those rendered a snippet to deduplicate against.
-	if (pixelIds.length > 0 && response.headers.get('content-type')?.includes('text/html')) {
-		const send = event.locals.commerce.meta
-			?.send({
-				eventName: 'PageView',
-				eventId: pageViewEventId,
-				eventSourceUrl: event.url.href,
-				user: attributionFrom(event.cookies, event.url, event.request.headers, event.getClientAddress())
-			})
-			.then((result) => {
-				if (!result.sent) console.error('Meta CAPI PageView not sent', result.reason);
-			})
-			.catch((error) => console.error('Meta CAPI PageView failed', error));
-
-		// Called as a method — destructuring waitUntil loses `this` and throws.
-		const context = event.platform?.context;
-		if (send && context && typeof context.waitUntil === 'function') context.waitUntil(send);
-	}
 
 	return response;
 };

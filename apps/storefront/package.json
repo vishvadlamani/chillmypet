@@ -16,6 +16,7 @@
 		"deploy": "npm run build && wrangler deploy",
 		"test:payments": "node tests/payment-flow.mjs",
 		"test:store": "node tests/store-flow.mjs",
+		"test:dedupe": "node tests/dedupe-flow.mjs",
 		"db:content": "node --env-file-if-exists=.env scripts/sync-content.js"
 	},
 	"dependencies": {

@@ -40,12 +40,20 @@ Browser tests need a running dev server and a seeded DB:
 npm i --no-save playwright
 npm run test:e2e       # BASE_URL= and CHROMIUM_PATH= to override
 npm run test:store     # the block-rendered /store pages, product → order
+npm run test:dedupe    # every browser event's server twin, matched on event id
 ```
 
 `test:e2e` and `test:store` want a dev server with **no** `STRIPE_SECRET_KEY`:
 both place an order and read the confirmation off the page, which with payments
 on is a redirect to Stripe instead. `test:payments` wants the opposite — see
 Deploying.
+
+`test:dedupe` wants the no-Stripe server *plus* a Conversions API it can read,
+so start it with `META_CAPI_ACCESS_TOKEN=test-token` and
+`META_CAPI_ENDPOINT=http://127.0.0.1:12113` — the test brings up the capture
+server on that port itself. `META_EXTRA_PIXEL_IDS` and `GTM_CONTAINER_ID` are
+only in `wrangler.toml`, so pass them too or several of `test:e2e`'s assertions
+fail on a config difference rather than a bug.
 
 ## The one rule
 
@@ -125,15 +133,44 @@ snippet already initialises.
 
 **Every browser event has a server copy, and they share an `event_id`.**
 `track()` mints one id, hands it to `fbq` as `eventID`, and posts the same id to
-`/api/track`, which sends the Conversions API copy using the cookies, address
+`/api/events`, which sends the Conversions API copy using the cookies, address
 and user agent of that request. The exception is the SSR snippet's PageView: it
 never reaches `track()`, so `hooks.server.ts` mints the id, writes it into the
-inline script, and sends its own copy for `text/html` responses only. Without
-that, five of the six events the browser fires had no server half at all, which
-Events Manager reports as the server sending fewer events — and the half that
-goes missing to iOS and ad blockers is the one worth having. `/api/track`
-refuses `Purchase` and ignores any `user_data` in its body: a sale is reported
-from the order, and a public endpoint must not be able to claim identity.
+inline script, and hands it to the layout through page data, which posts the
+server half once the page hydrates. Without this, five of the six events the
+browser fires had no server half at all, which Events Manager reports as the
+server sending fewer events — and the half that goes missing to iOS and ad
+blockers is the one worth having.
+
+**The PageView's server copy is posted by the browser, not sent from `handle`.**
+Sending it there is one line shorter and was how this first worked, but `handle`
+runs for every HTML request and most of those are not people: crawlers, uptime
+monitors, security scanners and link previews all fetch a document and never run
+a line of JavaScript. Each would get a server PageView with no browser half —
+unmatched events that push reported coverage *down* while filling the dataset
+with traffic no campaign should optimise against. Posting from the browser costs
+one request and keeps the two halves 1:1.
+
+**The endpoint is `/api/events`, and the name is load-bearing.** Generic privacy
+blocklists match request paths containing "track", first-party ones included.
+This route exists to be the copy that still arrives when the pixel was blocked,
+so naming it after the thing being blocked defeats it.
+
+**`/api/events` believes nothing it is sent.** `parseBrowserEvent()` in the
+framework clamps a body to known event names and known fields, drops an event
+with no id — an unlabelled server event cannot dedupe and double-counts, so
+sending it is worse than not — and scopes `event_source_url` to this origin.
+Identity is never read from the body: cookies, address and user agent are what
+the request itself carries. It refuses `Purchase` outright, because a sale is
+reported from the order where money moving is known, and a public endpoint must
+not be able to inject the one event the ad account bids on.
+
+Coverage will never read 100% in Events Manager, and chasing that number is how
+this gets broken. When an ad blocker stops `connect.facebook.net`, `fbq` stays
+the stub the snippet defined and the browser event is never delivered — while
+the server copy goes out regardless. Those visitors show up as server-only
+events, which is the entire reason the Conversions API exists. A drop in
+coverage that comes with a *rise* in events received is the system working.
 
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires
@@ -377,7 +414,11 @@ quotes and the wall all come back. Do not flip it to make the page look
 fuller.
 
 Meta tracking is **fully live**: the browser pixel and the Conversions API both
-fire, deduplicated on `event_id`. The CAPI token is set on both Workers and was
+fire for *every* event — PageView, ViewContent, AddToCart, InitiateCheckout,
+AddPaymentInfo and Purchase — deduplicated on `event_id`. Until `/api/events`
+existed the server sent one event per *sale* and nothing else, so Events Manager
+reported 0% event coverage: almost everything it received had a browser half and
+no server one. `npm run test:dedupe` is what holds that line. The CAPI token is set on both Workers and was
 verified end to end against Meta's real API — payload built by the framework,
 `events_received: 1`, no warnings. Note the token's `debug_token` scopes read
 `read_ads_dataset_quality` only and a `GET /{pixel_id}` returns "Missing
