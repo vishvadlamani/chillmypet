@@ -173,6 +173,17 @@ check('the 3-pack discount is applied', summary?.includes('$12.14'));
 		calls.filter((c) => c[0] === 'init').length === 2
 	);
 
+	// Every event has a server copy carrying this same id — the SSR snippet's
+	// PageView from hooks.server.ts, the rest through /api/track. Without an id
+	// on the browser half Meta counts the two copies as two events, so a missing
+	// one inflates the dataset rather than merely failing to dedupe.
+	const tracks = calls.filter((c) => c[0] === 'track');
+	check(
+		'every pixel event carries an eventID for CAPI dedup',
+		tracks.length > 0 && tracks.every((c) => typeof c[3]?.eventID === 'string' && c[3].eventID),
+		JSON.stringify(tracks.map((c) => [c[1], c[3]?.eventID]))
+	);
+
 	const initiate = tracked(calls, 'InitiateCheckout');
 	check('InitiateCheckout fired', Boolean(initiate));
 	check('InitiateCheckout value is subtotal', initiate?.[2]?.value === '134.91');

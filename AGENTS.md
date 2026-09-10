@@ -123,6 +123,18 @@ runs with the same reach as this codebase, by whoever holds container access —
 and a Meta pixel published in it would double-count against the ones the
 snippet already initialises.
 
+**Every browser event has a server copy, and they share an `event_id`.**
+`track()` mints one id, hands it to `fbq` as `eventID`, and posts the same id to
+`/api/track`, which sends the Conversions API copy using the cookies, address
+and user agent of that request. The exception is the SSR snippet's PageView: it
+never reaches `track()`, so `hooks.server.ts` mints the id, writes it into the
+inline script, and sends its own copy for `text/html` responses only. Without
+that, five of the six events the browser fires had no server half at all, which
+Events Manager reports as the server sending fewer events — and the half that
+goes missing to iOS and ad blockers is the one worth having. `/api/track`
+refuses `Purchase` and ignores any `user_data` in its body: a sale is reported
+from the order, and a public endpoint must not be able to claim identity.
+
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires
 from the Stripe webhook and the browser event from the success page, two requests

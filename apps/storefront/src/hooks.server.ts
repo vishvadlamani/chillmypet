@@ -1,6 +1,8 @@
 import { error, type Handle } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
+import { newEventId } from 'ecomwithai/marketing';
+import { attributionFrom } from '$lib/server/purchase';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
 export const LOCALE_COOKIE = 'locale';
@@ -30,7 +32,7 @@ function getDirectory() {
  *
  * Guards against database content reaching the page as markup.
  */
-function pixelSnippet(pixelIds: string[]): string {
+function pixelSnippet(pixelIds: string[], pageViewEventId: string): string {
 	const ids = pixelIds.filter((id) => /^\d{1,20}$/.test(id));
 	if (ids.length === 0) return '';
 
@@ -49,7 +51,7 @@ n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
 ${inits}
-fbq('track', 'PageView');
+fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
 </script>
 ${noscript}`;
 }
@@ -175,12 +177,20 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	event.locals.locale = locale;
 
-	return resolve(event, {
+	// This snippet's PageView is the only event the browser fires that never
+	// reaches the `track()` wrapper, so it is the only one that cannot mint its
+	// own id and post its own server copy. Both halves are issued here instead:
+	// the id goes into the inline script, and the Conversions API copy goes out
+	// from this same request, which already holds the cookies, address and user
+	// agent that make it matchable.
+	const pageViewEventId = newEventId();
+
+	const response = await resolve(event, {
 		transformPageChunk: ({ html }) =>
 			html
 				.replace('%lang%', locale)
 				.replace('%dir%', textDirection(locale))
-				.replace('%meta_pixel%', pixelSnippet(pixelIds))
+				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId))
 				.replace('%gtm_head%', gtm.head)
 				.replace('%gtm_body%', gtm.body)
 				.replace(
@@ -190,4 +200,26 @@ export const handle: Handle = async ({ event, resolve }) => {
 						: ''
 				)
 	});
+
+	// Documents only. `handle` also runs for data requests, form posts and the
+	// API, and none of those rendered a snippet to deduplicate against.
+	if (pixelIds.length > 0 && response.headers.get('content-type')?.includes('text/html')) {
+		const send = event.locals.commerce.meta
+			?.send({
+				eventName: 'PageView',
+				eventId: pageViewEventId,
+				eventSourceUrl: event.url.href,
+				user: attributionFrom(event.cookies, event.url, event.request.headers, event.getClientAddress())
+			})
+			.then((result) => {
+				if (!result.sent) console.error('Meta CAPI PageView not sent', result.reason);
+			})
+			.catch((error) => console.error('Meta CAPI PageView failed', error));
+
+		// Called as a method — destructuring waitUntil loses `this` and throws.
+		const context = event.platform?.context;
+		if (send && context && typeof context.waitUntil === 'function') context.waitUntil(send);
+	}
+
+	return response;
 };
