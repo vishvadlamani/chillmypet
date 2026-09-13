@@ -406,7 +406,9 @@ Which methods appear is scoped by `STRIPE_PAYMENT_METHOD_CONFIGURATION`
 (`pmc_1U3QlJBbNuiab9E2mZmVymgE` — card, Apple Pay, Google Pay, Link, Cash App;
 Amazon Pay off). Do **not** change the account default instead: the Stripe
 account is shared with another business, and its default configuration is
-theirs.
+theirs. On ChillMyPet's own account that particular reason expires, but keep
+the explicit configuration anyway — it is one env var, reviewable in a deploy,
+against a dashboard default that no deploy can see.
 
 The form posts `cardReady`. When Stripe.js could not mount — an ad blocker on
 `js.stripe.com` is the usual reason on paid social — it is `0` and the action
@@ -433,9 +435,69 @@ shares production's database — a card test there would be a real charge. With
 temporary arrangement until ChillMyPet has its own. Consequences to keep in
 mind: settlements land in that account, refunds and chargebacks are theirs to
 absorb, and `STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET` exists so buyers recognise
-the charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`. When
-ChillMyPet's own account is ready, swap three secrets and re-point the webhook;
-no code changes.
+the charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`.
+Moving to ChillMyPet's own account is configuration only — see below.
+
+### Switching Stripe accounts
+
+No code changes: every value is read from `env` in `hooks.server.ts`, and the
+old account's identifiers appear nowhere in the code. It is **four** values
+though, not three. The payment method configuration is the one that gets
+forgotten, because it reads like a code constant rather than a credential —
+and it is account-scoped, so it dies with the account it came from.
+
+| Variable | Read by | Prepared value |
+|---|---|---|
+| `STRIPE_SECRET_KEY` | `hooks.server.ts` | not yet issued |
+| `STRIPE_WEBHOOK_SECRET` | `hooks.server.ts` | from the new endpoint |
+| `STRIPE_PUBLISHABLE_KEY` | `hooks.server.ts`, ships to the browser | `pk_live_51U3New…` |
+| `STRIPE_PAYMENT_METHOD_CONFIGURATION` | the intent *and* the browser | `pmc_1UFN39JOsB1nguzlVrgCYlEp` |
+
+`STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET` becomes redundant once the account is
+itself named ChillMyPet, but it is harmless — read the new account's own
+descriptor before dropping it, and remember Stripe's 22-character cap.
+
+**`pmd_` is not `pmc_`.** A payment method *domain* —
+`pmd_1UFMuMJOsB1nguzlupaGsLer` here — is the wallet registration for the
+website, and Apple Pay, Google Pay and Link simply do not appear without it. A
+payment method *configuration* is the method list. Different objects: only the
+second goes in the env var, the first is dashboard state. Stripe embeds the
+account in every id, `JOsB1nguzl` on the new objects against `BbNuiab9E2` on
+the Idea to Run ones, so a pair that came from different accounts is visible
+without an API call.
+
+Before the swap:
+
+- The new account needs **charges and payouts enabled**. A live publishable key
+  is issued before activation finishes, so holding one proves nothing.
+- Register **both** `chillmypet.com` and `www.chillmypet.com` as payment method
+  domains. `wrangler.toml` serves both and the registration is per-domain, so
+  missing one drops wallets for half the traffic and reports nothing.
+- Check the new configuration offers card, Apple Pay, Google Pay, Link and Cash
+  App with Amazon Pay **off**. Cash App is enabled per account, separately.
+- Create the endpoint at `POST /api/stripe/webhook` and subscribe the seven
+  events the handler switches on (`payments/index.ts`):
+  `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+  `payment_intent.succeeded`, `checkout.session.expired`,
+  `checkout.session.async_payment_failed`, `charge.refunded`, `refund.created`.
+
+After the swap:
+
+- **Orders left in `pending_payment` can never settle.** Their intent belongs to
+  the old account and its webhook no longer verifies against the new signing
+  secret. Swap while the store is quiet and let in-flight checkouts drain.
+- **Refunds on old orders must be issued from the old dashboard.**
+  `payments.refund()` goes through `STRIPE_SECRET_KEY`, so it can only reach the
+  new account, and there is no admin UI — so this is manual. Keep access to
+  Idea to Run until those orders age out.
+- Disable the old endpoint only once the new one is confirmed. Events signed
+  with the old secret answer 400, and Stripe retries those for days.
+- **A real card verifies the swap and fabricates a conversion.** Purchase fires
+  from the webhook on `order_paid` and refunding does not retract it, so a live
+  test puts one sale that never happened into the numbers the ad account
+  optimises against. `npm run test:payments` proves the code path but not the
+  credentials, and nothing proves credentials without moving money — so budget
+  for the bad data point rather than skipping the test.
 
 `npm run test:payments` drives that whole path against a mock Stripe and a mock
 Conversions API — no account, no keys, nothing charged. Run it for any change to
