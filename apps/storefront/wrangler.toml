@@ -12,11 +12,11 @@ compatibility_flags = ["nodejs_compat"]
 # pixel. A token belongs to one dataset; pointed at any other pixel, that pixel
 # gets browser events only.
 #
-# META_EXTRA_PIXEL_IDS are additional pixels measuring the same pages,
-# comma-separated. They share the one loader and every event, but get no CAPI.
+# There is exactly one. A second pixel here would get browser events and no
+# CAPI, which is the half iOS and ad blockers eat — and having two is what let
+# the ad account's own pixel sit in the browser-only list for a month.
 [vars]
 META_PIXEL_ID = "1363695699271757"
-META_EXTRA_PIXEL_IDS = "28272021345717397"
 GTM_CONTAINER_ID = "GTM-T446VNH9"
 
 [assets]
