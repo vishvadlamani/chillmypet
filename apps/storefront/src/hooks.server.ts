@@ -23,28 +23,27 @@ function getDirectory() {
 }
 
 /**
- * Meta's loader, initialising every pixel measuring this store.
+ * Meta's loader, for the one pixel measuring this store.
  *
- * More than one is normal — a second ad account, an agency, an affiliate. They
- * share one loader and one `PageView`: `fbq('track', …)` reports to every
- * initialised pixel, so each gets exactly one, and the same holds for the
- * events the app fires later.
+ * One is the whole design. A second pixel would get browser events and no
+ * Conversions API copy — a token belongs to a single dataset — so it would
+ * report whatever iOS and ad blockers let through and nothing else. This store
+ * ran that way for a month, with the ad account's own pixel as the extra one,
+ * and the campaign showed no conversions the entire time.
  *
  * `matching` is advanced matching, and it goes on `init` rather than on the
- * event: every pixel then applies it to this PageView and to everything the app
- * fires afterwards, which is the same reason there is one loader here at all.
- * The values are the hashes the Conversions API copy sends, so the two halves
- * of an event resolve to one person.
+ * event, so it applies to this PageView and to everything the app fires
+ * afterwards. The values are the hashes the Conversions API copy sends, so the
+ * two halves of an event resolve to one person.
  *
  * Guards against database content reaching the page as markup.
  */
 function pixelSnippet(
-	pixelIds: string[],
+	pixelId: string,
 	pageViewEventId: string,
 	matching: Record<string, string>
 ): string {
-	const ids = pixelIds.filter((id) => /^\d{1,20}$/.test(id));
-	if (ids.length === 0) return '';
+	if (!/^\d{1,20}$/.test(pixelId)) return '';
 
 	// Hex digests only. Nothing else can reach an inline script from here, and
 	// this is what makes that true rather than a thing the caller promises.
@@ -53,13 +52,8 @@ function pixelSnippet(
 	);
 	const advanced = Object.keys(safe).length > 0 ? `, ${JSON.stringify(safe)}` : '';
 
-	const inits = ids.map((id) => `fbq('init', '${id}'${advanced});`).join('\n');
-	const noscript = ids
-		.map(
-			(id) => `<noscript><img height="1" width="1" style="display:none" alt=""
-src="https://www.facebook.com/tr?id=${id}&ev=PageView&noscript=1" /></noscript>`
-		)
-		.join('\n');
+	const noscript = `<noscript><img height="1" width="1" style="display:none" alt=""
+src="https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1" /></noscript>`;
 
 	return `<script>
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -67,7 +61,7 @@ n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
 n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
-${inits}
+fbq('init', '${pixelId}'${advanced});
 fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
 </script>
 ${noscript}`;
@@ -121,12 +115,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 		settingsCache.set(store.id, settings);
 	}
 
-	// The pixel that owns this store's dataset. Both the browser events and the
-	// Conversions API copy report to this one, and a CAPI token is scoped to a
-	// single dataset — so this must be the pixel the ad account optimises
-	// against, or its conversions are browser-only and die on iOS and blockers.
+	// This store's one pixel. Browser events and the Conversions API copy both
+	// report to it, and a CAPI token is scoped to a single dataset — so it must
+	// be the pixel the ad account optimises against, or its conversions are
+	// browser-only and die on iOS and blockers.
 	// An env override so correcting it is a config change, not a database write.
-	const primaryPixelId = env.META_PIXEL_ID ?? settings.meta_pixel_id ?? '';
+	const pixelId = env.META_PIXEL_ID ?? settings.meta_pixel_id ?? '';
 
 	event.locals.store = store;
 	// Publishable, not secret — it identifies the account to Stripe.js and is
@@ -169,7 +163,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				}
 			: undefined,
 		meta: {
-			pixelId: primaryPixelId,
+			pixelId,
 			accessToken: env.META_CAPI_ACCESS_TOKEN,
 			apiVersion: env.META_CAPI_API_VERSION,
 			endpoint: env.META_CAPI_ENDPOINT,
@@ -178,13 +172,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	});
 
-	// The store's own pixel, plus any other account measuring the same pages.
-	// Comma-separated, so adding one is a config change rather than a code one.
-	const extraPixels = (env.META_EXTRA_PIXEL_IDS ?? settings.meta_extra_pixel_ids ?? '')
-		.split(',')
-		.map((id) => id.trim())
-		.filter(Boolean);
-	const pixelIds = [primaryPixelId, ...extraPixels].filter(Boolean);
 	const gtm = gtmSnippet(env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? '');
 
 	const saved = event.cookies.get(LOCALE_COOKIE);
@@ -220,7 +207,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			html
 				.replace('%lang%', locale)
 				.replace('%dir%', textDirection(locale))
-				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId, matching))
+				.replace('%meta_pixel%', pixelSnippet(pixelId, pageViewEventId, matching))
 				.replace('%gtm_head%', gtm.head)
 				.replace('%gtm_body%', gtm.body)
 				.replace(
@@ -233,7 +220,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// Documents only. `handle` also runs for data requests, form posts and the
 	// API, and none of those rendered a snippet to deduplicate against.
-	if (pixelIds.length > 0 && response.headers.get('content-type')?.includes('text/html')) {
+	if (pixelId && response.headers.get('content-type')?.includes('text/html')) {
 		const send = event.locals.commerce.meta
 			?.send({
 				eventName: 'PageView',

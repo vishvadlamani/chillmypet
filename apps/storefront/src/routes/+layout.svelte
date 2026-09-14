@@ -12,8 +12,8 @@
 	// navigations would otherwise go unrecorded.
 	afterNavigate((navigation) => {
 		if (navigation.type === 'enter') return;
-		// Plain, not scoped: every pixel is initialised by the snippet in
-		// app.html, so one call gives each of them exactly one PageView.
+		// Plain, not scoped: the snippet in app.html initialises the store's
+		// pixel, so this pushes one PageView onto it.
 		track('PageView');
 	});
 

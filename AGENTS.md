@@ -80,25 +80,25 @@ filter is a cross-store data leak, not a display bug. The isolation suite in
 `packages/ecomwithai/src/commerce.test.ts` exists to catch this — keep it green,
 and extend it when you add a module.
 
-**Every pixel is initialised in one place, and that is what keeps counting
-honest.** `pixelSnippet` in `hooks.server.ts` inits `META_PIXEL_ID` plus
-`META_EXTRA_PIXEL_IDS` (comma-separated, wrangler.toml) and fires one
-`PageView`. Because `fbq('track', …)` reports to every initialised pixel, one
-call gives each of them exactly one event — so nothing in the app needs
-`trackSingle`, and adding a pixel needs no code. Initialise one late, on a
-single page, and that stops being true: the base snippet's PageView has already
-gone without it while every later event double-counts on the pixels that were
-there from the start.
+**There is one pixel, initialised in one place, and that is what keeps counting
+honest.** `pixelSnippet` in `hooks.server.ts` inits `META_PIXEL_ID` and fires one
+`PageView`; everything after that pushes onto it through `track()`. Initialise a
+pixel late, on a single page, and counting breaks in both directions at once: the
+base snippet's PageView has already gone without it, while every later event
+double-counts on the one that was there from the start. The same goes for a
+second pixel anywhere — `META_EXTRA_PIXEL_IDS` used to exist for that and is
+gone; see below for why.
 
-**`META_PIXEL_ID` must be the pixel the ad account optimises against.** It is
-the only one the Conversions API reports to — `primaryPixelId` feeds both
-`pixelSnippet` and the `meta` config — because a CAPI access token is scoped to
-a single dataset. Every other pixel in `META_EXTRA_PIXEL_IDS` gets browser
-events only, which is the half that iOS and ad blockers eat, and Purchase is
-the event that dies most. This was live for a month with the ad account's pixel
-in the extras list: the campaign reported no conversions the whole time, while
-the unused pixel collected clean server-side data. If you change
-`META_PIXEL_ID`, generate a matching token for that dataset in the same change.
+**`META_PIXEL_ID` must be the pixel the ad account optimises against.** It is the
+only one the Conversions API reports to — `pixelId` feeds both `pixelSnippet` and
+the `meta` config — because a CAPI access token is scoped to a single dataset.
+Any other pixel would get browser events only, which is the half that iOS and ad
+blockers eat, and Purchase is the event that dies most. This was live for a month
+with the ad account's pixel in a browser-only extras list: the campaign reported
+no conversions the whole time, while the unused pixel collected clean server-side
+data. That list is gone now — one pixel, so there is no second place for the
+wrong one to hide. If you change `META_PIXEL_ID`, generate a matching token for
+that dataset in the same change, and run `npm run meta:check` to prove it.
 Neither failure is loud: with no token `send()` returns `not_configured` and
 posts nothing, and with a token belonging to another dataset Meta rejects the
 event — both only reach `console.error`, because tracking must never fail an

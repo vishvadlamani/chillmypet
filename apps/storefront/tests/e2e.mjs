@@ -45,16 +45,12 @@ const fbqCalls = () =>
 const tracked = (calls, event) => calls.find((c) => c[0] === 'track' && c[1] === event);
 
 /**
- * PageViews on the page.
- *
- * Every pixel is initialised by the one snippet in app.html, so a single
- * `track('PageView')` reports to all of them — the count is per page view, not
- * per pixel.
+ * PageViews on the page. One per page view: the snippet in app.html fires the
+ * first, and `track('PageView')` fires one per client-side navigation.
  */
 const pageViews = (calls) => calls.filter((c) => c[0] === 'track' && c[1] === 'PageView').length;
 
 const STORE_PIXEL = '1363695699271757';
-const EXTRA_PIXEL = '28272021345717397';
 
 function check(label, cond) {
 	console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}`);
@@ -87,11 +83,13 @@ function check(label, cond) {
 	// Both tags ship server-rendered, on every page, before any JavaScript runs.
 	check('SSR carries the GTM container', /googletagmanager\.com\/gtm\.js/.test(html));
 	check('and its noscript iframe', /ns\.html\?id=GTM-T446VNH9/.test(html));
-	// Advanced matching rides on `init` rather than on the event, so every pixel
-	// applies it to the snippet's PageView and to everything the app fires after.
+	// Advanced matching rides on `init` rather than on the event, so it applies
+	// to the snippet's PageView and to everything the app fires after.
 	const inits = html.match(/fbq\('init', '\d+'(?:, \{.*?\})?\);/g) ?? [];
 	check('SSR initialises the store pixel', inits.some((i) => i.includes(`'${STORE_PIXEL}'`)));
-	check('SSR initialises the second pixel', inits.some((i) => i.includes(`'${EXTRA_PIXEL}'`)));
+	// One pixel, deliberately. A second would take browser events and no CAPI
+	// copy, which is the half iOS and ad blockers eat.
+	check('and only that pixel', inits.length === 1);
 
 	// This request sent no cookies, and it still leaves with an identifier: the
 	// visitor id is minted and set on the same response that renders this. It is
@@ -194,15 +192,11 @@ check('the 3-pack discount is applied', summary?.includes('$12.14'));
 {
 	const calls = await fbqCalls();
 
-	// A second ad account measures the same pages. Both pixels are initialised
-	// by the snippet, so every event above reaches both — and each is
-	// initialised exactly once, since a repeat init resets that pixel's state.
-	check('the second pixel initialises', calls.some((c) => c[0] === 'init' && c[1] === EXTRA_PIXEL));
+	// The snippet initialises it once and the app only ever pushes events onto
+	// it: a repeat init resets that pixel's state, and a second pixel would
+	// collect browser events with no server copy behind them.
 	check('the store pixel is still there', calls.some((c) => c[0] === 'init' && c[1] === STORE_PIXEL));
-	check(
-		'neither pixel is initialised twice',
-		calls.filter((c) => c[0] === 'init').length === 2
-	);
+	check('the pixel is initialised exactly once', calls.filter((c) => c[0] === 'init').length === 1);
 
 	// Every event has a server copy carrying this same id — the SSR snippet's
 	// PageView from hooks.server.ts, the rest through /api/track. Without an id

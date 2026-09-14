@@ -137,6 +137,12 @@ Browser pixel and server-side Conversions API run together, deduplicated.
   injected into `<head>` by `hooks.server.ts`. Both appear in page source anyway.
 - **Secret:** `META_CAPI_ACCESS_TOKEN`, a Worker secret. Never in the repo.
 
+There is **one** pixel. A second would take browser events and no server copy —
+a CAPI token is scoped to a single dataset — so it would report only what iOS
+and ad blockers let through. This store ran that way for a month with the ad
+account's own pixel as the second one, and the campaign showed no conversions
+the entire time.
+
 Events: `PageView` (initial load plus every client-side navigation),
 `ViewContent`, `AddToCart`, `InitiateCheckout`, `Purchase`.
 
@@ -189,9 +195,22 @@ Tracking never affects orders: the CAPI call happens after the order commits,
 dispatches via `waitUntil` so the customer never waits on Meta, and logs rather
 than surfaces failures.
 
-**Verifying.** Set `META_CAPI_TEST_EVENT_CODE` and watch Events Manager > Test
-Events. To inspect the exact payload without contacting Meta, point
-`META_CAPI_ENDPOINT` at a local server and place an order.
+**Verifying.** `npm run meta:check` asks Meta whether the token can actually
+reach `META_PIXEL_ID`, and exits non-zero if not. Run it after changing either.
+It is also a step in `.github/workflows/deploy.yml`, which is what stops a
+mismatched token from reaching production — that step reads
+`META_CAPI_ACCESS_TOKEN` from repository secrets, so add it there or the deploy
+stops on this check.
+
+It exists because neither way of getting this wrong is loud. With no token
+`send()` returns `not_configured` and posts nothing; with a token belonging to
+another dataset Meta rejects every event. Both only reach `console.error`,
+because tracking must never be able to fail an order — so without this the first
+sign is a campaign reporting no conversions, weeks later.
+
+For the payload itself: set `META_CAPI_TEST_EVENT_CODE` and watch Events Manager
+> Test Events, or point `META_CAPI_ENDPOINT` at a local server and place an
+order to inspect the exact body without contacting Meta.
 
 **Before taking EU traffic**, add a consent gate. The pixel currently loads for
 everyone, and GDPR/ePrivacy require prior consent for advertising cookies — all
@@ -289,6 +308,11 @@ npx wrangler secret put TURSO_DATABASE_URL
 npx wrangler secret put TURSO_AUTH_TOKEN
 npx wrangler secret put META_CAPI_ACCESS_TOKEN
 ```
+
+`META_CAPI_ACCESS_TOKEN` also goes in as a **repository** secret, which is the
+copy `npm run meta:check` verifies in CI before a deploy is allowed through.
+Setting it there needs repo admin, not a Cloudflare login. Keep the two in sync:
+the CI check can only vouch for the copy it is given.
 
 ### Pointing a domain at the Worker
 
