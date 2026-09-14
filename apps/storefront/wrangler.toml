@@ -4,7 +4,7 @@ compatibility_date = "2026-08-08"
 compatibility_flags = ["nodejs_compat"]
 
 # A pixel id is public — it ships to the browser by design — so these are vars,
-# not secrets, and the same goes for the GTM container.
+# not secrets.
 #
 # META_PIXEL_ID is the dataset that matters: browser events *and* the server-side
 # Conversions API copy both report to it, so it must be the pixel the ad account
@@ -17,7 +17,6 @@ compatibility_flags = ["nodejs_compat"]
 # the ad account's own pixel sit in the browser-only list for a month.
 [vars]
 META_PIXEL_ID = "1363695699271757"
-GTM_CONTAINER_ID = "GTM-T446VNH9"
 
 [assets]
 directory = ".svelte-kit/cloudflare"

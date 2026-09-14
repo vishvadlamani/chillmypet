@@ -67,28 +67,6 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
 ${noscript}`;
 }
 
-/**
- * Google Tag Manager, on every page.
- *
- * A container is a second place tags can be published from, by whoever holds
- * access to it, and anything it loads runs with the same reach as this file's
- * own code. The id is validated here; note that a Meta pixel published inside
- * the container would double-count against the ones initialised above.
- */
-function gtmSnippet(containerId: string): { head: string; body: string } {
-	if (!/^GTM-[A-Z0-9]{4,12}$/.test(containerId)) return { head: '', body: '' };
-
-	return {
-		head: `<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','${containerId}');</script>`,
-		body: `<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${containerId}"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`
-	};
-}
-
 function verificationTag(token: string): string {
 	if (!/^[A-Za-z0-9_-]{1,128}$/.test(token)) return '';
 	return `<meta name="facebook-domain-verification" content="${token}" />`;
@@ -172,8 +150,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	});
 
-	const gtm = gtmSnippet(env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? '');
-
 	const saved = event.cookies.get(LOCALE_COOKIE);
 	const locale = isLocale(saved)
 		? saved
@@ -208,8 +184,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 				.replace('%lang%', locale)
 				.replace('%dir%', textDirection(locale))
 				.replace('%meta_pixel%', pixelSnippet(pixelId, pageViewEventId, matching))
-				.replace('%gtm_head%', gtm.head)
-				.replace('%gtm_body%', gtm.body)
 				.replace(
 					'%meta_domain_verification%',
 					settings.meta_domain_verification
