@@ -470,7 +470,9 @@ Which methods appear is scoped by `STRIPE_PAYMENT_METHOD_CONFIGURATION`
 (`pmc_1U3QlJBbNuiab9E2mZmVymgE` — card, Apple Pay, Google Pay, Link, Cash App;
 Amazon Pay off). Do **not** change the account default instead: the Stripe
 account is shared with another business, and its default configuration is
-theirs.
+theirs. **That id belongs to the account** — the `BbNuiab9E2` in it is the same
+fragment as `acct_1Au2A6BbNuiab9E2` — so it does not survive a move to a
+different Stripe account. See the account note below.
 
 The form posts `cardReady`. When Stripe.js could not mount — an ad blocker on
 `js.stripe.com` is the usual reason on paid social — it is `0` and the action
@@ -497,9 +499,46 @@ shares production's database — a card test there would be a real charge. With
 temporary arrangement until ChillMyPet has its own. Consequences to keep in
 mind: settlements land in that account, refunds and chargebacks are theirs to
 absorb, and `STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET` exists so buyers recognise
-the charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`. When
-ChillMyPet's own account is ready, swap three secrets and re-point the webhook;
-no code changes.
+the charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`.
+
+Two more consequences worth knowing before they surprise someone. A webhook
+endpoint receives the **whole account's** events, so the other business's
+charges, refunds, disputes and fraud warnings all arrive at
+`/api/stripe/webhook` too. They are refused, but not by the `store_id` tenant
+check — foreign events carry no metadata for it to read. What refuses them is
+`orderRow()` being scoped to `store_id`: no order resolves, the outcome is
+`order_not_found`, and because that is `handled: false` no alert fires and
+nothing is reported to Meta. The `if (!resolved) return` in the fraud-warning
+branch sits *before* the refund call for the same reason — with auto-refund on,
+a foreign warning must not refund someone else's customer.
+
+The other consequence is procedural rather than technical. A dispute against one
+of our orders is answered in that account's dashboard, and a refund comes off
+its balance along with the dispute fee — so the alert reaches us here while the
+response happens there. The account is a friend's, lent deliberately, so this is
+a question of arranging access and agreeing who files the evidence, not a
+barrier. Settle it before the first chargeback rather than during one: the
+evidence window is fixed and short, and the cost of missing it lands on the
+person who lent us the account.
+
+**Moving to ChillMyPet's own account is four values, not three.** Secrets:
+`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY`. Then
+`STRIPE_PAYMENT_METHOD_CONFIGURATION`, which is the one that breaks things
+loudly: the `pmc_...` id is account-scoped, a new account rejects it, and it is
+read in two places — `hooks.server.ts` passes it to the intent *and* to the
+browser's Payment Element — so `createPaymentIntent` fails, the checkout action
+502s, and the form draws the wrong methods. Create the configuration on the new
+account first and swap all four together. Re-point the webhook endpoint, check
+its API version against `STRIPE_API_VERSION`, and confirm the new key carries
+the read scopes the handler needs (below). No code changes.
+
+**If the key is restricted (`rk_`), it needs four read/write scopes** beyond
+creating payments: **Charges: read** and **PaymentIntents: read** (a dispute and
+a fraud warning reference a charge, so the order is recovered by retrieving it),
+**Checkout Sessions: read** (a refund has to exchange a `cs_...` payment row for
+the intent behind it), and **Refunds: write**. Without them those events throw,
+answer 500, and Stripe retries them for days. A shared account is exactly where
+a restricted key is likely, so check this rather than assuming.
 
 `npm run test:payments` drives that whole path against a mock Stripe and a mock
 Conversions API — no account, no keys, nothing charged. Run it for any change to

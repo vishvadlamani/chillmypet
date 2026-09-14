@@ -135,6 +135,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 			? {
 					secretKey: env.STRIPE_SECRET_KEY,
 					webhookSecret: env.STRIPE_WEBHOOK_SECRET,
+					// Which API version our own calls to Stripe are made against.
+					// Unset it defaults to the version the client pins, which is not
+					// necessarily the one the webhook endpoint is registered at — so
+					// events arrive shaped by one version and retrievals come back
+					// shaped by another. Settable rather than pinned here because
+					// moving it changes every request this store makes to Stripe,
+					// including the one that takes the money: verify on staging first.
+					apiVersion: env.STRIPE_API_VERSION,
 					// What the buyer sees on their card statement. Set this when the
 					// Stripe account is not named ChillMyPet, or they will not
 					// recognise the charge and will dispute it. Use the full form
