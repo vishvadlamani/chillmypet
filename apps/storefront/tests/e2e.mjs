@@ -54,7 +54,6 @@ const tracked = (calls, event) => calls.find((c) => c[0] === 'track' && c[1] ===
 const pageViews = (calls) => calls.filter((c) => c[0] === 'track' && c[1] === 'PageView').length;
 
 const STORE_PIXEL = '1363695699271757';
-const EXTRA_PIXEL = '28272021345717397';
 
 function check(label, cond) {
 	console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}`);
@@ -84,7 +83,6 @@ function check(label, cond) {
 
 	// The pixel ships server-rendered, on every page, before any JavaScript runs.
 	check('SSR initialises the store pixel', html.includes("fbq('init', '1363695699271757')"));
-	check('SSR initialises the second pixel', html.includes("fbq('init', '28272021345717397')"));
 }
 
 {
@@ -161,14 +159,13 @@ check('the 3-pack discount is applied', summary?.includes('$12.14'));
 {
 	const calls = await fbqCalls();
 
-	// A second ad account measures the same pages. Both pixels are initialised
-	// by the snippet, so every event above reaches both — and each is
-	// initialised exactly once, since a repeat init resets that pixel's state.
-	check('the second pixel initialises', calls.some((c) => c[0] === 'init' && c[1] === EXTRA_PIXEL));
+	// One pixel, initialised exactly once by the snippet — a repeat init resets
+	// that pixel's state. The loader still takes more through
+	// META_EXTRA_PIXEL_IDS; none are configured.
 	check('the store pixel is still there', calls.some((c) => c[0] === 'init' && c[1] === STORE_PIXEL));
 	check(
-		'neither pixel is initialised twice',
-		calls.filter((c) => c[0] === 'init').length === 2
+		'the pixel is not initialised twice',
+		calls.filter((c) => c[0] === 'init').length === 1
 	);
 
 	// Every event has a server copy carrying this same id — the SSR snippet's

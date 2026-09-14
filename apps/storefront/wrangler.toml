@@ -12,11 +12,14 @@ compatibility_flags = ["nodejs_compat"]
 # pixel. A token belongs to one dataset; pointed at any other pixel, that pixel
 # gets browser events only.
 #
-# META_EXTRA_PIXEL_IDS are additional pixels measuring the same pages,
-# comma-separated. They share the one loader and every event, but get no CAPI.
+# One pixel is live. To add another — a second ad account, an agency — set
+# META_EXTRA_PIXEL_IDS to a comma-separated list: extras share the one loader
+# and every browser event, but get no CAPI. 28272021345717397 sat there until it
+# was retired; it was the old primary, demoted once the Conversions API was
+# pointed at the pixel the ads actually optimise against, and kept afterwards
+# only out of caution.
 [vars]
 META_PIXEL_ID = "1363695699271757"
-META_EXTRA_PIXEL_IDS = "28272021345717397"
 
 [assets]
 directory = ".svelte-kit/cloudflare"

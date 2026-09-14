@@ -102,7 +102,11 @@ the unused pixel collected clean server-side data. If you change
 Neither failure is loud: with no token `send()` returns `not_configured` and
 posts nothing, and with a token belonging to another dataset Meta rejects the
 event — both only reach `console.error`, because tracking must never fail an
-order. Events Manager, not the logs, is where you notice.
+order. Events Manager, not the logs, is where you notice. The pixel demoted by
+that fix, `28272021345717397`, has since been removed from
+`META_EXTRA_PIXEL_IDS` — it was the mistake's leftover, collecting browser
+events nobody read. `META_EXTRA_PIXEL_IDS` is empty and the mechanism stays, so
+a genuine second measurer is still a comma in wrangler.toml.
 
 **The Meta pixel loads directly in the app shell. Never route it through GTM:**
 it breaks browser/server `event_id` deduplication and Meta double-counts
