@@ -138,7 +138,8 @@ Browser pixel and server-side Conversions API run together, deduplicated.
 - **Secret:** `META_CAPI_ACCESS_TOKEN`, a Worker secret. Never in the repo.
 
 Events: `PageView` (initial load plus every client-side navigation),
-`ViewContent`, `AddToCart`, `InitiateCheckout`, `Purchase`.
+`ViewContent`, `AddToCart`, `InitiateCheckout` (once per cart per session, not
+once per view of `/checkout`), `AddPaymentInfo`, `Purchase`.
 
 **Deduplication.** Purchase's `event_id` is derived from the order number by
 `purchaseEventId()` rather than minted per call: the server event fires from the

@@ -140,6 +140,16 @@ order number by `purchaseEventId()`, not minted per call — the server event fi
 from the Stripe webhook and the browser event from the success page, two requests
 that cannot pass a value to each other. Break that and every sale counts twice.
 
+**InitiateCheckout counts checkouts started, not views of `/checkout`.** Its
+guard is keyed on the cart's contents and kept in `sessionStorage`, because the
+cart it describes lives in `localStorage` and outlives the page. A plain
+per-mount `let` was there first, and it counted a reload, a back-navigation and
+the bounce back from Stripe's cancel url as fresh starts on an unchanged cart —
+which is how the dataset came to hold roughly six InitiateCheckouts for every
+AddToCart, a ratio no real funnel produces. Re-entering the page with the same
+lines stays silent; a genuinely different cart, or a new session, fires again.
+`tests/e2e.mjs` reloads `/checkout` and asserts nothing fired.
+
 **A discounted order needs a coupon on the Stripe session.** Line items sum to
 subtotal plus shipping, and `handleWebhook` asserts the session total equals the
 order total — so a bundle order without one is charged the *full* amount and

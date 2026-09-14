@@ -233,10 +233,59 @@
 		cardUnavailable = api === null;
 	}
 
-	let checkoutTracked = false;
+	/**
+	 * One InitiateCheckout per checkout started, not per view of this page.
+	 *
+	 * The guard here used to be a plain `let`, which lives exactly as long as one
+	 * component mount — while the cart it describes sits in localStorage and
+	 * outlives every one of them. So a reload, a back-navigation, and the bounce
+	 * back from Stripe's hosted page (`/checkout?cancelled=`) each reported a
+	 * fresh checkout start on the same unchanged cart, several times over for
+	 * every real one. A campaign optimising on InitiateCheckout then bids against
+	 * a number that is mostly one shopper reloading.
+	 *
+	 * Keyed on what is in the cart and held in sessionStorage instead: re-entering
+	 * this page with the same lines is the same start and stays silent, while a
+	 * genuinely different cart — a second order after one completes, a bundle
+	 * swapped on the product page — is a new start and fires. A new session fires
+	 * again too, which is right: someone coming back tomorrow to finish is
+	 * starting checkout, not continuing this one.
+	 */
+	const INITIATED_KEY = 'checkout-initiated';
+
+	const cartSignature = (lines: PricedLine[]): string =>
+		lines
+			.map((l) => `${l.variantId}:${l.quantity}`)
+			.sort()
+			.join(',');
+
+	// Private mode and a full quota both throw on these. Reporting the event twice
+	// costs a duplicate; refusing to report it loses the event outright — so a
+	// storage failure falls through to firing, which is the behaviour this
+	// replaced.
+	function alreadyInitiated(signature: string): boolean {
+		try {
+			return sessionStorage.getItem(INITIATED_KEY) === signature;
+		} catch {
+			return false;
+		}
+	}
+
+	function markInitiated(signature: string): void {
+		try {
+			sessionStorage.setItem(INITIATED_KEY, signature);
+		} catch {
+			// Nothing to recover: the next mount fires again.
+		}
+	}
+
 	$effect(() => {
-		if (checkoutTracked || !priced || priced.lines.length === 0) return;
-		checkoutTracked = true;
+		if (!priced || priced.lines.length === 0) return;
+		const signature = cartSignature(priced.lines);
+		if (alreadyInitiated(signature)) return;
+		// Marked before firing, so an effect that re-runs on the same cart while
+		// these calls are in flight cannot get past the check above.
+		markInitiated(signature);
 		pixel('InitiateCheckout', {
 			content_type: 'product',
 			content_ids: priced.lines.map((l) => l.sku),
