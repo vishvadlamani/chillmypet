@@ -1,5 +1,5 @@
 import { toAmount, type Commerce, type Order } from 'ecomwithai';
-import { buildFbc } from 'ecomwithai/marketing';
+import type { Identity } from '$lib/server/identity';
 
 /**
  * One Purchase conversion, shared by every path that can report one.
@@ -14,33 +14,12 @@ export function purchaseEventId(orderNumber: string): string {
 	return `purchase-${orderNumber}`;
 }
 
-export type PurchaseAttribution = {
-	/** Meta's browser cookies. Absent when the customer blocks them. */
-	fbp?: string;
-	fbc?: string;
-	clientIpAddress?: string;
-	clientUserAgent?: string;
-};
-
 /**
- * Reads `_fbc`, falling back to minting one from a `fbclid` on the landing URL —
- * Meta matches far better with a click id than without, and the cookie is only
- * set if their script ran.
+ * Whatever the request could tell us about who is buying. The Stripe webhook
+ * has no request of the customer's to read, so it reconstructs the part it
+ * carried through session metadata.
  */
-export function attributionFrom(
-	cookies: { get(name: string): string | undefined },
-	url: URL,
-	headers: Headers,
-	clientIpAddress?: string
-): PurchaseAttribution {
-	const fbclid = url.searchParams.get('fbclid');
-	return {
-		fbp: cookies.get('_fbp'),
-		fbc: cookies.get('_fbc') ?? (fbclid ? buildFbc(fbclid, Date.now()) : undefined),
-		clientIpAddress,
-		clientUserAgent: headers.get('user-agent') ?? undefined
-	};
-}
+export type PurchaseAttribution = Identity;
 
 /**
  * Never throws and never rejects: a marketing pixel must not be able to fail a
@@ -60,6 +39,10 @@ export function sendPurchase(
 			eventName: 'Purchase',
 			eventId: purchaseEventId(order.orderNumber),
 			eventSourceUrl: options.eventSourceUrl,
+			// Attribution spreads last, but it never carries a raw `email` or
+			// `phone` — only hashes, which `buildUserData` drops where the order
+			// already supplied the real thing. A shared device does not get to
+			// relabel someone else's purchase.
 			user: {
 				email: order.email,
 				phone: shipping.phone ?? undefined,

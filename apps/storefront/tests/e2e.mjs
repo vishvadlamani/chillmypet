@@ -67,7 +67,9 @@ function check(label, cond) {
 // output said "Sold out" with no variant selected, which is what crawlers, slow
 // connections and no-JS visitors got. Assert on the raw bytes.
 {
-	const html = await fetch(PRODUCT).then((r) => r.text());
+	const response = await fetch(PRODUCT);
+	const html = await response.text();
+	const setCookies = response.headers.getSetCookie?.().join('\n') ?? '';
 	check('SSR renders the product title', /<title>Dog Life Jacket/.test(html));
 	check('SSR carries a description for search and social', /name="description" content=".{40}/.test(html));
 	check('SSR quotes a price', /\$\d+\.\d{2}/.test(html));
@@ -85,8 +87,37 @@ function check(label, cond) {
 	// Both tags ship server-rendered, on every page, before any JavaScript runs.
 	check('SSR carries the GTM container', /googletagmanager\.com\/gtm\.js/.test(html));
 	check('and its noscript iframe', /ns\.html\?id=GTM-T446VNH9/.test(html));
-	check('SSR initialises the store pixel', html.includes("fbq('init', '1363695699271757')"));
-	check('SSR initialises the second pixel', html.includes("fbq('init', '28272021345717397')"));
+	// Advanced matching rides on `init` rather than on the event, so every pixel
+	// applies it to the snippet's PageView and to everything the app fires after.
+	const inits = html.match(/fbq\('init', '\d+'(?:, \{.*?\})?\);/g) ?? [];
+	check('SSR initialises the store pixel', inits.some((i) => i.includes(`'${STORE_PIXEL}'`)));
+	check('SSR initialises the second pixel', inits.some((i) => i.includes(`'${EXTRA_PIXEL}'`)));
+
+	// This request sent no cookies, and it still leaves with an identifier: the
+	// visitor id is minted and set on the same response that renders this. It is
+	// the only matching signal an anonymous PageView has, which is the whole
+	// reason for it.
+	check(
+		'a first-time visitor already carries a hashed external_id',
+		inits.length > 0 && inits.every((i) => /\{"external_id":"[0-9a-f]{64}"\}/.test(i))
+	);
+	check(
+		'the visitor id is the same one the response sets',
+		/(^|[,;\s])cmp_vid=[0-9a-f-]{36}/.test(setCookies) && /HttpOnly/i.test(setCookies)
+	);
+
+	// Meta reads a 64-character hex string as already hashed and passes it
+	// through. Every value here has to be one, because this is page source: a
+	// raw email in it is readable by every script on the page, by the GTM
+	// container's tags, and by anything that caches the HTML.
+	const matching = inits.flatMap((line) => {
+		const object = line.match(/\{.*\}/)?.[0];
+		return object ? Object.values(JSON.parse(object)) : [];
+	});
+	check(
+		'every advanced-matching value is a digest, never plaintext',
+		matching.length > 0 && matching.every((v) => /^[0-9a-f]{64}$/.test(v))
+	);
 }
 
 {
