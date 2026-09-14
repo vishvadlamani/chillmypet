@@ -196,7 +196,13 @@ dispatches via `waitUntil` so the customer never waits on Meta, and logs rather
 than surfaces failures.
 
 **Verifying.** `npm run meta:check` asks Meta whether the token can actually
-reach `META_PIXEL_ID`, and exits non-zero if not. Run it after changing either.
+post events to `META_PIXEL_ID`, and exits non-zero if not. Run it after changing
+either. It probes the events endpoint with an empty batch: Meta checks
+authorisation before it validates the payload, so a token that is allowed to
+post gets as far as "data must be non-empty" — which proves access while
+sending no event and fabricating no conversion. It deliberately does not read
+the dataset node instead, because that needs a permission a working Conversions
+API token need not hold, and would fail on a token that was never broken.
 It is also a step in `.github/workflows/deploy.yml`, which is what stops a
 mismatched token from reaching production — that step reads
 `META_CAPI_ACCESS_TOKEN` from repository secrets, so add it there or the deploy

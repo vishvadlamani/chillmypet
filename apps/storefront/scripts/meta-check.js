@@ -1,5 +1,5 @@
 /**
- * Proves the Conversions API token belongs to the pixel the ads run on.
+ * Proves the Conversions API token can post events to the pixel the ads run on.
  *
  * This is the check for the failure that cost this store a month. Neither half
  * of it is loud on its own: with no token `send()` returns `not_configured` and
@@ -55,24 +55,53 @@ if (!token) {
 	);
 }
 
-// Asking Meta what the token can reach, rather than trusting that it was pasted
-// against the right pixel. A token scoped to another dataset returns an error
-// here — the same error it would return, once per event, forever, in silence.
-const url = `${endpoint}/${version}/${pixelId}?fields=id,name&access_token=${encodeURIComponent(token)}`;
+// Ask the events endpoint itself, with an empty batch.
+//
+// Reading the dataset node (GET /<id>?fields=id,name) looks like the obvious
+// probe and is the wrong one: that needs permission to *read* the dataset,
+// which a Conversions API token is not required to hold. A token that posts
+// events perfectly well answers that read with "(#100) Missing Permission", so
+// the read would block deploys over a token that was never broken.
+//
+// `data=[]` is refused during payload validation, which Meta only reaches once
+// the token is allowed to post to this dataset — so this proves authorisation
+// while sending no event and fabricating no conversion. The token goes in the
+// body rather than the query string, where it would end up in access logs.
+const url = `${endpoint}/${version}/${pixelId}/events`;
 
 let response;
 let body;
 try {
-	response = await fetch(url);
+	response = await fetch(url, {
+		method: 'POST',
+		headers: { 'content-type': 'application/x-www-form-urlencoded' },
+		body: new URLSearchParams({ data: '[]', access_token: token })
+	});
 	body = await response.json().catch(() => null);
 } catch (error) {
 	fail(`could not reach ${endpoint}.`, String(error));
 }
 
-if (!response.ok) {
-	const message = body?.error?.message ?? `HTTP ${response.status}`;
+const message = body?.error?.message ?? `HTTP ${response.status}`;
+// Reaching "must be non-empty" means the request was authorised and only the
+// payload was rejected. A mock endpoint that accepts the empty batch outright
+// counts too.
+const authorised = response.ok || /non-empty/i.test(message);
+
+if (!authorised) {
+	if (body?.error?.code === 190) {
+		fail(
+			'the token is not a valid access token.',
+			message,
+			'',
+			'Expired, revoked, or mistyped — this one never posted an event and never',
+			'will. Generate a fresh one from Events Manager for this pixel:',
+			`  https://business.facebook.com/events_manager2/list/dataset/${pixelId}/settings`
+		);
+	}
+
 	fail(
-		`the token cannot read pixel ${pixelId}.`,
+		`the token cannot post events to pixel ${pixelId}.`,
 		message,
 		'',
 		'A Conversions API token is scoped to one dataset. If this token belongs to',
@@ -82,16 +111,5 @@ if (!response.ok) {
 	);
 }
 
-// Meta echoes the id it resolved. Identical by construction here, but a
-// redirect or a proxy in front of the endpoint could make it otherwise, and a
-// mismatch is the whole thing this script exists to catch.
-if (body?.id && String(body.id) !== String(pixelId)) {
-	fail(
-		`the token resolved to dataset ${body.id}, not ${pixelId}.`,
-		'Events would be reported to a pixel the ad account does not optimise against.'
-	);
-}
-
-const name = body?.name ? ` "${body.name}"` : '';
-console.log(`PASS  the token belongs to pixel ${pixelId}${name}.`);
+console.log(`PASS  the token can post events to pixel ${pixelId}.`);
 console.log('      Server-side events have somewhere to arrive.');
