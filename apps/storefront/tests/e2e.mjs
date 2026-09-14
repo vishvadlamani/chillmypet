@@ -82,9 +82,7 @@ function check(label, cond) {
 	);
 	check('the page is indexable', !/noindex/.test(html));
 
-	// Both tags ship server-rendered, on every page, before any JavaScript runs.
-	check('SSR carries the GTM container', /googletagmanager\.com\/gtm\.js/.test(html));
-	check('and its noscript iframe', /ns\.html\?id=GTM-T446VNH9/.test(html));
+	// The pixel ships server-rendered, on every page, before any JavaScript runs.
 	check('SSR initialises the store pixel', html.includes("fbq('init', '1363695699271757')"));
 	check('SSR initialises the second pixel', html.includes("fbq('init', '28272021345717397')"));
 }

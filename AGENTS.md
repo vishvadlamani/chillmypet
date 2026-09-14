@@ -104,24 +104,27 @@ posts nothing, and with a token belonging to another dataset Meta rejects the
 event — both only reach `console.error`, because tracking must never fail an
 order. Events Manager, not the logs, is where you notice.
 
-**The dataLayer is the container's whole view of the app.** GTM tags cannot
-reach into the store, so `$lib/analytics/datalayer.ts` pushes GA4 ecommerce
-events — `view_item`, `add_to_cart`, `begin_checkout`, `add_payment_info`,
-`purchase` — beside each Meta event, from the same data. Each push nulls
-`ecommerce` first, because Google's data model merges pushes and the previous
-event's items otherwise leak into the next one; `tests/store-flow.mjs` counts
-the nulls against the payloads to keep that true. `purchase` carries the order
-number as `transaction_id`, which is what GA4 dedupes a re-sent sale on.
-**Do not build a Meta tag on it.** Meta stays on the pixel in `hooks.server.ts`:
-a container-published pixel double-counts against it, and no GTM tag can carry
-the derived Purchase `event_id` that keeps the browser and CAPI halves as one
-sale.
+**The Meta pixel loads directly in the app shell. Never route it through GTM:**
+it breaks browser/server `event_id` deduplication and Meta double-counts
+purchases. `pixelSnippet` in `hooks.server.ts` writes the loader into
+`%meta_pixel%`, which is what lets the SSR PageView carry an id its server half
+can match, and the derived Purchase id survive from the receipt to the webhook.
+A container-published pixel can carry neither, and it would double-count against
+the ids the snippet already initialises. A tag manager was removed from this
+repo for exactly this reason — do not reintroduce one in front of the pixel.
 
-**GTM is a second publishing surface, not just a tag.** `GTM_CONTAINER_ID`
-loads `GTM-T446VNH9` on every page. Anything published inside that container
-runs with the same reach as this codebase, by whoever holds container access —
-and a Meta pixel published in it would double-count against the ones the
-snippet already initialises.
+**The dataLayer has no consumer.** `$lib/analytics/datalayer.ts` still pushes
+GA4 ecommerce events — `view_item`, `add_to_cart`, `begin_checkout`,
+`add_payment_info`, `purchase` — beside each Meta event, from the same data, and
+`tests/store-flow.mjs` still pins their shape. Nothing reads them: the GTM
+container that did was removed and no `gtag.js` loads in its place, so the
+pushes land in an array and stop there. The module is kept because the data
+model is correct and six call sites already produce it — load GA4 directly and
+it measures again. Each push nulls `ecommerce` first, because Google's data
+model merges pushes and the previous event's items otherwise leak into the next
+one; store-flow counts the nulls against the payloads to keep that true.
+`purchase` carries the order number as `transaction_id`, which is what GA4
+dedupes a re-sent sale on.
 
 **Every browser event has a server copy, and they share an `event_id`.**
 `track()` mints one id, hands it to `fbq` as `eventID`, and posts the same id to
