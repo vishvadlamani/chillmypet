@@ -151,6 +151,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 					baseUrl: env.STRIPE_API_BASE
 				}
 			: undefined,
+		payments: {
+			// Radar's early fraud warnings. Refunding on one avoids the dispute fee,
+			// and costs a sale that may well have been real — so it stays off until
+			// somebody decides otherwise, explicitly, with this variable.
+			autoRefundOnFraudWarning: env.STRIPE_AUTO_REFUND_ON_FRAUD_WARNING === 'true'
+		},
 		meta: {
 			pixelId: primaryPixelId,
 			accessToken: env.META_CAPI_ACCESS_TOKEN,

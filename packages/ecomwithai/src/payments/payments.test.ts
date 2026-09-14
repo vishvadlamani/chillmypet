@@ -111,6 +111,11 @@ const seed = await seedProduct(db, 'shop', {
 
 const requests: { path: string; body: string; headers: Record<string, string> }[] = [];
 let sessionCounter = 0;
+let intentCounter = 0;
+// Stripe objects the charge-shaped events only reference, so the test can say
+// what a retrieval finds.
+const charges: Record<string, Record<string, unknown>> = {};
+const intents: Record<string, Record<string, unknown>> = {};
 
 const mockStripe: typeof fetch = async (input, init) => {
 	const url = String(input);
@@ -134,6 +139,47 @@ const mockStripe: typeof fetch = async (input, init) => {
 	}
 	if (path === '/v1/coupons') {
 		return new Response(JSON.stringify({ id: 'coupon_test_1' }), { status: 200 });
+	}
+	if (path === '/v1/payment_intents') {
+		intentCounter += 1;
+		const params = new URLSearchParams(String(init?.body ?? ''));
+		const id = `pi_inline_${intentCounter}`;
+		intents[id] = {
+			id,
+			amount: Number(params.get('amount')),
+			currency: params.get('currency'),
+			status: 'requires_payment_method',
+			metadata: { order_number: params.get('metadata[order_number]'), store_id: 'shop' }
+		};
+		return new Response(JSON.stringify({ ...intents[id], client_secret: `${id}_secret` }), {
+			status: 200
+		});
+	}
+	// A Checkout Session retrieval is how a refund finds the intent behind a
+	// hosted order, and charge/intent retrievals are how a dispute or a fraud
+	// warning finds the order.
+	if (path.startsWith('/v1/checkout/sessions/')) {
+		const id = decodeURIComponent(path.slice('/v1/checkout/sessions/'.length));
+		return new Response(
+			JSON.stringify({
+				id,
+				status: 'complete',
+				payment_intent: id.replace('cs_test_', 'pi_test_')
+			}),
+			{ status: 200 }
+		);
+	}
+	if (path.startsWith('/v1/charges/')) {
+		const id = decodeURIComponent(path.slice('/v1/charges/'.length));
+		return charges[id]
+			? new Response(JSON.stringify(charges[id]), { status: 200 })
+			: new Response(JSON.stringify({ error: { message: `no charge ${id}` } }), { status: 404 });
+	}
+	if (path.startsWith('/v1/payment_intents/')) {
+		const id = decodeURIComponent(path.slice('/v1/payment_intents/'.length));
+		return intents[id]
+			? new Response(JSON.stringify(intents[id]), { status: 200 })
+			: new Response(JSON.stringify({ error: { message: `no intent ${id}` } }), { status: 404 });
 	}
 	if (path === '/v1/refunds') {
 		return new Response(
@@ -324,8 +370,11 @@ check('stock still correct after replay',
 const refund = await payments.refund({ orderNumber: order.orderNumber, reason: 'requested_by_customer' });
 check('refund returns an id', refund.refundId, 're_test_1');
 const refundRequest = requests.find((r) => r.path === '/v1/refunds')!;
-check('refund targets the payment intent',
-	decodeURIComponent(refundRequest.body).includes('payment_intent=cs_test_1'), true);
+// The payment row holds the Checkout Session id on the hosted path, and
+// Stripe's refund endpoint only accepts an intent — so the session has to be
+// exchanged first or every hosted order is unrefundable.
+check('refund targets the payment intent, not the session',
+	decodeURIComponent(refundRequest.body).includes('payment_intent=pi_test_1'), true);
 check('refund is idempotent',
 	refundRequest.headers['idempotency-key'], `refund:shop:${order.orderNumber}:full`);
 
@@ -416,6 +465,318 @@ check('refunded stock returned', (await commerce.catalog.findVariant(seed.produc
 	);
 }
 
+
+// --- the six events the endpoint actually subscribes to ------------------
+// Everything above proves a session that settles immediately. These are the
+// five other ways a payment ends, each of which leaves an order somewhere it
+// cannot get out of on its own if the handler ignores it.
+
+const buy = async (quantity = 1) =>
+	commerce.orders.create({
+		lines: [{ variantId: seed.variantIds['TEE-1'], quantity }],
+		method: 'standard',
+		shipping
+	});
+
+const stockNow = async () => (await commerce.catalog.findVariant(seed.productId, []))?.stock;
+
+// A delayed method completes the session while the money is still clearing.
+{
+	const order = await buy();
+	const session = await payments.startCheckout({
+		orderNumber: order.orderNumber,
+		successUrl: 'https://shop.test/thanks',
+		cancelUrl: 'https://shop.test/cart'
+	});
+	const object = (overrides: Record<string, unknown>) => ({
+		id: session.sessionId,
+		amount_total: order.totalCents,
+		currency: 'usd',
+		metadata: { order_number: order.orderNumber, store_id: 'shop' },
+		...overrides
+	});
+
+	const pending = await webhook({
+		id: 'evt_delayed_open',
+		type: 'checkout.session.completed',
+		data: { object: object({ payment_status: 'unpaid' }) }
+	});
+	check('a completed session that is not paid does not fulfil',
+		pending.handled === true && pending.action, 'payment_pending');
+	check('the order stays pending while the payment clears',
+		(await commerce.orders.byNumber(order.orderNumber))?.status, 'pending_payment');
+
+	const cleared = await webhook({
+		id: 'evt_delayed_cleared',
+		type: 'checkout.session.async_payment_succeeded',
+		data: { object: object({ payment_status: 'paid' }) }
+	});
+	check('the delayed payment clearing is what fulfils',
+		cleared.handled === true && cleared.action, 'order_paid');
+	check('and the order is paid', (await commerce.orders.byNumber(order.orderNumber))?.status, 'paid');
+}
+
+// A delayed method that fails leaves the order holding stock forever.
+{
+	const order = await buy();
+	const before = await stockNow();
+	const failed = await webhook({
+		id: 'evt_delayed_failed',
+		type: 'checkout.session.async_payment_failed',
+		data: {
+			object: {
+				id: 'cs_test_failed',
+				metadata: { order_number: order.orderNumber, store_id: 'shop' }
+			}
+		}
+	});
+	check('a failed delayed payment cancels the order',
+		failed.handled === true && failed.action, 'stock_released:failed');
+	check('the cancelled order is cancelled',
+		(await commerce.orders.byNumber(order.orderNumber))?.status, 'cancelled');
+	check('and its stock comes back', await stockNow(), (before ?? 0) + 1);
+}
+
+// A hosted session produces two events that both mean "paid". Only one of them
+// may fulfil, or the conversion is reported twice and so is anything else the
+// caller hangs off `order_paid`.
+const twiceOrder = await buy();
+{
+	const session = await payments.startCheckout({
+		orderNumber: twiceOrder.orderNumber,
+		successUrl: 'https://shop.test/thanks',
+		cancelUrl: 'https://shop.test/cart'
+	});
+	const first = await webhook({
+		id: 'evt_twice_session',
+		type: 'checkout.session.completed',
+		data: {
+			object: {
+				id: session.sessionId,
+				amount_total: twiceOrder.totalCents,
+				currency: 'usd',
+				payment_status: 'paid',
+				metadata: { order_number: twiceOrder.orderNumber, store_id: 'shop' }
+			}
+		}
+	});
+	check('the session event fulfils', first.handled === true && first.action, 'order_paid');
+
+	const second = await webhook({
+		id: 'evt_twice_intent',
+		type: 'payment_intent.succeeded',
+		data: {
+			object: {
+				id: 'pi_twice',
+				amount_received: twiceOrder.totalCents,
+				currency: 'usd',
+				metadata: { order_number: twiceOrder.orderNumber, store_id: 'shop' }
+			}
+		}
+	});
+	check('the intent event for the same order does not fulfil again',
+		second.handled === true && second.action, 'already_paid');
+}
+
+// Refunds: how much came back decides whether the sale is undone.
+{
+	const charge = {
+		id: 'ch_partial',
+		payment_intent: 'pi_partial',
+		amount: twiceOrder.totalCents,
+		amount_refunded: 500,
+		currency: 'usd',
+		metadata: { order_number: twiceOrder.orderNumber, store_id: 'shop' }
+	};
+	const before = await stockNow();
+	const partial = await webhook({
+		id: 'evt_refund_partial',
+		type: 'charge.refunded',
+		data: { object: charge }
+	});
+	check('a partial refund is recorded as partial',
+		partial.handled === true && partial.action, 'refund_partial');
+	check('the order says so',
+		(await commerce.orders.byNumber(twiceOrder.orderNumber))?.status, 'partially_refunded');
+	check('a partial refund does not restock — the customer still has the goods',
+		await stockNow(), before);
+
+	const full = await webhook({
+		id: 'evt_refund_full',
+		type: 'charge.refunded',
+		data: { object: { ...charge, amount_refunded: twiceOrder.totalCents, refunded: true } }
+	});
+	check('refunding the rest undoes the sale',
+		full.handled === true && full.action, 'stock_released:refunded');
+	check('and that one does restock', await stockNow(), (before ?? 0) + 1);
+}
+
+// A dispute has a deadline, so it has to reach a person with enough to act on.
+{
+	const order = await buy();
+	await payments.startCheckout({
+		orderNumber: order.orderNumber,
+		successUrl: 'https://shop.test/thanks',
+		cancelUrl: 'https://shop.test/cart'
+	});
+	await webhook({
+		id: 'evt_disputed_paid',
+		type: 'payment_intent.succeeded',
+		data: {
+			object: {
+				id: 'pi_disputed',
+				amount_received: order.totalCents,
+				currency: 'usd',
+				metadata: { order_number: order.orderNumber, store_id: 'shop' }
+			}
+		}
+	});
+	charges['ch_disputed'] = {
+		id: 'ch_disputed',
+		payment_intent: 'pi_disputed',
+		amount: order.totalCents,
+		amount_refunded: 0,
+		currency: 'usd',
+		metadata: { order_number: order.orderNumber, store_id: 'shop' }
+	};
+
+	const dispute = await webhook({
+		id: 'evt_dispute',
+		type: 'charge.dispute.created',
+		data: {
+			object: {
+				id: 'dp_1',
+				charge: 'ch_disputed',
+				amount: order.totalCents,
+				currency: 'usd',
+				reason: 'fraudulent',
+				status: 'needs_response',
+				evidence_details: { due_by: 1790000000 }
+			}
+		}
+	});
+	check('a dispute flags the order', dispute.handled === true && dispute.action, 'dispute_opened');
+	check('the order is marked disputed',
+		(await commerce.orders.byNumber(order.orderNumber))?.status, 'disputed');
+	check('the alert carries the evidence deadline',
+		dispute.handled === true && dispute.detail?.includes('evidence due'), true);
+	check('and the reason the bank gave',
+		dispute.handled === true && dispute.detail?.includes('fraudulent'), true);
+}
+
+// An early fraud warning arrives before any dispute, references only a charge,
+// and — on the on-page path — the charge's intent is what the payment row holds.
+{
+	const order = await buy();
+	const intent = await payments.startPayment({ orderNumber: order.orderNumber });
+	await webhook({
+		id: 'evt_efw_paid',
+		type: 'payment_intent.succeeded',
+		data: {
+			object: {
+				id: intent.paymentIntentId,
+				amount_received: order.totalCents,
+				currency: 'usd',
+				metadata: { order_number: order.orderNumber, store_id: 'shop' }
+			}
+		}
+	});
+	// Deliberately no order_number on the charge: this is the path where the
+	// order has to be recovered from the payment row via the intent.
+	charges['ch_efw'] = {
+		id: 'ch_efw',
+		payment_intent: intent.paymentIntentId,
+		amount: order.totalCents,
+		amount_refunded: 0,
+		currency: 'usd',
+		metadata: {}
+	};
+
+	const refundsBefore = requests.filter((r) => r.path === '/v1/refunds').length;
+	const warning = await webhook({
+		id: 'evt_efw',
+		type: 'radar.early_fraud_warning.created',
+		data: { object: { id: 'issfr_1', charge: 'ch_efw', fraud_type: 'made_with_stolen_card', actionable: true } }
+	});
+	check('a fraud warning flags the order', warning.handled === true && warning.action, 'fraud_warning');
+	check('the order was found from the charge alone',
+		warning.handled === true && warning.orderNumber, order.orderNumber);
+	check('the order is marked flagged',
+		(await commerce.orders.byNumber(order.orderNumber))?.status, 'fraud_warning');
+	check('nothing is refunded without an explicit decision',
+		requests.filter((r) => r.path === '/v1/refunds').length, refundsBefore);
+	check('and the alert says so',
+		warning.handled === true && warning.detail?.includes('auto-refund off'), true);
+}
+
+// The same warning, for a store that has opted into refunding on one.
+{
+	const store = (await stores.byId('shop')) as Store;
+	const eager = createCommerce({
+		db,
+		store,
+		stripe: { secretKey: 'sk_test_x', webhookSecret: SECRET, fetch: mockStripe },
+		payments: { autoRefundOnFraudWarning: true }
+	});
+	const order = await eager.orders.create({
+		lines: [{ variantId: seed.variantIds['TEE-1'], quantity: 1 }],
+		method: 'standard',
+		shipping
+	});
+	const intent = await eager.payments!.startPayment({ orderNumber: order.orderNumber });
+	const eagerHook = async (event: unknown) => {
+		const raw = JSON.stringify(event);
+		return eager.payments!.handleWebhook(
+			raw,
+			await signStripePayload(SECRET, raw, Math.floor(Date.now() / 1000))
+		);
+	};
+	await eagerHook({
+		id: 'evt_efw2_paid',
+		type: 'payment_intent.succeeded',
+		data: {
+			object: {
+				id: intent.paymentIntentId,
+				amount_received: order.totalCents,
+				currency: 'usd',
+				metadata: { order_number: order.orderNumber, store_id: 'shop' }
+			}
+		}
+	});
+	charges['ch_efw2'] = {
+		id: 'ch_efw2',
+		payment_intent: intent.paymentIntentId,
+		amount: order.totalCents,
+		amount_refunded: 0,
+		currency: 'usd',
+		metadata: { order_number: order.orderNumber, store_id: 'shop' }
+	};
+
+	const refundsBefore = requests.filter((r) => r.path === '/v1/refunds').length;
+	const warning = await eagerHook({
+		id: 'evt_efw2',
+		type: 'radar.early_fraud_warning.created',
+		data: { object: { id: 'issfr_2', charge: 'ch_efw2', fraud_type: 'made_with_stolen_card' } }
+	});
+	check('with the flag on, the warning refunds',
+		requests.filter((r) => r.path === '/v1/refunds').length, refundsBefore + 1);
+	check('the refund is marked fraudulent',
+		decodeURIComponent(requests.filter((r) => r.path === '/v1/refunds').pop()?.body ?? '')
+			.includes('reason=fraudulent'), true);
+	check('and the order is still flagged for a person to look at',
+		warning.handled === true && warning.action, 'fraud_warning');
+}
+
+// Redelivery of any of them is a no-op — Stripe retries all six the same way.
+{
+	const replayed = await webhook({
+		id: 'evt_dispute',
+		type: 'charge.dispute.created',
+		data: { object: { id: 'dp_1', charge: 'ch_disputed', amount: 100, currency: 'usd' } }
+	});
+	check('a redelivered dispute is recognised as a duplicate',
+		replayed.handled === false && replayed.reason, 'duplicate');
+}
 
 db.close();
 await rm(dir, { recursive: true, force: true });

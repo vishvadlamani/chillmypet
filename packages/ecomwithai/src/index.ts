@@ -76,6 +76,7 @@ export {
 	StripeError,
 	type StripeConfig
 } from './payments/index.ts';
+export type { Charge, PaymentIntent, CheckoutSession } from './payments/stripe.ts';
 
 export type Commerce = {
 	db: Client;
@@ -116,6 +117,17 @@ export type CommerceConfig = {
 	meta?: Omit<MetaConfig, 'pixelId'> & { pixelId?: string };
 	/** Supply to enable payments. Without it `commerce.payments` is null. */
 	stripe?: StripeConfig;
+	/** How payments behave, as opposed to how to reach the provider. */
+	payments?: {
+		/** Whether a refund returns the goods to stock. Defaults to true. */
+		restockOnRefund?: boolean;
+		/**
+		 * Refund automatically on an early fraud warning. Off by default: a
+		 * warning is a suspicion, and taking a paying customer's order away on
+		 * one is a decision a person makes.
+		 */
+		autoRefundOnFraudWarning?: boolean;
+	};
 };
 
 export function createCommerce(config: CommerceConfig): Commerce {
@@ -145,7 +157,15 @@ export function createCommerce(config: CommerceConfig): Commerce {
 	const meta = pixelId ? createMetaService({ ...config.meta, pixelId }) : null;
 
 	const payments = config.stripe
-		? createStripePayments({ db, storeId, orders, catalog, config: config.stripe })
+		? createStripePayments({
+				db,
+				storeId,
+				orders,
+				catalog,
+				config: config.stripe,
+				restockOnRefund: config.payments?.restockOnRefund,
+				autoRefundOnFraudWarning: config.payments?.autoRefundOnFraudWarning
+			})
 		: null;
 
 	return {

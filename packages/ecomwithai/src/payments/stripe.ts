@@ -105,6 +105,24 @@ export type CheckoutSession = {
 	currency: string | null;
 };
 
+export type Charge = {
+	id: string;
+	paymentIntentId: string | null;
+	amount: number | null;
+	amountRefunded: number | null;
+	currency: string | null;
+	refunded: boolean;
+	metadata: Record<string, string>;
+};
+
+export type PaymentIntent = {
+	id: string;
+	amount: number | null;
+	currency: string | null;
+	status: string;
+	metadata: Record<string, string>;
+};
+
 export interface StripeClient {
 	createCheckoutSession(input: {
 		order: Order;
@@ -121,6 +139,13 @@ export interface StripeClient {
 		metadata?: Record<string, string>;
 	}): Promise<CheckoutSession>;
 	getCheckoutSession(id: string): Promise<CheckoutSession>;
+	/**
+	 * Charge-shaped events (`charge.refunded`, `charge.dispute.created`) and
+	 * `radar.early_fraud_warning.created` reference a charge rather than
+	 * carrying the order, so reaching the order means retrieving it.
+	 */
+	getCharge(id: string): Promise<Charge>;
+	getPaymentIntent(id: string): Promise<PaymentIntent>;
 	/**
 	 * A payment intent for the order total, for mounting Stripe's Payment
 	 * Element directly in your own checkout form. Unlike a Checkout Session
@@ -169,6 +194,47 @@ function toSession(body: Record<string, unknown>): CheckoutSession {
 			? null
 			: Number(body.amount_total),
 		currency: body.currency === null || body.currency === undefined ? null : String(body.currency)
+	};
+}
+
+/** Stripe returns metadata values as strings; anything else is not ours. */
+function toMetadata(value: unknown): Record<string, string> {
+	if (!value || typeof value !== 'object') return {};
+	const out: Record<string, string> = {};
+	for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+		if (typeof val === 'string') out[key] = val;
+	}
+	return out;
+}
+
+function toCharge(body: Record<string, unknown>): Charge {
+	const intent = body.payment_intent;
+	return {
+		id: String(body.id),
+		paymentIntentId:
+			intent === null || intent === undefined
+				? null
+				: typeof intent === 'string'
+					? intent
+					: String((intent as { id?: unknown }).id ?? ''),
+		amount: body.amount === null || body.amount === undefined ? null : Number(body.amount),
+		amountRefunded:
+			body.amount_refunded === null || body.amount_refunded === undefined
+				? null
+				: Number(body.amount_refunded),
+		currency: body.currency === null || body.currency === undefined ? null : String(body.currency),
+		refunded: body.refunded === true,
+		metadata: toMetadata(body.metadata)
+	};
+}
+
+function toIntent(body: Record<string, unknown>): PaymentIntent {
+	return {
+		id: String(body.id),
+		amount: body.amount === null || body.amount === undefined ? null : Number(body.amount),
+		currency: body.currency === null || body.currency === undefined ? null : String(body.currency),
+		status: String(body.status ?? ''),
+		metadata: toMetadata(body.metadata)
 	};
 }
 
@@ -363,6 +429,14 @@ export function createStripeClient(config: StripeConfig): StripeClient {
 
 		async getCheckoutSession(id) {
 			return toSession(await request('GET', `/v1/checkout/sessions/${encodeURIComponent(id)}`));
+		},
+
+		async getCharge(id) {
+			return toCharge(await request('GET', `/v1/charges/${encodeURIComponent(id)}`));
+		},
+
+		async getPaymentIntent(id) {
+			return toIntent(await request('GET', `/v1/payment_intents/${encodeURIComponent(id)}`));
 		},
 
 		async refund({ paymentIntentId, amountCents, reason, idempotencyKey }) {

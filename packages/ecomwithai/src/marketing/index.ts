@@ -127,6 +127,40 @@ export function createMetaService(config: MetaConfig): MetaService {
 					console.error('Meta CAPI rejected event', response.status, parsed);
 					return { sent: false, reason: 'request_failed', detail: `HTTP ${response.status}` };
 				}
+
+				// A 200 is not proof the event landed. Meta reports per-event problems
+				// inside a successful response — a rejected event comes back as
+				// `events_received: 0`, and a droppable one (an unhashed field, an
+				// unknown parameter) as a `messages` entry. Checking `response.ok`
+				// alone is how a dataset ends up silently receiving nothing, which
+				// only ever shows up as missing conversions weeks later.
+				const report = (parsed ?? {}) as {
+					events_received?: unknown;
+					messages?: unknown;
+					error?: unknown;
+					fbtrace_id?: unknown;
+				};
+				const messages = Array.isArray(report.messages) ? report.messages : [];
+				if (messages.length > 0) {
+					console.error('Meta CAPI warned about the event', event.eventName, messages);
+				}
+				if (report.error) {
+					console.error('Meta CAPI returned an error in a 200', event.eventName, report.error);
+					return { sent: false, reason: 'request_failed', detail: 'error in a 200 response' };
+				}
+				// Absent means an endpoint that does not report a count (a gateway, a
+				// proxy, a test capture): only a count that is present and zero is a
+				// rejection.
+				if (report.events_received !== undefined && Number(report.events_received) < 1) {
+					console.error(
+						'Meta CAPI accepted nothing',
+						event.eventName,
+						event.eventId,
+						report.fbtrace_id ?? ''
+					);
+					return { sent: false, reason: 'request_failed', detail: 'events_received 0' };
+				}
+
 				return { sent: true, response: parsed };
 			} catch (error) {
 				console.error('Meta CAPI request failed', error);

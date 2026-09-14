@@ -32,6 +32,9 @@ function check(label, cond, detail) {
 // Only the two calls the checkout path makes. Records them so the test can
 // assert on what we actually sent, which is where the real bugs live.
 const seen = [];
+// Stripe objects the charge-shaped events only point at.
+const charges = {};
+const intents = {};
 const mock = createServer((req, res) => {
 	let body = '';
 	req.on('data', (c) => (body += c));
@@ -40,6 +43,20 @@ const mock = createServer((req, res) => {
 		if (req.url === '/v1/coupons') {
 			res.writeHead(200, { 'content-type': 'application/json' });
 			res.end(JSON.stringify({ id: 'coupon_mock_1' }));
+			return;
+		}
+		// A dispute and an early fraud warning reference a charge rather than
+		// carrying the order, so the handler retrieves it to find the order.
+		if (req.url.startsWith('/v1/charges/')) {
+			const id = decodeURIComponent(req.url.slice('/v1/charges/'.length));
+			res.writeHead(charges[id] ? 200 : 404, { 'content-type': 'application/json' });
+			res.end(JSON.stringify(charges[id] ?? { error: { message: `no charge ${id}` } }));
+			return;
+		}
+		if (req.url.startsWith('/v1/payment_intents/')) {
+			const id = decodeURIComponent(req.url.slice('/v1/payment_intents/'.length));
+			res.writeHead(intents[id] ? 200 : 404, { 'content-type': 'application/json' });
+			res.end(JSON.stringify(intents[id] ?? { error: { message: `no intent ${id}` } }));
 			return;
 		}
 		if (req.url === '/v1/payment_intents') {
@@ -105,6 +122,11 @@ const capiPurchases = () =>
 
 const settle = () => new Promise((r) => setTimeout(r, 2000));
 
+// The webhook is a request from Stripe, so anything Meta matches on has to be
+// captured from the buyer's own request and carried through. A recognisable
+// value here is what makes that round trip assertable.
+const UA = 'Mozilla/5.0 (payflow-test) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36';
+
 // --- place an order --------------------------------------------------------
 const product = await fetch(`${BASE}/products/dog-life-jacket`).then((r) => r.text());
 // The page ships a variant index for the host's own submit handler — colour to
@@ -133,6 +155,7 @@ const placed = await fetch(`${BASE}/checkout`, {
 	headers: {
 		'content-type': 'application/x-www-form-urlencoded',
 		origin: BASE,
+		'user-agent': UA,
 		cookie: '_fbp=fb.1.1700000000000.1234567890; _fbc=fb.1.1700000000000.testclickid'
 	},
 	body: form
@@ -171,6 +194,17 @@ if (sessionCall) {
 		'meta click identifiers ride along for the webhook',
 		p.get('metadata[fbp]') === 'fb.1.1700000000000.1234567890' &&
 			p.get('metadata[fbc]') === 'fb.1.1700000000000.testclickid'
+	);
+	check(
+		'so do the buyer\'s IP and user agent',
+		Boolean(p.get('metadata[client_ip]')) && p.get('metadata[client_ua]') === UA,
+		`ip=${p.get('metadata[client_ip]')} ua=${p.get('metadata[client_ua]')}`
+	);
+	check(
+		'and nothing exceeds what Stripe stores in a metadata value',
+		[...p.entries()]
+			.filter(([k]) => k.startsWith('metadata['))
+			.every(([, v]) => v.length <= 500)
 	);
 	check('the secret key is sent as a bearer token', sessionCall.auth.startsWith('Bearer sk_'));
 	check(
@@ -211,12 +245,14 @@ if (sessionCall) {
 					client_reference_id: orderNumber,
 					amount_total: amountTotal,
 					currency: 'usd',
-					metadata: {
-						store_id: 'chillmypet',
-						order_number: orderNumber,
-						fbp: 'fb.1.1700000000000.1234567890',
-						fbc: 'fb.1.1700000000000.testclickid'
-					}
+					// Echoed exactly as Stripe echoes it, off the create call above,
+					// so the round trip being asserted is the real one rather than
+					// a fixture that happens to agree with the handler.
+					metadata: Object.fromEntries(
+						[...p.entries()]
+							.filter(([k]) => k.startsWith('metadata['))
+							.map(([k, v]) => [k.slice('metadata['.length, -1), v])
+					)
 				}
 			}
 		});
@@ -285,6 +321,20 @@ if (sessionCall) {
 			'address fields from our own order row are matched on',
 			Boolean(purchase.user_data?.zp && purchase.user_data?.ct && purchase.user_data?.ln),
 			'advanced matching lost the address when Purchase moved to the webhook'
+		);
+		check(
+			'the browser IP and user agent survived too, unhashed',
+			purchase.user_data?.client_user_agent === UA &&
+				Boolean(purchase.user_data?.client_ip_address),
+			JSON.stringify({
+				ua: purchase.user_data?.client_user_agent,
+				ip: purchase.user_data?.client_ip_address
+			})
+		);
+		check(
+			'and Stripe\'s own address is not what got reported',
+			!/Stripe/i.test(purchase.user_data?.client_user_agent ?? ''),
+			'the webhook request\'s own user agent reached Meta'
 		);
 	}
 
@@ -475,6 +525,288 @@ if (sessionCall) {
 			`${purchase?.custom_data?.value} vs ${(Number(p.get('amount')) / 100).toFixed(2)}`
 		);
 	}
+}
+
+// --- the other five events the endpoint subscribes to ---------------------
+// Each one leaves an order somewhere it cannot get out of on its own if the
+// handler ignores it, and two of them are the ones that cost money.
+{
+	const post = async (event) => {
+		const body = JSON.stringify(event);
+		const ts = Math.floor(Date.now() / 1000);
+		const sig = createHmac('sha256', WEBHOOK_SECRET).update(`${ts}.${body}`).digest('hex');
+		const response = await fetch(`${BASE}/api/stripe/webhook`, {
+			method: 'POST',
+			headers: {
+				'content-type': 'application/json',
+				'stripe-signature': `t=${ts},v1=${sig}`
+			},
+			body
+		});
+		return { status: response.status, outcome: await response.json().catch(() => null) };
+	};
+
+	const place = async (submissionId) => {
+		const body = new URLSearchParams({
+			email: 'events@example.com',
+			firstName: 'Event',
+			lastName: 'Case',
+			address1: '3 Test St',
+			city: 'Lisbon',
+			province: 'CA',
+			postalCode: '94103',
+			country: 'US',
+			method: 'standard',
+			cardReady: '0',
+			submissionId,
+			lines: JSON.stringify([{ variantId: variant, quantity: 1 }])
+		});
+		await fetch(`${BASE}/checkout`, {
+			method: 'POST',
+			redirect: 'manual',
+			headers: { 'content-type': 'application/x-www-form-urlencoded', origin: BASE },
+			body
+		});
+		const session = seen.filter((c) => c.path === '/v1/checkout/sessions').pop();
+		const params = new URLSearchParams(session.body);
+		return {
+			orderNumber: params.get('client_reference_id'),
+			amountTotal: [...params.entries()]
+				.filter(([k]) => /^line_items\[\d+\]\[price_data\]\[unit_amount\]$/.test(k))
+				.reduce((sum, [k, v]) => {
+					const index = k.match(/^line_items\[(\d+)\]/)[1];
+					return sum + Number(v) * Number(params.get(`line_items[${index}][quantity]`) ?? 1);
+				}, 0)
+		};
+	};
+
+	// A delayed payment method completes the session while the money is still
+	// clearing. Fulfilling there ships goods against a payment that can fail.
+	const delayed = await place(`delayed-${RUN}`);
+	const pending = await post({
+		id: `evt_unpaid_${RUN}`,
+		type: 'checkout.session.completed',
+		data: {
+			object: {
+				id: 'cs_test_mock_1',
+				client_reference_id: delayed.orderNumber,
+				amount_total: delayed.amountTotal,
+				currency: 'usd',
+				payment_status: 'unpaid',
+				metadata: { store_id: 'chillmypet', order_number: delayed.orderNumber }
+			}
+		}
+	});
+	check(
+		'a completed session that is not paid does not fulfil',
+		pending.status === 200 && pending.outcome?.action === 'payment_pending',
+		JSON.stringify(pending.outcome)
+	);
+	const stillProcessing = await fetch(
+		`${BASE}/checkout/success?order=${encodeURIComponent(delayed.orderNumber)}`
+	).then((r) => r.text());
+	check(
+		'and the receipt still says processing',
+		!/Payment received/i.test(stillProcessing),
+		'an order whose payment had not cleared rendered as paid'
+	);
+
+	await settle();
+	const beforeFailure = capiPurchases().length;
+
+	// ...and when it never clears, the order has to be let go of. Without this
+	// it holds stock forever and the customer never hears anything.
+	const failed = await post({
+		id: `evt_failed_${RUN}`,
+		type: 'checkout.session.async_payment_failed',
+		data: {
+			object: {
+				id: 'cs_test_mock_1',
+				client_reference_id: delayed.orderNumber,
+				metadata: { store_id: 'chillmypet', order_number: delayed.orderNumber }
+			}
+		}
+	});
+	check(
+		'a failed delayed payment cancels the order and returns its stock',
+		failed.status === 200 && failed.outcome?.action === 'stock_released:failed',
+		JSON.stringify(failed.outcome)
+	);
+
+	await settle();
+	check(
+		'none of that reported a conversion',
+		capiPurchases().length === beforeFailure,
+		'a payment that never arrived was reported as a sale'
+	);
+
+	// A paid order to run the money-losing events against.
+	const sold = await place(`sold-${RUN}`);
+	const paid = await post({
+		id: `evt_sold_${RUN}`,
+		type: 'checkout.session.completed',
+		data: {
+			object: {
+				id: 'cs_test_mock_1',
+				client_reference_id: sold.orderNumber,
+				amount_total: sold.amountTotal,
+				currency: 'usd',
+				payment_status: 'paid',
+				metadata: { store_id: 'chillmypet', order_number: sold.orderNumber }
+			}
+		}
+	});
+	check('the paid session fulfils', paid.outcome?.action === 'order_paid', JSON.stringify(paid.outcome));
+
+	await settle();
+	const afterSale = capiPurchases().length;
+
+	// A hosted session produces `payment_intent.succeeded` as well, because the
+	// session copies its metadata onto the intent. Both mean the same sale, so
+	// only the first may fulfil — otherwise every hosted order is reported twice.
+	const second = await post({
+		id: `evt_sold_intent_${RUN}`,
+		type: 'payment_intent.succeeded',
+		data: {
+			object: {
+				id: `pi_sold_${RUN}`,
+				amount_received: sold.amountTotal,
+				currency: 'usd',
+				metadata: { store_id: 'chillmypet', order_number: sold.orderNumber }
+			}
+		}
+	});
+	check(
+		'the intent event for an order already paid does not fulfil again',
+		second.status === 200 && second.outcome?.action === 'already_paid',
+		JSON.stringify(second.outcome)
+	);
+	await settle();
+	check(
+		'and reports no second conversion for the one sale',
+		capiPurchases().length === afterSale,
+		`${capiPurchases().length - afterSale} extra Purchase event(s)`
+	);
+
+	// The charge behind that order, for the two events that only reference one.
+	charges[`ch_${RUN}`] = {
+		id: `ch_${RUN}`,
+		payment_intent: `pi_sold_${RUN}`,
+		amount: sold.amountTotal,
+		amount_refunded: 0,
+		currency: 'usd',
+		metadata: { store_id: 'chillmypet', order_number: sold.orderNumber }
+	};
+
+	const warning = await post({
+		id: `evt_efw_${RUN}`,
+		type: 'radar.early_fraud_warning.created',
+		data: {
+			object: {
+				id: `issfr_${RUN}`,
+				charge: `ch_${RUN}`,
+				fraud_type: 'made_with_stolen_card',
+				actionable: true
+			}
+		}
+	});
+	check(
+		'an early fraud warning finds the order from the charge alone',
+		warning.status === 200 && warning.outcome?.action === 'fraud_warning',
+		JSON.stringify(warning.outcome)
+	);
+	check(
+		'and nothing is refunded without an explicit decision',
+		(warning.outcome?.detail ?? '').includes('auto-refund off'),
+		warning.outcome?.detail
+	);
+
+	const dispute = await post({
+		id: `evt_dispute_${RUN}`,
+		type: 'charge.dispute.created',
+		data: {
+			object: {
+				id: `dp_${RUN}`,
+				charge: `ch_${RUN}`,
+				amount: sold.amountTotal,
+				currency: 'usd',
+				reason: 'fraudulent',
+				status: 'needs_response',
+				evidence_details: { due_by: Math.floor(Date.now() / 1000) + 10 * 86400 }
+			}
+		}
+	});
+	check(
+		'a dispute flags the order',
+		dispute.status === 200 && dispute.outcome?.action === 'dispute_opened',
+		JSON.stringify(dispute.outcome)
+	);
+	check(
+		'with the evidence deadline in the alert',
+		(dispute.outcome?.detail ?? '').includes('evidence due'),
+		dispute.outcome?.detail
+	);
+
+	const partial = await post({
+		id: `evt_partial_${RUN}`,
+		type: 'charge.refunded',
+		data: {
+			object: {
+				id: `ch_${RUN}`,
+				payment_intent: `pi_sold_${RUN}`,
+				amount: sold.amountTotal,
+				amount_refunded: 500,
+				currency: 'usd',
+				metadata: { store_id: 'chillmypet', order_number: sold.orderNumber }
+			}
+		}
+	});
+	check(
+		'a partial refund is not treated as the sale being undone',
+		partial.status === 200 && partial.outcome?.action === 'refund_partial',
+		JSON.stringify(partial.outcome)
+	);
+
+	const full = await post({
+		id: `evt_full_${RUN}`,
+		type: 'charge.refunded',
+		data: {
+			object: {
+				id: `ch_${RUN}`,
+				payment_intent: `pi_sold_${RUN}`,
+				amount: sold.amountTotal,
+				amount_refunded: sold.amountTotal,
+				refunded: true,
+				currency: 'usd',
+				metadata: { store_id: 'chillmypet', order_number: sold.orderNumber }
+			}
+		}
+	});
+	check(
+		'refunding the rest does undo it',
+		full.status === 200 && full.outcome?.action === 'stock_released:refunded',
+		JSON.stringify(full.outcome)
+	);
+
+	await settle();
+	check(
+		'and none of the five reported a conversion',
+		capiPurchases().length === afterSale,
+		'a refund, a dispute or a fraud warning was reported to Meta as a sale'
+	);
+
+	// An event type the store does not handle must still answer 2xx. A 500 buys
+	// days of retries for something nobody was going to read.
+	const unknown = await post({
+		id: `evt_unknown_${RUN}`,
+		type: 'customer.subscription.updated',
+		data: { object: { id: 'sub_1' } }
+	});
+	check(
+		'an unrecognised event type is answered, not retried',
+		unknown.status === 200 && unknown.outcome?.reason === 'ignored',
+		`${unknown.status} ${JSON.stringify(unknown.outcome)}`
+	);
 }
 
 mock.close();

@@ -192,13 +192,38 @@ has one configured, so an account already at Stripe's 22-character limit needs
 the full form.
 
 Point a Stripe webhook endpoint at `https://<domain>/api/stripe/webhook` and
-subscribe it to `checkout.session.completed`, `checkout.session.expired` and
-`charge.refunded`.
+subscribe it to the seven events below. Six are how a payment ends; the seventh
+is the one the on-page card form settles on.
 
-With keys set, the checkout action creates the order, then redirects to Stripe's
-hosted page; the customer returns to `/checkout/success`, which reads the payment
-row rather than trusting the query string, and shows "processing" until the
-webhook confirms. **No card details reach this application either way.**
+| Event | What it means here |
+|---|---|
+| `checkout.session.completed` | Hosted page paid — or, for a delayed method, *not* paid yet; `payment_status` decides. |
+| `payment_intent.succeeded` | **The on-page Payment Element's only signal.** That flow creates no session, so without this subscription an order placed on the inline form never becomes paid. |
+| `checkout.session.async_payment_succeeded` | A delayed payment cleared. Fulfil now. |
+| `checkout.session.async_payment_failed` | It never cleared. Cancel and return the stock. |
+| `charge.refunded` | Some or all of the money went back — the amounts decide which. |
+| `charge.dispute.created` | A chargeback, with an evidence deadline. Alerts. |
+| `radar.early_fraud_warning.created` | The issuer flagged the card before any dispute. Alerts. |
+
+An order becomes paid exactly once regardless of how many of these report it:
+the transition is a conditional write on the order row, so a hosted session's
+two events (it copies its metadata onto the intent, so both resolve to the same
+order) settle it once and the second answers `already_paid`.
+
+With keys set, the checkout action creates the order and answers with a payment
+intent for the card fields already on the page — or, when those could not mount,
+redirects to Stripe's hosted page. Either way the customer lands on
+`/checkout/success`, which reads the payment row rather than trusting the query
+string, and shows "processing" until the webhook confirms. **No card details
+reach this application.**
+
+A dispute and a fraud warning both have a clock on them, so they are announced
+rather than logged: set `ALERT_WEBHOOK_URL` to a Slack- or Discord-shaped
+incoming webhook. Unset, they still reach the Worker log, which is a floor and
+not a mechanism. Refunding automatically on a fraud warning is available behind
+`STRIPE_AUTO_REFUND_ON_FRAUD_WARNING=true` and off by default — it avoids the
+dispute fee, and takes an order away from a customer on the issuer's suspicion
+alone.
 
 The conversion is reported when the payment settles, not when the order row is
 written — otherwise every abandoned checkout is a sale as far as Meta is
@@ -213,8 +238,10 @@ npm run test:payments   # whole flow against a mock Stripe and a mock CAPI
 That test needs no Stripe account and charges nothing. It asserts the things
 that are expensive to get wrong: an unsigned webhook is refused, a redelivery is
 a no-op, underpayment does not settle an order, an unpaid order never renders as
-paid, and the confirmation page — reachable by guessing an order number — shows
-a receipt and not an address.
+paid, a session that completes before the money clears does not fulfil, a
+partial refund is not mistaken for the sale being undone, one sale is never
+reported to Meta twice, and the confirmation page — reachable by guessing an
+order number — shows a receipt and not an address.
 
 Tax (EU VAT/OSS, US nexus) is still unhandled; use Stripe Tax rather than
 building it.

@@ -43,6 +43,50 @@ export function attributionFrom(
 }
 
 /**
+ * Stripe caps a metadata value at 500 characters and a session at 50 keys.
+ * A user agent is the only one of these that comes close.
+ */
+const METADATA_VALUE_LIMIT = 500;
+
+/**
+ * The browser context, packed for the round trip through Stripe.
+ *
+ * All four of these have to be read from the customer's own request, because
+ * the webhook that reports the conversion is a request from Stripe's servers:
+ * its IP is a Stripe datacenter and its user agent is `Stripe/1.0`, and sending
+ * those as the buyer's is worse than sending nothing — Meta matches them
+ * against every other sale and the whole dataset's match quality drops.
+ */
+export function attributionMetadata(attribution: PurchaseAttribution): Record<string, string> {
+	const entries: [string, string | undefined][] = [
+		['fbp', attribution.fbp],
+		['fbc', attribution.fbc],
+		['client_ip', attribution.clientIpAddress],
+		['client_ua', attribution.clientUserAgent]
+	];
+
+	const metadata: Record<string, string> = {};
+	for (const [key, value] of entries) {
+		if (value) metadata[key] = value.slice(0, METADATA_VALUE_LIMIT);
+	}
+	return metadata;
+}
+
+/** The same four, coming back off a Stripe object in the webhook. */
+export function attributionFromMetadata(metadata: Record<string, unknown>): PurchaseAttribution {
+	const read = (key: string) => {
+		const value = metadata[key];
+		return typeof value === 'string' && value ? value : undefined;
+	};
+	return {
+		fbp: read('fbp'),
+		fbc: read('fbc'),
+		clientIpAddress: read('client_ip'),
+		clientUserAgent: read('client_ua')
+	};
+}
+
+/**
  * Never throws and never rejects: a marketing pixel must not be able to fail a
  * paid order. Callers dispatch this through `waitUntil` so the customer never
  * waits on Meta.

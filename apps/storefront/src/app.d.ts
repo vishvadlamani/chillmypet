@@ -26,6 +26,10 @@ declare global {
 				META_CAPI_ACCESS_TOKEN?: string;
 				STRIPE_SECRET_KEY?: string;
 				STRIPE_WEBHOOK_SECRET?: string;
+				/** 'true' opts into refunding on a Radar early fraud warning. */
+				STRIPE_AUTO_REFUND_ON_FRAUD_WARNING?: string;
+				/** Where a dispute or fraud warning is announced. Slack-shaped. */
+				ALERT_WEBHOOK_URL?: string;
 				DEFAULT_STORE_ID?: string;
 			};
 			context?: {

@@ -148,10 +148,74 @@ single-use coupon for exactly `order.discountCents`. If you add another kind of
 discount, it goes through the same path or it reintroduces this.
 
 **A conversion is reported when money moves, not when a row is written.** With
-payments on, Purchase fires from the webhook on `action === 'order_paid'` — a
-branch the framework only returns once, guarded by the event-id dedup table.
-Reporting at order creation counts every abandoned checkout as a sale, and Meta
-optimizes spend against whatever you tell it.
+payments on, Purchase fires from the webhook on `action === 'order_paid'`, and
+that action is returned by exactly one event per order. Two guards make that
+true and both are load-bearing: the `payment_events` unique constraint stops the
+*same* event applying twice, and a conditional write —
+`update orders set status = 'paid' where … and status <> 'paid'` — stops two
+*different* events both claiming the sale. The second one is what a hosted
+Checkout Session needs, because it produces `checkout.session.completed` **and**
+`payment_intent.succeeded` and the session copies its metadata onto the intent,
+so both resolve to the same order. The loser comes back `already_paid` and
+reports nothing. Reporting at order creation instead counts every abandoned
+checkout as a sale, and Meta optimizes spend against whatever you tell it.
+
+**`payment_intent.succeeded` is not optional, and it is not a duplicate.** The
+store's own checkout is Stripe's Payment Element on the page — there is no
+Checkout Session in that flow at all, so `payment_intent.succeeded` is the only
+event that ever says the money arrived. Unsubscribe it and every order placed
+on the inline form stays `pending_payment` forever: the receipt polls for 90
+seconds and gives up on "processing", no conversion is reported, and nothing in
+the logs says anything is wrong. The hosted Checkout Session is the *fallback*,
+for when Stripe.js could not mount. Advice to drop this event as a duplicate of
+`checkout.session.completed` is written for stores that only use the hosted
+redirect; here it silently turns payments off.
+
+**A completed session is not a paid one.** `checkout.session.completed` carries
+`payment_status`, and a delayed method — bank debit, voucher, some wallets —
+completes the session while the money is still clearing. `'unpaid'` leaves the
+order pending and returns `payment_pending`; the sale is fulfilled later by
+`async_payment_succeeded`, or cancelled by `async_payment_failed`. Fulfilling on
+the session alone ships goods against a payment that can still fail, and
+`async_payment_failed` is what stops a pending order — and the stock it holds —
+hanging forever.
+
+**A partial refund is not a refund.** `charge.refunded` fires for both, and only
+`amount_refunded` against `amount` tells them apart. Treating a partial as full
+cancels an order that is still being shipped and restocks goods the customer
+kept, so a partial only moves the statuses to `partially_refunded` and leaves
+stock alone — there is no way to know which line it was against.
+
+**A dispute and a fraud warning go to a person, not a log.** Both have a clock
+on them: evidence on a chargeback is due by a fixed date, and refunding an early
+fraud warning is only worth anything before it becomes a chargeback. Both are
+rare enough that nobody is watching for them, which is exactly why `console.error`
+is not an alert — `$lib/server/alerts.ts` posts to `ALERT_WEBHOOK_URL` (Slack- or
+Discord-shaped) and logs as a floor. Neither event reports anything to Meta:
+there is no clean reversal event, and a refund is not a negative sale.
+Auto-refunding on a fraud warning sits behind
+`STRIPE_AUTO_REFUND_ON_FRAUD_WARNING=true` and is off, because it takes an order
+away from a paying customer on the issuer's suspicion alone.
+
+**Everything Meta matches on is captured from the customer's request, never the
+webhook's.** The webhook is a request from Stripe: its IP is a Stripe datacenter
+and its user agent is Stripe's client. Sending those as the buyer's is worse
+than sending nothing, because every sale then matches the same fictional person
+and the whole dataset's quality drops. So `_fbp`, `_fbc`, `CF-Connecting-IP` and
+the browser's `User-Agent` are read at checkout and ride to the webhook in
+Stripe metadata (`fbp`, `fbc`, `client_ip`, `client_ua`, each truncated to
+Stripe's 500-character limit) — `attributionMetadata` packs them,
+`attributionFromMetadata` unpacks them. The hosted-fallback route
+`/api/checkout/session` does the same, and that path matters most: it is
+disproportionately the ad-blocked traffic where the server-side event is the
+only half that survives.
+
+**A 200 from Meta is not proof the event landed.** The Conversions API reports
+per-event problems inside a successful response — a rejected event comes back
+`events_received: 0`, a droppable field as a `messages` entry — so `send()`
+inspects the body rather than `response.ok`. Checking the status alone is how a
+dataset silently receives nothing and it only surfaces weeks later as missing
+conversions.
 
 **The receipt has to re-ask, because Stripe redirects before the webhook lands.**
 `/checkout/success` reads `paid` once in its load, and the customer arrives the
@@ -439,7 +503,19 @@ no code changes.
 
 `npm run test:payments` drives that whole path against a mock Stripe and a mock
 Conversions API — no account, no keys, nothing charged. Run it for any change to
-checkout, the webhook, or conversion reporting.
+checkout, the webhook, or conversion reporting. It needs a dev server started
+with the mock endpoints wired up:
+
+```sh
+STRIPE_SECRET_KEY=sk_test_mockkey STRIPE_PUBLISHABLE_KEY=pk_test_mockkey \
+STRIPE_WEBHOOK_SECRET=whsec_test_secret STRIPE_API_BASE=http://127.0.0.1:12111 \
+STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET META_PIXEL_ID=1363695699271757 \
+META_CAPI_ACCESS_TOKEN=test_token META_CAPI_ENDPOINT=http://127.0.0.1:12112 \
+npm run dev
+```
+
+It covers all seven subscribed events end to end, including the three that only
+reference a charge and have to find the order by retrieving it.
 
 Not built, in rough priority order:
 

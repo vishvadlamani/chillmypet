@@ -1,7 +1,12 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { CheckoutError, DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 import { isCountryCode } from '$lib/countries';
-import { attributionFrom, purchaseEventId, sendPurchase } from '$lib/server/purchase';
+import {
+	attributionFrom,
+	attributionMetadata,
+	purchaseEventId,
+	sendPurchase
+} from '$lib/server/purchase';
 
 /**
  * Placing an order, shared by both checkouts.
@@ -129,16 +134,22 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 	// The order is committed from here on. Nothing below may turn a placed
 	// order into an error response.
 
-	// With payments on, the sale is not a sale until Stripe says so, so hand
-	// the customer to the hosted page and let the webhook report the
-	// conversion. `_fbp`/`_fbc` ride along in metadata because the webhook is
-	// a request from Stripe and has none of this customer's cookies.
+	// With payments on, the sale is not a sale until Stripe says so: the order
+	// stays pending and the webhook reports the conversion when the money
+	// actually arrives. The browser context rides along in metadata because
+	// that webhook is a request from Stripe and carries none of this customer's.
 	if (commerce.payments) {
-		const attribution = attributionFrom(cookies, url, request.headers);
-		const metadata = {
-			...(attribution.fbp ? { fbp: attribution.fbp } : {}),
-			...(attribution.fbc ? { fbc: attribution.fbc } : {})
-		};
+		// Everything Meta matches a conversion on has to be read here, from the
+		// customer's own request. The webhook that reports the sale comes from
+		// Stripe, so by then the cookies are gone and the IP and user agent are
+		// Stripe's own — which match nobody.
+		const attribution = attributionFrom(
+			cookies,
+			url,
+			request.headers,
+			event.getClientAddress()
+		);
+		const metadata = attributionMetadata(attribution);
 		const successUrl = `${url.origin}/checkout/success?order=${encodeURIComponent(order.orderNumber)}`;
 
 		// The card form is already on the page, so what it needs back is a

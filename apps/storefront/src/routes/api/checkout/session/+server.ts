@@ -1,4 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
+import { attributionFrom, attributionMetadata } from '$lib/server/purchase';
 
 /**
  * Creates a Stripe-hosted checkout session for an order that is still awaiting
@@ -10,7 +11,13 @@ import { json, type RequestHandler } from '@sveltejs/kit';
  * able to, so failing over to the hosted page is worth more than the redirect
  * costs.
  */
-export const POST: RequestHandler = async ({ request, locals, url }) => {
+export const POST: RequestHandler = async ({
+	request,
+	locals,
+	url,
+	cookies,
+	getClientAddress
+}) => {
 	const { payments, orders } = locals.commerce;
 	if (!payments) return json({ error: 'payments_unavailable' }, { status: 503 });
 
@@ -37,7 +44,15 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 			orderNumber: order.orderNumber,
 			uiMode: 'hosted',
 			successUrl: `${url.origin}/checkout/success?order=${encodeURIComponent(order.orderNumber)}`,
-			cancelUrl: `${url.origin}/checkout?cancelled=${encodeURIComponent(order.orderNumber)}`
+			cancelUrl: `${url.origin}/checkout?cancelled=${encodeURIComponent(order.orderNumber)}`,
+			// This request is still the customer's own, so it is the last chance to
+			// capture what the webhook cannot. Without it a sale recovered through
+			// the hosted fallback reports with no cookies, IP or user agent at all —
+			// and that is disproportionately the ad-blocked traffic where the
+			// server-side event is the only one that survives.
+			metadata: attributionMetadata(
+				attributionFrom(cookies, url, request.headers, getClientAddress())
+			)
 		});
 		return json({ url: checkout.url });
 	} catch (error) {
