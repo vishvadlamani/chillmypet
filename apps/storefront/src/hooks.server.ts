@@ -1,8 +1,8 @@
 import { error, type Handle } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
-import { newEventId } from 'ecomwithai/marketing';
-import { attributionFrom } from '$lib/server/purchase';
+import { isSha256Hex, newEventId } from 'ecomwithai/marketing';
+import { advancedMatching, ensureIdentity, identityFrom } from '$lib/server/identity';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
 export const LOCALE_COOKIE = 'locale';
@@ -30,13 +30,30 @@ function getDirectory() {
  * initialised pixel, so each gets exactly one, and the same holds for the
  * events the app fires later.
  *
+ * `matching` is advanced matching, and it goes on `init` rather than on the
+ * event: every pixel then applies it to this PageView and to everything the app
+ * fires afterwards, which is the same reason there is one loader here at all.
+ * The values are the hashes the Conversions API copy sends, so the two halves
+ * of an event resolve to one person.
+ *
  * Guards against database content reaching the page as markup.
  */
-function pixelSnippet(pixelIds: string[], pageViewEventId: string): string {
+function pixelSnippet(
+	pixelIds: string[],
+	pageViewEventId: string,
+	matching: Record<string, string>
+): string {
 	const ids = pixelIds.filter((id) => /^\d{1,20}$/.test(id));
 	if (ids.length === 0) return '';
 
-	const inits = ids.map((id) => `fbq('init', '${id}');`).join('\n');
+	// Hex digests only. Nothing else can reach an inline script from here, and
+	// this is what makes that true rather than a thing the caller promises.
+	const safe = Object.fromEntries(
+		Object.entries(matching).filter(([, hash]) => isSha256Hex(hash))
+	);
+	const advanced = Object.keys(safe).length > 0 ? `, ${JSON.stringify(safe)}` : '';
+
+	const inits = ids.map((id) => `fbq('init', '${id}'${advanced});`).join('\n');
 	const noscript = ids
 		.map(
 			(id) => `<noscript><img height="1" width="1" style="display:none" alt=""
@@ -177,6 +194,18 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	event.locals.locale = locale;
 
+	// Before the response, so `cookies.get` reads them back for the rest of this
+	// request — the snippet below, and the beacon a client-side navigation posts
+	// later. A visitor who arrives, bounces, and comes back in a week is the
+	// same `external_id` both times, which is the whole of what it buys.
+	ensureIdentity(event);
+	const identity = identityFrom(
+		event.cookies,
+		event.url,
+		event.request.headers,
+		event.getClientAddress()
+	);
+
 	// This snippet's PageView is the only event the browser fires that never
 	// reaches the `track()` wrapper, so it is the only one that cannot mint its
 	// own id and post its own server copy. Both halves are issued here instead:
@@ -184,13 +213,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// from this same request, which already holds the cookies, address and user
 	// agent that make it matchable.
 	const pageViewEventId = newEventId();
+	const matching = await advancedMatching(identity);
 
 	const response = await resolve(event, {
 		transformPageChunk: ({ html }) =>
 			html
 				.replace('%lang%', locale)
 				.replace('%dir%', textDirection(locale))
-				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId))
+				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId, matching))
 				.replace('%gtm_head%', gtm.head)
 				.replace('%gtm_body%', gtm.body)
 				.replace(
@@ -209,7 +239,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				eventName: 'PageView',
 				eventId: pageViewEventId,
 				eventSourceUrl: event.url.href,
-				user: attributionFrom(event.cookies, event.url, event.request.headers, event.getClientAddress())
+				user: identity
 			})
 			.then((result) => {
 				if (!result.sent) console.error('Meta CAPI PageView not sent', result.reason);

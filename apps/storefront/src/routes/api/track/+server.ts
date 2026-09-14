@@ -1,4 +1,4 @@
-import { attributionFrom } from '$lib/server/purchase';
+import { identityFrom } from '$lib/server/identity';
 import type { MetaCustomData, MetaEventName } from 'ecomwithai/marketing';
 import type { RequestHandler } from './$types';
 
@@ -92,7 +92,9 @@ export const POST: RequestHandler = async ({ request, locals, url, cookies, plat
 			eventSourceUrl: str(body.eventSourceUrl) ?? url.href,
 			// Never taken from the body. Cookies, IP and user agent are what this
 			// request actually carries, and a page cannot claim to be someone else.
-			user: attributionFrom(cookies, url, request.headers, getClientAddress()),
+			// The remembered email and phone ride in on an httpOnly cookie for the
+			// same reason: the page cannot read it, so it cannot forge it either.
+			user: identityFrom(cookies, url, request.headers, getClientAddress()),
 			customData: cleanCustomData(body.customData)
 		})
 		.then((result) => {

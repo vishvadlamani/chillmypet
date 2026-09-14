@@ -65,7 +65,8 @@ async function trackPurchase(
 			eventSourceUrl: `${url.origin}/checkout/success?order=${encodeURIComponent(orderNumber)}`,
 			attribution: {
 				fbp: metadata.fbp,
-				fbc: metadata.fbc
+				fbc: metadata.fbc,
+				externalId: metadata.externalId
 			}
 		});
 	} catch (error) {
@@ -73,7 +74,7 @@ async function trackPurchase(
 	}
 }
 
-function readMetadata(rawBody: string): { fbp?: string; fbc?: string } {
+function readMetadata(rawBody: string): { fbp?: string; fbc?: string; externalId?: string } {
 	try {
 		const event = JSON.parse(rawBody) as Record<string, unknown>;
 		const object = ((event.data as Record<string, unknown>)?.object ?? {}) as Record<
@@ -83,7 +84,8 @@ function readMetadata(rawBody: string): { fbp?: string; fbc?: string } {
 		const metadata = (object.metadata ?? {}) as Record<string, unknown>;
 		return {
 			fbp: typeof metadata.fbp === 'string' ? metadata.fbp : undefined,
-			fbc: typeof metadata.fbc === 'string' ? metadata.fbc : undefined
+			fbc: typeof metadata.fbc === 'string' ? metadata.fbc : undefined,
+			externalId: typeof metadata.external_id === 'string' ? metadata.external_id : undefined
 		};
 	} catch {
 		return {};

@@ -172,6 +172,31 @@ surfacing them. Do not move it inside the try block that owns the order.
 only sent as 2-letter codes — truncating "Texas" to "te" hashes to a value that
 matches nobody. `hash.test.ts` pins these rules.
 
+**Identity is minted once, server-side, and both halves read the same copy.**
+`$lib/server/identity.ts` writes four cookies and `hooks.server.ts` calls it
+before `resolve`, so `cookies.get` reads them back for the snippet it renders
+and for the beacon a client-side navigation posts later. `_fbc` and `_fbp` are
+Meta's, in Meta's format, minted here because their script is the half a blocker
+eats — persisting `_fbc` from `?fbclid=` is what makes a click id outlive the
+landing URL. `cmp_vid` is an `external_id`, the only signal an anonymous PageView
+has. `cmp_match` is a hashed email and phone, written at checkout, which is the
+only moment this storefront learns who anyone is.
+
+The hashes in `fbq('init', …)` come from the same `buildUserData` that fills the
+server's `user_data`, deliberately: two code paths normalizing one person
+differently stop matching, and nothing says so — not a log, not a test, only the
+match quality in Events Manager weeks later. Don't build a second path.
+
+**Identity in a cookie is hashed, and the ones we set are `httpOnly`.** Nothing
+in the browser needs to read `cmp_vid` or `cmp_match` — the snippet is
+server-rendered and already holds the digests — and a GTM tag published by
+whoever holds container access runs with full reach over the page. `/api/track`
+already refuses to take `user_data` from its body; a readable identity cookie
+would hand back exactly what that refusal is for. Plaintext in `cmp_match` would
+also put a raw email in page source on the next render. `buildUserData` drops a
+pre-hashed value that isn't a 64-character lowercase digest rather than hashing
+it again, so a tampered cookie sends nothing rather than nonsense.
+
 ## Gotchas that already cost debugging time
 
 **`waitUntil` must be called as a method.** `const w = platform.context.waitUntil`
