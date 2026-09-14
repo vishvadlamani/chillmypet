@@ -447,9 +447,31 @@ the charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`. Whe
 ChillMyPet's own account is ready, swap three secrets and re-point the webhook;
 no code changes.
 
+⚠️ **The webhook subscription is load-bearing, and the flow outgrew it.**
+`markPaid` in `packages/ecomwithai/src/payments/index.ts` is the only code in
+the system that sets an order to `paid`, and `handleWebhook` is its only caller.
+Nothing polls Stripe and there is no `GET /v1/payment_intents/{id}` in
+`stripe.ts`, so a sale that Stripe never delivers an event for stays
+`pending_payment` forever — charged on the card, "processing" on the receipt,
+and reported to Meta by neither half of the Purchase pair (the browser event
+needs `data.paid`, the server event needs `action === 'order_paid'`). Nothing
+logs, because the event simply never arrived.
+
+The inline Payment Element settles on **`payment_intent.succeeded`**. It never
+creates a Checkout Session, so `checkout.session.completed` is not fired for a
+normal sale. The README's subscription list was written for the hosted-page
+flow and said so until this was found — if Events Manager is missing Purchase
+while Stripe shows successful charges, check the endpoint's event list first.
+The full set the handler acts on is in README.md under Payment.
+
 `npm run test:payments` drives that whole path against a mock Stripe and a mock
 Conversions API — no account, no keys, nothing charged. Run it for any change to
-checkout, the webhook, or conversion reporting.
+checkout, the webhook, or conversion reporting. It does cover this path — it
+signs a `payment_intent.succeeded` event and asserts the order settles and the
+conversion reports — which is the point worth remembering: it posts that event
+to the endpoint itself, so it proves the handler works and can never tell you
+whether Stripe is configured to deliver it. A green suite is not evidence of a
+live subscription.
 
 Not built, in rough priority order:
 

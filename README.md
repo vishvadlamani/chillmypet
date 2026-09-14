@@ -193,13 +193,36 @@ has one configured, so an account already at Stripe's 22-character limit needs
 the full form.
 
 Point a Stripe webhook endpoint at `https://<domain>/api/stripe/webhook` and
-subscribe it to `checkout.session.completed`, `checkout.session.expired` and
-`charge.refunded`.
+subscribe it to all seven events the handler acts on:
 
-With keys set, the checkout action creates the order, then redirects to Stripe's
-hosted page; the customer returns to `/checkout/success`, which reads the payment
-row rather than trusting the query string, and shows "processing" until the
-webhook confirms. **No card details reach this application either way.**
+| Event | What it does |
+|---|---|
+| `payment_intent.succeeded` | **settles the inline card form — the default path** |
+| `checkout.session.completed` | settles a hosted-page order |
+| `checkout.session.async_payment_succeeded` | settles a delayed method |
+| `checkout.session.expired` | releases stock on an abandoned order |
+| `checkout.session.async_payment_failed` | releases stock on a failed delayed method |
+| `charge.refunded` / `refund.created` | releases stock on a refund |
+
+⚠️ **`payment_intent.succeeded` is the one that matters and the one that is
+easy to miss.** With a publishable key set, the checkout action mints a payment
+intent for the card form already on the page — it never creates a Checkout
+Session, so `checkout.session.completed` never fires for a normal sale. The
+webhook is the *only* thing in the system that marks an order paid: there is no
+polling of Stripe and no reconciliation on the receipt, so an endpoint not
+subscribed to this event leaves every real sale charged on the card but stuck at
+`pending_payment`, with the customer's receipt reading "processing" forever and
+**no Purchase reported to Meta from either the browser or the Conversions API**.
+Nothing logs an error, because from the app's side the event simply never
+arrived. Check the subscription list before trusting a quiet Events Manager.
+
+With keys set and the inline form mounted, the checkout action creates the order
+and returns a payment intent the page confirms in place. Only when the form
+could not mount — `cardReady=0`, usually an ad blocker on `js.stripe.com` — does
+it fall back to redirecting to Stripe's hosted page. Either way the customer
+ends on `/checkout/success`, which reads the payment row rather than trusting the
+query string, and shows "processing" until the webhook confirms. **No card
+details reach this application either way.**
 
 The conversion is reported when the payment settles, not when the order row is
 written — otherwise every abandoned checkout is a sale as far as Meta is
