@@ -447,22 +447,33 @@ the charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`. Whe
 ChillMyPet's own account is ready, swap three secrets and re-point the webhook;
 no code changes.
 
-⚠️ **The webhook subscription is load-bearing, and the flow outgrew it.**
-`markPaid` in `packages/ecomwithai/src/payments/index.ts` is the only code in
-the system that sets an order to `paid`, and `handleWebhook` is its only caller.
-Nothing polls Stripe and there is no `GET /v1/payment_intents/{id}` in
-`stripe.ts`, so a sale that Stripe never delivers an event for stays
-`pending_payment` forever — charged on the card, "processing" on the receipt,
-and reported to Meta by neither half of the Purchase pair (the browser event
-needs `data.paid`, the server event needs `action === 'order_paid'`). Nothing
-logs, because the event simply never arrived.
+⚠️ **A sale settles from two directions, and `settleOrder` is where they meet.**
+It is the only code that sets an order to `paid`, and it has exactly two
+callers: `handleWebhook`, when Stripe tells us, and `reconcile`, when
+`/checkout/success` asks Stripe directly about an order it is about to render as
+unpaid. Both assert the same amount against the order row, both go through
+`processOnce`, and `settleOrder` refuses an order already marked paid — which is
+what makes them idempotent against *each other*, so whichever arrives second
+reports no conversion and one sale stays one sale. Keep that refusal: without
+it, a webhook landing after a reconciled receipt is a second `order_paid` and a
+second Purchase.
 
-The inline Payment Element settles on **`payment_intent.succeeded`**. It never
-creates a Checkout Session, so `checkout.session.completed` is not fired for a
-normal sale. The README's subscription list was written for the hosted-page
-flow and said so until this was found — if Events Manager is missing Purchase
-while Stripe shows successful charges, check the endpoint's event list first.
-The full set the handler acts on is in README.md under Payment.
+The second caller exists because the first is one delivery from silence. The
+inline Payment Element settles on **`payment_intent.succeeded`** and never
+creates a Checkout Session, so an endpoint subscribed only to
+`checkout.session.completed` — which is what the README told you to do until
+this was found, having been written for the hosted-page flow — hears nothing
+about any real order. That failure is invisible from in here: the card is
+charged, the order stays `pending_payment`, the receipt reads "processing", and
+neither half of the Purchase pair fires (the browser event needs `data.paid`,
+the server event needs `action === 'order_paid'`). Nothing logs, because nothing
+arrived.
+
+Reconciliation covers it but does not replace the subscription: a customer who
+closes the tab at 3-D Secure never loads the receipt, and only the webhook will
+ever settle that order. If Events Manager is missing Purchase while Stripe shows
+successful charges, check the endpoint's event list first. The full set the
+handler acts on is in README.md under Payment.
 
 `npm run test:payments` drives that whole path against a mock Stripe and a mock
 Conversions API — no account, no keys, nothing charged. Run it for any change to

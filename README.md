@@ -207,14 +207,25 @@ subscribe it to all seven events the handler acts on:
 ⚠️ **`payment_intent.succeeded` is the one that matters and the one that is
 easy to miss.** With a publishable key set, the checkout action mints a payment
 intent for the card form already on the page — it never creates a Checkout
-Session, so `checkout.session.completed` never fires for a normal sale. The
-webhook is the *only* thing in the system that marks an order paid: there is no
-polling of Stripe and no reconciliation on the receipt, so an endpoint not
-subscribed to this event leaves every real sale charged on the card but stuck at
-`pending_payment`, with the customer's receipt reading "processing" forever and
-**no Purchase reported to Meta from either the browser or the Conversions API**.
-Nothing logs an error, because from the app's side the event simply never
-arrived. Check the subscription list before trusting a quiet Events Manager.
+Session, so `checkout.session.completed` never fires for a normal sale. An
+endpoint subscribed only to the session events hears nothing about any real
+order. Check the subscription list before trusting a quiet Events Manager.
+
+**Reconciliation is the backstop, not a replacement.** Because that failure is
+invisible from inside the app — the card is charged and the order simply stays
+`pending_payment` — `/checkout/success` no longer only waits to be told. If the
+order it is rendering is unpaid, it calls `payments.reconcile()`, which asks
+Stripe what actually happened to the intent and settles the order if Stripe says
+it succeeded, asserting the same amount the webhook does. The sale is then
+reported from there, with the customer's own cookies and address attached —
+better matching than the webhook, which is a request from Stripe and carries
+none of them.
+
+Both paths converge on one `settleOrder`, and it refuses to settle an order that
+is already paid, so whichever arrives second reports nothing and a sale is
+counted once. Keep the subscription correct anyway: a customer who closes the
+tab at the bank's 3-D Secure step never loads the receipt, and the webhook is
+the only thing that will ever settle that order.
 
 With keys set and the inline form mounted, the checkout action creates the order
 and returns a payment intent the page confirms in place. Only when the form
