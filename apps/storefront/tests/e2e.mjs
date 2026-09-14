@@ -80,9 +80,19 @@ function check(label, cond) {
 	);
 	check('the page is indexable', !/noindex/.test(html));
 
-	// Both tags ship server-rendered, on every page, before any JavaScript runs.
-	check('SSR carries the GTM container', /googletagmanager\.com\/gtm\.js/.test(html));
-	check('and its noscript iframe', /ns\.html\?id=GTM-T446VNH9/.test(html));
+	// The Tag Manager container is gone. It published zero tags, so every page
+	// paid for a runtime that read the dataLayer and did nothing with it — while
+	// staying a surface anyone with container access could publish code from.
+	check('no Tag Manager container', !/googletagmanager\.com\/gtm\.js/.test(html));
+	check('and no container noscript iframe', !/googletagmanager\.com\/ns\.html/.test(html));
+
+	// GA4 ships server-rendered like the pixel, and only when configured.
+	const ga4 = html.match(/gtag\/js\?id=(G-[A-Z0-9]+)/)?.[1];
+	check(
+		'GA4 loads exactly when GA4_MEASUREMENT_ID says so',
+		process.env.GA4_MEASUREMENT_ID ? ga4 === process.env.GA4_MEASUREMENT_ID : ga4 === undefined,
+		`rendered ${ga4 ?? 'nothing'}, env ${process.env.GA4_MEASUREMENT_ID ?? 'unset'}`
+	);
 	// Advanced matching rides on `init` rather than on the event, so it applies
 	// to the snippet's PageView and to everything the app fires after.
 	const inits = html.match(/fbq\('init', '\d+'(?:, \{.*?\})?\);/g) ?? [];
@@ -106,8 +116,8 @@ function check(label, cond) {
 
 	// Meta reads a 64-character hex string as already hashed and passes it
 	// through. Every value here has to be one, because this is page source: a
-	// raw email in it is readable by every script on the page, by the GTM
-	// container's tags, and by anything that caches the HTML.
+	// raw email in it is readable by every script on the page and by anything
+	// that caches the HTML.
 	const matching = inits.flatMap((line) => {
 		const object = line.match(/\{.*\}/)?.[0];
 		return object ? Object.values(JSON.parse(object)) : [];

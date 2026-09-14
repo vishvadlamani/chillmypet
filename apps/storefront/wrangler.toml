@@ -4,7 +4,7 @@ compatibility_date = "2026-08-08"
 compatibility_flags = ["nodejs_compat"]
 
 # A pixel id is public — it ships to the browser by design — so these are vars,
-# not secrets, and the same goes for the GTM container.
+# not secrets, and the same goes for an analytics measurement id.
 #
 # META_PIXEL_ID is the dataset that matters: browser events *and* the server-side
 # Conversions API copy both report to it, so it must be the pixel the ad account
@@ -15,9 +15,15 @@ compatibility_flags = ["nodejs_compat"]
 # There is exactly one. A second pixel here would get browser events and no
 # CAPI, which is the half iOS and ad blockers eat — and having two is what let
 # the ad account's own pixel sit in the browser-only list for a month.
+#
+# GA4_MEASUREMENT_ID turns on Google Analytics, and is unset. The GTM container
+# that used to sit here (GTM-T446VNH9) published zero tags, so nothing was ever
+# collected from it — the ecommerce events the app fires had no reader. Set this
+# to a property's "G-…" id and they start arriving; leave it out and `ga4Event`
+# stays silent.
 [vars]
 META_PIXEL_ID = "1363695699271757"
-GTM_CONTAINER_ID = "GTM-T446VNH9"
+# GA4_MEASUREMENT_ID = "G-XXXXXXXXXX"
 
 [assets]
 directory = ".svelte-kit/cloudflare"

@@ -33,9 +33,9 @@ const MATCH_MAX_AGE = 60 * 60 * 24 * 180;
 
 /**
  * `httpOnly` on ours, deliberately. Nothing in the browser reads them — the
- * snippet is server-rendered and already holds the hashes — and the GTM
- * container is a second publishing surface whose tags run with full reach over
- * this page. A remembered customer should not be one of the things they can read.
+ * snippet is server-rendered and already holds the hashes — so the only thing
+ * page-readable would buy is a way for any third-party script, or an injected
+ * one, to lift a remembered customer off the page.
  */
 const OURS = { path: '/', httpOnly: true, sameSite: 'lax' } as const;
 /** Meta's, which fbevents.js must be able to read and keep. */

@@ -4,7 +4,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { toAmount } from 'ecomwithai/marketing';
 	import { track } from '$lib/analytics/pixel';
-	import { amount, pushEcommerce } from '$lib/analytics/datalayer';
+	import { amount, ga4Event } from '$lib/analytics/ga4';
 	import { createTranslator, defaultLocale, formatMoney } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
 	import type { PageData } from './$types';
@@ -39,7 +39,7 @@
 			},
 			data.eventId
 		);
-		pushEcommerce('purchase', {
+		ga4Event('purchase', {
 			transaction_id: data.order.orderNumber,
 			currency: data.order.currency,
 			value: amount(data.order.totalCents),

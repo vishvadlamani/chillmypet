@@ -104,24 +104,30 @@ posts nothing, and with a token belonging to another dataset Meta rejects the
 event — both only reach `console.error`, because tracking must never fail an
 order. Events Manager, not the logs, is where you notice.
 
-**The dataLayer is the container's whole view of the app.** GTM tags cannot
-reach into the store, so `$lib/analytics/datalayer.ts` pushes GA4 ecommerce
-events — `view_item`, `add_to_cart`, `begin_checkout`, `add_payment_info`,
-`purchase` — beside each Meta event, from the same data. Each push nulls
-`ecommerce` first, because Google's data model merges pushes and the previous
-event's items otherwise leak into the next one; `tests/store-flow.mjs` counts
-the nulls against the payloads to keep that true. `purchase` carries the order
-number as `transaction_id`, which is what GA4 dedupes a re-sent sale on.
-**Do not build a Meta tag on it.** Meta stays on the pixel in `hooks.server.ts`:
-a container-published pixel double-counts against it, and no GTM tag can carry
-the derived Purchase `event_id` that keeps the browser and CAPI halves as one
-sale.
+**GA4 talks to gtag.js directly, and there is no tag manager.** There was:
+`GTM_CONTAINER_ID` loaded `GTM-T446VNH9` on every page. Fetching the published
+container showed `"tags":[]` — zero tags, zero triggers — so every page paid
+~330KB for a runtime that read the dataLayer and did nothing with it, while
+staying a second place code could be published into the storefront from, by
+whoever held container access. `$lib/analytics/ga4.ts` now calls
+`gtag('event', …)` with the same ecommerce events — `view_item`, `add_to_cart`,
+`begin_checkout`, `add_payment_info`, `purchase` — and `purchase` still carries
+the order number as `transaction_id`, which is what GA4 dedupes a re-sent sale
+on. No `ecommerce: null` reset any more: that existed because GTM's data model
+merged pushes and leaked one event's items into the next, and gtag merges
+nothing.
 
-**GTM is a second publishing surface, not just a tag.** `GTM_CONTAINER_ID`
-loads `GTM-T446VNH9` on every page. Anything published inside that container
-runs with the same reach as this codebase, by whoever holds container access —
-and a Meta pixel published in it would double-count against the ones the
-snippet already initialises.
+**Do not report Meta from there.** Meta stays on the pixel in `hooks.server.ts`.
+A second source of Meta events double-counts against it, and nothing outside
+that path can carry the derived Purchase `event_id` that keeps the browser and
+CAPI halves as one sale.
+
+**GA4 is silent until `GA4_MEASUREMENT_ID` is set**, which it is not — the
+container published nothing, so no analytics was ever collected here. Set it in
+wrangler.toml to a property's `G-…` id and the events above start arriving;
+`ga4Event` no-ops while `gtag` is undefined rather than queueing for a library
+that will never load. `tests/store-flow.mjs` stands in for `gtag`, so what the
+app reports about a sale is asserted whether or not analytics is switched on.
 
 **Every browser event has a server copy, and they share an `event_id`.**
 `track()` mints one id, hands it to `fbq` as `eventID`, and posts the same id to
@@ -189,8 +195,8 @@ match quality in Events Manager weeks later. Don't build a second path.
 
 **Identity in a cookie is hashed, and the ones we set are `httpOnly`.** Nothing
 in the browser needs to read `cmp_vid` or `cmp_match` — the snippet is
-server-rendered and already holds the digests — and a GTM tag published by
-whoever holds container access runs with full reach over the page. `/api/track`
+server-rendered and already holds the digests — so page-readable would only buy
+a third-party or injected script a way to lift them. `/api/track`
 already refuses to take `user_data` from its body; a readable identity cookie
 would hand back exactly what that refusal is for. Plaintext in `cmp_match` would
 also put a raw email in page source on the next render. `buildUserData` drops a

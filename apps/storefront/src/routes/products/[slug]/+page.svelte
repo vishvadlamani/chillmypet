@@ -6,7 +6,7 @@
 	import { toAmount } from 'ecomwithai/marketing';
 	import { page } from '$app/state';
 	import { track as pixel } from '$lib/analytics/pixel';
-	import { amount, pushEcommerce } from '$lib/analytics/datalayer';
+	import { amount, ga4Event } from '$lib/analytics/ga4';
 	import { createTranslator, defaultLocale } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
 	import type { PageData } from './$types';
@@ -32,7 +32,7 @@
 			currency: data.currency,
 			value: toAmount(data.seo.priceCents)
 		});
-		pushEcommerce('view_item', {
+		ga4Event('view_item', {
 			currency: data.currency,
 			value: amount(data.seo.priceCents),
 			items: [
@@ -116,7 +116,7 @@
 				currency: data.currency,
 				value: toAmount(added.reduce((sum, l) => sum + l.unitPriceCents, 0))
 			});
-			pushEcommerce('add_to_cart', {
+			ga4Event('add_to_cart', {
 				currency: data.currency,
 				value: amount(added.reduce((sum, l) => sum + l.unitPriceCents, 0)),
 				items: added.map((l) => ({

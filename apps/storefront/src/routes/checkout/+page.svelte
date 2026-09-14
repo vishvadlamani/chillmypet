@@ -8,7 +8,7 @@
 	import { DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 	import { toAmount } from 'ecomwithai/marketing';
 	import { track as pixel } from '$lib/analytics/pixel';
-	import { amount, pushEcommerce } from '$lib/analytics/datalayer';
+	import { amount, ga4Event } from '$lib/analytics/ga4';
 	import { countryOptions } from '$lib/countries';
 	import { createTranslator, defaultLocale, formatMoney } from '$lib/i18n';
 	import { PRODUCT_SLUG } from '$lib/store/product';
@@ -244,7 +244,7 @@
 			currency: priced.currency,
 			value: toAmount(priced.subtotalCents)
 		});
-		pushEcommerce('begin_checkout', {
+		ga4Event('begin_checkout', {
 			currency: priced.currency,
 			value: amount(priced.subtotalCents),
 			items: priced.lines.map((l) => ({
@@ -301,7 +301,7 @@
 			},
 			form.eventId
 		);
-		pushEcommerce('purchase', {
+		ga4Event('purchase', {
 			transaction_id: form.order.orderNumber,
 			currency: form.order.currency,
 			value: amount(form.order.totalCents),
@@ -431,7 +431,7 @@
 					currency,
 					value: toAmount(totalCents)
 				});
-				pushEcommerce('add_payment_info', {
+				ga4Event('add_payment_info', {
 					currency,
 					value: amount(totalCents),
 					items: (priced?.lines ?? []).map((l) => ({

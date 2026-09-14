@@ -68,25 +68,27 @@ ${noscript}`;
 }
 
 /**
- * Google Tag Manager, on every page.
+ * Google Analytics, on every page, when one is configured.
  *
- * A container is a second place tags can be published from, by whoever holds
- * access to it, and anything it loads runs with the same reach as this file's
- * own code. The id is validated here; note that a Meta pixel published inside
- * the container would double-count against the ones initialised above.
+ * This replaced a Tag Manager container. A container is a second place tags can
+ * be published from, by whoever holds access to it, and anything it loads runs
+ * with the same reach as this file's own code — while the one here served zero
+ * tags, so every page paid ~330KB to run nothing. gtag.js talks to one
+ * property and nothing can be published into it without a commit.
+ *
+ * Renders nothing when unset, which is what it is until `GA4_MEASUREMENT_ID`
+ * is given a value: `ga4Event` goes quiet rather than queueing for a library
+ * that will never load. The id is validated, because it reaches the page as
+ * markup.
  */
-function gtmSnippet(containerId: string): { head: string; body: string } {
-	if (!/^GTM-[A-Z0-9]{4,12}$/.test(containerId)) return { head: '', body: '' };
+function ga4Snippet(measurementId: string): string {
+	if (!/^G-[A-Z0-9]{4,12}$/.test(measurementId)) return '';
 
-	return {
-		head: `<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','${containerId}');</script>`,
-		body: `<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${containerId}"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`
-	};
+	return `<script async src="https://www.googletagmanager.com/gtag/js?id=${measurementId}"></script>
+<script>window.dataLayer=window.dataLayer||[];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${measurementId}');</script>`;
 }
 
 function verificationTag(token: string): string {
@@ -172,7 +174,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	});
 
-	const gtm = gtmSnippet(env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? '');
+	const ga4 = ga4Snippet(env.GA4_MEASUREMENT_ID ?? settings.ga4_measurement_id ?? '');
 
 	const saved = event.cookies.get(LOCALE_COOKIE);
 	const locale = isLocale(saved)
@@ -208,8 +210,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				.replace('%lang%', locale)
 				.replace('%dir%', textDirection(locale))
 				.replace('%meta_pixel%', pixelSnippet(pixelId, pageViewEventId, matching))
-				.replace('%gtm_head%', gtm.head)
-				.replace('%gtm_body%', gtm.body)
+				.replace('%ga4%', ga4)
 				.replace(
 					'%meta_domain_verification%',
 					settings.meta_domain_verification

@@ -181,8 +181,8 @@ a user agent:
 Meta's own two are only set if `fbevents.js` ran, which for a visitor running a
 blocker it did not — so both are minted server-side in their own format, which
 their script then adopts rather than replaces. Ours are `httpOnly`: nothing in
-the browser reads them, the snippet is server-rendered and already holds the
-hashes, and the GTM container's tags run with full reach over the page.
+the browser reads them, and the snippet is server-rendered and already holds the
+hashes — page-readable would only buy a third-party script a way to lift them.
 
 `cmp_match` holds digests, never plaintext — it is what the Conversions API
 wants anyway, so nothing has to un-hash it, and a hash of an email is not the

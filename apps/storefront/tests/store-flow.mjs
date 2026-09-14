@@ -27,6 +27,14 @@ const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } }
 // fbq.queue where we can assert on it without touching Meta.
 await ctx.route('**/connect.facebook.net/**', (route) => route.abort());
 await ctx.route('**/facebook.com/tr*', (route) => route.abort());
+// Same idea for GA4, which `hooks.server.ts` only loads when a measurement id
+// is configured — this store has none yet. Standing in for gtag lets the
+// ecommerce events be asserted on their own terms: what the app reports about
+// a sale should not depend on whether analytics happens to be switched on.
+await ctx.addInitScript(() => {
+	window.__ga4 = [];
+	window.gtag = (...args) => window.__ga4.push(args);
+});
 
 const pageErrors = [];
 const page = await ctx.newPage();
@@ -146,45 +154,41 @@ check('Purchase carries an eventID for CAPI dedup', /^purchase-CMP-/.test(purcha
 check('the cart was emptied', (await page.evaluate(() =>
 	JSON.parse(localStorage.getItem('chillmypet.cart.v1') ?? '[]'))).length === 0);
 
-// --- the GTM dataLayer must carry the same funnel ----------------------------
-// Whatever is published in the container reads this and nothing else: the tags
-// cannot reach into the app. Both pages in this flow are one document (the
-// product page hands off to /checkout with goto), so one dataLayer holds the lot.
+// --- GA4 must be told the same funnel ----------------------------------------
+// Both pages in this flow are one document (the product page hands off to
+// /checkout with goto), so one capture array holds the lot.
 {
-	const dl = await page.evaluate(() => (window.dataLayer ?? []).filter((e) => e && e.event));
-	const of = (name) => dl.find((e) => e.event === name);
+	const events = await page.evaluate(() => window.__ga4 ?? []);
+	const of = (name) => events.find((e) => e[0] === 'event' && e[1] === name)?.[2];
 
-	check('view_item reached the dataLayer', Boolean(of('view_item')));
-	check('add_to_cart reached the dataLayer', Boolean(of('add_to_cart')));
-	check('begin_checkout reached the dataLayer', Boolean(of('begin_checkout')));
+	check('view_item reported to GA4', Boolean(of('view_item')));
+	check('add_to_cart reported to GA4', Boolean(of('add_to_cart')));
+	check('begin_checkout reported to GA4', Boolean(of('begin_checkout')));
 
 	const buy = of('purchase');
-	check('purchase reached the dataLayer', Boolean(buy));
+	check('purchase reported to GA4', Boolean(buy));
 	check(
 		'purchase carries the order number as transaction_id',
-		/^CMP-[0-9A-F]{8}$/.test(buy?.ecommerce?.transaction_id ?? ''),
-		buy?.ecommerce?.transaction_id
+		/^CMP-[0-9A-F]{8}$/.test(buy?.transaction_id ?? ''),
+		buy?.transaction_id
 	);
 	check(
 		'purchase value matches what was charged',
-		buy?.ecommerce?.value === afterExpress,
-		`${buy?.ecommerce?.value} vs ${afterExpress}`
+		buy?.value === afterExpress,
+		`${buy?.value} vs ${afterExpress}`
 	);
 	check(
 		'purchase items carry ids, names and quantities',
-		(buy?.ecommerce?.items ?? []).length > 0 &&
-			buy.ecommerce.items.every((i) => i.item_id && i.item_name && i.quantity > 0),
-		JSON.stringify(buy?.ecommerce?.items)
+		(buy?.items ?? []).length > 0 &&
+			buy.items.every((i) => i.item_id && i.item_name && i.quantity > 0),
+		JSON.stringify(buy?.items)
 	);
 
-	// Google's data model merges pushes, so each event nulls `ecommerce` first;
-	// without that the previous event's items leak into the next one.
-	const raw = await page.evaluate(() => (window.dataLayer ?? []).map((e) => (e && 'ecommerce' in e ? (e.ecommerce === null ? 'null' : 'obj') : 'other')));
-	check(
-		'every ecommerce push is preceded by a null reset',
-		raw.filter((t) => t === 'null').length === raw.filter((t) => t === 'obj').length,
-		raw.join(',')
-	);
+	// Each gtag call carries its own parameters, so one event's items cannot
+	// leak into the next. Under Tag Manager they could — its data model merged
+	// pushes, and every event had to null `ecommerce` first to prevent it.
+	const items = events.filter((e) => e[0] === 'event').map((e) => (e[2]?.items ?? []).length);
+	check('no event inherits another event\'s items', items.every((n) => n > 0), items.join(','));
 }
 
 // --- the success page must survive a late webhook ----------------------------
