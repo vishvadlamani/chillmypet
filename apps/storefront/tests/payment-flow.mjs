@@ -32,47 +32,74 @@ function check(label, cond, detail) {
 // Only the two calls the checkout path makes. Records them so the test can
 // assert on what we actually sent, which is where the real bugs live.
 const seen = [];
+// Real objects rather than fixed responses: the app now reads state back off
+// Stripe as well as writing to it, so a GET has to return what the matching
+// POST created. Flipping an intent to `succeeded` here is how the test stands
+// in for a customer finishing the card form.
+const intents = new Map();
+const sessions = new Map();
+let intentSeq = 0;
+
 const mock = createServer((req, res) => {
 	let body = '';
 	req.on('data', (c) => (body += c));
 	req.on('end', () => {
-		seen.push({ path: req.url, body, auth: req.headers.authorization ?? '' });
-		if (req.url === '/v1/coupons') {
-			res.writeHead(200, { 'content-type': 'application/json' });
-			res.end(JSON.stringify({ id: 'coupon_mock_1' }));
-			return;
-		}
+		seen.push({ path: req.url, method: req.method, body, auth: req.headers.authorization ?? '' });
+		const json = (payload, status = 200) => {
+			res.writeHead(status, { 'content-type': 'application/json' });
+			res.end(JSON.stringify(payload));
+		};
+
+		if (req.url === '/v1/coupons') return json({ id: 'coupon_mock_1' });
+
 		if (req.url === '/v1/payment_intents') {
 			const params = new URLSearchParams(body);
-			res.writeHead(200, { 'content-type': 'application/json' });
-			res.end(
-				JSON.stringify({
-					id: `pi_test_mock_${RUN}`,
-					client_secret: `pi_test_mock_${RUN}_secret`,
-					amount: Number(params.get('amount')),
-					currency: params.get('currency'),
-					status: 'requires_payment_method'
-				})
-			);
-			return;
+			// Unique per creation, like the real thing. A fixed id would let a
+			// second order collide with the first on (provider, provider_ref) and
+			// quietly settle the wrong one.
+			const id = `pi_test_mock_${RUN}_${++intentSeq}`;
+			const intent = {
+				id,
+				client_secret: `${id}_secret`,
+				amount: Number(params.get('amount')),
+				amount_received: 0,
+				currency: params.get('currency'),
+				status: 'requires_payment_method'
+			};
+			intents.set(id, intent);
+			return json(intent);
 		}
+
+		if (req.url.startsWith('/v1/payment_intents/')) {
+			const id = decodeURIComponent(req.url.slice('/v1/payment_intents/'.length));
+			const intent = intents.get(id);
+			return intent ? json(intent) : json({ error: { message: `no such intent ${id}` } }, 404);
+		}
+
 		if (req.url === '/v1/checkout/sessions') {
 			const params = new URLSearchParams(body);
-			res.writeHead(200, { 'content-type': 'application/json' });
-			res.end(
-				JSON.stringify({
-					id: 'cs_test_mock_1',
-					url: params.get('ui_mode') === 'embedded' ? null : `${BASE}/__stripe-hosted-page`,
-					client_secret: params.get('ui_mode') === 'embedded' ? 'cs_test_mock_1_secret' : null,
-					status: 'open',
-					amount_total: null,
-					currency: params.get('line_items[0][price_data][currency]')
-				})
-			);
-			return;
+			const session = {
+				id: 'cs_test_mock_1',
+				url: params.get('ui_mode') === 'embedded' ? null : `${BASE}/__stripe-hosted-page`,
+				client_secret: params.get('ui_mode') === 'embedded' ? 'cs_test_mock_1_secret' : null,
+				status: 'open',
+				// Open sessions have no intent yet, which is what stops a
+				// reconcile settling an order nobody has paid for.
+				payment_intent: null,
+				amount_total: null,
+				currency: params.get('line_items[0][price_data][currency]')
+			};
+			sessions.set(session.id, session);
+			return json(session);
 		}
-		res.writeHead(404, { 'content-type': 'application/json' });
-		res.end(JSON.stringify({ error: { message: `unmocked ${req.url}` } }));
+
+		if (req.url.startsWith('/v1/checkout/sessions/')) {
+			const id = decodeURIComponent(req.url.slice('/v1/checkout/sessions/'.length));
+			const session = sessions.get(id);
+			return session ? json(session) : json({ error: { message: `no such session ${id}` } }, 404);
+		}
+
+		json({ error: { message: `unmocked ${req.url}` } }, 404);
 	});
 });
 await new Promise((resolve) => mock.listen(MOCK_PORT, '127.0.0.1', resolve));
@@ -399,9 +426,10 @@ if (sessionCall) {
 	});
 	const raw = await placed.text();
 
+	const intentId = /(pi_test_mock_[A-Za-z0-9]+_\d+)_secret/.exec(raw)?.[1];
 	check(
 		'the inline checkout answers with an intent, not a redirect',
-		placed.status === 200 && raw.includes(`pi_test_mock_${RUN}_secret`),
+		placed.status === 200 && Boolean(intentId),
 		`${placed.status} ${raw.slice(0, 200)}`
 	);
 
@@ -438,7 +466,7 @@ if (sessionCall) {
 			type: 'payment_intent.succeeded',
 			data: {
 				object: {
-					id: `pi_test_mock_${RUN}`,
+					id: intentId,
 					amount_received: Number(p.get('amount')),
 					currency: 'usd',
 					metadata: {
@@ -475,6 +503,120 @@ if (sessionCall) {
 			`${purchase?.custom_data?.value} vs ${(Number(p.get('amount')) / 100).toFixed(2)}`
 		);
 	}
+}
+
+// --- a sale nobody told us about -------------------------------------------
+// The webhook is one delivery away from silence, and none of the ways it goes
+// quiet are visible from inside the app: an endpoint subscribed to the wrong
+// events (this store's was set up for `checkout.session.completed`, which the
+// inline card form never fires), a rotated secret, an outage. The card is
+// charged and the order simply stays pending.
+//
+// So this pays at Stripe and delivers no webhook at all. The receipt has to
+// settle the order and report the sale on its own, because a conversion that
+// depends on a single delivery is one the ad account eventually stops seeing.
+{
+	const submissionId = `nohook-${RUN}`;
+	const form = new URLSearchParams({
+		email: 'nohook@example.com',
+		fullName: 'No Hook',
+		address1: '3 Test St',
+		city: 'Delta',
+		province: 'BC',
+		postalCode: 'V3W 3N1',
+		country: 'CA',
+		method: 'express',
+		cardReady: '1',
+		submissionId,
+		lines: JSON.stringify([{ variantId: variant, quantity: 1 }])
+	});
+
+	const placed = await fetch(`${BASE}/checkout`, {
+		method: 'POST',
+		redirect: 'manual',
+		headers: { 'content-type': 'application/x-www-form-urlencoded', origin: BASE },
+		body: form
+	});
+	const raw = await placed.text();
+	const intentId = /(pi_test_mock_[A-Za-z0-9]+_\d+)_secret/.exec(raw)?.[1];
+
+	const call = [...seen].reverse().find((c) => c.path === '/v1/payment_intents');
+	const params = new URLSearchParams(call?.body ?? '');
+	const orderNumber = params.get('metadata[order_number]');
+	const amount = Number(params.get('amount'));
+
+	check(
+		'a second inline order minted an intent of its own',
+		Boolean(intentId) && Boolean(orderNumber),
+		`intent ${intentId} order ${orderNumber}`
+	);
+
+	// Unpaid so far, so the receipt must not claim otherwise — reconciliation
+	// settles what Stripe says succeeded, never what the URL asks for.
+	const beforeHtml = await fetch(
+		`${BASE}/checkout/success?order=${encodeURIComponent(orderNumber)}`
+	).then((r) => r.text());
+	check(
+		'an intent that has not succeeded does not settle the order',
+		!/Payment received/i.test(beforeHtml) && /processing/i.test(beforeHtml),
+		'reconciliation marked an unpaid order as sold'
+	);
+
+	// The card clears at Stripe. Nothing tells the application.
+	const intent = intents.get(intentId);
+	intent.status = 'succeeded';
+	intent.amount_received = amount;
+
+	const paidHtml = await fetch(
+		`${BASE}/checkout/success?order=${encodeURIComponent(orderNumber)}`
+	).then((r) => r.text());
+	check('the receipt settles a sale no webhook announced', /Payment received/i.test(paidHtml));
+
+	await settle();
+	const reported = () => capiPurchases().filter((e) => e.event_id === `purchase-${orderNumber}`);
+	check('and reports the conversion itself', reported().length === 1, `${reported().length} sent`);
+	check(
+		'for the amount actually captured',
+		reported()[0]?.custom_data?.value === (amount / 100).toFixed(2),
+		`${reported()[0]?.custom_data?.value} vs ${(amount / 100).toFixed(2)}`
+	);
+
+	// Nobody reloads a receipt once, and the page itself polls.
+	await fetch(`${BASE}/checkout/success?order=${encodeURIComponent(orderNumber)}`).then((r) =>
+		r.text()
+	);
+	await settle();
+	check('reloading the receipt does not sell it twice', reported().length === 1, `${reported().length} sent`);
+
+	// And the webhook may still turn up afterwards — subscriptions get fixed,
+	// outages end, Stripe retries for days. It must find the order settled.
+	const lateBody = JSON.stringify({
+		id: `evt_late_${RUN}`,
+		type: 'payment_intent.succeeded',
+		data: {
+			object: {
+				id: intentId,
+				amount_received: amount,
+				currency: 'usd',
+				metadata: { store_id: 'chillmypet', order_number: orderNumber }
+			}
+		}
+	});
+	const ts = Math.floor(Date.now() / 1000);
+	const sig = createHmac('sha256', WEBHOOK_SECRET).update(`${ts}.${lateBody}`).digest('hex');
+	const late = await fetch(`${BASE}/api/stripe/webhook`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json', 'stripe-signature': `t=${ts},v1=${sig}` },
+		body: lateBody
+	});
+	const outcome = await late.json();
+	check(
+		'a webhook landing after the receipt settles nothing new',
+		outcome.handled === false && outcome.reason === 'duplicate',
+		JSON.stringify(outcome)
+	);
+	await settle();
+	check('and reports no second conversion', reported().length === 1, `${reported().length} sent`);
 }
 
 mock.close();
