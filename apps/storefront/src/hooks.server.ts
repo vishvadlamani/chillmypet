@@ -78,9 +78,21 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 	};
 }
 
-function verificationTag(token: string): string {
-	if (!/^[A-Za-z0-9_-]{1,128}$/.test(token)) return '';
-	return `<meta name="facebook-domain-verification" content="${token}" />`;
+/**
+ * Meta scrapes a domain's token out of the server-rendered <head> or not at
+ * all — its own instructions say a tag in a section loaded by JavaScript fails
+ * verification, which is why this is a placeholder in app.html and not a
+ * component.
+ *
+ * More than one token is legitimate: a domain can be claimed by several
+ * business portfolios, and each verifies with its own. So this takes a list
+ * and renders a tag each, in order.
+ */
+function verificationTags(tokens: string[]): string {
+	return tokens
+		.filter((token) => /^[A-Za-z0-9_-]{1,128}$/.test(token))
+		.map((token) => `<meta name="facebook-domain-verification" content="${token}" />`)
+		.join('\n\t\t');
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -168,6 +180,19 @@ export const handle: Handle = async ({ event, resolve }) => {
 		.map((id) => id.trim())
 		.filter(Boolean);
 	const pixelIds = [primaryPixelId, ...extraPixels].filter(Boolean);
+	// Comma-separated, one per business portfolio claiming the domain. The env
+	// override matters more here than elsewhere: `settings` above is memoized
+	// per isolate with no invalidation, so a token written straight to the live
+	// database is not served until that isolate recycles, while a var ships with
+	// the deploy that replaces it.
+	const verificationTokens = (
+		env.META_DOMAIN_VERIFICATION ??
+		settings.meta_domain_verification ??
+		''
+	)
+		.split(',')
+		.map((token) => token.trim())
+		.filter(Boolean);
 	const gtm = gtmSnippet(env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? '');
 
 	const saved = event.cookies.get(LOCALE_COOKIE);
@@ -193,12 +218,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId))
 				.replace('%gtm_head%', gtm.head)
 				.replace('%gtm_body%', gtm.body)
-				.replace(
-					'%meta_domain_verification%',
-					settings.meta_domain_verification
-						? verificationTag(settings.meta_domain_verification)
-						: ''
-				)
+				.replace('%meta_domain_verification%', verificationTags(verificationTokens))
 	});
 
 	// Documents only. `handle` also runs for data requests, form posts and the

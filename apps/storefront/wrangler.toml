@@ -29,6 +29,18 @@ META_PIXEL_ID = "1341978141149107"
 META_EXTRA_PIXEL_IDS = "1363695699271757"
 GTM_CONTAINER_ID = "GTM-T446VNH9"
 
+# Domain verification, comma-separated, one token per business portfolio that
+# claims chillmypet.com. Both datasets' portfolios are listed: the new one
+# first, because it is the one being verified now, and the old one kept so the
+# portfolio behind 1363695699271757 does not silently lose the domain it
+# already holds. Drop a token here when its portfolio no longer needs it.
+#
+# This overrides the store's meta_domain_verification row. Prefer it: the
+# settings lookup in hooks.server.ts is cached per isolate with no
+# invalidation, so a row written to the live database is not necessarily
+# served, while a var here ships with the deploy.
+META_DOMAIN_VERIFICATION = "63udjzub2h5zadk4jhv78qem6hul1f,0d821f82wjdsr4q7owd17wo659qt6h"
+
 [assets]
 directory = ".svelte-kit/cloudflare"
 binding = "ASSETS"

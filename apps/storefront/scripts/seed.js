@@ -15,7 +15,7 @@ const db = createDb(authToken ? { url, authToken } : { url });
 // Public identifiers — both appear in the served page source.
 const SETTINGS = {
 	meta_pixel_id: '1341978141149107',
-	meta_domain_verification: '0d821f82wjdsr4q7owd17wo659qt6h'
+	meta_domain_verification: '63udjzub2h5zadk4jhv78qem6hul1f,0d821f82wjdsr4q7owd17wo659qt6h'
 };
 
 const PRICE_CENTS = 4497;

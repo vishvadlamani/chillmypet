@@ -55,6 +55,7 @@ const pageViews = (calls) => calls.filter((c) => c[0] === 'track' && c[1] === 'P
 
 const STORE_PIXEL = '1341978141149107';
 const EXTRA_PIXEL = '1363695699271757';
+const VERIFY_TOKEN = '63udjzub2h5zadk4jhv78qem6hul1f';
 
 function check(label, cond) {
 	console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}`);
@@ -87,6 +88,14 @@ function check(label, cond) {
 	check('and its noscript iframe', /ns\.html\?id=GTM-T446VNH9/.test(html));
 	check('SSR initialises the store pixel', html.includes(`fbq('init', '${STORE_PIXEL}')`));
 	check('SSR initialises the second pixel', html.includes(`fbq('init', '${EXTRA_PIXEL}')`));
+
+	// Meta scrapes this out of the served bytes or fails the domain, and its own
+	// instructions rule out anything JavaScript inserts — so the raw HTML is the
+	// only place asserting it means anything.
+	check(
+		'SSR carries the domain verification token',
+		html.includes(`<meta name="facebook-domain-verification" content="${VERIFY_TOKEN}" />`)
+	);
 }
 
 {
