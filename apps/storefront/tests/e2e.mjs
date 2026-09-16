@@ -53,8 +53,8 @@ const tracked = (calls, event) => calls.find((c) => c[0] === 'track' && c[1] ===
  */
 const pageViews = (calls) => calls.filter((c) => c[0] === 'track' && c[1] === 'PageView').length;
 
-const STORE_PIXEL = '1363695699271757';
-const EXTRA_PIXEL = '28272021345717397';
+const STORE_PIXEL = '1341978141149107';
+const EXTRA_PIXEL = '1363695699271757';
 
 function check(label, cond) {
 	console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}`);
@@ -85,8 +85,8 @@ function check(label, cond) {
 	// Both tags ship server-rendered, on every page, before any JavaScript runs.
 	check('SSR carries the GTM container', /googletagmanager\.com\/gtm\.js/.test(html));
 	check('and its noscript iframe', /ns\.html\?id=GTM-T446VNH9/.test(html));
-	check('SSR initialises the store pixel', html.includes("fbq('init', '1363695699271757')"));
-	check('SSR initialises the second pixel', html.includes("fbq('init', '28272021345717397')"));
+	check('SSR initialises the store pixel', html.includes(`fbq('init', '${STORE_PIXEL}')`));
+	check('SSR initialises the second pixel', html.includes(`fbq('init', '${EXTRA_PIXEL}')`));
 }
 
 {

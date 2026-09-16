@@ -14,9 +14,19 @@ compatibility_flags = ["nodejs_compat"]
 #
 # META_EXTRA_PIXEL_IDS are additional pixels measuring the same pages,
 # comma-separated. They share the one loader and every event, but get no CAPI.
+#
+# The pairing, because the primary is only correct relative to an ad account:
+# dataset 1341978141149107 (USD) is the one ad account 1431226177195979
+# optimises against, and the current campaign runs there — so it is the primary
+# and META_CAPI_ACCESS_TOKEN must be its token. 1363695699271757 is the old
+# dataset behind ad account 1550461850095009, kept browser-only so its history
+# stays intact; nothing optimises against it any more. Moving the primary
+# without regenerating the token for the new dataset silently ends the CAPI
+# half: Meta rejects events signed for another dataset, and the rejection only
+# reaches console.error.
 [vars]
-META_PIXEL_ID = "1363695699271757"
-META_EXTRA_PIXEL_IDS = "28272021345717397"
+META_PIXEL_ID = "1341978141149107"
+META_EXTRA_PIXEL_IDS = "1363695699271757"
 GTM_CONTAINER_ID = "GTM-T446VNH9"
 
 [assets]
