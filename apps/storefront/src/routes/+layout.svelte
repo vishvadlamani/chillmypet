@@ -2,7 +2,7 @@
 	import '../app.css';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import { track } from '$lib/analytics/pixel';
+	import { track, trackServerOnly } from '$lib/analytics/pixel';
 	import { createTranslator, defaultLocale, locales, localeName } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
 
@@ -11,9 +11,18 @@
 	// The snippet in app.html fires PageView for the initial load only; client-side
 	// navigations would otherwise go unrecorded.
 	afterNavigate((navigation) => {
-		if (navigation.type === 'enter') return;
+		if (navigation.type === 'enter') {
+			// The browser half of this one already went, from the snippet, before
+			// this module was parsed. Send its server twin under the id the
+			// snippet used, or Meta sees a browser page view with no server
+			// counterpart — which is most of the site's traffic.
+			const eventId = page.data.pageViewEventId;
+			if (eventId) trackServerOnly('PageView', eventId);
+			return;
+		}
 		// Plain, not scoped: every pixel is initialised by the snippet in
-		// app.html, so one call gives each of them exactly one PageView.
+		// app.html, so one call gives each of them exactly one PageView. `track`
+		// mints the id and sends the server copy itself.
 		track('PageView');
 	});
 

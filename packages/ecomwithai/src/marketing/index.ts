@@ -1,6 +1,7 @@
 import { buildUserData, type CapiUserInput } from './hash.ts';
 
 export * from './hash.ts';
+export * from './bridge.ts';
 
 const DEFAULT_API_VERSION = 'v25.0';
 const DEFAULT_ENDPOINT = 'https://graph.facebook.com';

@@ -85,6 +85,16 @@ function check(label, cond) {
 	// Both tags ship server-rendered, on every page, before any JavaScript runs.
 	check('SSR carries the GTM container', /googletagmanager\.com\/gtm\.js/.test(html));
 	check('and its noscript iframe', /ns\.html\?id=GTM-T446VNH9/.test(html));
+	check("the loader is pointed at this store's container", /'dataLayer','GTM-T446VNH9'/.test(html));
+	// One container, and only one. The site shipped GTM-N3Q25P9X for a while and
+	// the id moved on without the deploy following, so every tag anyone built was
+	// being published into a container the pages no longer loaded. A second id
+	// here means half the tags are firing into nothing again.
+	check(
+		'and no other container is loaded alongside it',
+		[...new Set(html.match(/GTM-[A-Z0-9]{4,12}/g) ?? [])].join(',') === 'GTM-T446VNH9',
+		[...new Set(html.match(/GTM-[A-Z0-9]{4,12}/g) ?? [])].join(',') || 'no container at all'
+	);
 	check('SSR initialises the store pixel', html.includes("fbq('init', '1363695699271757')"));
 	check('SSR initialises the second pixel', html.includes("fbq('init', '28272021345717397')"));
 }

@@ -5,6 +5,8 @@ declare global {
 	namespace App {
 		interface Locals {
 			locale: Locale;
+			/** Shared by the snippet's PageView and its Conversions API copy. */
+			pageViewEventId: string;
 			/** Tenant resolved from the Host header in hooks.server.ts. */
 			store: Store;
 			/** Per-store configuration from the store_settings table. */
@@ -17,6 +19,7 @@ declare global {
 
 		interface PageData {
 			locale: Locale;
+			pageViewEventId?: string;
 		}
 
 		interface Platform {
