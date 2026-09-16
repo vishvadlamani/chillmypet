@@ -222,6 +222,16 @@ check(
 	pageViews(await fbqCalls()) === 1
 );
 
+// The same cart, reached again. A reload, a back-navigation and the bounce back
+// from Stripe's cancel url are all one checkout start, and the guard that says
+// so is keyed on the cart and kept in sessionStorage — the cart itself is in
+// localStorage and outlives the page, which is what made a plain per-mount flag
+// report several starts for every real one.
+check(
+	'a reload does not report a second checkout start',
+	!tracked(await fbqCalls(), 'InitiateCheckout')
+);
+
 // Client-side navigation must also record a PageView. fbq.queue survives here
 // because SvelteKit navigates without a document reload.
 await page.click('header a[href="/products/dog-life-jacket"]');

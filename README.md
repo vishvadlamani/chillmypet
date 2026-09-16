@@ -138,7 +138,8 @@ Browser pixel and server-side Conversions API run together, deduplicated.
 - **Secret:** `META_CAPI_ACCESS_TOKEN`, a Worker secret. Never in the repo.
 
 Events: `PageView` (initial load plus every client-side navigation),
-`ViewContent`, `AddToCart`, `InitiateCheckout`, `Purchase`.
+`ViewContent`, `AddToCart`, `InitiateCheckout` (once per cart per session, not
+once per view of `/checkout`), `AddPaymentInfo`, `Purchase`.
 
 **Deduplication.** Purchase's `event_id` is derived from the order number by
 `purchaseEventId()` rather than minted per call: the server event fires from the
@@ -192,29 +193,47 @@ has one configured, so an account already at Stripe's 22-character limit needs
 the full form.
 
 Point a Stripe webhook endpoint at `https://<domain>/api/stripe/webhook` and
-subscribe it to **all seven** events the handler acts on:
+subscribe it to all seven events the handler acts on:
 
 | Event | What it does |
 |---|---|
-| `checkout.session.completed` | marks paid (hosted-page fallback) |
-| `checkout.session.async_payment_succeeded` | marks paid (delayed methods) |
-| `payment_intent.succeeded` | **marks paid for the inline Payment Element** |
-| `checkout.session.expired` | releases reserved stock |
-| `checkout.session.async_payment_failed` | releases reserved stock |
-| `charge.refunded` | restocks |
-| `refund.created` | restocks |
+| `payment_intent.succeeded` | **settles the inline card form — the default path** |
+| `checkout.session.completed` | settles a hosted-page order |
+| `checkout.session.async_payment_succeeded` | settles a delayed method |
+| `checkout.session.expired` | releases stock on an abandoned order |
+| `checkout.session.async_payment_failed` | releases stock on a failed delayed method |
+| `charge.refunded` / `refund.created` | releases stock on a refund |
 
-`payment_intent.succeeded` is the one to get right. The inline Payment Element
-is the primary checkout, and it settles through an intent, not a session — so an
-endpoint subscribed only to the `checkout.session.*` events leaves every inline
-sale stuck at `pending_payment`. The customer is charged, the order never flips,
-and Purchase is never reported, because a conversion is only sent once money is
-confirmed to have moved. Anything not on this list is answered 2xx and ignored.
+⚠️ **`payment_intent.succeeded` is the one that matters and the one that is
+easy to miss.** With a publishable key set, the checkout action mints a payment
+intent for the card form already on the page — it never creates a Checkout
+Session, so `checkout.session.completed` never fires for a normal sale. An
+endpoint subscribed only to the session events hears nothing about any real
+order. Check the subscription list before trusting a quiet Events Manager.
 
-With keys set, the checkout action creates the order, then redirects to Stripe's
-hosted page; the customer returns to `/checkout/success`, which reads the payment
-row rather than trusting the query string, and shows "processing" until the
-webhook confirms. **No card details reach this application either way.**
+**Reconciliation is the backstop, not a replacement.** Because that failure is
+invisible from inside the app — the card is charged and the order simply stays
+`pending_payment` — `/checkout/success` no longer only waits to be told. If the
+order it is rendering is unpaid, it calls `payments.reconcile()`, which asks
+Stripe what actually happened to the intent and settles the order if Stripe says
+it succeeded, asserting the same amount the webhook does. The sale is then
+reported from there, with the customer's own cookies and address attached —
+better matching than the webhook, which is a request from Stripe and carries
+none of them.
+
+Both paths converge on one `settleOrder`, and it refuses to settle an order that
+is already paid, so whichever arrives second reports nothing and a sale is
+counted once. Keep the subscription correct anyway: a customer who closes the
+tab at the bank's 3-D Secure step never loads the receipt, and the webhook is
+the only thing that will ever settle that order.
+
+With keys set and the inline form mounted, the checkout action creates the order
+and returns a payment intent the page confirms in place. Only when the form
+could not mount — `cardReady=0`, usually an ad blocker on `js.stripe.com` — does
+it fall back to redirecting to Stripe's hosted page. Either way the customer
+ends on `/checkout/success`, which reads the payment row rather than trusting the
+query string, and shows "processing" until the webhook confirms. **No card
+details reach this application either way.**
 
 The conversion is reported when the payment settles, not when the order row is
 written — otherwise every abandoned checkout is a sale as far as Meta is
