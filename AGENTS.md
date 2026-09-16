@@ -486,8 +486,42 @@ temporary arrangement until ChillMyPet has its own. Consequences to keep in
 mind: settlements land in that account, refunds and chargebacks are theirs to
 absorb, and `STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET` exists so buyers recognise
 the charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`. When
-ChillMyPet's own account is ready, swap three secrets and re-point the webhook;
-no code changes.
+ChillMyPet's own account is ready, the swap is configuration, not code — but it
+is **not** three secrets, and the count is where this bites.
+
+Stripe embeds the account in its object ids, so an id minted here is meaningless
+on another account. `acct_1Au2A6BbNuiab9E2` and
+`STRIPE_PAYMENT_METHOD_CONFIGURATION`'s `pmc_1U3QlJBbNuiab9E2mZmVymgE` share the
+fragment `BbNuiab9E2` for exactly that reason. Carry that value to a new account
+and it names an object that does not exist there.
+
+Moving to a ChillMyPet-owned account (ordered):
+
+1. `wrangler secret put` **`STRIPE_SECRET_KEY`** and **`STRIPE_PUBLISHABLE_KEY`**
+   from the new account, on both Workers.
+2. **Clear `STRIPE_PAYMENT_METHOD_CONFIGURATION`**, or create a new
+   configuration on the new account and use that id. Clearing is the better
+   default: both call sites pass it only when set, so an empty value falls back
+   to the account's own default — and that default was only ever unsafe to rely
+   on because the account was *shared*. Once the account is ours, its default is
+   ours to set in the dashboard. A stale id from the old account is the one
+   value here that fails at the customer, not in a log.
+3. Create the webhook endpoint on the new account, subscribe it to all seven
+   events listed in `README.md` — `payment_intent.succeeded` above all, since
+   the inline Payment Element settles through an intent and not a session — and
+   `wrangler secret put` its **`STRIPE_WEBHOOK_SECRET`**. A secret from the old
+   account's endpoint fails every signature check, which reads as orders simply
+   never turning paid.
+4. Keep **`STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET`** unless the new account's
+   own descriptor already reads ChillMyPet to a buyer. It is not about who owns
+   the account; it is about what the shopper recognises on their statement.
+5. Run `npm run test:payments` before and after. It uses a mock Stripe, so it
+   proves the code path, not the credentials — verify those with one real
+   low-value order that you then refund.
+
+Do **not** connect the new account's Stripe→Meta integration while swapping.
+See the partner-integration gotcha above: it double-counts against the
+Conversions API events this codebase already sends.
 
 `npm run test:payments` drives that whole path against a mock Stripe and a mock
 Conversions API — no account, no keys, nothing charged. Run it for any change to

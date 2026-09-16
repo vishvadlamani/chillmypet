@@ -192,8 +192,24 @@ has one configured, so an account already at Stripe's 22-character limit needs
 the full form.
 
 Point a Stripe webhook endpoint at `https://<domain>/api/stripe/webhook` and
-subscribe it to `checkout.session.completed`, `checkout.session.expired` and
-`charge.refunded`.
+subscribe it to **all seven** events the handler acts on:
+
+| Event | What it does |
+|---|---|
+| `checkout.session.completed` | marks paid (hosted-page fallback) |
+| `checkout.session.async_payment_succeeded` | marks paid (delayed methods) |
+| `payment_intent.succeeded` | **marks paid for the inline Payment Element** |
+| `checkout.session.expired` | releases reserved stock |
+| `checkout.session.async_payment_failed` | releases reserved stock |
+| `charge.refunded` | restocks |
+| `refund.created` | restocks |
+
+`payment_intent.succeeded` is the one to get right. The inline Payment Element
+is the primary checkout, and it settles through an intent, not a session — so an
+endpoint subscribed only to the `checkout.session.*` events leaves every inline
+sale stuck at `pending_payment`. The customer is charged, the order never flips,
+and Purchase is never reported, because a conversion is only sent once money is
+confirmed to have moved. Anything not on this list is answered 2xx and ignored.
 
 With keys set, the checkout action creates the order, then redirects to Stripe's
 hosted page; the customer returns to `/checkout/success`, which reads the payment
