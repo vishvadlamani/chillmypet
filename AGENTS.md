@@ -147,6 +147,16 @@ order number by `purchaseEventId()`, not minted per call — the server event fi
 from the Stripe webhook and the browser event from the success page, two requests
 that cannot pass a value to each other. Break that and every sale counts twice.
 
+**InitiateCheckout counts checkouts started, not views of `/checkout`.** Its
+guard is keyed on the cart's contents and kept in `sessionStorage`, because the
+cart it describes lives in `localStorage` and outlives the page. A plain
+per-mount `let` was there first, and it counted a reload, a back-navigation and
+the bounce back from Stripe's cancel url as fresh starts on an unchanged cart —
+which is how the dataset came to hold roughly six InitiateCheckouts for every
+AddToCart, a ratio no real funnel produces. Re-entering the page with the same
+lines stays silent; a genuinely different cart, or a new session, fires again.
+`tests/e2e.mjs` reloads `/checkout` and asserts nothing fired.
+
 **A discounted order needs a coupon on the Stripe session.** Line items sum to
 subtotal plus shipping, and `handleWebhook` asserts the session total equals the
 order total — so a bundle order without one is charged the *full* amount and
@@ -444,9 +454,42 @@ the charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`. Whe
 ChillMyPet's own account is ready, swap three secrets and re-point the webhook;
 no code changes.
 
+⚠️ **A sale settles from two directions, and `settleOrder` is where they meet.**
+It is the only code that sets an order to `paid`, and it has exactly two
+callers: `handleWebhook`, when Stripe tells us, and `reconcile`, when
+`/checkout/success` asks Stripe directly about an order it is about to render as
+unpaid. Both assert the same amount against the order row, both go through
+`processOnce`, and `settleOrder` refuses an order already marked paid — which is
+what makes them idempotent against *each other*, so whichever arrives second
+reports no conversion and one sale stays one sale. Keep that refusal: without
+it, a webhook landing after a reconciled receipt is a second `order_paid` and a
+second Purchase.
+
+The second caller exists because the first is one delivery from silence. The
+inline Payment Element settles on **`payment_intent.succeeded`** and never
+creates a Checkout Session, so an endpoint subscribed only to
+`checkout.session.completed` — which is what the README told you to do until
+this was found, having been written for the hosted-page flow — hears nothing
+about any real order. That failure is invisible from in here: the card is
+charged, the order stays `pending_payment`, the receipt reads "processing", and
+neither half of the Purchase pair fires (the browser event needs `data.paid`,
+the server event needs `action === 'order_paid'`). Nothing logs, because nothing
+arrived.
+
+Reconciliation covers it but does not replace the subscription: a customer who
+closes the tab at 3-D Secure never loads the receipt, and only the webhook will
+ever settle that order. If Events Manager is missing Purchase while Stripe shows
+successful charges, check the endpoint's event list first. The full set the
+handler acts on is in README.md under Payment.
+
 `npm run test:payments` drives that whole path against a mock Stripe and a mock
 Conversions API — no account, no keys, nothing charged. Run it for any change to
-checkout, the webhook, or conversion reporting.
+checkout, the webhook, or conversion reporting. It does cover this path — it
+signs a `payment_intent.succeeded` event and asserts the order settles and the
+conversion reports — which is the point worth remembering: it posts that event
+to the endpoint itself, so it proves the handler works and can never tell you
+whether Stripe is configured to deliver it. A green suite is not evidence of a
+live subscription.
 
 Not built, in rough priority order:
 
