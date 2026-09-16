@@ -81,28 +81,35 @@ filter is a cross-store data leak, not a display bug. The isolation suite in
 and extend it when you add a module.
 
 **Every pixel is initialised in one place, and that is what keeps counting
-honest.** `pixelSnippet` in `hooks.server.ts` inits `META_PIXEL_ID` plus
-`META_EXTRA_PIXEL_IDS` (comma-separated, wrangler.toml) and fires one
-`PageView`. Because `fbq('track', …)` reports to every initialised pixel, one
+honest.** `pixelSnippet` in `hooks.server.ts` inits `META_PIXEL_ID`, the further
+Conversions API datasets (`META_PIXEL_ID_2` and up) and `META_EXTRA_PIXEL_IDS`
+(comma-separated, wrangler.toml) — deduplicated, because a repeat `init` resets
+that pixel's state — and fires one `PageView`. Because `fbq('track', …)` reports to every initialised pixel, one
 call gives each of them exactly one event — so nothing in the app needs
 `trackSingle`, and adding a pixel needs no code. Initialise one late, on a
 single page, and that stops being true: the base snippet's PageView has already
 gone without it while every later event double-counts on the pixels that were
 there from the start.
 
-**`META_PIXEL_ID` must be the pixel the ad account optimises against.** It is
-the only one the Conversions API reports to — `primaryPixelId` feeds both
-`pixelSnippet` and the `meta` config — because a CAPI access token is scoped to
-a single dataset. Every other pixel in `META_EXTRA_PIXEL_IDS` gets browser
-events only, which is the half that iOS and ad blockers eat, and Purchase is
-the event that dies most. This was live for a month with the ad account's pixel
-in the extras list: the campaign reported no conversions the whole time, while
-the unused pixel collected clean server-side data. If you change
-`META_PIXEL_ID`, generate a matching token for that dataset in the same change.
-Neither failure is loud: with no token `send()` returns `not_configured` and
-posts nothing, and with a token belonging to another dataset Meta rejects the
-event — both only reach `console.error`, because tracking must never fail an
-order. Events Manager, not the logs, is where you notice.
+**Every ad account optimising against this store needs its dataset on a
+Conversions API tier, not in the extras list.** A token authorises exactly one
+dataset, so a second dataset takes a second token rather than another id in a
+list. `META_PIXEL_ID` is the primary, paired with `META_CAPI_ACCESS_TOKEN`;
+`META_PIXEL_ID_2` through `_9` are further datasets, each paired by suffix with
+`META_CAPI_ACCESS_TOKEN_2` and up, and `createMetaService` posts the same
+payload to every dataset holding both. Everything in `META_EXTRA_PIXEL_IDS` gets
+browser events only, which is the half that iOS and ad blockers eat, and
+Purchase is the event that dies most. This was live for a month with the ad
+account's pixel in the extras list: the campaign reported no conversions the
+whole time, while the unused pixel collected clean server-side data. Adding a
+dataset means adding its token in the same change, and a dataset on a CAPI tier
+is initialised in the browser too — `pixelIds` spans the CAPI datasets and the
+extras alike — or it holds only the server's half of every event. No failure
+here is loud: a dataset with no token is skipped, `send()` reports
+`not_configured` only when none of them has one, and a token belonging to
+another dataset has its event rejected — all of which reach `console.error` and
+no further, because tracking must never fail an order. Events Manager, not the
+logs, is where you notice.
 
 **The dataLayer is the container's whole view of the app.** GTM tags cannot
 reach into the store, so `$lib/analytics/datalayer.ts` pushes GA4 ecommerce

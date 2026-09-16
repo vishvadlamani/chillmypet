@@ -6,16 +6,27 @@ compatibility_flags = ["nodejs_compat"]
 # A pixel id is public — it ships to the browser by design — so these are vars,
 # not secrets, and the same goes for the GTM container.
 #
-# META_PIXEL_ID is the dataset that matters: browser events *and* the server-side
-# Conversions API copy both report to it, so it must be the pixel the ad account
-# optimises against, and META_CAPI_ACCESS_TOKEN must be generated for this same
-# pixel. A token belongs to one dataset; pointed at any other pixel, that pixel
-# gets browser events only.
+# There are three tiers here, and which one a pixel sits in decides whether the
+# ad account optimising against it can see a conversion an ad blocker ate.
 #
-# META_EXTRA_PIXEL_IDS are additional pixels measuring the same pages,
-# comma-separated. They share the one loader and every event, but get no CAPI.
+# META_PIXEL_ID is the primary dataset: browser events plus the server-side
+# Conversions API copy, authorised by the META_CAPI_ACCESS_TOKEN secret.
+#
+# META_PIXEL_ID_2 (through _9) are further datasets that get both halves too. A
+# token authorises exactly one dataset, so each needs its own, paired by suffix —
+# META_PIXEL_ID_2 with META_CAPI_ACCESS_TOKEN_2. The id goes here, the token goes
+# in `wrangler secret put`. An id whose token has not been generated yet still
+# initialises in the browser; it just gets no server copy until the token lands.
+#
+# META_EXTRA_PIXEL_IDS are pixels measuring the same pages with no CAPI at all,
+# comma-separated. They share the one loader and every browser event — which is
+# precisely the half iOS and ad blockers eat, so no campaign should optimise
+# against one of these.
 [vars]
+# Ad account 1431226177195979, also shared with 1550461850095009.
 META_PIXEL_ID = "1363695699271757"
+# The USD dataset on ad account 1550461850095009. Needs META_CAPI_ACCESS_TOKEN_2.
+META_PIXEL_ID_2 = "1341978141149107"
 META_EXTRA_PIXEL_IDS = "28272021345717397"
 GTM_CONTAINER_ID = "GTM-T446VNH9"
 

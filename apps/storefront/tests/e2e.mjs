@@ -54,6 +54,8 @@ const tracked = (calls, event) => calls.find((c) => c[0] === 'track' && c[1] ===
 const pageViews = (calls) => calls.filter((c) => c[0] === 'track' && c[1] === 'PageView').length;
 
 const STORE_PIXEL = '1363695699271757';
+// Also gets the server-side copy, on its own token — see wrangler.toml.
+const CAPI_PIXEL_2 = '1341978141149107';
 const EXTRA_PIXEL = '28272021345717397';
 
 function check(label, cond) {
@@ -85,8 +87,12 @@ function check(label, cond) {
 	// Both tags ship server-rendered, on every page, before any JavaScript runs.
 	check('SSR carries the GTM container', /googletagmanager\.com\/gtm\.js/.test(html));
 	check('and its noscript iframe', /ns\.html\?id=GTM-T446VNH9/.test(html));
-	check('SSR initialises the store pixel', html.includes("fbq('init', '1363695699271757')"));
-	check('SSR initialises the second pixel', html.includes("fbq('init', '28272021345717397')"));
+	check('SSR initialises the store pixel', html.includes(`fbq('init', '${STORE_PIXEL}')`));
+	check(
+		'SSR initialises the second CAPI dataset',
+		html.includes(`fbq('init', '${CAPI_PIXEL_2}')`)
+	);
+	check('SSR initialises the browser-only pixel', html.includes(`fbq('init', '${EXTRA_PIXEL}')`));
 }
 
 {
@@ -163,14 +169,23 @@ check('the 3-pack discount is applied', summary?.includes('$12.14'));
 {
 	const calls = await fbqCalls();
 
-	// A second ad account measures the same pages. Both pixels are initialised
-	// by the snippet, so every event above reaches both — and each is
+	// A second ad account measures the same pages. Every pixel is initialised by
+	// the one snippet, so each event above reaches all of them — and each is
 	// initialised exactly once, since a repeat init resets that pixel's state.
-	check('the second pixel initialises', calls.some((c) => c[0] === 'init' && c[1] === EXTRA_PIXEL));
 	check('the store pixel is still there', calls.some((c) => c[0] === 'init' && c[1] === STORE_PIXEL));
+	// This one also receives the Conversions API copy, so both halves must reach
+	// it: server-only would leave it holding the events the browser never sent.
 	check(
-		'neither pixel is initialised twice',
-		calls.filter((c) => c[0] === 'init').length === 2
+		'the second CAPI dataset initialises',
+		calls.some((c) => c[0] === 'init' && c[1] === CAPI_PIXEL_2)
+	);
+	check(
+		'the browser-only pixel initialises',
+		calls.some((c) => c[0] === 'init' && c[1] === EXTRA_PIXEL)
+	);
+	check(
+		'no pixel is initialised twice',
+		calls.filter((c) => c[0] === 'init').length === 3
 	);
 
 	// Every event has a server copy carrying this same id — the SSR snippet's

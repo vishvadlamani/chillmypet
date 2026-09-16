@@ -1,7 +1,7 @@
 import { error, type Handle } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
-import { newEventId } from 'ecomwithai/marketing';
+import { newEventId, type MetaDataset } from 'ecomwithai/marketing';
 import { attributionFrom } from '$lib/server/purchase';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
@@ -20,6 +20,41 @@ function getDirectory() {
 		});
 	}
 	return directory;
+}
+
+/**
+ * How far to look for `META_PIXEL_ID_2`, `_3`, and so on. Bounded because this
+ * reads the environment by name rather than by listing it.
+ */
+const MAX_ADDITIONAL_DATASETS = 9;
+
+/**
+ * Datasets beyond the primary that also receive the Conversions API copy.
+ *
+ * A token authorises exactly one dataset, so a second dataset needs a second
+ * token rather than another id in a list. They pair by suffix —
+ * `META_PIXEL_ID_2` with `META_CAPI_ACCESS_TOKEN_2` — because pairing two
+ * comma-separated lists by position puts a silent mismatch one edit away, and a
+ * token presented to the wrong dataset is refused somewhere only Events Manager
+ * shows you.
+ *
+ * An id whose token has not arrived yet is still returned, so its browser half
+ * is initialised meanwhile: that collects browser events instead of nothing,
+ * and `createMetaService` leaves it out of the server-side fan-out until the
+ * token exists.
+ */
+function additionalDatasets(): MetaDataset[] {
+	const datasets: MetaDataset[] = [];
+	for (let index = 2; index <= MAX_ADDITIONAL_DATASETS; index += 1) {
+		const pixelId = env[`META_PIXEL_ID_${index}`]?.trim();
+		if (!pixelId) continue;
+		datasets.push({
+			pixelId,
+			accessToken: env[`META_CAPI_ACCESS_TOKEN_${index}`],
+			testEventCode: env[`META_CAPI_TEST_EVENT_CODE_${index}`]
+		});
+	}
+	return datasets;
 }
 
 /**
@@ -104,12 +139,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 		settingsCache.set(store.id, settings);
 	}
 
-	// The pixel that owns this store's dataset. Both the browser events and the
-	// Conversions API copy report to this one, and a CAPI token is scoped to a
-	// single dataset — so this must be the pixel the ad account optimises
-	// against, or its conversions are browser-only and die on iOS and blockers.
+	// The primary dataset: browser events and the Conversions API copy both
+	// report to it. A token is scoped to one dataset, so reaching a second one
+	// takes `META_PIXEL_ID_2` with a token of its own rather than another id
+	// here — and an ad account optimising against a dataset on neither tier gets
+	// browser-only conversions, which die on iOS and ad blockers.
 	// An env override so correcting it is a config change, not a database write.
 	const primaryPixelId = env.META_PIXEL_ID ?? settings.meta_pixel_id ?? '';
+	const capiDatasets = additionalDatasets();
 
 	event.locals.store = store;
 	// Publishable, not secret — it identifies the account to Stripe.js and is
@@ -157,7 +194,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 			apiVersion: env.META_CAPI_API_VERSION,
 			endpoint: env.META_CAPI_ENDPOINT,
 			testEventCode: env.META_CAPI_TEST_EVENT_CODE,
-			attributionShare: env.META_ATTRIBUTION_SHARE
+			attributionShare: env.META_ATTRIBUTION_SHARE,
+			additionalDatasets: capiDatasets
 		}
 	});
 
@@ -167,7 +205,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 		.split(',')
 		.map((id) => id.trim())
 		.filter(Boolean);
-	const pixelIds = [primaryPixelId, ...extraPixels].filter(Boolean);
+	// Every dataset receiving a server-side copy is initialised here as well, or
+	// it only ever sees half of each event. The pairing this file is built around
+	// is one browser event and one server event sharing an `event_id`, deduped
+	// into a single conversion that carries both halves' signal.
+	//
+	// Deduplicated because a repeat `fbq('init', …)` resets that pixel's state,
+	// and an id can now reach this line from three places at once.
+	const pixelIds = [
+		...new Set([primaryPixelId, ...capiDatasets.map((dataset) => dataset.pixelId), ...extraPixels])
+	].filter(Boolean);
 	const gtm = gtmSnippet(env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? '');
 
 	const saved = event.cookies.get(LOCALE_COOKIE);
