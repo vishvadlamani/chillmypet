@@ -285,8 +285,15 @@ npm run deploy
 
 Or push to `main` and let `.github/workflows/deploy.yml` run it, once
 `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are repository secrets. Give
-the token the "Edit Cloudflare Workers" template plus **Zone → DNS → Edit** on
-each store domain.
+the token the "Edit Cloudflare Workers" template on the account that owns both
+the Worker and the zone — the custom-domain routes need zone-level access, so a
+Workers-Scripts-only token uploads the script and then fails on the routes.
+Adding a *new* store domain also needs **Zone → DNS → Edit** on that zone.
+
+Running the workflow by hand (Actions → Deploy → Run workflow) offers a target;
+it defaults to **staging**. The job also names a GitHub Environment, so adding a
+required reviewer under Settings → Environments makes a merge wait for approval
+before it reaches chillmypet.com.
 
 Worker secrets:
 

@@ -4,22 +4,74 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      target:
+        description: Which Worker to deploy
+        type: choice
+        options: [staging, production]
+        default: staging
+
+# A deploy repoints a running Worker in one step, so let one finish before the
+# next starts. Two merges in quick succession would otherwise race two
+# `wrangler deploy` calls at the same script, and the last writer wins
+# regardless of which commit it carried.
+concurrency:
+  group: deploy-${{ inputs.target || 'production' }}
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Auto-created on first run with no protection rules, so this changes
+    # nothing by itself. It exists so that adding a required reviewer under
+    # Settings > Environments is all it takes to turn "merged" into "approved,
+    # then live" — which matters because the production config declares
+    # chillmypet.com as a custom domain and there is no staged rollout.
+    environment:
+      name: ${{ inputs.target || 'production' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+
+      # A missing secret expands to an empty string rather than failing, so the
+      # job reads as correctly wired right up until wrangler rejects it 40
+      # seconds later with an error about non-interactive environments. Four
+      # deploys died that way before anyone read the log. Fail here instead,
+      # with the fix in the message.
+      - name: Check deploy credentials are present
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secret(s):$missing. Add them under Settings > Secrets and variables > Actions. The token needs the 'Edit Cloudflare Workers' template on the account that owns both the chillmypet Worker and the chillmypet.com zone — the custom-domain routes need zone-level access, so a Workers-Scripts-only token deploys the script and then fails on the routes."
+            exit 1
+          fi
+
       - run: npm run check
+      # The framework is consumed as TypeScript source, not a build artifact, so
+      # a type error in it reaches users directly and `npm run check` does not
+      # cover it.
+      - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - run: npx wrangler deploy
+
+      - name: Deploy
         working-directory: apps/storefront
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TARGET: ${{ inputs.target || 'production' }}
+        run: |
+          if [ "$TARGET" = staging ]; then
+            npx wrangler deploy -c wrangler.staging.toml
+          else
+            npx wrangler deploy
+          fi

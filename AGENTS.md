@@ -637,6 +637,45 @@ request first. That means `TURSO_DATABASE_URL` set as a Worker secret: on
 Workers `@libsql/client` resolves to its web build, which rejects `file:` URLs
 outright, so without it every request throws before any route runs.
 
+### CI deploys, and why they did nothing for a month
+
+`.github/workflows/deploy.yml` deploys production on every push to `main`, and
+either target on a manual run — the `workflow_dispatch` input defaults to
+**staging**, because a manual run is usually someone verifying something and
+that is the order this section asks for.
+
+It is worth knowing that this workflow existed and **failed silently four times
+in a row** before anyone read a log. A missing repository secret does not fail
+the expansion; GitHub substitutes an empty string. So `CLOUDFLARE_API_TOKEN`
+and `CLOUDFLARE_ACCOUNT_ID`, which were never added, rendered as blank env vars
+and the job sailed through install, check, test and build before wrangler
+rejected it with an error about non-interactive environments. Every run looked
+correctly wired until its final second, and production was being hand-deployed
+in parallel, so the red X read as noise. There is now an explicit credential
+check as the first step after `npm ci`, which fails with the fix in the message
+rather than leaving it to wrangler forty seconds later. Do not remove it.
+
+The job names a GitHub Environment (`production` or `staging`). Both are
+auto-created with no protection rules, so by itself that changes nothing — it
+exists so that adding a required reviewer under Settings > Environments is all
+it takes to make a merge wait for a click. Worth doing: the production config
+declares chillmypet.com as a custom domain and there is no staged rollout, so
+without a gate, merging *is* shipping to customers.
+
+The token needs Cloudflare's **Edit Cloudflare Workers** template on the account
+that owns both the `chillmypet` Worker and the `chillmypet.com` zone. A
+Workers-Scripts-only token uploads the script and then fails on the
+custom-domain routes, which needs zone-level access. Note the blast radius when
+rotating: Cloudflare cannot scope Workers Scripts edit to one script, so this
+token can edit every Worker on the account. Give this repo its own token rather
+than sharing one, so it can be revoked without taking anything else down.
+
+CI runs `check`, `typecheck`, `test` and `build`. It does **not** run
+`test:e2e`, `test:store` or `test:payments` — those need a dev server and a
+seeded database. So a green deploy is a weaker signal than the bar the
+Conventions section sets, and anything touching checkout, cart or tracking still
+wants those suites run by hand before it is merged.
+
 ## Content and assets — provenance
 
 Product copy (the `product_translations` and `content.faq` rows written by
