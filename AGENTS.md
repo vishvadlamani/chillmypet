@@ -80,29 +80,38 @@ filter is a cross-store data leak, not a display bug. The isolation suite in
 `packages/ecomwithai/src/commerce.test.ts` exists to catch this — keep it green,
 and extend it when you add a module.
 
-**There is one pixel, initialised in one place, and that is what keeps counting
-honest.** `pixelSnippet` in `hooks.server.ts` inits `META_PIXEL_ID` and fires one
-`PageView`; everything after that pushes onto it through `track()`. Initialise a
-pixel late, on a single page, and counting breaks in both directions at once: the
-base snippet's PageView has already gone without it, while every later event
-double-counts on the one that was there from the start. The same goes for a
-second pixel anywhere — `META_EXTRA_PIXEL_IDS` used to exist for that and is
-gone; see below for why.
+**Every pixel is initialised in one place, and that is what keeps counting
+honest.** `pixelSnippet` in `hooks.server.ts` inits the whole roster —
+`META_PIXEL_ID` plus `META_EXTRA_PIXEL_IDS` — and fires one `PageView`;
+everything after that pushes onto them through `track()`. Initialise a pixel
+late, on a single page, and counting breaks in both directions at once: the base
+snippet's PageView has already gone without it, while every later event
+double-counts on the ones that were there from the start.
 
 **`META_PIXEL_ID` must be the pixel the ad account optimises against.** It is the
 only one the Conversions API reports to — `pixelId` feeds both `pixelSnippet` and
 the `meta` config — because a CAPI access token is scoped to a single dataset.
-Any other pixel would get browser events only, which is the half that iOS and ad
+Any other pixel gets browser events only, which is the half that iOS and ad
 blockers eat, and Purchase is the event that dies most. This was live for a month
-with the ad account's pixel in a browser-only extras list: the campaign reported
-no conversions the whole time, while the unused pixel collected clean server-side
-data. That list is gone now — one pixel, so there is no second place for the
-wrong one to hide. If you change `META_PIXEL_ID`, generate a matching token for
-that dataset in the same change, and run `npm run meta:check` to prove it.
+with the ad account's pixel sitting in the browser-only extras list: the campaign
+reported no conversions the whole time, while the unused pixel collected clean
+server-side data. That list is deliberate now rather than accidental — a retired
+dataset and a second account's pixel are kept on it so their history keeps
+accruing, and `wrangler.toml` records which id belongs to whom. So the safeguard
+is no longer that there is only one place to look: it is that `npm run
+meta:check` proves the token actually reaches whatever `META_PIXEL_ID` names. If
+you change `META_PIXEL_ID`, make sure the token covers that dataset in the same
+change, and run the check to prove it.
 Neither failure is loud: with no token `send()` returns `not_configured` and
 posts nothing, and with a token belonging to another dataset Meta rejects the
 event — both only reach `console.error`, because tracking must never fail an
 order. Events Manager, not the logs, is where you notice.
+
+The roster now reads `META_PIXEL_ID = 1341978141149107` (ad account
+`1550461850095009`, portfolio "Vish Ads") with the retired CZK account's
+`1363695699271757` demoted into `META_EXTRA_PIXEL_IDS`, where it keeps
+collecting browser events rather than being dropped. `wrangler.toml` carries the
+full which-id-is-whose table — read it before touching any of these numbers.
 
 **The Meta pixel loads directly in the app shell. Never route it through GTM:**
 it breaks browser/server `event_id` deduplication and Meta double-counts
@@ -142,6 +151,16 @@ from the order, and a public endpoint must not be able to claim identity.
 order number by `purchaseEventId()`, not minted per call — the server event fires
 from the Stripe webhook and the browser event from the success page, two requests
 that cannot pass a value to each other. Break that and every sale counts twice.
+
+**InitiateCheckout counts checkouts started, not views of `/checkout`.** Its
+guard is keyed on the cart's contents and kept in `sessionStorage`, because the
+cart it describes lives in `localStorage` and outlives the page. A plain
+per-mount `let` was there first, and it counted a reload, a back-navigation and
+the bounce back from Stripe's cancel url as fresh starts on an unchanged cart —
+which is how the dataset came to hold roughly six InitiateCheckouts for every
+AddToCart, a ratio no real funnel produces. Re-entering the page with the same
+lines stays silent; a genuinely different cart, or a new session, fires again.
+`tests/e2e.mjs` reloads `/checkout` and asserts nothing fired.
 
 **A discounted order needs a coupon on the Stripe session.** Line items sum to
 subtotal plus shipping, and `handleWebhook` asserts the session total equals the
@@ -226,6 +245,20 @@ trailing-slash-only pattern.
 deliberately idempotent because `persist()` reads `lines`; an unconditional
 write re-triggered the effect calling it. `effect_update_depth_exceeded` in the
 console means you've done this somewhere.
+
+**A Stripe → Meta "partner integration" double-counts every sale, and it is
+not ours to switch on.** Stripe can post Purchase events straight to a Meta
+dataset. It sounds like free redundancy and is the opposite: Meta dedupes on
+`event_id`, this app derives Purchase's from the order number via
+`purchaseEventId()`, and Stripe mints its own — different ids, so no dedupe, so
+every sale counts twice and the ad account optimises against inflated numbers.
+Worse here specifically: the Stripe account is `acct_1Au2A6BbNuiab9E2`, shared
+with another business (see Content and provenance), so such a connection also
+reports **their** sales as ChillMyPet conversions and pushes their customers'
+hashed contact details into our Meta account. Conversions come from this
+codebase, from the webhook, on `action === 'order_paid'`. If you find one of
+these connected, disconnect it at the Stripe end rather than filtering at the
+Meta end.
 
 **Don't delete `local.db` while the dev server is running.** It holds the file
 handle, keeps writing to the unlinked inode, and you'll chase phantom failures.
@@ -368,6 +401,29 @@ locale too.
 the domain to `apps/storefront/wrangler.toml`. One Worker serves all tenants;
 the `Host` header picks which. No code change.
 
+**A different ad account:** the store reports to whichever dataset
+`META_PIXEL_ID` names, so moving accounts is config plus one secret, in this
+order. Do it in this order or the store spends the gap reporting nothing.
+
+1. In Events Manager, find the dataset the new ad account optimises against.
+   Meta merged "pixel" and "dataset" into a single object, so that one id is
+   both — a dataset showing no connected pixel is not missing one, it just has
+   never been sent a browser event.
+2. On that dataset: Settings > Conversions API > **Generate access token**.
+3. `npx wrangler secret put META_CAPI_ACCESS_TOKEN` on **both** `chillmypet` and
+   `chillmypet-staging`.
+4. Move the outgoing id into `META_EXTRA_PIXEL_IDS` and put the new one in
+   `META_PIXEL_ID`, in `wrangler.toml` and in `seed.js`'s `SETTINGS`. Demote,
+   don't delete: an old pixel costs nothing and its history stays warm.
+5. Deploy staging, place a test order, and confirm in Events Manager > Test
+   Events that Purchase arrives **twice over** — once `Browser`, once `Server`,
+   collapsed into one event. One copy alone means the token and the id disagree.
+6. Check domain verification separately. `meta_domain_verification` in `seed.js`
+   holds one token, and a domain verifies to **one** business portfolio at a
+   time — so moving to an account under a different portfolio may need the
+   domain released from the old one and re-verified, which is what Aggregated
+   Event Measurement needs to attribute at all. The meta tag changes with it.
+
 **A domain module:** create `packages/ecomwithai/src/<name>/index.ts` exporting
 an interface plus a `create<Name>Service({ db, storeId })` factory, add a subpath
 to the package `exports`, and compose it in `createCommerce()`. Follow the
@@ -404,10 +460,19 @@ Put real customer text in those arrays and flip it, and the rating, the hero
 quotes and the wall all come back. Do not flip it to make the page look
 fuller.
 
-Meta tracking is **fully live**: the browser pixel and the Conversions API both
-fire, deduplicated on `event_id`. The CAPI token is set on both Workers and was
-verified end to end against Meta's real API — payload built by the framework,
-`events_received: 1`, no warnings. Note the token's `debug_token` scopes read
+Meta tracking is **built and proven, and mid-move between ad accounts.** The
+browser pixel and the Conversions API both fire, deduplicated on `event_id`, and
+the whole path was verified end to end against Meta's real API — payload built
+by the framework, `events_received: 1`, no warnings.
+
+⚠️ **The outstanding step is the CAPI token.** The config now points at dataset
+`1341978141149107`, the one the live ad account optimises against, but the token
+on both Workers was generated for the retired `1363695699271757`. A token is
+scoped to one dataset, so until a new one is generated and set, deploying sends
+server events that Meta rejects — silently, into `console.error`. Browser events
+still arrive, so Events Manager looks alive while the half that survives iOS and
+ad blockers is missing. Generate the token, `wrangler secret put` it on
+`chillmypet` and `chillmypet-staging`, then deploy. Note the token's `debug_token` scopes read
 `read_ads_dataset_quality` only and a `GET /{pixel_id}` returns "Missing
 Permission"; that is expected. Posting to `/{dataset_id}/events` is a
 dataset-level grant, separate from the pixel-read scope, so don't take a failed
@@ -462,12 +527,79 @@ temporary arrangement until ChillMyPet has its own. Consequences to keep in
 mind: settlements land in that account, refunds and chargebacks are theirs to
 absorb, and `STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET` exists so buyers recognise
 the charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`. When
-ChillMyPet's own account is ready, swap three secrets and re-point the webhook;
-no code changes.
+ChillMyPet's own account is ready, the swap is configuration, not code — but it
+is **not** three secrets, and the count is where this bites.
+
+Stripe embeds the account in its object ids, so an id minted here is meaningless
+on another account. `acct_1Au2A6BbNuiab9E2` and
+`STRIPE_PAYMENT_METHOD_CONFIGURATION`'s `pmc_1U3QlJBbNuiab9E2mZmVymgE` share the
+fragment `BbNuiab9E2` for exactly that reason. Carry that value to a new account
+and it names an object that does not exist there.
+
+Moving to a ChillMyPet-owned account (ordered):
+
+1. `wrangler secret put` **`STRIPE_SECRET_KEY`** and **`STRIPE_PUBLISHABLE_KEY`**
+   from the new account, on both Workers.
+2. **Clear `STRIPE_PAYMENT_METHOD_CONFIGURATION`**, or create a new
+   configuration on the new account and use that id. Clearing is the better
+   default: both call sites pass it only when set, so an empty value falls back
+   to the account's own default — and that default was only ever unsafe to rely
+   on because the account was *shared*. Once the account is ours, its default is
+   ours to set in the dashboard. A stale id from the old account is the one
+   value here that fails at the customer, not in a log.
+3. Create the webhook endpoint on the new account, subscribe it to all seven
+   events listed in `README.md` — `payment_intent.succeeded` above all, since
+   the inline Payment Element settles through an intent and not a session — and
+   `wrangler secret put` its **`STRIPE_WEBHOOK_SECRET`**. A secret from the old
+   account's endpoint fails every signature check, which reads as orders simply
+   never turning paid.
+4. Keep **`STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET`** unless the new account's
+   own descriptor already reads ChillMyPet to a buyer. It is not about who owns
+   the account; it is about what the shopper recognises on their statement.
+5. Run `npm run test:payments` before and after. It uses a mock Stripe, so it
+   proves the code path, not the credentials — verify those with one real
+   low-value order that you then refund.
+
+Do **not** connect the new account's Stripe→Meta integration while swapping.
+See the partner-integration gotcha above: it double-counts against the
+Conversions API events this codebase already sends.
+
+⚠️ **A sale settles from two directions, and `settleOrder` is where they meet.**
+It is the only code that sets an order to `paid`, and it has exactly two
+callers: `handleWebhook`, when Stripe tells us, and `reconcile`, when
+`/checkout/success` asks Stripe directly about an order it is about to render as
+unpaid. Both assert the same amount against the order row, both go through
+`processOnce`, and `settleOrder` refuses an order already marked paid — which is
+what makes them idempotent against *each other*, so whichever arrives second
+reports no conversion and one sale stays one sale. Keep that refusal: without
+it, a webhook landing after a reconciled receipt is a second `order_paid` and a
+second Purchase.
+
+The second caller exists because the first is one delivery from silence. The
+inline Payment Element settles on **`payment_intent.succeeded`** and never
+creates a Checkout Session, so an endpoint subscribed only to
+`checkout.session.completed` — which is what the README told you to do until
+this was found, having been written for the hosted-page flow — hears nothing
+about any real order. That failure is invisible from in here: the card is
+charged, the order stays `pending_payment`, the receipt reads "processing", and
+neither half of the Purchase pair fires (the browser event needs `data.paid`,
+the server event needs `action === 'order_paid'`). Nothing logs, because nothing
+arrived.
+
+Reconciliation covers it but does not replace the subscription: a customer who
+closes the tab at 3-D Secure never loads the receipt, and only the webhook will
+ever settle that order. If Events Manager is missing Purchase while Stripe shows
+successful charges, check the endpoint's event list first. The full set the
+handler acts on is in README.md under Payment.
 
 `npm run test:payments` drives that whole path against a mock Stripe and a mock
 Conversions API — no account, no keys, nothing charged. Run it for any change to
-checkout, the webhook, or conversion reporting.
+checkout, the webhook, or conversion reporting. It does cover this path — it
+signs a `payment_intent.succeeded` event and asserts the order settles and the
+conversion reports — which is the point worth remembering: it posts that event
+to the endpoint itself, so it proves the handler works and can never tell you
+whether Stripe is configured to deliver it. A green suite is not evidence of a
+live subscription.
 
 Not built, in rough priority order:
 

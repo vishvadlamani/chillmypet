@@ -39,11 +39,12 @@ function getDirectory() {
  * Guards against database content reaching the page as markup.
  */
 function pixelSnippet(
-	pixelId: string,
+	pixelIds: string[],
 	pageViewEventId: string,
 	matching: Record<string, string>
 ): string {
-	if (!/^\d{1,20}$/.test(pixelId)) return '';
+	const ids = pixelIds.filter((id) => /^\d{1,20}$/.test(id));
+	if (ids.length === 0) return '';
 
 	// Hex digests only. Nothing else can reach an inline script from here, and
 	// this is what makes that true rather than a thing the caller promises.
@@ -52,8 +53,20 @@ function pixelSnippet(
 	);
 	const advanced = Object.keys(safe).length > 0 ? `, ${JSON.stringify(safe)}` : '';
 
-	const noscript = `<noscript><img height="1" width="1" style="display:none" alt=""
-src="https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1" /></noscript>`;
+	// Advanced matching rides on the first id only. That is META_PIXEL_ID, the
+	// dataset the Conversions API also reports to, where resolving both halves to
+	// one person is the whole point of carrying it. The rest of the roster belongs
+	// to other ad accounts and gets browser events without a hashed customer
+	// attached — widening that is a deliberate choice, not a default.
+	const inits = ids
+		.map((id, i) => `fbq('init', '${id}'${i === 0 ? advanced : ''});`)
+		.join('\n');
+	const noscript = ids
+		.map(
+			(id) => `<noscript><img height="1" width="1" style="display:none" alt=""
+src="https://www.facebook.com/tr?id=${id}&ev=PageView&noscript=1" /></noscript>`
+		)
+		.join('\n');
 
 	return `<script>
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -61,7 +74,7 @@ n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
 n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '${pixelId}'${advanced});
+${inits}
 fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
 </script>
 ${noscript}`;
@@ -99,6 +112,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// browser-only and die on iOS and blockers.
 	// An env override so correcting it is a config change, not a database write.
 	const pixelId = env.META_PIXEL_ID ?? settings.meta_pixel_id ?? '';
+	// Other ad accounts measuring the same pages. Comma-separated, so adding one
+	// is a config change rather than a code one. They share the one loader and
+	// every browser event; only `pixelId` above gets the Conversions API copy.
+	const extraPixels = (env.META_EXTRA_PIXEL_IDS ?? settings.meta_extra_pixel_ids ?? '')
+		.split(',')
+		.map((id) => id.trim())
+		.filter(Boolean);
+	const pixelIds = [pixelId, ...extraPixels].filter(Boolean);
 
 	event.locals.store = store;
 	// Publishable, not secret — it identifies the account to Stripe.js and is
@@ -183,7 +204,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			html
 				.replace('%lang%', locale)
 				.replace('%dir%', textDirection(locale))
-				.replace('%meta_pixel%', pixelSnippet(pixelId, pageViewEventId, matching))
+				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId, matching))
 				.replace(
 					'%meta_domain_verification%',
 					settings.meta_domain_verification

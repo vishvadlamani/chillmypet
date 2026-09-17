@@ -12,11 +12,34 @@ compatibility_flags = ["nodejs_compat"]
 # pixel. A token belongs to one dataset; pointed at any other pixel, that pixel
 # gets browser events only.
 #
-# There is exactly one. A second pixel here would get browser events and no
-# CAPI, which is the half iOS and ad blockers eat — and having two is what let
-# the ad account's own pixel sit in the browser-only list for a month.
+# META_EXTRA_PIXEL_IDS are additional pixels measuring the same pages,
+# comma-separated. They share the one loader and every event, but get no CAPI.
+#
+# Which id belongs to whom, because the numbers are unmemorable and picking the
+# wrong one is a silent month of zero reported conversions:
+#
+#   1341978141149107  ad account 1550461850095009, portfolio "Vish Ads"
+#                     (239590337358646) — the account that runs the ads, so the
+#                     one that must get both halves. Meta merged pixel and
+#                     dataset into one object, so this single id is both.
+#   1363695699271757  ad account 1431226177195979 — retired. It priced in CZK
+#                     with no way to change it. Kept here for browser events
+#                     only so its history keeps accruing and nothing is lost;
+#                     it no longer receives the Conversions API copy.
+#   28272021345717397 a second account measuring the same pages. Browser only.
+#
+# ⚠️ DEPLOY ORDER. A CAPI token belongs to exactly one dataset. Until
+# META_CAPI_ACCESS_TOKEN covers 1341978141149107 and is on both Workers,
+# deploying this file sends server events to a dataset the live token does not
+# cover and Meta rejects every one — silently, into console.error, because
+# tracking must never fail an order. `npm run meta:check` settles it without
+# guessing: it posts an empty batch to META_PIXEL_ID with whichever token you
+# hand it and fails if that token cannot reach this dataset. Run it, deploy
+# second, then confirm in Events Manager that the dataset shows both a browser
+# and a server copy of the same event.
 [vars]
-META_PIXEL_ID = "1363695699271757"
+META_PIXEL_ID = "1341978141149107"
+META_EXTRA_PIXEL_IDS = "1363695699271757,28272021345717397"
 
 [assets]
 directory = ".svelte-kit/cloudflare"

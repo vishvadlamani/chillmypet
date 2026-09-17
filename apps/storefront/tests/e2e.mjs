@@ -50,11 +50,25 @@ const tracked = (calls, event) => calls.find((c) => c[0] === 'track' && c[1] ===
  */
 const pageViews = (calls) => calls.filter((c) => c[0] === 'track' && c[1] === 'PageView').length;
 
-const STORE_PIXEL = '1363695699271757';
+// The dataset the live ad account (1550461850095009) optimises against, so the
+// only one that also gets the Conversions API copy.
+const STORE_PIXEL = '1341978141149107';
+// Browser events only. LEGACY_PIXEL belonged to the retired CZK ad account and
+// is kept initialised so its history keeps accruing; EXTRA_PIXEL is a second
+// account measuring the same pages. See apps/storefront/wrangler.toml.
+const LEGACY_PIXEL = '1363695699271757';
+const EXTRA_PIXEL = '28272021345717397';
+const ALL_PIXELS = [STORE_PIXEL, LEGACY_PIXEL, EXTRA_PIXEL];
 
-function check(label, cond) {
+// `detail` is printed only on failure. Several assertions already passed one
+// and it was being dropped, so a failing pixel or eventID check reported the
+// label and nothing about what it actually saw.
+function check(label, cond, detail) {
 	console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}`);
-	if (!cond) process.exitCode = 1;
+	if (!cond) {
+		if (detail !== undefined) console.log(`      got: ${detail}`);
+		process.exitCode = 1;
+	}
 }
 
 // --- server-rendered HTML, before any JavaScript runs ---
@@ -85,21 +99,32 @@ function check(label, cond) {
 	// assertions are what keep it gone.
 	check('SSR carries no Tag Manager container', !/googletagmanager\.com\/gtm\.js/.test(html));
 	check('and no container noscript iframe', !/googletagmanager\.com\/ns\.html/.test(html));
-	// Advanced matching rides on `init` rather than on the event, so it applies
-	// to the snippet's PageView and to everything the app fires after.
+	// Advanced matching rides on `init` rather than on the event, so it applies to
+	// the snippet's PageView and to everything the app fires after. It also means
+	// an init line now carries a trailing object, so the roster is asserted
+	// against these parsed inits rather than an exact string that would go stale.
 	const inits = html.match(/fbq\('init', '\d+'(?:, \{.*?\})?\);/g) ?? [];
-	check('SSR initialises the store pixel', inits.some((i) => i.includes(`'${STORE_PIXEL}'`)));
-	// One pixel, deliberately. A second would take browser events and no CAPI
-	// copy, which is the half iOS and ad blockers eat.
-	check('and only that pixel', inits.length === 1);
+	// Asserted through the constants, so adding a pixel to the roster is one edit
+	// rather than one here and one silently-stale literal.
+	for (const id of ALL_PIXELS) {
+		check(`SSR initialises pixel ${id}`, inits.some((i) => i.includes(`'${id}'`)));
+	}
+	check('and nothing beyond the roster', inits.length === ALL_PIXELS.length);
 
 	// This request sent no cookies, and it still leaves with an identifier: the
 	// visitor id is minted and set on the same response that renders this. It is
 	// the only matching signal an anonymous PageView has, which is the whole
 	// reason for it.
+	const storeInit = inits.find((i) => i.includes(`'${STORE_PIXEL}'`));
 	check(
 		'a first-time visitor already carries a hashed external_id',
-		inits.length > 0 && inits.every((i) => /\{"external_id":"[0-9a-f]{64}"\}/.test(i))
+		!!storeInit && /\{"external_id":"[0-9a-f]{64}"\}/.test(storeInit)
+	);
+	// The hashed customer stops at the dataset that needs it to match its
+	// Conversions API half. The rest of the roster is other people's ad accounts.
+	check(
+		'and no other account is handed one',
+		inits.filter((i) => i !== storeInit).every((i) => !/\{.*\}/.test(i))
 	);
 	check(
 		'the visitor id is the same one the response sets',
@@ -194,11 +219,17 @@ check('the 3-pack discount is applied', summary?.includes('$12.14'));
 {
 	const calls = await fbqCalls();
 
-	// The snippet initialises it once and the app only ever pushes events onto
-	// it: a repeat init resets that pixel's state, and a second pixel would
-	// collect browser events with no server copy behind them.
-	check('the store pixel is still there', calls.some((c) => c[0] === 'init' && c[1] === STORE_PIXEL));
-	check('the pixel is initialised exactly once', calls.filter((c) => c[0] === 'init').length === 1);
+	// Other ad accounts measure the same pages. Every pixel is initialised by
+	// the one snippet, so each event above reaches all of them — and each is
+	// initialised exactly once, since a repeat init resets that pixel's state.
+	for (const id of ALL_PIXELS) {
+		check(`pixel ${id} initialises`, calls.some((c) => c[0] === 'init' && c[1] === id));
+	}
+	check(
+		'no pixel is initialised twice',
+		calls.filter((c) => c[0] === 'init').length === ALL_PIXELS.length,
+		JSON.stringify(calls.filter((c) => c[0] === 'init').map((c) => c[1]))
+	);
 
 	// Every event has a server copy carrying this same id — the SSR snippet's
 	// PageView from hooks.server.ts, the rest through /api/track. Without an id
@@ -229,6 +260,16 @@ check(
 check(
 	'exactly one PageView on a full load',
 	pageViews(await fbqCalls()) === 1
+);
+
+// The same cart, reached again. A reload, a back-navigation and the bounce back
+// from Stripe's cancel url are all one checkout start, and the guard that says
+// so is keyed on the cart and kept in sessionStorage — the cart itself is in
+// localStorage and outlives the page, which is what made a plain per-mount flag
+// report several starts for every real one.
+check(
+	'a reload does not report a second checkout start',
+	!tracked(await fbqCalls(), 'InitiateCheckout')
 );
 
 // Client-side navigation must also record a PageView. fbq.queue survives here
