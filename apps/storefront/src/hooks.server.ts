@@ -1,8 +1,8 @@
 import { error, type Handle } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
-import { newEventId } from 'ecomwithai/marketing';
-import { attributionFrom } from '$lib/server/purchase';
+import { isSha256Hex, newEventId } from 'ecomwithai/marketing';
+import { advancedMatching, ensureIdentity, identityFrom } from '$lib/server/identity';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
 export const LOCALE_COOKIE = 'locale';
@@ -23,20 +23,44 @@ function getDirectory() {
 }
 
 /**
- * Meta's loader, initialising every pixel measuring this store.
+ * Meta's loader, for the one pixel measuring this store.
  *
- * More than one is normal — a second ad account, an agency, an affiliate. They
- * share one loader and one `PageView`: `fbq('track', …)` reports to every
- * initialised pixel, so each gets exactly one, and the same holds for the
- * events the app fires later.
+ * One is the whole design. A second pixel would get browser events and no
+ * Conversions API copy — a token belongs to a single dataset — so it would
+ * report whatever iOS and ad blockers let through and nothing else. This store
+ * ran that way for a month, with the ad account's own pixel as the extra one,
+ * and the campaign showed no conversions the entire time.
+ *
+ * `matching` is advanced matching, and it goes on `init` rather than on the
+ * event, so it applies to this PageView and to everything the app fires
+ * afterwards. The values are the hashes the Conversions API copy sends, so the
+ * two halves of an event resolve to one person.
  *
  * Guards against database content reaching the page as markup.
  */
-function pixelSnippet(pixelIds: string[], pageViewEventId: string): string {
+function pixelSnippet(
+	pixelIds: string[],
+	pageViewEventId: string,
+	matching: Record<string, string>
+): string {
 	const ids = pixelIds.filter((id) => /^\d{1,20}$/.test(id));
 	if (ids.length === 0) return '';
 
-	const inits = ids.map((id) => `fbq('init', '${id}');`).join('\n');
+	// Hex digests only. Nothing else can reach an inline script from here, and
+	// this is what makes that true rather than a thing the caller promises.
+	const safe = Object.fromEntries(
+		Object.entries(matching).filter(([, hash]) => isSha256Hex(hash))
+	);
+	const advanced = Object.keys(safe).length > 0 ? `, ${JSON.stringify(safe)}` : '';
+
+	// Advanced matching rides on the first id only. That is META_PIXEL_ID, the
+	// dataset the Conversions API also reports to, where resolving both halves to
+	// one person is the whole point of carrying it. The rest of the roster belongs
+	// to other ad accounts and gets browser events without a hashed customer
+	// attached — widening that is a deliberate choice, not a default.
+	const inits = ids
+		.map((id, i) => `fbq('init', '${id}'${i === 0 ? advanced : ''});`)
+		.join('\n');
 	const noscript = ids
 		.map(
 			(id) => `<noscript><img height="1" width="1" style="display:none" alt=""
@@ -54,28 +78,6 @@ ${inits}
 fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
 </script>
 ${noscript}`;
-}
-
-/**
- * Google Tag Manager, on every page.
- *
- * A container is a second place tags can be published from, by whoever holds
- * access to it, and anything it loads runs with the same reach as this file's
- * own code. The id is validated here; note that a Meta pixel published inside
- * the container would double-count against the ones initialised above.
- */
-function gtmSnippet(containerId: string): { head: string; body: string } {
-	if (!/^GTM-[A-Z0-9]{4,12}$/.test(containerId)) return { head: '', body: '' };
-
-	return {
-		head: `<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','${containerId}');</script>`,
-		body: `<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${containerId}"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`
-	};
 }
 
 function verificationTag(token: string): string {
@@ -104,12 +106,20 @@ export const handle: Handle = async ({ event, resolve }) => {
 		settingsCache.set(store.id, settings);
 	}
 
-	// The pixel that owns this store's dataset. Both the browser events and the
-	// Conversions API copy report to this one, and a CAPI token is scoped to a
-	// single dataset — so this must be the pixel the ad account optimises
-	// against, or its conversions are browser-only and die on iOS and blockers.
+	// This store's one pixel. Browser events and the Conversions API copy both
+	// report to it, and a CAPI token is scoped to a single dataset — so it must
+	// be the pixel the ad account optimises against, or its conversions are
+	// browser-only and die on iOS and blockers.
 	// An env override so correcting it is a config change, not a database write.
-	const primaryPixelId = env.META_PIXEL_ID ?? settings.meta_pixel_id ?? '';
+	const pixelId = env.META_PIXEL_ID ?? settings.meta_pixel_id ?? '';
+	// Other ad accounts measuring the same pages. Comma-separated, so adding one
+	// is a config change rather than a code one. They share the one loader and
+	// every browser event; only `pixelId` above gets the Conversions API copy.
+	const extraPixels = (env.META_EXTRA_PIXEL_IDS ?? settings.meta_extra_pixel_ids ?? '')
+		.split(',')
+		.map((id) => id.trim())
+		.filter(Boolean);
+	const pixelIds = [pixelId, ...extraPixels].filter(Boolean);
 
 	event.locals.store = store;
 	// Publishable, not secret — it identifies the account to Stripe.js and is
@@ -152,7 +162,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				}
 			: undefined,
 		meta: {
-			pixelId: primaryPixelId,
+			pixelId,
 			accessToken: env.META_CAPI_ACCESS_TOKEN,
 			apiVersion: env.META_CAPI_API_VERSION,
 			endpoint: env.META_CAPI_ENDPOINT,
@@ -161,21 +171,24 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	});
 
-	// The store's own pixel, plus any other account measuring the same pages.
-	// Comma-separated, so adding one is a config change rather than a code one.
-	const extraPixels = (env.META_EXTRA_PIXEL_IDS ?? settings.meta_extra_pixel_ids ?? '')
-		.split(',')
-		.map((id) => id.trim())
-		.filter(Boolean);
-	const pixelIds = [primaryPixelId, ...extraPixels].filter(Boolean);
-	const gtm = gtmSnippet(env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? '');
-
 	const saved = event.cookies.get(LOCALE_COOKIE);
 	const locale = isLocale(saved)
 		? saved
 		: negotiateLocale(event.request.headers.get('accept-language'), store.defaultLocale);
 
 	event.locals.locale = locale;
+
+	// Before the response, so `cookies.get` reads them back for the rest of this
+	// request — the snippet below, and the beacon a client-side navigation posts
+	// later. A visitor who arrives, bounces, and comes back in a week is the
+	// same `external_id` both times, which is the whole of what it buys.
+	ensureIdentity(event);
+	const identity = identityFrom(
+		event.cookies,
+		event.url,
+		event.request.headers,
+		event.getClientAddress()
+	);
 
 	// This snippet's PageView is the only event the browser fires that never
 	// reaches the `track()` wrapper, so it is the only one that cannot mint its
@@ -184,15 +197,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// from this same request, which already holds the cookies, address and user
 	// agent that make it matchable.
 	const pageViewEventId = newEventId();
+	const matching = await advancedMatching(identity);
 
 	const response = await resolve(event, {
 		transformPageChunk: ({ html }) =>
 			html
 				.replace('%lang%', locale)
 				.replace('%dir%', textDirection(locale))
-				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId))
-				.replace('%gtm_head%', gtm.head)
-				.replace('%gtm_body%', gtm.body)
+				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId, matching))
 				.replace(
 					'%meta_domain_verification%',
 					settings.meta_domain_verification
@@ -203,13 +215,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// Documents only. `handle` also runs for data requests, form posts and the
 	// API, and none of those rendered a snippet to deduplicate against.
-	if (pixelIds.length > 0 && response.headers.get('content-type')?.includes('text/html')) {
+	if (pixelId && response.headers.get('content-type')?.includes('text/html')) {
 		const send = event.locals.commerce.meta
 			?.send({
 				eventName: 'PageView',
 				eventId: pageViewEventId,
 				eventSourceUrl: event.url.href,
-				user: attributionFrom(event.cookies, event.url, event.request.headers, event.getClientAddress())
+				user: identity
 			})
 			.then((result) => {
 				if (!result.sent) console.error('Meta CAPI PageView not sent', result.reason);

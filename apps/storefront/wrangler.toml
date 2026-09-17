@@ -4,7 +4,7 @@ compatibility_date = "2026-08-08"
 compatibility_flags = ["nodejs_compat"]
 
 # A pixel id is public — it ships to the browser by design — so these are vars,
-# not secrets, and the same goes for the GTM container.
+# not secrets.
 #
 # META_PIXEL_ID is the dataset that matters: browser events *and* the server-side
 # Conversions API copy both report to it, so it must be the pixel the ad account
@@ -29,16 +29,17 @@ compatibility_flags = ["nodejs_compat"]
 #   28272021345717397 a second account measuring the same pages. Browser only.
 #
 # ⚠️ DEPLOY ORDER. A CAPI token belongs to exactly one dataset. Until
-# META_CAPI_ACCESS_TOKEN is regenerated for 1341978141149107 and put on both
-# Workers, deploying this file sends server events to a dataset the live token
-# does not cover and Meta rejects every one — silently, into console.error,
-# because tracking must never fail an order. Set the secret first, deploy
+# META_CAPI_ACCESS_TOKEN covers 1341978141149107 and is on both Workers,
+# deploying this file sends server events to a dataset the live token does not
+# cover and Meta rejects every one — silently, into console.error, because
+# tracking must never fail an order. `npm run meta:check` settles it without
+# guessing: it posts an empty batch to META_PIXEL_ID with whichever token you
+# hand it and fails if that token cannot reach this dataset. Run it, deploy
 # second, then confirm in Events Manager that the dataset shows both a browser
 # and a server copy of the same event.
 [vars]
 META_PIXEL_ID = "1341978141149107"
 META_EXTRA_PIXEL_IDS = "1363695699271757,28272021345717397"
-GTM_CONTAINER_ID = "GTM-T446VNH9"
 
 [assets]
 directory = ".svelte-kit/cloudflare"

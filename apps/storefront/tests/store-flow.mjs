@@ -146,10 +146,11 @@ check('Purchase carries an eventID for CAPI dedup', /^purchase-CMP-/.test(purcha
 check('the cart was emptied', (await page.evaluate(() =>
 	JSON.parse(localStorage.getItem('chillmypet.cart.v1') ?? '[]'))).length === 0);
 
-// --- the GTM dataLayer must carry the same funnel ----------------------------
-// Whatever is published in the container reads this and nothing else: the tags
-// cannot reach into the app. Both pages in this flow are one document (the
-// product page hands off to /checkout with goto), so one dataLayer holds the lot.
+// --- the GA4 dataLayer must carry the same funnel ----------------------------
+// Nothing consumes these pushes since the GTM container was removed, but the
+// shape stays pinned so GA4 measures correctly the moment it is loaded directly.
+// Both pages in this flow are one document (the product page hands off to
+// /checkout with goto), so one dataLayer holds the lot.
 {
 	const dl = await page.evaluate(() => (window.dataLayer ?? []).filter((e) => e && e.event));
 	const of = (name) => dl.find((e) => e.event === name);

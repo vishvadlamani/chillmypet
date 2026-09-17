@@ -45,11 +45,8 @@ const fbqCalls = () =>
 const tracked = (calls, event) => calls.find((c) => c[0] === 'track' && c[1] === event);
 
 /**
- * PageViews on the page.
- *
- * Every pixel is initialised by the one snippet in app.html, so a single
- * `track('PageView')` reports to all of them — the count is per page view, not
- * per pixel.
+ * PageViews on the page. One per page view: the snippet in app.html fires the
+ * first, and `track('PageView')` fires one per client-side navigation.
  */
 const pageViews = (calls) => calls.filter((c) => c[0] === 'track' && c[1] === 'PageView').length;
 
@@ -80,7 +77,9 @@ function check(label, cond, detail) {
 // output said "Sold out" with no variant selected, which is what crawlers, slow
 // connections and no-JS visitors got. Assert on the raw bytes.
 {
-	const html = await fetch(PRODUCT).then((r) => r.text());
+	const response = await fetch(PRODUCT);
+	const html = await response.text();
+	const setCookies = response.headers.getSetCookie?.().join('\n') ?? '';
 	check('SSR renders the product title', /<title>Dog Life Jacket/.test(html));
 	check('SSR carries a description for search and social', /name="description" content=".{40}/.test(html));
 	check('SSR quotes a price', /\$\d+\.\d{2}/.test(html));
@@ -95,14 +94,55 @@ function check(label, cond, detail) {
 	);
 	check('the page is indexable', !/noindex/.test(html));
 
-	// Both tags ship server-rendered, on every page, before any JavaScript runs.
-	check('SSR carries the GTM container', /googletagmanager\.com\/gtm\.js/.test(html));
-	check('and its noscript iframe', /ns\.html\?id=GTM-T446VNH9/.test(html));
-	// Asserted through the constants, so adding a pixel to the roster is one
-	// edit rather than one here and one silently-stale literal.
+	// The pixel ships server-rendered, on every page, before any JavaScript runs.
+	// The Tag Manager container that used to ship beside it is gone; these two
+	// assertions are what keep it gone.
+	check('SSR carries no Tag Manager container', !/googletagmanager\.com\/gtm\.js/.test(html));
+	check('and no container noscript iframe', !/googletagmanager\.com\/ns\.html/.test(html));
+	// Advanced matching rides on `init` rather than on the event, so it applies to
+	// the snippet's PageView and to everything the app fires after. It also means
+	// an init line now carries a trailing object, so the roster is asserted
+	// against these parsed inits rather than an exact string that would go stale.
+	const inits = html.match(/fbq\('init', '\d+'(?:, \{.*?\})?\);/g) ?? [];
+	// Asserted through the constants, so adding a pixel to the roster is one edit
+	// rather than one here and one silently-stale literal.
 	for (const id of ALL_PIXELS) {
-		check(`SSR initialises pixel ${id}`, html.includes(`fbq('init', '${id}')`));
+		check(`SSR initialises pixel ${id}`, inits.some((i) => i.includes(`'${id}'`)));
 	}
+	check('and nothing beyond the roster', inits.length === ALL_PIXELS.length);
+
+	// This request sent no cookies, and it still leaves with an identifier: the
+	// visitor id is minted and set on the same response that renders this. It is
+	// the only matching signal an anonymous PageView has, which is the whole
+	// reason for it.
+	const storeInit = inits.find((i) => i.includes(`'${STORE_PIXEL}'`));
+	check(
+		'a first-time visitor already carries a hashed external_id',
+		!!storeInit && /\{"external_id":"[0-9a-f]{64}"\}/.test(storeInit)
+	);
+	// The hashed customer stops at the dataset that needs it to match its
+	// Conversions API half. The rest of the roster is other people's ad accounts.
+	check(
+		'and no other account is handed one',
+		inits.filter((i) => i !== storeInit).every((i) => !/\{.*\}/.test(i))
+	);
+	check(
+		'the visitor id is the same one the response sets',
+		/(^|[,;\s])cmp_vid=[0-9a-f-]{36}/.test(setCookies) && /HttpOnly/i.test(setCookies)
+	);
+
+	// Meta reads a 64-character hex string as already hashed and passes it
+	// through. Every value here has to be one, because this is page source: a
+	// raw email in it is readable by every script on the page and by anything
+	// that caches the HTML.
+	const matching = inits.flatMap((line) => {
+		const object = line.match(/\{.*\}/)?.[0];
+		return object ? Object.values(JSON.parse(object)) : [];
+	});
+	check(
+		'every advanced-matching value is a digest, never plaintext',
+		matching.length > 0 && matching.every((v) => /^[0-9a-f]{64}$/.test(v))
+	);
 }
 
 {
