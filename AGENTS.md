@@ -370,9 +370,16 @@ Its page sets `pickSize: true` in `pages.ts`: the picker offers one
 "Colour / Size" choice per buyable variant behind a "Choose colour & size"
 prompt, and the host refuses to add anything until every unit is chosen. The
 life jacket still has the host pick its size (first in stock), and its page
-is unchanged. The hoodie's photos are expected at
-`static/products/pouch-pet-hoodie/{lotus,black}.jpg`, and it has no size chart
-until there are manufacturer measurements for it.
+is unchanged. It has no size chart until there are manufacturer measurements
+for it.
+
+Its two photos in `static/products/pouch-pet-hoodie/` were supplied by the
+owner with the request to use them; their original source wasn't stated. Lotus
+was padded to a square on its own background (the gallery crops square and
+would have cut the face) and a screenshot artefact painted out. Two things to
+know: the Lotus photo is a sherpa fleece and the Black one a cotton hoodie, so
+they may not be the same garment, and the leather patch on the Lotus one
+carries a small mark that may be a maker's brand.
 
 **Adding a product to the live store is `npm run db:products`**, never
 `db:seed`. It inserts whatever in `scripts/add-products.js` is missing, skips

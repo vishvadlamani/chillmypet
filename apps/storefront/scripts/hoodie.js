@@ -27,7 +27,7 @@ const PRICE_CENTS = 5500;
 const STOCK = 25;
 
 const COLOURS = [
-	{ code: 'lotus', label: 'Lotus', hex: '#e8b4c0' },
+	{ code: 'lotus', label: 'Lotus', hex: '#ae7a7f' },
 	{ code: 'black', label: 'Black', hex: '#1a1a1a' }
 ];
 
