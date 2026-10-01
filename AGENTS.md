@@ -373,13 +373,15 @@ life jacket still has the host pick its size (first in stock), and its page
 is unchanged. It has no size chart until there are manufacturer measurements
 for it.
 
-Its two photos in `static/products/pouch-pet-hoodie/` were supplied by the
-owner with the request to use them; their original source wasn't stated. Lotus
-was padded to a square on its own background (the gallery crops square and
-would have cut the face) and a screenshot artefact painted out. Two things to
-know: the Lotus photo is a sherpa fleece and the Black one a cotton hoodie, so
-they may not be the same garment, and the leather patch on the Lotus one
-carries a small mark that may be a maker's brand.
+Its three photos in `static/products/pouch-pet-hoodie/` were supplied by the
+owner with the request to use them; their original source wasn't stated.
+`lotus.jpg` (the colour's photo and the gallery lead) is a 300px lifestyle
+shot — soft at full width, so replace it with a larger copy when one exists.
+`lotus-studio.jpg` was padded to a square on its own background (the gallery
+crops square and would have cut the face) and a screenshot artefact painted
+out; the leather patch on it carries a small mark that may be a maker's brand.
+The Lotus photos show a sherpa fleece and the Black one a cotton hoodie, so
+they may not be the same garment.
 
 **Adding a product to the live store is `npm run db:products`**, never
 `db:seed`. It inserts whatever in `scripts/add-products.js` is missing, skips

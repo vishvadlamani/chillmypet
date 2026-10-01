@@ -43,11 +43,24 @@ export const HOODIE_PAGE: FunnelDefinition = {
 			version: 1,
 			layout: { row: 'hero', col: 'left' },
 			props: {
-				// Same paths the catalogue seeds as each colour's photo, so the
-				// picker, the dock and the gallery show one image per colour.
+				// `lotus.jpg` and `black.jpg` are the paths the catalogue seeds as
+				// each colour's photo, so the picker and the dock show the same
+				// image. The lead is a 300px lifestyle shot, chosen over the sharper
+				// studio one for showing the product in use; swap in a larger copy
+				// of it when there is one.
 				items: [
-					{ src: '/products/pouch-pet-hoodie/lotus.jpg', alt: 'Pouch Pet Hoodie in Lotus' },
-					{ src: '/products/pouch-pet-hoodie/black.jpg', alt: 'Pouch Pet Hoodie in Black' }
+					{
+						src: '/products/pouch-pet-hoodie/lotus.jpg',
+						alt: 'Pouch Pet Hoodie in Lotus, worn on the sofa with a small dog in the pouch'
+					},
+					{
+						src: '/products/pouch-pet-hoodie/lotus-studio.jpg',
+						alt: 'Pouch Pet Hoodie in Lotus, front view with a cat in the pouch'
+					},
+					{
+						src: '/products/pouch-pet-hoodie/black.jpg',
+						alt: 'Pouch Pet Hoodie in Black, with a cat in the pouch'
+					}
 				],
 				variant: 'gallery',
 				aspect: 'square',
