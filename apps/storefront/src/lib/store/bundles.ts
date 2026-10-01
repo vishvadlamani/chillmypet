@@ -10,7 +10,7 @@ import type { Commerce } from 'ecomwithai';
 import { applyQuantityBreak } from 'ecomwithai';
 import { formatMoney, type Locale } from '$lib/i18n';
 import { PRODUCT_SLUG } from './product';
-import { CHOOSE_PROMPT, variantChoices } from './variants';
+import { choicePrompt, variantChoices } from './variants';
 
 export interface BundleTier {
 	id: string;
@@ -83,13 +83,13 @@ export async function loadBundles(
 		// resolves, so the picker renders without an add-on row rather than the
 		// whole block being dropped.
 		addons: [],
-		// With a size to pick, one entry per buyable colour and size, behind a
-		// prompt so the dropdown opens on nothing rather than on XS.
+		// With a size to pick, one entry per buyable variant, behind a prompt so
+		// the dropdown opens on nothing rather than on XS.
 		//
 		// Otherwise `label` is nullable in the catalogue — a store can ship option
 		// values with no display text and translate them in the UI instead.
 		colours: pickSize
-			? [CHOOSE_PROMPT, ...variantChoices(product, true).map((c) => c.label)]
+			? [choicePrompt(product), ...variantChoices(product, true).map((c) => c.label)]
 			: (product.options[0]?.values ?? []).map((v) => v.label ?? v.value)
 	};
 }

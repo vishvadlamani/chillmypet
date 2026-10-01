@@ -26,10 +26,9 @@ const PRICE_CENTS = 5500;
  */
 const STOCK = 25;
 
-const COLOURS = [
-	{ code: 'lotus', label: 'Lotus', hex: '#c78d84' },
-	{ code: 'black', label: 'Black', hex: '#1a1a1a' }
-];
+// Black only for launch. Lotus was built and photographed, then held back by
+// the owner; it is in this file's history if it comes back.
+const COLOURS = [{ code: 'black', label: 'Black', hex: '#1a1a1a' }];
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL'];
 
@@ -45,7 +44,7 @@ export const HOODIE = {
 			title: TITLE,
 			subtitle: 'Keep them close',
 			description:
-				'A soft pullover hoodie with a roomy front pouch for your cat or small dog to ride in, so they can nap against you while you get on with your day. Wear it around the house, on the sofa or out for a slow stroll, and when they hop out it is simply your favourite hoodie. Available in Lotus and Black, sizes XS to XL.'
+				'A soft pullover hoodie with a roomy front pouch for your cat or small dog to ride in, so they can nap against you while you get on with your day. Wear it around the house, on the sofa or out for a slow stroll, and when they hop out it is simply your favourite hoodie. In Black, sizes XS to XL.'
 		}
 	},
 	options: [

@@ -99,7 +99,10 @@
 			return;
 		}
 		select.scrollIntoView({ behavior: 'smooth', block: 'center' });
-		select.setCustomValidity('Please choose a colour and size');
+		// Worded from the dropdown's own prompt, so it asks for a size when size is
+		// all there is to choose.
+		const prompt = select.options[0]?.text.replace(/^Choose/, 'Please choose') ?? '';
+		select.setCustomValidity(prompt || 'Please make a choice');
 		select.reportValidity();
 		select.addEventListener('change', () => select.setCustomValidity(''), { once: true });
 	}

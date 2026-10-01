@@ -418,23 +418,26 @@ Element mounts under the shipping method, and Place order runs `placeOrder`.
 
 A second product, **`/products/pouch-pet-hoodie`** — a hoodie the owner wears
 with a front pouch the pet rides in — has its own manifest
-(`$lib/store/hoodie-manifest.ts`), English copy only, $55, Lotus/Black × XS–XL.
-Its page sets `pickSize: true` in `pages.ts`: the picker offers one
-"Colour / Size" choice per buyable variant behind a "Choose colour & size"
-prompt, and the host refuses to add anything until every unit is chosen. The
+(`$lib/store/hoodie-manifest.ts`), English copy only, $55, **Black only** ×
+XS–XL. Its page sets `pickSize: true` in `pages.ts`: the picker offers one
+choice per buyable variant behind a prompt, and the host refuses to add
+anything until every unit is chosen. With one colour the choices are bare
+sizes ("M") and the prompt is "Choose your size"; a second colour turns them
+back into "Black / M" and "Choose colour & size" with no other change. The
 life jacket still has the host pick its size (first in stock), and its page
 is unchanged. It has no size chart until there are manufacturer measurements
 for it.
 
-Its three photos in `static/products/pouch-pet-hoodie/` were supplied by the
-owner with the request to use them; their original source wasn't stated.
-`lotus.jpg` (the colour's photo and the gallery lead) is a 300px lifestyle
-shot — soft at full width, so replace it with a larger copy when one exists.
-`lotus-studio.jpg` was padded to a square on its own background (the gallery
-crops square and would have cut the face) and a screenshot artefact painted
-out; the leather patch on it carries a small mark that may be a maker's brand.
-The Lotus photos show a sherpa fleece and the Black one a cotton hoodie, so
-they may not be the same garment.
+A Lotus colour was built, photographed and then held back by the owner for
+launch. Its two photos and its catalogue entry are in the history of
+`static/products/pouch-pet-hoodie/` and `scripts/hoodie.js`. If it returns,
+know that those photos show a sherpa fleece where the Black one is a cotton
+hoodie, so the two may not be the same garment, and the leather patch on the
+studio shot carries a small mark that may be a maker's brand.
+
+`black.jpg` was supplied by the owner with the request to use it; its original
+source wasn't stated. It is 447px, soft at full gallery width, so replace it
+with a larger copy when one exists.
 
 **Adding a product to the live store is `npm run db:products`**, never
 `db:seed`. It inserts whatever in `scripts/add-products.js` is missing, skips

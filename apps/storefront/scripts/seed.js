@@ -156,7 +156,7 @@ for (const { slug } of PRODUCTS) {
 for (const def of PRODUCTS) {
 	const { variants } = await insertProduct(db, STORE.id, def);
 	console.log(
-		`Seeded "${STORE.id}" (${STORE.domain}): ${def.slug} with ${def.options[0].values.length} colours, ` +
+		`Seeded "${STORE.id}" (${STORE.domain}): ${def.slug} with ${def.options[0].values.length} colour(s), ` +
 			`${def.options[1].values.length} sizes, ${variants} variants, ` +
 			`${Object.keys(def.translations).length} locale(s)`
 	);

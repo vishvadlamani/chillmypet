@@ -33,8 +33,9 @@ export const HOODIE_PAGE: FunnelDefinition = {
 				tracking: 'normal',
 				size: 'md',
 				weight: 'medium',
-				bg: '#f3d9df',
-				fg: '#1a1a1a'
+				// Black, to match the only colour on sale.
+				bg: '#1a1a1a',
+				fg: '#ffffff'
 			}
 		},
 		{
@@ -43,20 +44,11 @@ export const HOODIE_PAGE: FunnelDefinition = {
 			version: 1,
 			layout: { row: 'hero', col: 'left' },
 			props: {
-				// `lotus.jpg` and `black.jpg` are the paths the catalogue seeds as
-				// each colour's photo, so the picker and the dock show the same
-				// image. The lead is a 300px lifestyle shot, chosen over the sharper
-				// studio one for showing the product in use; swap in a larger copy
-				// of it when there is one.
+				// `black.jpg` is also the path the catalogue seeds as the colour's
+				// photo, so the picker and the dock show the same image. One photo,
+				// so the block draws no thumbnails or arrows. It is 447px: add a
+				// larger copy, and more angles, when there are some.
 				items: [
-					{
-						src: '/products/pouch-pet-hoodie/lotus.jpg',
-						alt: 'Pouch Pet Hoodie in Lotus, worn on the sofa with a small dog in the pouch'
-					},
-					{
-						src: '/products/pouch-pet-hoodie/lotus-studio.jpg',
-						alt: 'Pouch Pet Hoodie in Lotus, front view with a cat in the pouch'
-					},
 					{
 						src: '/products/pouch-pet-hoodie/black.jpg',
 						alt: 'Pouch Pet Hoodie in Black, with a cat in the pouch'
@@ -92,7 +84,7 @@ export const HOODIE_PAGE: FunnelDefinition = {
 					{ icon: '🐾', text: 'A front pouch made for **cats & small dogs**' },
 					{ icon: '🛋️', text: 'Keeps them close while **you get on with your day**' },
 					{ icon: '👕', text: 'Still **your favourite hoodie** when they hop out' },
-					{ icon: '🎨', text: '**Lotus** or **Black**, sizes XS–XL' }
+					{ icon: '🖤', text: 'In **Black**, sizes XS–XL' }
 				]
 			}
 		},
@@ -106,11 +98,11 @@ export const HOODIE_PAGE: FunnelDefinition = {
 				heading: 'Choose yours',
 				tiers: { $ref: 'bundles.tiers' },
 				addons: { $ref: 'bundles.addons' },
-				// One dropdown per hoodie, each a colour AND a size — the host
-				// refuses to buy until every one is chosen. The id `bundle-picker`
-				// is what the host focuses when it sends someone back to choose.
+				// One size dropdown per hoodie — the host refuses to buy until every
+				// one is chosen. The id `bundle-picker` is what the host focuses when
+				// it sends someone back to choose.
 				options: { $ref: 'bundles.colours' },
-				optionLabel: 'Colour & size (your size, not your pet’s)',
+				optionLabel: 'Size (your size, not your pet’s)',
 				addonPlacement: 'below',
 				cta: 'Buy now',
 				accent: '#2f3d24',
@@ -181,8 +173,8 @@ export const HOODIE_PAGE: FunnelDefinition = {
 						body: 'Of course. When they hop out, it’s a regular pullover hoodie.'
 					},
 					{
-						label: 'What colours does it come in?',
-						body: 'Lotus and Black, in every size from XS to XL.'
+						label: 'What colour is it?',
+						body: 'Black, in every size from XS to XL.'
 					}
 				]
 			}
