@@ -105,6 +105,22 @@ export type CheckoutSession = {
 	currency: string | null;
 };
 
+/**
+ * A payment intent as Stripe currently sees it.
+ *
+ * Read back rather than waited for: a webhook that is misrouted, unsubscribed
+ * or simply slow leaves an intent that succeeded looking, to us, like one that
+ * never happened.
+ */
+export type PaymentIntentView = {
+	id: string;
+	/** `succeeded` is the only value that settles an order. */
+	status: string;
+	/** What Stripe actually captured, in minor units. Never the requested amount. */
+	amountReceived: number | null;
+	currency: string | null;
+};
+
 export interface StripeClient {
 	createCheckoutSession(input: {
 		order: Order;
@@ -121,6 +137,8 @@ export interface StripeClient {
 		metadata?: Record<string, string>;
 	}): Promise<CheckoutSession>;
 	getCheckoutSession(id: string): Promise<CheckoutSession>;
+	/** The authoritative state of an intent, for settling without a webhook. */
+	getPaymentIntent(id: string): Promise<PaymentIntentView>;
 	/**
 	 * A payment intent for the order total, for mounting Stripe's Payment
 	 * Element directly in your own checkout form. Unlike a Checkout Session
@@ -363,6 +381,23 @@ export function createStripeClient(config: StripeConfig): StripeClient {
 
 		async getCheckoutSession(id) {
 			return toSession(await request('GET', `/v1/checkout/sessions/${encodeURIComponent(id)}`));
+		},
+
+		async getPaymentIntent(id) {
+			const body = await request('GET', `/v1/payment_intents/${encodeURIComponent(id)}`);
+			return {
+				id: String(body.id),
+				status: String(body.status ?? ''),
+				// `amount_received` is what was captured; `amount` is only what was
+				// asked for. Settling on the latter would accept a partial capture
+				// as a paid order.
+				amountReceived:
+					body.amount_received === null || body.amount_received === undefined
+						? null
+						: Number(body.amount_received),
+				currency:
+					body.currency === null || body.currency === undefined ? null : String(body.currency)
+			};
 		},
 
 		async refund({ paymentIntentId, amountCents, reason, idempotencyKey }) {
