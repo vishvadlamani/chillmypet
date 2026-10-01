@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Thank you · ChillMyPet</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+<script src="pixel.js"></script>
+</head>
+<body>
+<header><div class="in"><a class="brand" href="https://chillmypet.com">ChillMyPet</a></div></header>
+<main style="max-width:640px;text-align:center;padding:64px 16px">
+	<h1>Thank you! 🐾</h1>
+	<p>Your Pouch Pet Hoodie is ordered. Stripe has emailed your receipt, and we’ll be in touch when it ships.</p>
+	<p class="note">Questions? <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a></p>
+</main>
+<script>
+	(function () {
+		// Stripe appends ?session_id=… when the Payment Link's "after payment"
+		// redirect is set to this page with {CHECKOUT_SESSION_ID}. No id, no
+		// Purchase: someone opening this page by hand has bought nothing.
+		var id = new URLSearchParams(location.search).get('session_id');
+		if (!id) return;
+		// Once per order: a reload or a second tab must not count the sale again.
+		var key = 'purchase:' + id;
+		try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) {}
+		var c = window.HOODIE;
+		// The value is one hoodie: Stripe's redirect does not say how many were
+		// bought, so a multi-unit order reports low rather than guessed.
+		fbq('track', 'Purchase', { content_ids: ['pouch-pet-hoodie'], content_type: 'product', value: c.price, currency: c.currency, num_items: 1 }, { eventID: id });
+	})();
+</script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pouch Pet Hoodie · ChillMyPet</title>
+<meta name="description" content="A soft pullover hoodie with a roomy front pouch for your cat or small dog to ride in. In Black, sizes XS to XL. $55, free standard shipping.">
+<meta property="og:title" content="Pouch Pet Hoodie · ChillMyPet">
+<meta property="og:image" content="hoodie-black.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+<script src="pixel.js"></script>
+</head>
+<body>
+<div class="strip">Free standard shipping 🚚 30-day returns</div>
+<header><div class="in"><a class="brand" href="https://chillmypet.com">ChillMyPet</a></div></header>
+<main>
+	<section class="hero">
+		<div class="photo"><img src="hoodie-black.jpg" alt="Pouch Pet Hoodie in Black, with a cat in the pouch"></div>
+		<div>
+			<h1>Pouch Pet Hoodie</h1>
+			<ul class="bul">
+				<li><span>🐾</span><span>A front pouch made for <b>cats &amp; small dogs</b></span></li>
+				<li><span>🛋️</span><span>Keeps them close while <b>you get on with your day</b></span></li>
+				<li><span>👕</span><span>Still <b>your favourite hoodie</b> when they hop out</span></li>
+				<li><span>🖤</span><span>In <b>Black</b>, sizes XS–XL</span></li>
+			</ul>
+			<div class="buy">
+				<div class="row"><span class="title">Pouch Pet Hoodie</span><span class="price" id="price">$55.00</span></div>
+				<span class="note">You choose your size (XS–XL, your size, not your pet’s) at checkout.</span>
+				<a class="cta" id="buy" href="#">Buy now</a>
+				<div class="badges" aria-label="Accepted cards">
+					<span style="background:#1a1f71">VISA</span><span style="background:#111">MASTERCARD</span><span style="background:#016fd0">AMEX</span><span style="background:#fff;color:#111;border:1px solid #ddd">DISCOVER</span>
+				</div>
+			</div>
+			<div class="info">
+				<details><summary>When will I get my order? 🚚</summary><p>Please allow us 2–4 business days to process your order.
+
+Once processed, 93% of orders arrive between 5–12 days later.
+
+If you have any questions, please contact us at <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a>.</p></details>
+				<details><summary>What if it doesn’t fit? 📏</summary><p>We offer 30 day — no questions asked — free exchanges and returns.
+
+If you have any questions or would like to begin an exchange, please email us at <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a>.</p></details>
+			</div>
+		</div>
+	</section>
+
+	<h2>Frequently asked questions</h2>
+	<details><summary>Who wears it — me or my pet?</summary><p>You do. The hoodie is sized for you, and the pouch at the front is where your cat or small dog rides.</p></details>
+	<details><summary>Which size should I order?</summary><p>Order the size you normally wear in a hoodie — XS to XL.
+
+If you’re between sizes, size up: a little extra room makes the pouch easier for your pet to settle into.</p></details>
+	<details><summary>Can I wear it without my pet?</summary><p>Of course. When they hop out, it’s a regular pullover hoodie.</p></details>
+	<details><summary>What colour is it?</summary><p>Black, in every size from XS to XL.</p></details>
+
+	<div class="guarantee">
+		<img src="guarantee-30day.webp" alt="30-day money-back guarantee">
+		<div class="eyebrow">Backed for 30 days</div>
+		<p>Shop with total confidence: you’re covered by our <b>30-Day Guarantee</b>. If you don’t love it, or if it arrives damaged, we’ll refund your money. No questions asked.</p>
+	</div>
+</main>
+<footer><div class="in">
+	<a href="https://chillmypet.com/policies/shipping">Shipping policy</a>
+	<a href="https://chillmypet.com/policies/refunds">Refund policy</a>
+	<a href="mailto:contact@chillmypet.com">Contact us</a>
+	<span style="margin-left:auto">© 2026 ChillMyPet</span>
+</div></footer>
+<script>
+	(function () {
+		var c = window.HOODIE;
+		var buy = document.getElementById('buy');
+		var ready = /^https:\/\/(buy\.stripe\.com|checkout\.stripe\.com)\//.test(c.paymentLink) && c.paymentLink.indexOf('REPLACE') === -1;
+		document.getElementById('price').textContent = '$' + c.price.toFixed(2);
+		fbq('track', 'ViewContent', { content_type: 'product', content_ids: ['pouch-pet-hoodie'], value: c.price, currency: c.currency });
+		buy.href = ready ? c.paymentLink : '#';
+		buy.addEventListener('click', function (e) {
+			if (!ready) { e.preventDefault(); alert('Add your Stripe Payment Link to config.js first.'); return; }
+			fbq('track', 'InitiateCheckout', { content_ids: ['pouch-pet-hoodie'], value: c.price, currency: c.currency, num_items: 1 });
+		});
+	})();
+</script>
+</body>
+</html>
