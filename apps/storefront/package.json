@@ -16,7 +16,8 @@
 		"deploy": "npm run build && wrangler deploy",
 		"test:payments": "node tests/payment-flow.mjs",
 		"test:store": "node tests/store-flow.mjs",
-		"db:content": "node --env-file-if-exists=.env scripts/sync-content.js"
+		"db:content": "node --env-file-if-exists=.env scripts/sync-content.js",
+		"db:products": "node --env-file-if-exists=.env scripts/add-products.js"
 	},
 	"dependencies": {
 		"@libsql/client": "^0.15.15",

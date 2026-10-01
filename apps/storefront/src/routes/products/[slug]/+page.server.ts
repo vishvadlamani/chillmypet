@@ -8,6 +8,7 @@ import { loadFeaturedReviews, loadPhotoWall, loadSpotlightQuotes } from '$lib/st
 import { loadSizeChart } from '$lib/store/sizes';
 import { loadStock } from '$lib/store/stock';
 import { PRODUCT_PAGES } from '$lib/store/pages';
+import { variantChoices } from '$lib/store/variants';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -21,7 +22,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// another, and the page renders behind the slowest one either way.
 	const [product, bundles, offer, sizeChart, catalogue] = await Promise.all([
 		loadProduct(commerce, locale, slug),
-		loadBundles(commerce, locale, slug),
+		loadBundles(commerce, locale, slug, page.pickSize),
 		loadOffer(commerce, locale, settings, slug),
 		loadSizeChart(commerce, locale, slug),
 		commerce.catalog.getProduct(slug, locale)
@@ -55,39 +56,19 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// renders identically but mints a new version every time stock or a price
 	// moves, so no two conversions share a version and the funnel's own
 	// reporting goes quietly useless.
-	const { definition, version } = bindDefinition(page, resolve);
+	const { definition, version } = bindDefinition(page.manifest, resolve);
 
-	// The blocks choose a colour; they know nothing of variant ids, and they
+	// The blocks choose a label; they know nothing of variant ids, and they
 	// must not — a block that carried one would be coupled to this catalogue.
 	// So the host ships the lookup and does the resolving in its own submit
-	// handler. Size is the host's call too: the first one actually buyable in
-	// that colour.
-	const sizes = catalogue.options[1]?.values ?? [];
-	const variantIndex = (catalogue.options[0]?.values ?? []).flatMap((colour) => {
-		const match = sizes
-			.map((size) =>
-				catalogue.variants.find(
-					(v) => v.options[0] === colour.value && v.options[1] === size.value
-				)
-			)
-			.find((v) => v && v.stock > 0);
-		if (!match) return [];
-		return [
-			{
-				colour: colour.label ?? colour.value,
-				colourCode: colour.value,
-				size: match.options[1] ?? '',
-				variantId: match.id,
-				unitPriceCents: match.priceCents,
-				sku: match.sku
-			}
-		];
-	});
+	// handler. Whether the label names a size too is the page's call.
+	const variantIndex = variantChoices(catalogue, page.pickSize);
 
 	return {
 		definition,
 		version,
 		variantIndex,
+		pickSize: page.pickSize,
 		slug,
 		currency: catalogue.currency,
 		// The manifest is content, not metadata: the title and description that

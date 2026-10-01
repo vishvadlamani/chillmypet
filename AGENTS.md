@@ -363,6 +363,22 @@ page the campaign lands on and `/checkout` is where it pays. The bundle picker
 adds real cart lines, the checkout prices through `/api/cart`, the Payment
 Element mounts under the shipping method, and Place order runs `placeOrder`.
 
+A second product, **`/products/pouch-pet-hoodie`** — a hoodie the owner wears
+with a front pouch the pet rides in — has its own manifest
+(`$lib/store/hoodie-manifest.ts`), English copy only, $55, Lotus/Black × XS–XL.
+Its page sets `pickSize: true` in `pages.ts`: the picker offers one
+"Colour / Size" choice per buyable variant behind a "Choose colour & size"
+prompt, and the host refuses to add anything until every unit is chosen. The
+life jacket still has the host pick its size (first in stock), and its page
+is unchanged. The hoodie's photos are expected at
+`static/products/pouch-pet-hoodie/{lotus,black}.jpg`, and it has no size chart
+until there are manufacturer measurements for it.
+
+**Adding a product to the live store is `npm run db:products`**, never
+`db:seed`. It inserts whatever in `scripts/add-products.js` is missing, skips
+what exists, and touches no other product. Both scripts write through
+`scripts/catalog.js`, so a seeded product and an added one have the same shape.
+
 ⚠️ **The invented reviews do not ship, and that is deliberate.** The 22
 testimonials that came with the block library are written words attributed to
 named people who never said them, the 4.9-from-1,127 rating was never counted,
