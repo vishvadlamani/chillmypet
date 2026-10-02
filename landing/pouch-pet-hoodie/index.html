@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pouch Pet Hoodie · ChillMyPet</title>
-<meta name="description" content="A soft pullover hoodie with a roomy front pouch for your cat or small dog to ride in. In Black, sizes XS to XL. $49, free standard shipping.">
+<meta name="description" content="A soft pullover hoodie with a roomy front pouch for your cat or small dog to ride in. In Black, Gray, Pink, Cream and Green, sizes XS to XL. $49, free standard shipping.">
 <meta property="og:title" content="Pouch Pet Hoodie · ChillMyPet">
 <meta property="og:image" content="hoodie-black.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,17 +18,21 @@
 <header><div class="in"><a class="brand" href="https://chillmypet.com">ChillMyPet</a></div></header>
 <main>
 	<section class="hero">
-		<div class="photo"><img src="hoodie-black.jpg" alt="Pouch Pet Hoodie in Black, with a cat in the pouch"></div>
+		<div class="photo"><img id="photo" src="hoodie-black.jpg" alt="Pouch Pet Hoodie in Black, with a small dog in the pouch"></div>
 		<div>
 			<h1>Pouch Pet Hoodie</h1>
 			<ul class="bul">
 				<li><span>🐾</span><span>A front pouch made for <b>cats &amp; small dogs</b></span></li>
 				<li><span>🛋️</span><span>Keeps them close while <b>you get on with your day</b></span></li>
 				<li><span>👕</span><span>Still <b>your favourite hoodie</b> when they hop out</span></li>
-				<li><span>🖤</span><span>In <b>Black</b>, sizes XS–XL</span></li>
+				<li><span>🎨</span><span>In <b>5 colours</b>, sizes XS–XL</span></li>
 			</ul>
 			<div class="buy">
 				<div class="row"><span class="title">Pouch Pet Hoodie</span><span class="price" id="price">$49.00</span></div>
+				<div class="colours">
+					<span class="label">Colour: <b id="colour-name">Black</b></span>
+					<div class="swatches" id="swatches" role="radiogroup" aria-label="Colour"></div>
+				</div>
 				<span class="note">You choose your size (XS–XL, your size, not your pet’s) at checkout.</span>
 				<a class="cta" id="buy" href="#">Buy now</a>
 				<div class="badges" aria-label="Accepted cards">
@@ -54,7 +58,7 @@ If you have any questions or would like to begin an exchange, please email us at
 
 If you’re between sizes, size up: a little extra room makes the pouch easier for your pet to settle into.</p></details>
 	<details><summary>Can I wear it without my pet?</summary><p>Of course. When they hop out, it’s a regular pullover hoodie.</p></details>
-	<details><summary>What colour is it?</summary><p>Black, in every size from XS to XL.</p></details>
+	<details><summary>What colours does it come in?</summary><p>Black, Gray, Pink, Cream and Green, each in every size from XS to XL. Pick yours above before you buy.</p></details>
 
 	<div class="guarantee">
 		<img src="guarantee-30day.webp" alt="30-day money-back guarantee">
@@ -73,9 +77,39 @@ If you’re between sizes, size up: a little extra room makes the pouch easier f
 		var c = window.HOODIE;
 		var buy = document.getElementById('buy');
 		var ready = /^https:\/\/(buy\.stripe\.com|checkout\.stripe\.com)\//.test(c.paymentLink) && c.paymentLink.indexOf('REPLACE') === -1;
+		var photo = document.getElementById('photo');
+		var swatches = document.getElementById('swatches');
+		var asked = (location.search.match(/[?&]colou?r=([a-z]+)/i) || [])[1];
+		var colour = c.colours.filter(function (x) { return x.id === (asked || '').toLowerCase(); })[0] || c.colours[0];
 		document.getElementById('price').textContent = '$' + c.price.toFixed(2);
 		fbq('track', 'ViewContent', { content_type: 'product', content_ids: ['pouch-pet-hoodie'], value: c.price, currency: c.currency });
-		buy.href = ready ? c.paymentLink : '#';
+
+		// The colour rides to Stripe as client_reference_id: the Payment Link has
+		// no colour field of its own, and that is the one value its URL can carry.
+		function pick(x) {
+			colour = x;
+			photo.src = x.image;
+			photo.alt = 'Pouch Pet Hoodie in ' + x.name + ', with a small dog in the pouch';
+			document.getElementById('colour-name').textContent = x.name;
+			Array.prototype.forEach.call(swatches.children, function (b) {
+				b.setAttribute('aria-checked', String(b.dataset.id === x.id));
+			});
+			buy.href = ready ? c.paymentLink + '?client_reference_id=' + x.id : '#';
+		}
+		c.colours.forEach(function (x) {
+			var b = document.createElement('button');
+			b.type = 'button';
+			b.className = 'swatch';
+			b.dataset.id = x.id;
+			b.title = x.name;
+			b.setAttribute('role', 'radio');
+			b.setAttribute('aria-label', x.name);
+			b.style.background = x.hex;
+			b.addEventListener('click', function () { pick(x); });
+			swatches.appendChild(b);
+			new Image().src = x.image;
+		});
+		pick(colour);
 		buy.addEventListener('click', function (e) {
 			if (!ready) { e.preventDefault(); alert('Add your Stripe Payment Link to config.js first.'); return; }
 			fbq('track', 'InitiateCheckout', { content_ids: ['pouch-pet-hoodie'], value: c.price, currency: c.currency, num_items: 1 });
