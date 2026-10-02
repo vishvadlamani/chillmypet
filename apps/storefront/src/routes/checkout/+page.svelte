@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import PageLayout from '@funnel/core/PageLayout.svelte';
-	import { DR_BLOCKS } from '@funnel/blocks-dr';
+	import { STORE_BLOCKS } from '$lib/store/blocks';
 	import { countryForm } from '@funnel/blocks-dr/subdivisions';
 	import type { FunnelStateAdapter, SubmitFn, TrackFn } from '@funnel/core';
 	import { DEFAULT_SHIPPING_RATES } from 'ecomwithai';
@@ -454,7 +454,7 @@
 		<PageLayout
 			definition={data.definition}
 			version={data.version}
-			components={DR_BLOCKS}
+			components={STORE_BLOCKS}
 			{track}
 			{submit}
 			state={funnelState}
