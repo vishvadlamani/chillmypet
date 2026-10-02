@@ -9,6 +9,6 @@
 window.HOODIE = {
 	paymentLink: 'https://buy.stripe.com/REPLACE_WITH_YOUR_PAYMENT_LINK',
 	pixelIds: ['1341978141149107', '1363695699271757', '28272021345717397'],
-	price: 55,
+	price: 49,
 	currency: 'USD'
 };

@@ -12,12 +12,12 @@
  * section until a `specs.size_chart` metafield exists.
  *
  * There is no compare-at price on purpose. A struck-through "was" price has to
- * be one the product was actually offered at, and this one launches at $55.
+ * be one the product was actually offered at, and this one launches at $49.
  */
 
 export const HOODIE_SLUG = 'pouch-pet-hoodie';
 
-const PRICE_CENTS = 5500;
+const PRICE_CENTS = 4900;
 
 /**
  * Per-variant units. Stock is maintained outside this system, so this is a

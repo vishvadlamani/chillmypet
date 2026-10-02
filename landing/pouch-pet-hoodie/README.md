@@ -13,13 +13,13 @@ nothing it sells lands there.
   and fires PageView + ViewContent, InitiateCheckout on the Buy click, and
   Purchase on `thank-you.html`. That fires only with Stripe's `session_id`, once
   per order, with the session id as `eventID`. It is browser-only (no CAPI), and
-  value is one unit ($55) because the redirect does not carry the quantity.
+  value is one unit ($49) because the redirect does not carry the quantity.
 - **`config.js` is the only file to edit**: the Payment Link URL and the pixel
   ids.
 
 ## To finish
 
-1. Create the Payment Link: product "Pouch Pet Hoodie", $55 one-off, image
+1. Create the Payment Link: product "Pouch Pet Hoodie", $49 one-off, image
    `hoodie-black.jpg`, custom field Size (dropdown XS/S/M/L/XL, required),
    shipping address collection on. After payment, redirect to
    `https://<pages-host>/thank-you.html?session_id={CHECKOUT_SESSION_ID}`.
