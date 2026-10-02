@@ -12,8 +12,19 @@ nothing it sells lands there.
 - **Tracking** inits the same three pixels as `apps/storefront/wrangler.toml`
   and fires PageView + ViewContent, InitiateCheckout on the Buy click, and
   Purchase on `thank-you.html`. That fires only with Stripe's `session_id`, once
-  per order, with the session id as `eventID`. It is browser-only (no CAPI), and
-  value is one unit ($49) because the redirect does not carry the quantity.
+  per order, with the session id as `eventID`. Value is one unit ($49), which is
+  exact: the Payment Link's quantity is fixed at one.
+- **Server copies (Conversions API)** come from `_worker.js`, which Pages runs
+  in front of the files (`_routes.json` limits it to `/api/*`). Every browser
+  event is also posted to `/api/event` under the same id, and the worker sends
+  it to Meta with the visitor's IP, user agent and `_fbp`/`_fbc`, so Meta keeps
+  one of the two and the copy an ad blocker or iOS stops still arrives. The
+  thank-you page posts its session id to `/api/purchase`; the worker asks Stripe
+  whether that session is complete, paid and from this Payment Link, and only
+  then sends Purchase with the buyer's hashed email, phone, name and address.
+  `/api/event` refuses Purchase, so nobody can claim a sale through it. Only
+  pixel `1341978141149107` (the one the ad set optimises against) gets server
+  copies: a CAPI token belongs to one dataset. The other two stay browser-only.
 - **Colour** (Black, Gray, Pink, Cream) is picked on this page, not on
   Stripe's: the swatches swap the photo and append
   `?client_reference_id=<colour>` to the Payment Link, which is the only value a
@@ -78,19 +89,43 @@ checkout page shows that account's name and branding. The descriptor suffix
 
 Cloudflare Pages, project name **`chillmypet-hoodie`**, production branch
 `main`. Publish this folder **without this README**, which names the Stripe
-account and is not part of the page:
+account and is not part of the page.
 
-- Dashboard: zip the folder's other files, then
-  [the project](https://dash.cloudflare.com/5fef1d1dbb6eaee72fdfc2b26a61a386/pages/view/chillmypet-hoodie)
-  → Create deployment → Production → upload the zip → Save and Deploy.
-- CLI, with a token for that account in `CLOUDFLARE_API_TOKEN`: copy the folder
-  minus `README.md` to `dist/`, then
-  `npx wrangler pages deploy dist --project-name chillmypet-hoodie --branch main`.
-  Without `--branch main` wrangler names the deploy after the git branch and it
-  lands as a preview, not on the live URL.
+Use the CLI, with a token for that account in `CLOUDFLARE_API_TOKEN`: copy the
+folder minus `README.md` to `dist/`, then
+`npx wrangler pages deploy dist --project-name chillmypet-hoodie --branch main`.
+Without `--branch main` wrangler names the deploy after the git branch and it
+lands as a preview, not on the live URL. Prefer this over a dashboard zip
+upload, which is not guaranteed to pick up `_worker.js`: the page would look
+fine and quietly send no server events.
 
-Check the result with a cache-busting query (`?cb=1`): a new photo should come
-back as `image/jpeg`, and a missing one falls through to the page as `text/html`.
+### Secrets for the server copies
+
+On the project: Settings → Variables and Secrets → Production, as **Secret**:
+
+| Name | Where it comes from |
+|---|---|
+| `META_CAPI_ACCESS_TOKEN` | Events Manager → pixel `1341978141149107` → Settings → Conversions API → Generate access token. A token for any other pixel is rejected. |
+| `STRIPE_SECRET_KEY` | Stripe Dashboard (the account holding the Payment Link) → Developers → API keys → Create restricted key, with **Checkout Sessions: Read** and nothing else. |
+| `META_TEST_EVENT_CODE` | Optional. Set it to the code Events Manager → Test Events shows to watch a run live; delete it afterwards, or every event stays out of ads reporting. |
+
+Secrets take effect on the next deploy, so deploy after adding them. Without
+them the page works exactly as before and sends no server copies; the worker
+logs why (`wrangler pages deployment tail`).
+
+### Check it
+
+- With a cache-busting query (`?cb=1`): a new photo should come back as
+  `image/jpeg`, and a missing one falls through to the page as `text/html`.
+- `curl -i -X POST https://chillmypet-hoodie.pages.dev/api/event -d 'x'`
+  must answer **400**. A 405 or the page's HTML means the worker did not
+  deploy.
+- Events Manager → the pixel → Overview: PageView, ViewContent and
+  InitiateCheckout should show both **Browser** and **Server**, with
+  deduplication reported. Purchase shows Server from the first real order.
+
+`node landing/pouch-pet-hoodie.test.mjs` runs the worker against mocked Meta
+and Stripe; run it after any change to `_worker.js`.
 
 Retire it once the product page is live on chillmypet.com: deactivate the
 Payment Link and point every ad at the real page.

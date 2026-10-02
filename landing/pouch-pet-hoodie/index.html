@@ -174,7 +174,7 @@ Once processed, 93% of orders arrive between 5–12 days later.</p></details>
 		var price = '$' + c.price.toFixed(2);
 		document.getElementById('price').textContent = price;
 		Array.prototype.forEach.call(document.querySelectorAll('.js-price'), function (el) { el.textContent = price; });
-		fbq('track', 'ViewContent', { content_type: 'product', content_ids: ['pouch-pet-hoodie'], value: c.price, currency: c.currency });
+		hoodieTrack('ViewContent', { content_type: 'product', content_ids: ['pouch-pet-hoodie'], value: c.price, currency: c.currency });
 
 		// Every photo is one colour, so the gallery and the swatches are the same
 		// choice: whatever is on screen is what the buyer is sold.
@@ -249,7 +249,7 @@ Once processed, 93% of orders arrive between 5–12 days later.</p></details>
 		Array.prototype.forEach.call(buys, function (a) {
 			a.addEventListener('click', function (e) {
 				if (!ready) { e.preventDefault(); alert('Add your Stripe Payment Link to config.js first.'); return; }
-				fbq('track', 'InitiateCheckout', { content_ids: ['pouch-pet-hoodie'], value: c.price, currency: c.currency, num_items: 1 });
+				hoodieTrack('InitiateCheckout', { content_ids: ['pouch-pet-hoodie'], value: c.price, currency: c.currency, num_items: 1 }, true);
 			});
 		});
 
