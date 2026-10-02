@@ -20,7 +20,6 @@ window.HOODIE = {
 		{ id: 'black', name: 'Black', hex: '#1c1c1c', image: 'hoodie-black.jpg' },
 		{ id: 'gray', name: 'Gray', hex: '#8c8c8c', image: 'hoodie-gray.jpg' },
 		{ id: 'pink', name: 'Pink', hex: '#f0a9b8', image: 'hoodie-pink.jpg' },
-		{ id: 'cream', name: 'Cream', hex: '#efe9da', image: 'hoodie-cream.jpg' },
-		{ id: 'green', name: 'Green', hex: '#2f5743', image: 'hoodie-green.jpg' }
+		{ id: 'cream', name: 'Cream', hex: '#efe9da', image: 'hoodie-cream.jpg' }
 	]
 };

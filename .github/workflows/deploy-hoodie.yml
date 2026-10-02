@@ -1,7 +1,9 @@
 name: Deploy hoodie landing page
 
 # Publishes landing/pouch-pet-hoodie to the chillmypet-hoodie Pages project
-# (https://chillmypet-hoodie.pages.dev). Separate from the storefront Worker.
+# (https://chillmypet-hoodie.pages.dev). Separate from the storefront Worker
+# and possibly on another Cloudflare account, so it has its own secrets:
+# HOODIE_CLOUDFLARE_API_TOKEN (Pages: Edit) and HOODIE_CLOUDFLARE_ACCOUNT_ID.
 
 on:
   push:
@@ -13,9 +15,15 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.HOODIE_CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.HOODIE_CLOUDFLARE_ACCOUNT_ID }}
     steps:
+      - name: Check secrets
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Set HOODIE_CLOUDFLARE_API_TOKEN and HOODIE_CLOUDFLARE_ACCOUNT_ID in the repo's Actions secrets"
+            exit 1
+          fi
       - uses: actions/checkout@v4
       # The README names the Stripe account and isn't part of the page.
       - run: rsync -a --exclude README.md landing/pouch-pet-hoodie/ dist/ && ls -la dist

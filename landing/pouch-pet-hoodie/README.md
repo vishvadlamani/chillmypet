@@ -14,7 +14,7 @@ nothing it sells lands there.
   Purchase on `thank-you.html`. That fires only with Stripe's `session_id`, once
   per order, with the session id as `eventID`. It is browser-only (no CAPI), and
   value is one unit ($49) because the redirect does not carry the quantity.
-- **Colour** (Black, Gray, Pink, Cream, Green) is picked on this page, not on
+- **Colour** (Black, Gray, Pink, Cream) is picked on this page, not on
   Stripe's: the swatches swap the photo and append
   `?client_reference_id=<colour>` to the Payment Link, which is the only value a
   Payment Link URL can carry. Fulfilment reads it from the Checkout Session's
