@@ -418,26 +418,27 @@ Element mounts under the shipping method, and Place order runs `placeOrder`.
 
 A second product, **`/products/pouch-pet-hoodie`** — a hoodie the owner wears
 with a front pouch the pet rides in — has its own manifest
-(`$lib/store/hoodie-manifest.ts`), English copy only, $49, **Black only** ×
-XS–XL. Its page sets `pickSize: true` in `pages.ts`: the picker offers one
-choice per buyable variant behind a prompt, and the host refuses to add
-anything until every unit is chosen. With one colour the choices are bare
-sizes ("M") and the prompt is "Choose your size"; a second colour turns them
-back into "Black / M" and "Choose colour & size" with no other change. The
-life jacket still has the host pick its size (first in stock), and its page
-is unchanged. It has no size chart until there are manufacturer measurements
-for it.
+(`$lib/store/hoodie-manifest.ts`), English copy only, $49, in **Black, Gray,
+Pink and Cream** × XS–XL. Its page sets `pickSize: true` in `pages.ts`: the
+picker offers one "Colour / Size" choice per buyable variant behind a "Choose
+colour & size" prompt, and the host refuses to add anything until every unit is
+chosen. With a single colour the same code offers bare sizes behind "Choose your
+size". The life jacket still has the host pick its size (first in stock), and
+its page is unchanged. It has no size chart until there are manufacturer
+measurements for it.
 
-A Lotus colour was built, photographed and then held back by the owner for
-launch. Its two photos and its catalogue entry are in the history of
-`static/products/pouch-pet-hoodie/` and `scripts/hoodie.js`. If it returns,
-know that those photos show a sherpa fleece where the Black one is a cotton
-hoodie, so the two may not be the same garment, and the leather patch on the
-studio shot carries a small mark that may be a maker's brand.
+The four photos in `static/products/pouch-pet-hoodie/` are the ones the landing
+page at chillmypet-hoodie.pages.dev serves (`landing/pouch-pet-hoodie/`), supplied
+by the owner; their original source wasn't stated. `pink.jpg` is padded to a
+square on its white background so the gallery's square crop keeps the whole
+hoodie. They are 447–529px, soft at full gallery width. A Lotus colour was built
+first and held back; it is in the history of `scripts/hoodie.js`.
 
-`black.jpg` was supplied by the owner with the request to use it; its original
-source wasn't stated. It is 447px, soft at full gallery width, so replace it
-with a larger copy when one exists.
+**The landing page sells through a Stripe Payment Link on the owner's own
+account ("ChillMP")**, not through this store, so its orders never reach the
+database. The link has a required Size field but no colour field: the colour
+travels as `client_reference_id` (black, gray, pink, cream) and is only visible
+on the order in Stripe. Anyone fulfilling those orders has to read it there.
 
 **Adding a product to the live store is `npm run db:products`**, never
 `db:seed`. It inserts whatever in `scripts/add-products.js` is missing, skips

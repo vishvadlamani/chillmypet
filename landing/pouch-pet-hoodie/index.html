@@ -4,82 +4,277 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pouch Pet Hoodie · ChillMyPet</title>
-<meta name="description" content="A soft pullover hoodie with a roomy front pouch for your cat or small dog to ride in. In Black, sizes XS to XL. $49, free standard shipping.">
+<meta name="description" content="A soft pullover hoodie with a roomy front pouch for your cat or small dog to ride in. In Black, Gray, Pink and Cream, sizes XS to XL. $49, free standard shipping.">
 <meta property="og:title" content="Pouch Pet Hoodie · ChillMyPet">
-<meta property="og:image" content="hoodie-black.jpg">
+<meta property="og:description" content="Keep them close. A soft hoodie with a front pouch for your cat or small dog. $49, free standard shipping.">
+<meta property="og:image" content="https://chillmypet-hoodie.pages.dev/hoodie-black.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="config.js"></script>
 <script src="pixel.js"></script>
 </head>
 <body>
-<div class="strip">Free standard shipping 🚚 30-day returns</div>
-<header><div class="in"><a class="brand" href="https://chillmypet.com">ChillMyPet</a></div></header>
+<div class="strip"><span>Free shipping</span><span aria-hidden="true">·</span><span>30-day free returns</span><span class="wide" aria-hidden="true">·</span><span class="wide">Secure checkout by Stripe</span></div>
+<header><div class="in">
+	<a class="brand" href="https://chillmypet.com">ChillMyPet</a>
+	<nav aria-label="Page">
+		<a href="#size">Size help</a>
+		<a href="#faq">FAQ</a>
+		<a href="mailto:contact@chillmypet.com">Contact</a>
+	</nav>
+</div></header>
 <main>
 	<section class="hero">
-		<div class="photo"><img src="hoodie-black.jpg" alt="Pouch Pet Hoodie in Black, with a cat in the pouch"></div>
-		<div>
-			<h1>Pouch Pet Hoodie</h1>
-			<ul class="bul">
-				<li><span>🐾</span><span>A front pouch made for <b>cats &amp; small dogs</b></span></li>
-				<li><span>🛋️</span><span>Keeps them close while <b>you get on with your day</b></span></li>
-				<li><span>👕</span><span>Still <b>your favourite hoodie</b> when they hop out</span></li>
-				<li><span>🖤</span><span>In <b>Black</b>, sizes XS–XL</span></li>
-			</ul>
-			<div class="buy">
-				<div class="row"><span class="title">Pouch Pet Hoodie</span><span class="price" id="price">$49.00</span></div>
-				<span class="note">You choose your size (XS–XL, your size, not your pet’s) at checkout.</span>
-				<a class="cta" id="buy" href="#">Buy now</a>
-				<div class="badges" aria-label="Accepted cards">
-					<span style="background:#1a1f71">VISA</span><span style="background:#111">MASTERCARD</span><span style="background:#016fd0">AMEX</span><span style="background:#fff;color:#111;border:1px solid #ddd">DISCOVER</span>
-				</div>
+		<div class="gallery">
+			<div class="stage">
+				<img id="photo" src="hoodie-black.jpg" alt="Pouch Pet Hoodie in Black, with a small dog in the pouch" width="447" height="447">
+				<button type="button" class="arrow prev" id="prev" aria-label="Previous colour">‹</button>
+				<button type="button" class="arrow next" id="next" aria-label="Next colour">›</button>
+				<div class="sticker" aria-hidden="true"><small>now in</small><em>4 colours</em><span class="dots" id="sticker-dots"></span></div>
 			</div>
+			<div class="thumbs" id="thumbs" aria-label="Colours"></div>
+		</div>
+
+		<div class="details">
+			<p class="kicker">ChillMyPet</p>
+			<h1>Pouch Pet Hoodie</h1>
+			<p class="lede">A soft pullover hoodie with a roomy front pouch, so your cat or small dog can nap against you while you get on with your day.</p>
+
+			<div class="pick">
+				<span class="label">Colour: <b id="colour-name">Black</b></span>
+				<div class="swatches" id="swatches" role="radiogroup" aria-label="Colour"></div>
+			</div>
+
+			<div class="pick">
+				<span class="label">Size: <b>XS–XL</b> <a class="inline" href="#size">Size help</a></span>
+				<p class="note">Your size, not your pet’s. You choose it on the secure checkout page, right after you tap Buy now.</p>
+			</div>
+
+			<div class="offer">
+				<span class="stamp" aria-hidden="true"><em>New drop</em></span>
+				<div class="offer-main">
+					<span class="radio" aria-hidden="true"></span>
+					<div class="offer-name"><b>1 Pouch Pet Hoodie</b><span>Any colour, any size</span></div>
+					<span class="price" id="price">$49.00</span>
+				</div>
+				<ul class="perks">
+					<li><span>Standard shipping</span><b>Free</b></li>
+					<li><span>Exchanges &amp; returns, 30 days</span><b>Free</b></li>
+				</ul>
+			</div>
+
+			<a class="cta buy" id="buy" href="#">Buy now · <span class="js-price">$49.00</span></a>
+			<div class="badges" aria-label="Accepted cards">
+				<span style="background:#1a1f71">VISA</span><span style="background:#111">MASTERCARD</span><span style="background:#016fd0">AMEX</span><span style="background:#fff;color:#111;border:1px solid #ddd">DISCOVER</span>
+			</div>
+
+			<ul class="trust">
+				<li><span aria-hidden="true">🚚</span>Free standard shipping</li>
+				<li><span aria-hidden="true">↩️</span>30-day free returns</li>
+				<li><span aria-hidden="true">🔒</span>Secure checkout</li>
+			</ul>
+
 			<div class="info">
-				<details><summary>When will I get my order? 🚚</summary><p>Please allow us 2–4 business days to process your order.
+				<details open><summary>Made for cats &amp; small dogs 🐾</summary><p>The front pouch is where your pet rides, and the hoodie is sized for you. It suits a cat or small dog you’d happily hold in your arms for a while. Not sure yours will fit? Email <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a> before you order and we’ll help.</p></details>
+				<details><summary>More than a pet pouch 👕</summary><p>When they hop out, it’s simply your favourite pullover hoodie: wear it around the house, on the sofa or out for a slow stroll.</p></details>
+				<details><summary>Shipping &amp; returns 🚚</summary><p>Standard shipping is free on every order.
 
-Once processed, 93% of orders arrive between 5–12 days later.
+Please allow us 2–4 business days to process your order. Once processed, 93% of orders arrive between 5–12 days later.
 
-If you have any questions, please contact us at <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a>.</p></details>
-				<details><summary>What if it doesn’t fit? 📏</summary><p>We offer 30 day — no questions asked — free exchanges and returns.
-
-If you have any questions or would like to begin an exchange, please email us at <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a>.</p></details>
+We offer 30 day — no questions asked — free exchanges and returns. Email <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a> to begin one.</p></details>
 			</div>
 		</div>
 	</section>
 
-	<h2>Frequently asked questions</h2>
-	<details><summary>Who wears it — me or my pet?</summary><p>You do. The hoodie is sized for you, and the pouch at the front is where your cat or small dog rides.</p></details>
-	<details><summary>Which size should I order?</summary><p>Order the size you normally wear in a hoodie — XS to XL.
+	<section class="features" aria-label="Why you’ll love it">
+		<div class="feature">
+			<img src="hoodie-pink.jpg" alt="Pouch Pet Hoodie in Pink, with a small dog in the pouch" loading="lazy">
+			<div>
+				<h2>Designed for cosy moments together</h2>
+				<p>A roomy front pouch keeps them close enough to nap against you, while your hands stay free for the rest of your day.</p>
+			</div>
+		</div>
+		<div class="feature flip">
+			<img src="hoodie-cream.jpg" alt="Pouch Pet Hoodie in Cream, with a small dog in the pouch" loading="lazy">
+			<div>
+				<h2>A front-row seat</h2>
+				<p>Around the house, on the sofa or out for a slow stroll: they get to watch the world from the cosiest spot in it.</p>
+			</div>
+		</div>
+		<div class="feature">
+			<img src="hoodie-gray.jpg" alt="Pouch Pet Hoodie in Gray, with a small dog in the pouch" loading="lazy">
+			<div>
+				<h2>Still your favourite hoodie</h2>
+				<p>When they hop out, it’s a soft pullover you’ll keep reaching for. Four colours, every one in sizes XS to XL.</p>
+				<a class="cta ghost buy" href="#">Buy now · <span class="js-price">$49.00</span></a>
+			</div>
+		</div>
+	</section>
+
+	<section class="size" id="size">
+		<h2>Finding your size</h2>
+		<p class="sub">The hoodie is sized for <b>you</b>, the wearer, not your pet.</p>
+		<ol class="steps">
+			<li><b>Pick the size you usually wear in a hoodie.</b> It comes in XS, S, M, L and XL.</li>
+			<li><b>Between sizes? Size up.</b> A little extra room makes the pouch easier for your pet to settle into.</li>
+			<li><b>Still unsure?</b> Free exchanges for 30 days, or email <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a> and we’ll help you choose.</li>
+		</ol>
+		<div class="sizes" aria-hidden="true"><span>XS</span><span>S</span><span>M</span><span>L</span><span>XL</span></div>
+	</section>
+
+	<section id="faq">
+		<h2>Frequently asked questions</h2>
+		<details><summary>Who wears it — me or my pet?</summary><p>You do. The hoodie is sized for you, and the pouch at the front is where your cat or small dog rides.</p></details>
+		<details><summary>Which size should I order?</summary><p>Order the size you normally wear in a hoodie — XS to XL.
 
 If you’re between sizes, size up: a little extra room makes the pouch easier for your pet to settle into.</p></details>
-	<details><summary>Can I wear it without my pet?</summary><p>Of course. When they hop out, it’s a regular pullover hoodie.</p></details>
-	<details><summary>What colour is it?</summary><p>Black, in every size from XS to XL.</p></details>
+		<details><summary>How big can my pet be?</summary><p>The pouch is made for cats and small dogs. If you’re not sure whether yours will fit, email <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a> before you order and we’ll help.</p></details>
+		<details><summary>How should my pet ride in it?</summary><p>Keep a hand under them when you stand, bend or walk, and don’t leave them in the pouch unattended. It’s made for cuddles and slow moments, not for carrying a pet hands-free.</p></details>
+		<details><summary>Can I wear it without my pet?</summary><p>Of course. When they hop out, it’s a regular pullover hoodie.</p></details>
+		<details><summary>What colours does it come in?</summary><p>Black, Gray, Pink and Cream, each in every size from XS to XL. Pick yours above before you buy.</p></details>
+		<details><summary>When will I get my order?</summary><p>Please allow us 2–4 business days to process your order.
+
+Once processed, 93% of orders arrive between 5–12 days later.</p></details>
+		<details><summary>I ordered the wrong size or colour. Can I change it?</summary><p>Email <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a> as soon as you can with your order details. If it hasn’t been processed yet we’ll do our best to change it; if it has, our free 30-day exchanges have you covered.</p></details>
+		<details><summary>Can I return it?</summary><p>Yes. We offer 30 day — no questions asked — free exchanges and returns. Email <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a> to begin one.</p></details>
+	</section>
 
 	<div class="guarantee">
-		<img src="guarantee-30day.webp" alt="30-day money-back guarantee">
+		<img src="guarantee-30day.webp" alt="30-day money-back guarantee" loading="lazy">
 		<div class="eyebrow">Backed for 30 days</div>
 		<p>Shop with total confidence: you’re covered by our <b>30-Day Guarantee</b>. If you don’t love it, or if it arrives damaged, we’ll refund your money. No questions asked.</p>
+		<a class="cta buy" href="#">Buy now · <span class="js-price">$49.00</span></a>
 	</div>
 </main>
+
+<!-- Shown on small screens once the main button has scrolled away. -->
+<div class="dock" id="dock" aria-hidden="true">
+	<img id="dock-photo" src="hoodie-black.jpg" alt="">
+	<div class="dock-text"><b>Pouch Pet Hoodie</b><span><span id="dock-colour">Black</span> · <span class="js-price">$49.00</span></span></div>
+	<a class="cta buy" href="#" tabindex="-1">Buy now</a>
+</div>
+
 <footer><div class="in">
 	<a href="https://chillmypet.com/policies/shipping">Shipping policy</a>
 	<a href="https://chillmypet.com/policies/refunds">Refund policy</a>
 	<a href="mailto:contact@chillmypet.com">Contact us</a>
-	<span style="margin-left:auto">© 2026 ChillMyPet</span>
+	<span class="copy">© 2026 ChillMyPet</span>
 </div></footer>
 <script>
 	(function () {
 		var c = window.HOODIE;
-		var buy = document.getElementById('buy');
 		var ready = /^https:\/\/(buy\.stripe\.com|checkout\.stripe\.com)\//.test(c.paymentLink) && c.paymentLink.indexOf('REPLACE') === -1;
-		document.getElementById('price').textContent = '$' + c.price.toFixed(2);
+		var buys = document.querySelectorAll('.buy');
+		var photo = document.getElementById('photo');
+		var swatches = document.getElementById('swatches');
+		var thumbs = document.getElementById('thumbs');
+		var asked = (location.search.match(/[?&]colou?r=([a-z]+)/i) || [])[1];
+		var colour = c.colours.filter(function (x) { return x.id === (asked || '').toLowerCase(); })[0] || c.colours[0];
+		var price = '$' + c.price.toFixed(2);
+		document.getElementById('price').textContent = price;
+		Array.prototype.forEach.call(document.querySelectorAll('.js-price'), function (el) { el.textContent = price; });
 		fbq('track', 'ViewContent', { content_type: 'product', content_ids: ['pouch-pet-hoodie'], value: c.price, currency: c.currency });
-		buy.href = ready ? c.paymentLink : '#';
-		buy.addEventListener('click', function (e) {
-			if (!ready) { e.preventDefault(); alert('Add your Stripe Payment Link to config.js first.'); return; }
-			fbq('track', 'InitiateCheckout', { content_ids: ['pouch-pet-hoodie'], value: c.price, currency: c.currency, num_items: 1 });
+
+		// Every photo is one colour, so the gallery and the swatches are the same
+		// choice: whatever is on screen is what the buyer is sold.
+		// The colour rides to Stripe as client_reference_id: the Payment Link has
+		// no colour field of its own, and that is the one value its URL can carry.
+		function pick(x) {
+			colour = x;
+			var alt = 'Pouch Pet Hoodie in ' + x.name + ', with a small dog in the pouch';
+			photo.src = x.image;
+			photo.alt = alt;
+			document.getElementById('dock-photo').src = x.image;
+			document.getElementById('colour-name').textContent = x.name;
+			document.getElementById('dock-colour').textContent = x.name;
+			[swatches, thumbs].forEach(function (group) {
+				Array.prototype.forEach.call(group.children, function (b) {
+					b.setAttribute('aria-checked', String(b.dataset.id === x.id));
+				});
+			});
+			var href = ready ? c.paymentLink + '?client_reference_id=' + x.id : '#';
+			Array.prototype.forEach.call(buys, function (a) { a.href = href; });
+		}
+		function step(n) {
+			var i = c.colours.indexOf(colour);
+			pick(c.colours[(i + n + c.colours.length) % c.colours.length]);
+		}
+		function radio(x, cls) {
+			var b = document.createElement('button');
+			b.type = 'button';
+			b.className = cls;
+			b.dataset.id = x.id;
+			b.setAttribute('role', 'radio');
+			b.setAttribute('aria-label', x.name);
+			b.addEventListener('click', function () { pick(x); });
+			return b;
+		}
+		c.colours.forEach(function (x) {
+			var s = radio(x, 'swatch');
+			s.innerHTML = '<i></i>';
+			s.firstChild.style.background = x.hex;
+			s.appendChild(document.createTextNode(x.name));
+			swatches.appendChild(s);
+
+			var t = radio(x, 'thumb');
+			t.innerHTML = '<img alt="">';
+			t.firstChild.src = x.image;
+			thumbs.appendChild(t);
 		});
+		thumbs.setAttribute('role', 'radiogroup');
+		var dots = document.getElementById('sticker-dots');
+		c.colours.forEach(function (x) {
+			var d = document.createElement('i');
+			d.style.background = x.hex;
+			dots.appendChild(d);
+		});
+		document.querySelector('.sticker em').textContent = c.colours.length + ' colours';
+		document.getElementById('prev').addEventListener('click', function () { step(-1); });
+		document.getElementById('next').addEventListener('click', function () { step(1); });
+
+		// Swipe on the photo, as on any phone gallery.
+		var x0 = null;
+		photo.parentNode.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+		photo.parentNode.addEventListener('touchend', function (e) {
+			if (x0 === null) return;
+			var dx = e.changedTouches[0].clientX - x0;
+			x0 = null;
+			if (Math.abs(dx) > 40) step(dx < 0 ? 1 : -1);
+		});
+
+		pick(colour);
+
+		// One InitiateCheckout per click, from whichever button was used.
+		Array.prototype.forEach.call(buys, function (a) {
+			a.addEventListener('click', function (e) {
+				if (!ready) { e.preventDefault(); alert('Add your Stripe Payment Link to config.js first.'); return; }
+				fbq('track', 'InitiateCheckout', { content_ids: ['pouch-pet-hoodie'], value: c.price, currency: c.currency, num_items: 1 });
+			});
+		});
+
+		// The dock appears once the main button has scrolled above the screen,
+		// and steps aside for the closing button so two "Buy now"s never stack.
+		// A scroll check rather than an IntersectionObserver: a jump from the
+		// header's links passes the button without it ever intersecting, and the
+		// observer would never fire.
+		var dock = document.getElementById('dock');
+		var main = document.getElementById('buy');
+		var last = document.querySelector('.guarantee .buy');
+		var queued = false;
+		function place() {
+			queued = false;
+			var r = last.getBoundingClientRect();
+			var show = main.getBoundingClientRect().bottom < 0 && !(r.top < innerHeight && r.bottom > 0);
+			if (show === dock.classList.contains('on')) return;
+			dock.classList.toggle('on', show);
+			dock.setAttribute('aria-hidden', String(!show));
+			dock.querySelector('a').tabIndex = show ? 0 : -1;
+		}
+		addEventListener('scroll', function () {
+			if (!queued) { queued = true; requestAnimationFrame(place); }
+		}, { passive: true });
+		place();
 	})();
 </script>
 </body>

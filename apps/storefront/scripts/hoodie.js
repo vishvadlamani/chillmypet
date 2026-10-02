@@ -26,9 +26,15 @@ const PRICE_CENTS = 4900;
  */
 const STOCK = 25;
 
-// Black only for launch. Lotus was built and photographed, then held back by
-// the owner; it is in this file's history if it comes back.
-const COLOURS = [{ code: 'black', label: 'Black', hex: '#1a1a1a' }];
+// The four the landing page at chillmypet-hoodie.pages.dev sells, same names and
+// swatches, so a shopper who moves between the two sees one product. (Lotus was
+// built first and held back by the owner; it is in this file's history.)
+const COLOURS = [
+	{ code: 'black', label: 'Black', hex: '#1c1c1c' },
+	{ code: 'gray', label: 'Gray', hex: '#8c8c8c' },
+	{ code: 'pink', label: 'Pink', hex: '#f0a9b8' },
+	{ code: 'cream', label: 'Cream', hex: '#efe9da' }
+];
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL'];
 
@@ -44,7 +50,7 @@ export const HOODIE = {
 			title: TITLE,
 			subtitle: 'Keep them close',
 			description:
-				'A soft pullover hoodie with a roomy front pouch for your cat or small dog to ride in, so they can nap against you while you get on with your day. Wear it around the house, on the sofa or out for a slow stroll, and when they hop out it is simply your favourite hoodie. In Black, sizes XS to XL.'
+				'A soft pullover hoodie with a roomy front pouch for your cat or small dog to ride in, so they can nap against you while you get on with your day. Wear it around the house, on the sofa or out for a slow stroll, and when they hop out it is simply your favourite hoodie. In Black, Gray, Pink and Cream, sizes XS to XL.'
 		}
 	},
 	options: [

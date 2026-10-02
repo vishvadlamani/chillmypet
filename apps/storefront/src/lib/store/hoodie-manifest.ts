@@ -33,7 +33,6 @@ export const HOODIE_PAGE: FunnelDefinition = {
 				tracking: 'normal',
 				size: 'md',
 				weight: 'medium',
-				// Black, to match the only colour on sale.
 				bg: '#1a1a1a',
 				fg: '#ffffff'
 			}
@@ -44,14 +43,27 @@ export const HOODIE_PAGE: FunnelDefinition = {
 			version: 1,
 			layout: { row: 'hero', col: 'left' },
 			props: {
-				// `black.jpg` is also the path the catalogue seeds as the colour's
-				// photo, so the picker and the dock show the same image. One photo,
-				// so the block draws no thumbnails or arrows. It is 447px: add a
-				// larger copy, and more angles, when there are some.
+				// One photo per colour, at the paths the catalogue seeds as each
+				// colour's photo, so the picker and the dock show the same images.
+				// The same photos as the landing page; pink.jpg is padded to a square
+				// on its white background so the square crop keeps the whole hoodie.
+				// They are 447–529px: swap in larger copies when there are some.
 				items: [
 					{
 						src: '/products/pouch-pet-hoodie/black.jpg',
-						alt: 'Pouch Pet Hoodie in Black, with a cat in the pouch'
+						alt: 'Pouch Pet Hoodie in Black, with a small dog in the pouch'
+					},
+					{
+						src: '/products/pouch-pet-hoodie/gray.jpg',
+						alt: 'Pouch Pet Hoodie in Gray, with a small dog in the pouch'
+					},
+					{
+						src: '/products/pouch-pet-hoodie/pink.jpg',
+						alt: 'Pouch Pet Hoodie in Pink, with a small dog in the pouch'
+					},
+					{
+						src: '/products/pouch-pet-hoodie/cream.jpg',
+						alt: 'Pouch Pet Hoodie in Cream, with a small dog in the pouch'
 					}
 				],
 				variant: 'gallery',
@@ -84,7 +96,7 @@ export const HOODIE_PAGE: FunnelDefinition = {
 					{ icon: '🐾', text: 'A front pouch made for **cats & small dogs**' },
 					{ icon: '🛋️', text: 'Keeps them close while **you get on with your day**' },
 					{ icon: '👕', text: 'Still **your favourite hoodie** when they hop out' },
-					{ icon: '🖤', text: 'In **Black**, sizes XS–XL' }
+					{ icon: '🎨', text: '**Black, Gray, Pink & Cream**, sizes XS–XL' }
 				]
 			}
 		},
@@ -98,11 +110,11 @@ export const HOODIE_PAGE: FunnelDefinition = {
 				heading: 'Choose yours',
 				tiers: { $ref: 'bundles.tiers' },
 				addons: { $ref: 'bundles.addons' },
-				// One size dropdown per hoodie — the host refuses to buy until every
-				// one is chosen. The id `bundle-picker` is what the host focuses when
-				// it sends someone back to choose.
+				// One colour-and-size dropdown per hoodie — the host refuses to buy
+				// until every one is chosen. The id `bundle-picker` is what the host
+				// focuses when it sends someone back to choose.
 				options: { $ref: 'bundles.colours' },
-				optionLabel: 'Size (your size, not your pet’s)',
+				optionLabel: 'Colour & size (your size, not your pet’s)',
 				addonPlacement: 'below',
 				cta: 'Buy now',
 				accent: '#2f3d24',
@@ -173,8 +185,8 @@ export const HOODIE_PAGE: FunnelDefinition = {
 						body: 'Of course. When they hop out, it’s a regular pullover hoodie.'
 					},
 					{
-						label: 'What colour is it?',
-						body: 'Black, in every size from XS to XL.'
+						label: 'What colours does it come in?',
+						body: 'Black, Gray, Pink and Cream, each in every size from XS to XL.'
 					}
 				]
 			}
@@ -209,7 +221,7 @@ export const HOODIE_PAGE: FunnelDefinition = {
 				// The dock carries the tier but not the sizes chosen in the picker,
 				// so it cannot buy a hoodie. It sends the visitor up to choose.
 				action: 'choose_options',
-				cta: 'Choose your size',
+				cta: 'Choose colour & size',
 				accent: '#1d64f2'
 			}
 		}

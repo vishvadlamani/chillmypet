@@ -6,9 +6,15 @@ credentials, see `npm run db:products`). It is static HTML with no build step an
 no part of the storefront Worker: it does not read the store database and
 nothing it sells lands there.
 
-- **Checkout** is a Stripe Payment Link on the owner's own Stripe account. Size
-  is a required custom dropdown field (XS–XL) on Stripe's page, and the shipping
-  address is collected there.
+- **Checkout** is a Stripe Payment Link on the owner's own Stripe account
+  ("ChillMP", `plink_1ULu2aJOsB1nguzlIzkLcmZG`, $49). Size is a required custom
+  dropdown field (XS–XL) on Stripe's page, and the shipping address is collected
+  there.
+- **Colour** (Black, Gray, Pink, Cream) is picked on this page and sent as the
+  link's `client_reference_id`. Stripe's page does not show it, and the Stripe
+  product carries no colour and no photo on purpose, so a buyer of one colour
+  is never shown another. Read the colour off the order in Stripe before
+  fulfilling it.
 - **Tracking** inits the same three pixels as `apps/storefront/wrangler.toml`
   and fires PageView + ViewContent, InitiateCheckout on the Buy click, and
   Purchase on `thank-you.html`. That fires only with Stripe's `session_id`, once
@@ -17,11 +23,11 @@ nothing it sells lands there.
 - **`config.js` is the only file to edit**: the Payment Link URL and the pixel
   ids.
 
-## To finish
+## Setup
 
-1. Create the Payment Link: product "Pouch Pet Hoodie", $49 one-off, image
-   `hoodie-black.jpg`, custom field Size (dropdown XS/S/M/L/XL, required),
-   shipping address collection on. After payment, redirect to
+1. The Payment Link exists (see above). Recreating it: product "Pouch Pet
+   Hoodie", $49 one-off, no image, custom field Size (dropdown XS/S/M/L/XL,
+   required), shipping address collection on. After payment, redirect to
    `https://<pages-host>/thank-you.html?session_id={CHECKOUT_SESSION_ID}`.
 2. Put the link in `config.js`.
 3. Publish this folder: Cloudflare Pages (`npx wrangler pages deploy
