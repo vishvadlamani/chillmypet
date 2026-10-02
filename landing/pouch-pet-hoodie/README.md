@@ -59,10 +59,21 @@ checkout page shows that account's name and branding. The descriptor suffix
 
 ## To publish
 
-Cloudflare Pages, project name **`chillmypet-hoodie`**:
-`npx wrangler pages deploy landing/pouch-pet-hoodie --project-name chillmypet-hoodie`
-with the owner's own account token, or drag-and-drop the zip's contents under
-Workers & Pages → Create → Pages → Upload assets.
+Cloudflare Pages, project name **`chillmypet-hoodie`**, production branch
+`main`. Publish this folder **without this README**, which names the Stripe
+account and is not part of the page:
+
+- Dashboard: zip the folder's other files, then
+  [the project](https://dash.cloudflare.com/5fef1d1dbb6eaee72fdfc2b26a61a386/pages/view/chillmypet-hoodie)
+  → Create deployment → Production → upload the zip → Save and Deploy.
+- CLI, with a token for that account in `CLOUDFLARE_API_TOKEN`: copy the folder
+  minus `README.md` to `dist/`, then
+  `npx wrangler pages deploy dist --project-name chillmypet-hoodie --branch main`.
+  Without `--branch main` wrangler names the deploy after the git branch and it
+  lands as a preview, not on the live URL.
+
+Check the result with a cache-busting query (`?cb=1`): a new photo should come
+back as `image/jpeg`, and a missing one falls through to the page as `text/html`.
 
 Retire it once the product page is live on chillmypet.com: deactivate the
 Payment Link and point every ad at the real page.
