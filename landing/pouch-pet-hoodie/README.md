@@ -14,8 +14,15 @@ nothing it sells lands there.
   Purchase on `thank-you.html`. That fires only with Stripe's `session_id`, once
   per order, with the session id as `eventID`. It is browser-only (no CAPI), and
   value is one unit ($49) because the redirect does not carry the quantity.
-- **`config.js` is the only file to edit**: the Payment Link URL and the pixel
-  ids.
+- **Colour** (Black, Gray, Pink, Cream) is picked on this page, not on
+  Stripe's: the swatches swap the photo and append
+  `?client_reference_id=<colour>` to the Payment Link, which is the only value a
+  Payment Link URL can carry. Fulfilment reads it from the Checkout Session's
+  `client_reference_id` (also on the `checkout.session.completed` event). A
+  session without one predates the colours and is Black. `?colour=pink` on this
+  page's URL preselects a colour, for an ad per colour.
+- **`config.js` is the only code to edit**: the Payment Link URL, the pixel
+  ids and the colours (each a `hoodie-<colour>.jpg` beside it).
 
 ## The Payment Link
 
@@ -52,10 +59,21 @@ checkout page shows that account's name and branding. The descriptor suffix
 
 ## To publish
 
-Cloudflare Pages, project name **`chillmypet-hoodie`**:
-`npx wrangler pages deploy landing/pouch-pet-hoodie --project-name chillmypet-hoodie`
-with the owner's own account token, or drag-and-drop the zip's contents under
-Workers & Pages → Create → Pages → Upload assets.
+Cloudflare Pages, project name **`chillmypet-hoodie`**, production branch
+`main`. Publish this folder **without this README**, which names the Stripe
+account and is not part of the page:
+
+- Dashboard: zip the folder's other files, then
+  [the project](https://dash.cloudflare.com/5fef1d1dbb6eaee72fdfc2b26a61a386/pages/view/chillmypet-hoodie)
+  → Create deployment → Production → upload the zip → Save and Deploy.
+- CLI, with a token for that account in `CLOUDFLARE_API_TOKEN`: copy the folder
+  minus `README.md` to `dist/`, then
+  `npx wrangler pages deploy dist --project-name chillmypet-hoodie --branch main`.
+  Without `--branch main` wrangler names the deploy after the git branch and it
+  lands as a preview, not on the live URL.
+
+Check the result with a cache-busting query (`?cb=1`): a new photo should come
+back as `image/jpeg`, and a missing one falls through to the page as `text/html`.
 
 Retire it once the product page is live on chillmypet.com: deactivate the
 Payment Link and point every ad at the real page.
