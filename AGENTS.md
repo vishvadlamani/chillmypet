@@ -260,6 +260,13 @@ codebase, from the webhook, on `action === 'order_paid'`. If you find one of
 these connected, disconnect it at the Stripe end rather than filtering at the
 Meta end.
 
+**This applies to `acct_1U3NewJOsB1nguzl` ("ChillMP") too, and differently.**
+The hoodie landing page charges through that account and reports its own
+Purchase from `landing/pouch-pet-hoodie/thank-you.html`, keyed on the Checkout
+Session id. An integration there would mint a second id for the same sale — the
+same double-count — and that page sends no Conversions API copy, so there is no
+server-side event for anything downstream to notice the discrepancy against.
+
 **Don't delete `local.db` while the dev server is running.** It holds the file
 handle, keeps writing to the unlinked inode, and you'll chase phantom failures.
 Restart the server after reseeding.
@@ -521,14 +528,23 @@ touch this application. Staging deliberately has **no Stripe keys**, because it
 shares production's database — a card test there would be a real charge. With
 `commerce.payments` null it falls back to the old confirmation screen.
 
-⚠️ **The Stripe account is not ChillMyPet's.** It is `acct_1Au2A6BbNuiab9E2`,
-"Idea to Run" (`me@devyngreen.com`), used with the owner's agreement as a
-temporary arrangement until ChillMyPet has its own. Consequences to keep in
-mind: settlements land in that account, refunds and chargebacks are theirs to
-absorb, and `STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET` exists so buyers recognise
-the charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`. When
-ChillMyPet's own account is ready, the swap is configuration, not code — but it
-is **not** three secrets, and the count is where this bites.
+⚠️ **The storefront's Stripe account is not ChillMyPet's.** It is
+`acct_1Au2A6BbNuiab9E2`, "Idea to Run" (`me@devyngreen.com`), used with the
+owner's agreement as a temporary arrangement. Consequences to keep in mind:
+settlements land in that account, refunds and chargebacks are theirs to absorb,
+and `STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET` exists so buyers recognise the
+charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`.
+
+**ChillMyPet's own account now exists**: `acct_1U3NewJOsB1nguzl`, "ChillMP"
+(named Milligram until 2026-10, which is what the hoodie landing page's own
+README still calls it), live. The storefront does not charge through it yet —
+that is still the borrowed account above — but it is already taking real money,
+because the hoodie landing page's Payment Link `plink_1ULsvvJOsB1nguzlWIBkKc0K`
+sits on it. **Revenue for one brand therefore arrives in two accounts**, so
+anything reconciling Stripe against the orders table, or against the revenue
+Meta reports, has to read both. The swap below is what closes that; it is
+configuration, not code — but it is **not** three secrets, and the count is
+where this bites.
 
 Stripe embeds the account in its object ids, so an id minted here is meaningless
 on another account. `acct_1Au2A6BbNuiab9E2` and
