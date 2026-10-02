@@ -1,7 +1,7 @@
-import { error, type Handle } from '@sveltejs/kit';
+import { error, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
-import { newEventId } from 'ecomwithai/marketing';
+import { buildFbc, buildFbp, fbclidOf, newEventId } from 'ecomwithai/marketing';
 import { attributionFrom } from '$lib/server/purchase';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
@@ -76,6 +76,42 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 		body: `<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${containerId}"
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`
 	};
+}
+
+/** Meta's own lifetime for both cookies. */
+const FB_COOKIE_MAX_AGE = 60 * 60 * 24 * 90;
+
+/**
+ * Writes `_fbp`, and `_fbc` on an ad click, before the first page renders.
+ *
+ * The pixel sets these itself, but only once `fbevents.js` has run in the
+ * browser, which is after this request's server PageView has already gone. So
+ * the first view of every visit reached Meta with no browser id, and on an ad
+ * click with an `fbc` minted at a different millisecond from the pixel's. The
+ * pixel adopts a well-formed cookie it finds rather than writing its own, so
+ * minting them here gives both copies of the event the same ids from the first
+ * request. Not httpOnly: the pixel has to read them.
+ */
+function seedMetaCookies(event: RequestEvent): void {
+	const options = {
+		path: '/',
+		maxAge: FB_COOKIE_MAX_AGE,
+		httpOnly: false,
+		sameSite: 'lax' as const
+	};
+	const now = Date.now();
+
+	if (!event.cookies.get('_fbp')) event.cookies.set('_fbp', buildFbp(now), options);
+
+	const fbclid = event.url.searchParams.get('fbclid');
+	if (fbclid && fbclidOf(event.cookies.get('_fbc')) !== fbclid) {
+		event.cookies.set('_fbc', buildFbc(fbclid, now), options);
+	}
+}
+
+/** A browser asking for a page, as opposed to data, an API call or an asset. */
+function isDocumentRequest(request: Request): boolean {
+	return request.method === 'GET' && (request.headers.get('accept') ?? '').includes('text/html');
 }
 
 function verificationTag(token: string): string {
@@ -184,6 +220,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// from this same request, which already holds the cookies, address and user
 	// agent that make it matchable.
 	const pageViewEventId = newEventId();
+	const isDocument = pixelIds.length > 0 && isDocumentRequest(event.request);
+	// Before `resolve`: SvelteKit writes cookies onto the response inside it.
+	if (isDocument) seedMetaCookies(event);
 
 	const response = await resolve(event, {
 		transformPageChunk: ({ html }) =>
@@ -202,8 +241,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	});
 
 	// Documents only. `handle` also runs for data requests, form posts and the
-	// API, and none of those rendered a snippet to deduplicate against.
-	if (pixelIds.length > 0 && response.headers.get('content-type')?.includes('text/html')) {
+	// API, and none of those rendered a snippet to deduplicate against — and a
+	// HEAD gets no body, so no browser half ever runs for it either.
+	if (isDocument && response.headers.get('content-type')?.includes('text/html')) {
 		const send = event.locals.commerce.meta
 			?.send({
 				eventName: 'PageView',

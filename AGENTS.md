@@ -141,6 +141,25 @@ goes missing to iOS and ad blockers is the one worth having. `/api/track`
 refuses `Purchase` and ignores any `user_data` in its body: a sale is reported
 from the order, and a public endpoint must not be able to claim identity.
 
+**The SSR PageView's server copy needs the browser's ids before the browser has
+them.** It leaves before `fbevents.js` has run, so on a first visit there is no
+`_fbp` yet, and on an ad click the pixel mints `_fbc` at a different millisecond
+from the server. `seedMetaCookies()` in `hooks.server.ts` writes both on GET
+requests that accept `text/html`, before `resolve` (SvelteKit puts cookies on the
+response inside it). The pixel adopts a well-formed cookie it finds, so both
+halves carry the same `fbp`/`fbc` from the first request. The same check keeps
+the server PageView to real page loads: `HEAD` and `Accept: */*` clients get no
+browser half, so they get no server half either.
+
+**Don't put `original_event_data` on a live event.** It describes the past
+acquisition a *delayed* event belongs to, and it has its own `event_id` that
+Meta dedupes on. The framework sent it on every event, without that id, from
+the first commit, and Events Manager reported 0% of server PageViews carrying an
+event ID and 0% browser/server coverage on dataset `1341978141149107`, even
+though the top-level `event_id` was correct the whole time. It now goes out only
+beside `attribution_data`, and then it carries the same id. `hash.test.ts` pins
+both.
+
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires
 from the Stripe webhook and the browser event from the success page, two requests
