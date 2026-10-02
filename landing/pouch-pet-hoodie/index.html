@@ -9,7 +9,7 @@
 <meta property="og:description" content="Keep them close. A soft hoodie with a front pouch for your cat or small dog. $49, free standard shipping.">
 <meta property="og:image" content="https://chillmypet-hoodie.pages.dev/hoodie-black.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="config.js"></script>
 <script src="pixel.js"></script>
@@ -31,6 +31,7 @@
 				<img id="photo" src="hoodie-black.jpg" alt="Pouch Pet Hoodie in Black, with a small dog in the pouch" width="447" height="447">
 				<button type="button" class="arrow prev" id="prev" aria-label="Previous colour">‹</button>
 				<button type="button" class="arrow next" id="next" aria-label="Next colour">›</button>
+				<div class="sticker" aria-hidden="true"><small>now in</small><em>4 colours</em><span class="dots" id="sticker-dots"></span></div>
 			</div>
 			<div class="thumbs" id="thumbs" aria-label="Colours"></div>
 		</div>
@@ -38,10 +39,6 @@
 		<div class="details">
 			<p class="kicker">ChillMyPet</p>
 			<h1>Pouch Pet Hoodie</h1>
-			<div class="price-row">
-				<span class="price" id="price">$49.00</span>
-				<span class="tag">Free shipping</span>
-			</div>
 			<p class="lede">A soft pullover hoodie with a roomy front pouch, so your cat or small dog can nap against you while you get on with your day.</p>
 
 			<div class="pick">
@@ -52,6 +49,19 @@
 			<div class="pick">
 				<span class="label">Size: <b>XS–XL</b> <a class="inline" href="#size">Size help</a></span>
 				<p class="note">Your size, not your pet’s. You choose it on the secure checkout page, right after you tap Buy now.</p>
+			</div>
+
+			<div class="offer">
+				<span class="stamp" aria-hidden="true"><em>New drop</em></span>
+				<div class="offer-main">
+					<span class="radio" aria-hidden="true"></span>
+					<div class="offer-name"><b>1 Pouch Pet Hoodie</b><span>Any colour, any size</span></div>
+					<span class="price" id="price">$49.00</span>
+				</div>
+				<ul class="perks">
+					<li><span>Standard shipping</span><b>Free</b></li>
+					<li><span>Exchanges &amp; returns, 30 days</span><b>Free</b></li>
+				</ul>
 			</div>
 
 			<a class="cta buy" id="buy" href="#">Buy now · <span class="js-price">$49.00</span></a>
@@ -213,6 +223,13 @@ Once processed, 93% of orders arrive between 5–12 days later.</p></details>
 			thumbs.appendChild(t);
 		});
 		thumbs.setAttribute('role', 'radiogroup');
+		var dots = document.getElementById('sticker-dots');
+		c.colours.forEach(function (x) {
+			var d = document.createElement('i');
+			d.style.background = x.hex;
+			dots.appendChild(d);
+		});
+		document.querySelector('.sticker em').textContent = c.colours.length + ' colours';
 		document.getElementById('prev').addEventListener('click', function () { step(-1); });
 		document.getElementById('next').addEventListener('click', function () { step(1); });
 
