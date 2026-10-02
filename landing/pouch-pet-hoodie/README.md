@@ -13,7 +13,7 @@ nothing it sells lands there.
   and fires PageView + ViewContent, InitiateCheckout on the Buy click, and
   Purchase on `thank-you.html`. That fires only with Stripe's `session_id`, once
   per order, with the session id as `eventID`. It is browser-only (no CAPI), and
-  value is one unit ($55) because the redirect does not carry the quantity.
+  value is one unit ($49) because the redirect does not carry the quantity.
 - **`config.js` is the only file to edit**: the Payment Link URL and the pixel
   ids.
 
@@ -27,9 +27,9 @@ checkout page shows that account's name and branding. The descriptor suffix
 
 | | |
 |---|---|
-| Link | https://buy.stripe.com/3cI6oId3A9LY63AbFB1wY00 (`plink_1ULsvvJOsB1nguzlWIBkKc0K`) |
+| Link | https://buy.stripe.com/fZu28sfbIgamgIe8tp1wY01 (`plink_1ULu2aJOsB1nguzlIzkLcmZG`) |
 | Product | `prod_VMc9qoS3upuwT6`, "Pouch Pet Hoodie" |
-| Price | `price_1ULsvYJOsB1nguzlYOoWRPGB`, $55 one-off |
+| Price | `price_1ULu2LJOsB1nguzldpv94rU1`, $49 one-off |
 
 - Quantity is fixed at **one**. A single Size field cannot describe two hoodies
   of different sizes, and it keeps the thank-you page's one-unit Purchase value
@@ -40,7 +40,7 @@ checkout page shows that account's name and branding. The descriptor suffix
 - Shipping address and phone are collected; countries are the storefront's
   `COUNTRY_CODES` less the seven Stripe will not ship to (CU, FM, IR, KP, MH,
   PW, SY).
-- **No shipping rate is attached.** The total is $55, which is what "free
+- **No shipping rate is attached.** The total is $49, which is what "free
   standard shipping" means. The note beside the address field repeats the
   page's delivery times.
 - After payment Stripe redirects to

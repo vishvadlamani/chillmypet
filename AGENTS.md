@@ -418,7 +418,7 @@ Element mounts under the shipping method, and Place order runs `placeOrder`.
 
 A second product, **`/products/pouch-pet-hoodie`** — a hoodie the owner wears
 with a front pouch the pet rides in — has its own manifest
-(`$lib/store/hoodie-manifest.ts`), English copy only, $55, **Black only** ×
+(`$lib/store/hoodie-manifest.ts`), English copy only, $49, **Black only** ×
 XS–XL. Its page sets `pickSize: true` in `pages.ts`: the picker offers one
 choice per buyable variant behind a prompt, and the host refuses to add
 anything until every unit is chosen. With one colour the choices are bare
