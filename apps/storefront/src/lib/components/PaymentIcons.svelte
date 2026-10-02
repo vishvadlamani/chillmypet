@@ -51,7 +51,6 @@
 	<ul class="flex w-full flex-wrap items-center justify-center gap-2" aria-label="Accepted payment methods">
 		{#each methods as m (m)}
 			<li class="pay-icon block shrink-0 {sizeClass}" role="img" aria-label={PAYMENT_ICONS[m].label}>
-				<!-- eslint-disable-next-line svelte/no-at-html-tags -- static artwork, see payment-icons.ts -->
 				{@html PAYMENT_ICONS[m].svg}
 			</li>
 		{/each}
