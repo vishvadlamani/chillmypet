@@ -24,6 +24,23 @@ nothing it sells lands there.
 - **`config.js` is the only code to edit**: the Payment Link URL, the pixel
   ids and the colours (each a `hoodie-<colour>.jpg` beside it).
 
+## Layout
+
+Modelled on the structure of thehuggiez.com's pet hoodie page, which the owner
+pointed at: a shipping strip, a gallery with one thumbnail per colour (the
+thumbnails, arrows, swipe and swatches are all one choice, so the photo on
+screen is always the colour sold), the buy box with details under the button,
+three alternating photo-and-copy rows, size help, FAQ, the guarantee, and on
+phones a buy bar that docks once the main button has scrolled away.
+
+What that page has and this one deliberately does not: a sale countdown, a
+"low stock" flag, a struck-through "was" price, customer reviews, a size chart
+and a pet weight limit. There is no sale, stock is not counted here, the hoodie
+has only ever been offered at $49 (the $55 link was live for hours, not a
+genuine former price), nobody has reviewed it yet, and there are no
+manufacturer measurements or load figures. Each would be a claim the page can't
+back; add them when they are true, not to fill the page.
+
 ## The Payment Link
 
 Live on the **Milligram** Stripe account (`acct_1U3NewJOsB1nguzl`), chosen by
