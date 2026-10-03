@@ -1,8 +1,7 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { CheckoutError, DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 import { isCountryCode } from '$lib/countries';
-import { identityFrom, rememberCustomer } from '$lib/server/identity';
-import { purchaseEventId, sendPurchase } from '$lib/server/purchase';
+import { attributionFrom, purchaseEventId, sendPurchase } from '$lib/server/purchase';
 
 /**
  * Placing an order, shared by both checkouts.
@@ -43,7 +42,6 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 	const value = (name: string) => String(form.get(name) ?? '').trim();
 
 	const email = value('email');
-	const phone = value('phone') || undefined;
 	const country = value('country');
 	const fieldErrors: Partial<Record<RequiredField | 'email' | 'fullName' | 'cart', string>> = {};
 
@@ -108,7 +106,7 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 			idempotencyKey: value('submissionId') || undefined,
 			shipping: {
 				email,
-				phone,
+				phone: value('phone') || undefined,
 				firstName,
 				lastName,
 				address1: named.address1,
@@ -131,26 +129,15 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 	// The order is committed from here on. Nothing below may turn a placed
 	// order into an error response.
 
-	// The one moment this storefront learns who someone is. Remembered hashed,
-	// so the PageView they fire on their next visit has an email and a phone to
-	// match on instead of a browser cookie alone. Awaited rather than deferred:
-	// it is two digests, and a cookie has to be on this response or there is no
-	// later request to put it on.
-	await rememberCustomer(cookies, { email, phone });
-
 	// With payments on, the sale is not a sale until Stripe says so, so hand
 	// the customer to the hosted page and let the webhook report the
 	// conversion. `_fbp`/`_fbc` ride along in metadata because the webhook is
 	// a request from Stripe and has none of this customer's cookies.
 	if (commerce.payments) {
-		const attribution = identityFrom(cookies, url, request.headers);
+		const attribution = attributionFrom(cookies, url, request.headers);
 		const metadata = {
 			...(attribution.fbp ? { fbp: attribution.fbp } : {}),
-			...(attribution.fbc ? { fbc: attribution.fbc } : {}),
-			// So the Purchase reports the same visitor the PageViews that led to
-			// it did. Our own opaque id, and the only identifier here that a
-			// blocked browser still carries.
-			...(attribution.externalId ? { external_id: attribution.externalId } : {})
+			...(attribution.fbc ? { fbc: attribution.fbc } : {})
 		};
 		const successUrl = `${url.origin}/checkout/success?order=${encodeURIComponent(order.orderNumber)}`;
 
@@ -209,7 +196,7 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 	const eventId = purchaseEventId(order.orderNumber);
 	const purchase = sendPurchase(commerce, order, {
 		eventSourceUrl: url.href,
-		attribution: identityFrom(cookies, url, request.headers, event.getClientAddress())
+		attribution: attributionFrom(cookies, url, request.headers, event.getClientAddress())
 	});
 
 	// Don't make the customer wait on Meta. Called as a method —

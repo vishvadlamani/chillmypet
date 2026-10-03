@@ -137,12 +137,6 @@ Browser pixel and server-side Conversions API run together, deduplicated.
   injected into `<head>` by `hooks.server.ts`. Both appear in page source anyway.
 - **Secret:** `META_CAPI_ACCESS_TOKEN`, a Worker secret. Never in the repo.
 
-There is **one** pixel. A second would take browser events and no server copy —
-a CAPI token is scoped to a single dataset — so it would report only what iOS
-and ad blockers let through. This store ran that way for a month with the ad
-account's own pixel as the second one, and the campaign showed no conversions
-the entire time.
-
 Events: `PageView` (initial load plus every client-side navigation),
 `ViewContent`, `AddToCart`, `InitiateCheckout` (once per cart per session, not
 once per view of `/checkout`), `AddPaymentInfo`, `Purchase`.
@@ -159,38 +153,12 @@ optimizes spend against whatever it is told. With no payment provider configured
 there is nothing to settle, so it fires at order creation instead.
 
 **Advanced matching.** `packages/ecomwithai/src/marketing/hash.ts` normalizes and
-SHA-256 hashes email, phone, name, city, state, zip, country and `external_id`;
+SHA-256 hashes email, phone, name, city, state, zip and country;
 `client_ip_address`, `client_user_agent`, `fbp` and `fbc` go unhashed, as Meta
 requires. Absent fields are **omitted, never sent as `null`** — a null carries no
 signal and lowers match quality. State and country are only sent as 2-letter
 codes, since truncating "Texas" to "te" hashes to something matching nobody;
 that's why the checkout country field is an ISO select.
-
-**Who a PageView is.** `apps/storefront/src/lib/server/identity.ts` is the one
-source of that, for the browser pixel and the Conversions API alike. PageView is
-the event with the least to say — nobody has typed into a form yet — so it is
-scored on whatever the request itself carries, and left alone that is an IP and
-a user agent:
-
-| cookie | set by | carries |
-| --- | --- | --- |
-| `_fbc` | us, from `?fbclid=` | the click id, kept past the landing URL |
-| `_fbp` | us, when Meta's script never ran | a browser id |
-| `cmp_vid` | us, first request | `external_id`, an opaque visitor id |
-| `cmp_match` | us, at checkout | hashed `em` and `ph`, for later visits |
-
-Meta's own two are only set if `fbevents.js` ran, which for a visitor running a
-blocker it did not — so both are minted server-side in their own format, which
-their script then adopts rather than replaces. Ours are `httpOnly`: nothing in
-the browser reads them, and the snippet is server-rendered and already holds the
-hashes — page-readable would only buy a third-party script a way to lift them.
-
-`cmp_match` holds digests, never plaintext — it is what the Conversions API
-wants anyway, so nothing has to un-hash it, and a hash of an email is not the
-leak an email is. The same digests go into `fbq('init', …)`, so the browser and
-server halves of an event resolve to one person instead of two. A raw field
-always beats a remembered hash, so a shared device cannot relabel someone else's
-purchase.
 
 Tracking never affects orders: the CAPI call happens after the order commits,
 dispatches via `waitUntil` so the customer never waits on Meta, and logs rather
@@ -220,9 +188,7 @@ For the payload itself: set `META_CAPI_TEST_EVENT_CODE` and watch Events Manager
 order to inspect the exact body without contacting Meta.
 
 **Before taking EU traffic**, add a consent gate. The pixel currently loads for
-everyone, and GDPR/ePrivacy require prior consent for advertising cookies — all
-four in the table above are that, including the two this app sets itself. A gate
-belongs in `ensureIdentity`, which is the one place they are written.
+everyone, and GDPR/ePrivacy require prior consent for advertising cookies.
 
 ## Payment
 

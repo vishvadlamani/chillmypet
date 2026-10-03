@@ -81,27 +81,26 @@ filter is a cross-store data leak, not a display bug. The isolation suite in
 and extend it when you add a module.
 
 **Every pixel is initialised in one place, and that is what keeps counting
-honest.** `pixelSnippet` in `hooks.server.ts` inits the whole roster —
-`META_PIXEL_ID` plus `META_EXTRA_PIXEL_IDS` — and fires one `PageView`;
-everything after that pushes onto them through `track()`. Initialise a pixel
-late, on a single page, and counting breaks in both directions at once: the base
-snippet's PageView has already gone without it, while every later event
-double-counts on the ones that were there from the start.
+honest.** `pixelSnippet` in `hooks.server.ts` inits `META_PIXEL_ID` plus
+`META_EXTRA_PIXEL_IDS` (comma-separated, wrangler.toml) and fires one
+`PageView`. Because `fbq('track', …)` reports to every initialised pixel, one
+call gives each of them exactly one event — so nothing in the app needs
+`trackSingle`, and adding a pixel needs no code. Initialise one late, on a
+single page, and that stops being true: the base snippet's PageView has already
+gone without it while every later event double-counts on the pixels that were
+there from the start.
 
-**`META_PIXEL_ID` must be the pixel the ad account optimises against.** It is the
-only one the Conversions API reports to — `pixelId` feeds both `pixelSnippet` and
-the `meta` config — because a CAPI access token is scoped to a single dataset.
-Any other pixel gets browser events only, which is the half that iOS and ad
-blockers eat, and Purchase is the event that dies most. This was live for a month
-with the ad account's pixel sitting in the browser-only extras list: the campaign
-reported no conversions the whole time, while the unused pixel collected clean
-server-side data. That list is deliberate now rather than accidental — a retired
-dataset and a second account's pixel are kept on it so their history keeps
-accruing, and `wrangler.toml` records which id belongs to whom. So the safeguard
-is no longer that there is only one place to look: it is that `npm run
-meta:check` proves the token actually reaches whatever `META_PIXEL_ID` names. If
-you change `META_PIXEL_ID`, make sure the token covers that dataset in the same
-change, and run the check to prove it.
+**`META_PIXEL_ID` must be the pixel the ad account optimises against.** It is
+the only one the Conversions API reports to — `primaryPixelId` feeds both
+`pixelSnippet` and the `meta` config — because a CAPI access token is scoped to
+a single dataset. Every other pixel in `META_EXTRA_PIXEL_IDS` gets browser
+events only, which is the half that iOS and ad blockers eat, and Purchase is
+the event that dies most. This was live for a month with the ad account's pixel
+in the extras list: the campaign reported no conversions the whole time, while
+the unused pixel collected clean server-side data. If you change
+`META_PIXEL_ID`, generate a matching token for that dataset in the same change,
+and run `npm run meta:check` to prove the token reaches it. `deploy.yml` runs the
+same check before every build, against the repository secret.
 Neither failure is loud: with no token `send()` returns `not_configured` and
 posts nothing, and with a token belonging to another dataset Meta rejects the
 event — both only reach `console.error`, because tracking must never fail an
@@ -113,27 +112,24 @@ The roster now reads `META_PIXEL_ID = 1341978141149107` (ad account
 collecting browser events rather than being dropped. `wrangler.toml` carries the
 full which-id-is-whose table — read it before touching any of these numbers.
 
-**The Meta pixel loads directly in the app shell. Never route it through GTM:**
-it breaks browser/server `event_id` deduplication and Meta double-counts
-purchases. `pixelSnippet` in `hooks.server.ts` writes the loader into
-`%meta_pixel%`, which is what lets the SSR PageView carry an id its server half
-can match, and the derived Purchase id survive from the receipt to the webhook.
-A container-published pixel can carry neither, and it would double-count against
-the ids the snippet already initialises. A tag manager was removed from this
-repo for exactly this reason — do not reintroduce one in front of the pixel.
+**The dataLayer is the container's whole view of the app.** GTM tags cannot
+reach into the store, so `$lib/analytics/datalayer.ts` pushes GA4 ecommerce
+events — `view_item`, `add_to_cart`, `begin_checkout`, `add_payment_info`,
+`purchase` — beside each Meta event, from the same data. Each push nulls
+`ecommerce` first, because Google's data model merges pushes and the previous
+event's items otherwise leak into the next one; `tests/store-flow.mjs` counts
+the nulls against the payloads to keep that true. `purchase` carries the order
+number as `transaction_id`, which is what GA4 dedupes a re-sent sale on.
+**Do not build a Meta tag on it.** Meta stays on the pixel in `hooks.server.ts`:
+a container-published pixel double-counts against it, and no GTM tag can carry
+the derived Purchase `event_id` that keeps the browser and CAPI halves as one
+sale.
 
-**The dataLayer has no consumer.** `$lib/analytics/datalayer.ts` still pushes
-GA4 ecommerce events — `view_item`, `add_to_cart`, `begin_checkout`,
-`add_payment_info`, `purchase` — beside each Meta event, from the same data, and
-`tests/store-flow.mjs` still pins their shape. Nothing reads them: the GTM
-container that did was removed and no `gtag.js` loads in its place, so the
-pushes land in an array and stop there. The module is kept because the data
-model is correct and six call sites already produce it — load GA4 directly and
-it measures again. Each push nulls `ecommerce` first, because Google's data
-model merges pushes and the previous event's items otherwise leak into the next
-one; store-flow counts the nulls against the payloads to keep that true.
-`purchase` carries the order number as `transaction_id`, which is what GA4
-dedupes a re-sent sale on.
+**GTM is a second publishing surface, not just a tag.** `GTM_CONTAINER_ID`
+loads `GTM-T446VNH9` on every page. Anything published inside that container
+runs with the same reach as this codebase, by whoever holds container access —
+and a Meta pixel published in it would double-count against the ones the
+snippet already initialises.
 
 **Every browser event has a server copy, and they share an `event_id`.**
 `track()` mints one id, hands it to `fbq` as `eventID`, and posts the same id to
@@ -194,31 +190,6 @@ surfacing them. Do not move it inside the try block that owns the order.
 only sent as 2-letter codes — truncating "Texas" to "te" hashes to a value that
 matches nobody. `hash.test.ts` pins these rules.
 
-**Identity is minted once, server-side, and both halves read the same copy.**
-`$lib/server/identity.ts` writes four cookies and `hooks.server.ts` calls it
-before `resolve`, so `cookies.get` reads them back for the snippet it renders
-and for the beacon a client-side navigation posts later. `_fbc` and `_fbp` are
-Meta's, in Meta's format, minted here because their script is the half a blocker
-eats — persisting `_fbc` from `?fbclid=` is what makes a click id outlive the
-landing URL. `cmp_vid` is an `external_id`, the only signal an anonymous PageView
-has. `cmp_match` is a hashed email and phone, written at checkout, which is the
-only moment this storefront learns who anyone is.
-
-The hashes in `fbq('init', …)` come from the same `buildUserData` that fills the
-server's `user_data`, deliberately: two code paths normalizing one person
-differently stop matching, and nothing says so — not a log, not a test, only the
-match quality in Events Manager weeks later. Don't build a second path.
-
-**Identity in a cookie is hashed, and the ones we set are `httpOnly`.** Nothing
-in the browser needs to read `cmp_vid` or `cmp_match` — the snippet is
-server-rendered and already holds the digests — so page-readable would only buy
-a third-party script, or an injected one, a way to lift them. `/api/track`
-already refuses to take `user_data` from its body; a readable identity cookie
-would hand back exactly what that refusal is for. Plaintext in `cmp_match` would
-also put a raw email in page source on the next render. `buildUserData` drops a
-pre-hashed value that isn't a 64-character lowercase digest rather than hashing
-it again, so a tampered cookie sends nothing rather than nonsense.
-
 ## Gotchas that already cost debugging time
 
 **`waitUntil` must be called as a method.** `const w = platform.context.waitUntil`
@@ -252,22 +223,13 @@ dataset. It sounds like free redundancy and is the opposite: Meta dedupes on
 `event_id`, this app derives Purchase's from the order number via
 `purchaseEventId()`, and Stripe mints its own — different ids, so no dedupe, so
 every sale counts twice and the ad account optimises against inflated numbers.
-Worse while the storefront is still on `acct_1Au2A6BbNuiab9E2`, which is shared
-with another business (see Content and provenance): such a connection also
+Worse here specifically: the Stripe account is `acct_1Au2A6BbNuiab9E2`, shared
+with another business (see Content and provenance), so such a connection also
 reports **their** sales as ChillMyPet conversions and pushes their customers'
 hashed contact details into our Meta account. Conversions come from this
 codebase, from the webhook, on `action === 'order_paid'`. If you find one of
 these connected, disconnect it at the Stripe end rather than filtering at the
 Meta end.
-
-**It applies to `acct_1U3NewJOsB1nguzl` ("ChillMP") too, and bites differently
-there.** The hoodie landing page charges through that account and reports its
-own Purchase from `landing/pouch-pet-hoodie/thank-you.html`, keyed on the
-Checkout Session id. An integration on it would mint a second id for the same
-sale — the same double-count — and that page sends no Conversions API copy, so
-there is no server-side event for anything downstream to notice it against.
-Switching one on while migrating the storefront would double-count on both
-accounts at once.
 
 **Don't delete `local.db` while the dev server is running.** It holds the file
 handle, keeps writing to the unlinked inode, and you'll chase phantom failures.
@@ -530,30 +492,14 @@ touch this application. Staging deliberately has **no Stripe keys**, because it
 shares production's database — a card test there would be a real charge. With
 `commerce.payments` null it falls back to the old confirmation screen.
 
-**ChillMyPet's Stripe account is `acct_1U3NewJOsB1nguzl`, "ChillMP"** — live,
-owner-held, and as of 2026-10 the only account this business uses. It was named
-Milligram until then, which is still what `landing/pouch-pet-hoodie/README.md`
-calls it. The hoodie landing page's Payment Link `plink_1ULsvvJOsB1nguzlWIBkKc0K`
-already charges through it.
-
-⚠️ **The deployed storefront does not, and that is the open item.** It still
-charges through `acct_1Au2A6BbNuiab9E2`, "Idea to Run" (`me@devyngreen.com`) —
-the borrowed account, whose arrangement has ended. Verified 2026-10-03 against
-`chillmypet.com/checkout`, which serves `paymentsEnabled:true` alongside
-`pmc_1U3QlJBbNuiab9E2mZmVymgE`; the fragment `BbNuiab9E2` is the old account's,
-so the Workers still hold its keys. Until the swap below is done:
-
-- settlements, refunds and chargebacks on every storefront order land with Idea
-  to Run, not with ChillMyPet;
-- `STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET` is still masking that account's own
-  descriptor, `IDEA TO RUN AI EMPLOYE`;
-- and if that account's keys are ever revoked at the other end, checkout fails
-  **at the customer** rather than in a log — there is no fallback to ChillMP.
-
-Revenue for one brand therefore arrives in two accounts until this is finished,
-so anything reconciling Stripe against the orders table, or against the revenue
-Meta reports, has to read both. The swap is configuration, not code — but it is
-**not** three secrets, and the count is where this bites.
+⚠️ **The Stripe account is not ChillMyPet's.** It is `acct_1Au2A6BbNuiab9E2`,
+"Idea to Run" (`me@devyngreen.com`), used with the owner's agreement as a
+temporary arrangement until ChillMyPet has its own. Consequences to keep in
+mind: settlements land in that account, refunds and chargebacks are theirs to
+absorb, and `STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET` exists so buyers recognise
+the charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`. When
+ChillMyPet's own account is ready, the swap is configuration, not code — but it
+is **not** three secrets, and the count is where this bites.
 
 Stripe embeds the account in its object ids, so an id minted here is meaningless
 on another account. `acct_1Au2A6BbNuiab9E2` and
@@ -561,7 +507,7 @@ on another account. `acct_1Au2A6BbNuiab9E2` and
 fragment `BbNuiab9E2` for exactly that reason. Carry that value to a new account
 and it names an object that does not exist there.
 
-Moving the storefront onto ChillMP (`acct_1U3NewJOsB1nguzl`), ordered:
+Moving to a ChillMyPet-owned account (ordered):
 
 1. `wrangler secret put` **`STRIPE_SECRET_KEY`** and **`STRIPE_PUBLISHABLE_KEY`**
    from the new account, on both Workers.

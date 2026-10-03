@@ -1,6 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { purchaseEventId, sendPurchase } from '$lib/server/purchase';
-import { identityFrom } from '$lib/server/identity';
+import { attributionFrom, purchaseEventId, sendPurchase } from '$lib/server/purchase';
 import type { PageServerLoad } from './$types';
 
 /**
@@ -70,7 +69,7 @@ export const load: PageServerLoad = async ({
 			// still counts one sale.
 			const purchase = sendPurchase(commerce, order, {
 				eventSourceUrl: url.href,
-				attribution: identityFrom(cookies, url, request.headers, getClientAddress())
+				attribution: attributionFrom(cookies, url, request.headers, getClientAddress())
 			});
 
 			// Don't make the customer wait on Meta. Called as a method —
