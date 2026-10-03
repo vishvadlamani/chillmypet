@@ -93,3 +93,17 @@ export async function buildUserData(input: CapiUserInput): Promise<HashedUserDat
 export function buildFbc(fbclid: string, createdAt: number): string {
 	return `fb.1.${createdAt}.${fbclid}`;
 }
+
+/**
+ * A browser id in the `_fbp` format the pixel writes itself. Minting it on the
+ * server lets the first page view's server copy carry the same `fbp` the pixel
+ * will adopt from the cookie, instead of reaching Meta with none.
+ */
+export function buildFbp(createdAt: number, random = Math.floor(Math.random() * 2 ** 31)): string {
+	return `fb.1.${createdAt}.${random}`;
+}
+
+/** The click id inside an `_fbc` value, or undefined when it is not one. */
+export function fbclidOf(fbc: string | undefined): string | undefined {
+	return fbc?.match(/^fb\.\d+\.\d+\.(.+)$/)?.[1];
+}
