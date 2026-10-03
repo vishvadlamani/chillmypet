@@ -2,7 +2,7 @@
  * The only file to edit.
  *
  * paymentLink — the Stripe Payment Link (plink_1ULu2aJOsB1nguzlIzkLcmZG on the
- *               ChillMP account). Its redirect expects this folder to be
+ *               Milligram account). Its redirect expects this folder to be
  *               served at https://chillmypet-hoodie.pages.dev.
  * pixelIds    — the same three pixels chillmypet.com initialises. One
  *               fbq('track') reports to every one of them, exactly as the store
