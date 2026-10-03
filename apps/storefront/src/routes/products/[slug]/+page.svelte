@@ -79,17 +79,53 @@
 	 * a destination is the host's job — which is why `submit` is fire-and-forget
 	 * and hands over the whole selection.
 	 */
+	/**
+	 * Sends the visitor back to the picker's first unchosen dropdown, with the
+	 * browser's own "please choose" bubble on it.
+	 *
+	 * Reaches into the bundles block's DOM by id (`<block id>-unit-<n>`), which
+	 * is the one place the host knows a block's markup. The alternative is a
+	 * block prop for validation errors, and `packages/blocks-dr` is a copy that
+	 * can't be changed here without diverging from upstream.
+	 */
+	function promptChoice(labels: unknown[]) {
+		const unit = Math.max(
+			0,
+			labels.findIndex((l) => !data.variantIndex.some((v) => v.label === l))
+		);
+		const select = document.getElementById(`bundle-picker-unit-${unit}`);
+		if (!(select instanceof HTMLSelectElement)) {
+			document.getElementById('bundle-picker-label')?.scrollIntoView({ behavior: 'smooth' });
+			return;
+		}
+		select.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		// Worded from the dropdown's own prompt, so it asks for a size when size is
+		// all there is to choose.
+		const prompt = select.options[0]?.text.replace(/^Choose/, 'Please choose') ?? '';
+		select.setCustomValidity(prompt || 'Please make a choice');
+		select.reportValidity();
+		select.addEventListener('change', () => select.setCustomValidity(''), { once: true });
+	}
+
 	const submit: SubmitFn = (action, _subject, payload = {}) => {
+		if (action === 'choose_options') return promptChoice([]);
 		if (action !== 'add_to_cart') return;
 
 		const units = unitsFrom(payload);
-		// The bundle picker sends one colour per unit; the sticky bar sends none.
+		// The bundle picker sends one label per unit; the sticky bar sends none.
 		const picks = Array.isArray(payload.variants) ? (payload.variants as string[]) : [];
 		const chosen = picks.length ? picks.slice(0, units) : Array(units).fill(undefined);
 
+		// When the buyer picks the size there is no safe default: refuse the whole
+		// selection rather than add the units that were chosen and drop the rest.
+		if (data.pickSize && !chosen.every((l) => data.variantIndex.some((v) => v.label === l))) {
+			promptChoice(chosen);
+			return;
+		}
+
 		const added: { sku: string; unitPriceCents: number }[] = [];
 		for (const label of chosen) {
-			const entry = data.variantIndex.find((v) => v.colour === label) ?? data.variantIndex[0];
+			const entry = data.variantIndex.find((v) => v.label === label) ?? data.variantIndex[0];
 			if (!entry) continue;
 			cart.add(
 				{
