@@ -1,3 +1,4 @@
+import { rememberedContact } from '$lib/server/identity';
 import { attributionFrom } from '$lib/server/purchase';
 import type { MetaCustomData, MetaEventName } from 'ecomwithai/marketing';
 import type { RequestHandler } from './$types';
@@ -92,7 +93,12 @@ export const POST: RequestHandler = async ({ request, locals, url, cookies, plat
 			eventSourceUrl: str(body.eventSourceUrl) ?? url.href,
 			// Never taken from the body. Cookies, IP and user agent are what this
 			// request actually carries, and a page cannot claim to be someone else.
-			user: attributionFrom(cookies, url, request.headers, getClientAddress()),
+			// The email and phone are digests the checkout action stored, not
+			// anything this endpoint was told.
+			user: {
+				...rememberedContact(cookies),
+				...attributionFrom(cookies, url, request.headers, getClientAddress())
+			},
 			customData: cleanCustomData(body.customData)
 		})
 		.then((result) => {

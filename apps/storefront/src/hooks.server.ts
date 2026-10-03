@@ -2,6 +2,7 @@ import { error, type Handle } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
 import { newEventId } from 'ecomwithai/marketing';
+import { ensureVisitorIds, rememberedContact } from '$lib/server/identity';
 import { attributionFrom } from '$lib/server/purchase';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
@@ -185,6 +186,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// agent that make it matchable.
 	const pageViewEventId = newEventId();
 
+	// A browser's first page is where its PageView most needs identifiers and
+	// has the fewest: Meta's script has not run, so there is no `_fbp` yet.
+	// Navigations only — a beacon or a form post always follows a page that
+	// already set these.
+	if (event.request.method === 'GET' && event.request.headers.get('accept')?.includes('text/html')) {
+		ensureVisitorIds(event.cookies);
+	}
+
 	const response = await resolve(event, {
 		transformPageChunk: ({ html }) =>
 			html
@@ -209,7 +218,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 				eventName: 'PageView',
 				eventId: pageViewEventId,
 				eventSourceUrl: event.url.href,
-				user: attributionFrom(event.cookies, event.url, event.request.headers, event.getClientAddress())
+				user: {
+					...rememberedContact(event.cookies),
+					...attributionFrom(event.cookies, event.url, event.request.headers, event.getClientAddress())
+				}
 			})
 			.then((result) => {
 				if (!result.sent) console.error('Meta CAPI PageView not sent', result.reason);

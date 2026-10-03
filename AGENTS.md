@@ -172,6 +172,21 @@ surfacing them. Do not move it inside the try block that owns the order.
 only sent as 2-letter codes — truncating "Texas" to "te" hashes to a value that
 matches nobody. `hash.test.ts` pins these rules.
 
+**Every event names the visitor, not just Purchase.** `$lib/server/identity.ts`
+keeps four first-party cookies, and the server copy of every event reads them:
+`_fbp` and `cmp_vid` (sent hashed as `external_id`) are minted on a browser's
+first navigation, *before* the page renders, so that page's own PageView
+carries them. Meta's script only creates `_fbp` once it runs, which is after
+that PageView has gone, and it adopts one it finds rather than minting another,
+so both halves name the same browser. `cmp_em` and `cmp_ph` hold SHA-256 digests
+of the email and phone a shopper gave at checkout, written by the checkout
+action and never by `/api/track`, so a returning shopper's PageView and
+ViewContent carry them too. `buildUserData` passes a 64-hex value through
+untouched; hash it again and it matches nobody. Phones get a calling code
+(`withCallingCode`) before hashing, in the cookie and on Purchase alike, or the
+same person hashes two ways. The visitor id rides to the webhook in Stripe
+metadata as `external_id`, like `fbp`/`fbc`.
+
 ## Gotchas that already cost debugging time
 
 **`waitUntil` must be called as a method.** `const w = platform.context.waitUntil`

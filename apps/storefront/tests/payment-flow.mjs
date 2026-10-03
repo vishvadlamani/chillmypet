@@ -12,7 +12,7 @@
  * `npm run test:payments`.
  */
 import { createServer } from 'node:http';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
 // Event ids are deduped forever in the payments table, so a fixed id would make
@@ -104,6 +104,63 @@ const capiPurchases = () =>
 		.filter((e) => e?.event_name === 'Purchase');
 
 const settle = () => new Promise((r) => setTimeout(r, 2000));
+
+const capiEventsNamed = (name) =>
+	capiEvents
+		.map((e) => {
+			try {
+				return JSON.parse(e.body).data?.[0] ?? null;
+			} catch {
+				return null;
+			}
+		})
+		.filter((e) => e?.event_name === name);
+
+const sha256 = (v) => createHash('sha256').update(v).digest('hex');
+
+/** `name=value` pairs a response set, as a map. */
+const setCookies = (response) =>
+	Object.fromEntries(
+		response.headers.getSetCookie().map((c) => {
+			const [pair] = c.split(';');
+			const at = pair.indexOf('=');
+			return [pair.slice(0, at), decodeURIComponent(pair.slice(at + 1))];
+		})
+	);
+
+// --- a first visit already identifies the browser --------------------------
+// Meta's script sets `_fbp` only once it runs, after the server's PageView for
+// that page has gone. The server mints it — and a visitor id — on the first
+// navigation, so even that PageView can be matched.
+const VISITOR = '0f8e3c1a-2b4d-4e6f-8a9b-1c2d3e4f5a6b';
+{
+	const landing = await fetch(`${BASE}/products/dog-life-jacket?first=${RUN}`, {
+		headers: { accept: 'text/html' }
+	});
+	await landing.text();
+	const set = setCookies(landing);
+	check('a first navigation is given an _fbp', /^fb\.1\.\d{13}\.\d+$/.test(set._fbp ?? ''), set._fbp);
+	check('and a visitor id', /^[a-f0-9-]{36}$/.test(set.cmp_vid ?? ''), set.cmp_vid);
+	check(
+		'which script cannot read',
+		landing.headers.getSetCookie().some((c) => c.startsWith('cmp_vid=') && /httponly/i.test(c))
+	);
+
+	await settle();
+	const pageView = capiEventsNamed('PageView').find((e) => e.event_source_url?.includes(`first=${RUN}`));
+	check('its server PageView carries the minted _fbp', pageView?.user_data?.fbp === set._fbp, JSON.stringify(pageView?.user_data));
+	check(
+		'and the visitor id, hashed, as external_id',
+		pageView?.user_data?.external_id?.[0] === sha256(set.cmp_vid ?? ''),
+		JSON.stringify(pageView?.user_data?.external_id)
+	);
+
+	const returning = await fetch(`${BASE}/products/dog-life-jacket`, {
+		headers: { accept: 'text/html', cookie: `_fbp=${set._fbp}; cmp_vid=${set.cmp_vid}` }
+	});
+	await returning.text();
+	check('a browser that has both is not given new ones', returning.headers.getSetCookie().length === 0);
+}
 
 // --- place an order --------------------------------------------------------
 const product = await fetch(`${BASE}/products/dog-life-jacket`).then((r) => r.text());
@@ -379,6 +436,8 @@ if (sessionCall) {
 		province: 'BC',
 		postalCode: 'V3W 3N1',
 		country: 'CA',
+		// Typed the way people type it — no calling code, which Meta needs.
+		phone: '(604) 555-0199',
 		method: 'express',
 		cardReady: '1',
 		submissionId,
@@ -393,11 +452,28 @@ if (sessionCall) {
 		headers: {
 			'content-type': 'application/x-www-form-urlencoded',
 			origin: BASE,
-			cookie: '_fbp=fb.1.1700000000000.1234567890'
+			cookie: `_fbp=fb.1.1700000000000.1234567890; cmp_vid=${VISITOR}`
 		},
 		body: inline
 	});
 	const raw = await placed.text();
+	const remembered = setCookies(placed);
+
+	// What the shopper gave at checkout, kept as digests for every later event.
+	check(
+		'checkout remembers the email as a digest',
+		remembered.cmp_em === sha256('inline@example.com'),
+		remembered.cmp_em
+	);
+	check(
+		'and the phone, with its calling code, as a digest',
+		remembered.cmp_ph === sha256('16045550199'),
+		remembered.cmp_ph
+	);
+	check(
+		'neither holds the plaintext',
+		!placed.headers.getSetCookie().some((c) => /inline|555/.test(c))
+	);
 
 	check(
 		'the inline checkout answers with an intent, not a redirect',
@@ -425,6 +501,7 @@ if (sessionCall) {
 			'the click identifier rides along for the webhook',
 			p.get('metadata[fbp]') === 'fb.1.1700000000000.1234567890'
 		);
+		check('so does the visitor id', p.get('metadata[external_id]') === VISITOR);
 		check(
 			'the card statement carries a descriptor the buyer will recognise',
 			p.get('statement_descriptor') === 'CHILLMYPET',
@@ -444,7 +521,8 @@ if (sessionCall) {
 					metadata: {
 						store_id: 'chillmypet',
 						order_number: orderNumber,
-						fbp: 'fb.1.1700000000000.1234567890'
+						fbp: 'fb.1.1700000000000.1234567890',
+						external_id: VISITOR
 					}
 				}
 			}
@@ -473,6 +551,63 @@ if (sessionCall) {
 			'for the amount actually charged',
 			purchase?.custom_data?.value === (Number(p.get('amount')) / 100).toFixed(2),
 			`${purchase?.custom_data?.value} vs ${(Number(p.get('amount')) / 100).toFixed(2)}`
+		);
+		check(
+			'naming the same visitor as the browsing before it',
+			purchase?.user_data?.external_id?.[0] === sha256(VISITOR),
+			JSON.stringify(purchase?.user_data?.external_id)
+		);
+		check(
+			'and the same phone hash the cookie holds',
+			purchase?.user_data?.ph?.[0] === sha256('16045550199'),
+			JSON.stringify(purchase?.user_data?.ph)
+		);
+	}
+
+	// --- a returning shopper is matched on every event ----------------------
+	// After checkout the browser carries the digests, so the next PageView and
+	// ViewContent name the shopper too — not only the sale.
+	const cookie = [
+		'_fbp=fb.1.1700000000000.1234567890',
+		`cmp_vid=${VISITOR}`,
+		`cmp_em=${remembered.cmp_em}`,
+		`cmp_ph=${remembered.cmp_ph}`
+	].join('; ');
+
+	const page = await fetch(`${BASE}/products/dog-life-jacket?back=${RUN}`, {
+		headers: { accept: 'text/html', cookie }
+	});
+	await page.text();
+
+	const viewId = `view-${RUN}`;
+	const beacon = await fetch(`${BASE}/api/track`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json', cookie },
+		body: JSON.stringify({
+			eventName: 'ViewContent',
+			eventId: viewId,
+			// A page cannot claim an identity: this must be ignored.
+			user_data: { em: [sha256('someone-else@example.com')] },
+			customData: { content_type: 'product', content_ids: ['x'] }
+		})
+	});
+	check('the beacon answers 204', beacon.status === 204, `got ${beacon.status}`);
+
+	await settle();
+	const pageView = capiEventsNamed('PageView').find((e) => e.event_source_url?.includes(`back=${RUN}`));
+	const view = capiEventsNamed('ViewContent').find((e) => e.event_id === viewId);
+	for (const [name, ev] of [
+		['PageView', pageView],
+		['ViewContent', view]
+	]) {
+		const u = ev?.user_data ?? {};
+		check(
+			`a returning shopper's ${name} carries fbp, external_id, email and phone`,
+			u.fbp === 'fb.1.1700000000000.1234567890' &&
+				u.external_id?.[0] === sha256(VISITOR) &&
+				u.em?.[0] === sha256('inline@example.com') &&
+				u.ph?.[0] === sha256('16045550199'),
+			JSON.stringify(u)
 		);
 	}
 }

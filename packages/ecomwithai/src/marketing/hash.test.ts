@@ -6,7 +6,7 @@
  *   npm test
  */
 import { createHash } from 'node:crypto';
-import { buildFbc, buildUserData, normalize, sha256Hex } from './hash.ts';
+import { buildFbc, buildFbp, buildUserData, normalize, sha256Hex } from './hash.ts';
 
 let failures = 0;
 
@@ -67,8 +67,23 @@ check('user agent is not hashed', userData.client_user_agent, 'Mozilla/5.0');
 check('fbp is not hashed', userData.fbp, 'fb.1.1558571054389.1098115397');
 check('fbc is not hashed', userData.fbc, 'fb.1.1554763741205.AbCdEfGh');
 
-// --- fbc construction ---
+// --- external_id, and values the host already hashed ---
+const sha = (v: string) => createHash('sha256').update(v).digest('hex');
+const visitor = await buildUserData({
+	externalId: ' 0f8e3c1a-visitor ',
+	email: reference,
+	phone: sha('16505551212')
+});
+check('external_id is trimmed and hashed', visitor.external_id, [sha('0f8e3c1a-visitor')]);
+// Run through phone normalization, a digest would lose its letters and become
+// a hash of a hash — accepted by Meta, matching nobody.
+check('a pre-hashed phone passes through untouched', visitor.ph, [sha('16505551212')]);
+check('a pre-hashed email passes through untouched', visitor.em, [reference]);
+check('absent external_id is omitted', 'external_id' in userData, false);
+
+// --- fbc / fbp construction ---
 check('fbc format', buildFbc('AbCdEfGh', 1554763741205), 'fb.1.1554763741205.AbCdEfGh');
+check('fbp format', buildFbp(1558571054389, 1098115397), 'fb.1.1558571054389.1098115397');
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll normalization checks passed.');
 process.exitCode = failures ? 1 : 0;
