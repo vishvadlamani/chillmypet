@@ -6,7 +6,8 @@
  *   npm test
  */
 import { createHash } from 'node:crypto';
-import { buildFbc, buildUserData, normalize, sha256Hex } from './hash.ts';
+import { buildFbc, buildFbp, buildUserData, fbclidOf, normalize, sha256Hex } from './hash.ts';
+import { createMetaService } from './index.ts';
 
 let failures = 0;
 
@@ -67,8 +68,51 @@ check('user agent is not hashed', userData.client_user_agent, 'Mozilla/5.0');
 check('fbp is not hashed', userData.fbp, 'fb.1.1558571054389.1098115397');
 check('fbc is not hashed', userData.fbc, 'fb.1.1554763741205.AbCdEfGh');
 
+// --- external_id, and values the host already hashed ---
+const sha = (v: string) => createHash('sha256').update(v).digest('hex');
+const visitor = await buildUserData({
+	externalId: ' 0f8e3c1a-visitor ',
+	email: reference,
+	phone: sha('16505551212')
+});
+check('external_id is trimmed and hashed', visitor.external_id, [sha('0f8e3c1a-visitor')]);
+// Run through phone normalization, a digest would lose its letters and become
+// a hash of a hash — accepted by Meta, matching nobody.
+check('a pre-hashed phone passes through untouched', visitor.ph, [sha('16505551212')]);
+check('a pre-hashed email passes through untouched', visitor.em, [reference]);
+check('absent external_id is omitted', 'external_id' in userData, false);
+
 // --- fbc construction ---
 check('fbc format', buildFbc('AbCdEfGh', 1554763741205), 'fb.1.1554763741205.AbCdEfGh');
+check('fbclid read back out of an fbc', fbclidOf('fb.1.1554763741205.AbC.d-E_f'), 'AbC.d-E_f');
+check('fbclid of a malformed fbc', fbclidOf('nonsense'), undefined);
+
+// --- fbp construction ---
+check('fbp format', buildFbp(1558571054389, 1098115397), 'fb.1.1558571054389.1098115397');
+check('minted fbp has the pixel shape', /^fb\.1\.\d{13}\.\d+$/.test(buildFbp(Date.now())), true);
+
+// --- event payload: the dedupe key ---
+// Meta dedupes on event_id, and `original_event_data` carries one of its own.
+// Sent without it, Events Manager reported 0% of server events with an event ID.
+const plain = await createMetaService({ pixelId: '1' }).buildEventPayload({
+	eventName: 'PageView',
+	eventId: 'abc-123',
+	user: {}
+});
+check('event_id is at the top level', plain.event_id, 'abc-123');
+check('no original_event_data on a live event', 'original_event_data' in plain, false);
+
+const shared = await createMetaService({ pixelId: '1', attributionShare: '0.3' }).buildEventPayload({
+	eventName: 'PageView',
+	eventId: 'abc-123',
+	eventTime: 1700000000,
+	user: {}
+});
+check(
+	'original_event_data, when sent, carries the same event_id',
+	shared.original_event_data,
+	{ event_name: 'PageView', event_time: 1700000000, event_id: 'abc-123' }
+);
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll normalization checks passed.');
 process.exitCode = failures ? 1 : 0;

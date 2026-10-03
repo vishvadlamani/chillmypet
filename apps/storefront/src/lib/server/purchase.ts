@@ -1,5 +1,6 @@
 import { toAmount, type Commerce, type Order } from 'ecomwithai';
 import { buildFbc } from 'ecomwithai/marketing';
+import { visitorId, withCallingCode } from '$lib/server/identity';
 
 /**
  * One Purchase conversion, shared by every path that can report one.
@@ -18,6 +19,8 @@ export type PurchaseAttribution = {
 	/** Meta's browser cookies. Absent when the customer blocks them. */
 	fbp?: string;
 	fbc?: string;
+	/** Our own first-party visitor id — the same one on every event this browser sends. */
+	externalId?: string;
 	clientIpAddress?: string;
 	clientUserAgent?: string;
 };
@@ -37,6 +40,7 @@ export function attributionFrom(
 	return {
 		fbp: cookies.get('_fbp'),
 		fbc: cookies.get('_fbc') ?? (fbclid ? buildFbc(fbclid, Date.now()) : undefined),
+		externalId: visitorId(cookies),
 		clientIpAddress,
 		clientUserAgent: headers.get('user-agent') ?? undefined
 	};
@@ -62,7 +66,9 @@ export function sendPurchase(
 			eventSourceUrl: options.eventSourceUrl,
 			user: {
 				email: order.email,
-				phone: shipping.phone ?? undefined,
+				// With its calling code, so it hashes the same as the copy the
+				// earlier PageView and ViewContent events sent from the cookie.
+				phone: shipping.phone ? withCallingCode(shipping.phone, shipping.country) : undefined,
 				firstName: shipping.firstName,
 				lastName: shipping.lastName,
 				city: shipping.city,

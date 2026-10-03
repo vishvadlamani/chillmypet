@@ -1,6 +1,7 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { CheckoutError, DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 import { isCountryCode } from '$lib/countries';
+import { rememberContact } from '$lib/server/identity';
 import { attributionFrom, purchaseEventId, sendPurchase } from '$lib/server/purchase';
 
 /**
@@ -129,15 +130,30 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 	// The order is committed from here on. Nothing below may turn a placed
 	// order into an error response.
 
+	// From here every event this browser sends can name the shopper, not just
+	// the sale. Only digests are kept, and a failure costs match quality, never
+	// the order.
+	try {
+		await rememberContact(cookies, {
+			email,
+			phone: value('phone') || undefined,
+			country
+		});
+	} catch (error) {
+		console.error('Could not remember contact for matching', error);
+	}
+
 	// With payments on, the sale is not a sale until Stripe says so, so hand
 	// the customer to the hosted page and let the webhook report the
-	// conversion. `_fbp`/`_fbc` ride along in metadata because the webhook is
-	// a request from Stripe and has none of this customer's cookies.
+	// conversion. `_fbp`/`_fbc` and the visitor id ride along in metadata
+	// because the webhook is a request from Stripe and has none of this
+	// customer's cookies.
 	if (commerce.payments) {
 		const attribution = attributionFrom(cookies, url, request.headers);
 		const metadata = {
 			...(attribution.fbp ? { fbp: attribution.fbp } : {}),
-			...(attribution.fbc ? { fbc: attribution.fbc } : {})
+			...(attribution.fbc ? { fbc: attribution.fbc } : {}),
+			...(attribution.externalId ? { external_id: attribution.externalId } : {})
 		};
 		const successUrl = `${url.origin}/checkout/success?order=${encodeURIComponent(order.orderNumber)}`;
 
