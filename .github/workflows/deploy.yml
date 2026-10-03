@@ -17,6 +17,14 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm test
+      # Before the build, because this is the check for a failure nothing else
+      # catches: a Conversions API token that belongs to another dataset is
+      # rejected once per event, forever, in silence. Needs
+      # META_CAPI_ACCESS_TOKEN as a repository secret.
+      - name: Verify the Meta CAPI token matches the pixel
+        run: npm run meta:check
+        env:
+          META_CAPI_ACCESS_TOKEN: ${{ secrets.META_CAPI_ACCESS_TOKEN }}
       - run: npm run build
       - run: npx wrangler deploy
         working-directory: apps/storefront
