@@ -12,9 +12,20 @@ const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
 const authToken = process.env.TURSO_AUTH_TOKEN;
 const db = createDb(authToken ? { url, authToken } : { url });
 
-// Public identifiers — both appear in the served page source.
+// Public identifiers — all of these appear in the served page source.
+//
+// These are only the fallback: hooks.server.ts prefers the env vars, which is
+// how wrangler.toml corrects a deployed store without a database write. They
+// still matter, because a fresh local database is what the browser tests run
+// against — leave the retired pixel here and a developer verifies tracking
+// against a dataset no ad account reads.
 const SETTINGS = {
-	meta_pixel_id: '1363695699271757',
+	// Ad account 1550461850095009, portfolio "Vish Ads". Gets browser events
+	// and the Conversions API copy. See wrangler.toml for the full roster.
+	meta_pixel_id: '1341978141149107',
+	// Browser events only: the retired CZK ad account, and a second account
+	// measuring the same pages.
+	meta_extra_pixel_ids: '1363695699271757,28272021345717397',
 	meta_domain_verification: '0d821f82wjdsr4q7owd17wo659qt6h'
 };
 
