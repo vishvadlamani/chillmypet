@@ -109,9 +109,24 @@ function seedMetaCookies(event: RequestEvent): void {
 	}
 }
 
-/** A browser asking for a page, as opposed to data, an API call or an asset. */
+/**
+ * Clients that fetch pages but never run the pixel: search and ad crawlers
+ * (Meta's own fetches every ad's landing page), link unfurlers, monitors and
+ * scripts. Each one used to get a server PageView that no browser event could
+ * ever match, and with only an IP and a user agent to go on.
+ */
+const NON_BROWSER =
+	/bot|crawl|spider|slurp|facebookexternalhit|facebookcatalog|meta-externalagent|preview|headless|lighthouse|pagespeed|pingdom|uptime|monitor|curl|wget|python|go-http|java\/|okhttp|axios|node-fetch|undici|httpclient|scrapy/i;
+
+/** A person's browser asking for a page, as opposed to data, an API call, an asset or a bot. */
 function isDocumentRequest(request: Request): boolean {
-	return request.method === 'GET' && (request.headers.get('accept') ?? '').includes('text/html');
+	const agent = request.headers.get('user-agent') ?? '';
+	return (
+		request.method === 'GET' &&
+		(request.headers.get('accept') ?? '').includes('text/html') &&
+		agent !== '' &&
+		!NON_BROWSER.test(agent)
+	);
 }
 
 function verificationTag(token: string): string {
@@ -242,8 +257,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// Documents only. `handle` also runs for data requests, form posts and the
 	// API, and none of those rendered a snippet to deduplicate against — and a
-	// HEAD gets no body, so no browser half ever runs for it either.
-	if (isDocument && response.headers.get('content-type')?.includes('text/html')) {
+	// HEAD gets no body, so no browser half ever runs for it either. Successful
+	// pages only: the 404s are overwhelmingly scanners probing `/wp-login.php`
+	// and `/.env`, which read the HTML and never execute it.
+	if (
+		isDocument &&
+		response.status === 200 &&
+		response.headers.get('content-type')?.includes('text/html')
+	) {
 		const send = event.locals.commerce.meta
 			?.send({
 				eventName: 'PageView',

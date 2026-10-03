@@ -148,8 +148,14 @@ from the server. `seedMetaCookies()` in `hooks.server.ts` writes both on GET
 requests that accept `text/html`, before `resolve` (SvelteKit puts cookies on the
 response inside it). The pixel adopts a well-formed cookie it finds, so both
 halves carry the same `fbp`/`fbc` from the first request. The same check keeps
-the server PageView to real page loads: `HEAD` and `Accept: */*` clients get no
-browser half, so they get no server half either.
+the server PageView to real page loads, and only on a 200. Crawlers (Meta's own
+fetches every ad's landing page), monitors, scripts and the scanners probing
+`/wp-login.php` read the HTML without ever running the pixel, so each one was a
+server-only PageView matched on an IP and a user agent. The dataset showed it:
+10.4K PageViews against 89 ViewContents on a site whose landing page fires
+ViewContent on every view, at a 3.2/10 match quality. `NON_BROWSER` must never
+match the Facebook and Instagram in-app browsers (`FBAN`, `Instagram`), which
+is where every ad click opens.
 
 **Don't put `original_event_data` on a live event.** It describes the past
 acquisition a *delayed* event belongs to, and it has its own `event_id` that
