@@ -1,5 +1,5 @@
 import type { Cookies } from '@sveltejs/kit';
-import { buildFbp, normalize, sha256Hex } from 'ecomwithai/marketing';
+import { normalize, sha256Hex } from 'ecomwithai/marketing';
 
 /**
  * Who a visitor is, as far as Meta's matching is concerned — kept in first-party
@@ -13,8 +13,6 @@ import { buildFbp, normalize, sha256Hex } from 'ecomwithai/marketing';
  * account optimizes against whatever it can match.
  */
 
-/** Meta's own cookie name. The pixel adopts one it finds rather than minting another. */
-const FBP_COOKIE = '_fbp';
 export const VISITOR_COOKIE = 'cmp_vid';
 const EMAIL_COOKIE = 'cmp_em';
 const PHONE_COOKIE = 'cmp_ph';
@@ -24,24 +22,16 @@ const SHA256_HEX = /^[a-f0-9]{64}$/;
 const VISITOR_ID = /^[a-f0-9-]{36}$/;
 
 /**
- * Mints `_fbp` and a visitor id on the first page a browser asks for.
+ * Mints our own visitor id on the first page a browser asks for. `_fbp` and
+ * `_fbc` are Meta's and are seeded beside it, by `seedMetaCookies` in
+ * `hooks.server.ts`.
  *
  * Set before the page renders, so the server-side PageView of that same request
- * already carries both — `cookies.get` returns what this request set. `_fbp` is
- * readable from script on purpose: `fbevents.js` reads it, keeps it, and the
- * browser and server halves then name the same browser. 90 days is the lifetime
- * Meta gives its own.
+ * already carries it — `cookies.get` returns what this request set. It is sent
+ * hashed as `external_id`, and unlike `_fbp` nothing in the browser needs to
+ * read it, so it is httpOnly.
  */
-export function ensureVisitorIds(cookies: Cookies): void {
-	if (!cookies.get(FBP_COOKIE)) {
-		const random = crypto.getRandomValues(new Uint32Array(1))[0];
-		cookies.set(FBP_COOKIE, buildFbp(Date.now(), random), {
-			path: '/',
-			maxAge: 90 * DAY,
-			sameSite: 'lax',
-			httpOnly: false
-		});
-	}
+export function ensureVisitorId(cookies: Cookies): void {
 	if (!VISITOR_ID.test(cookies.get(VISITOR_COOKIE) ?? '')) {
 		cookies.set(VISITOR_COOKIE, crypto.randomUUID(), {
 			path: '/',

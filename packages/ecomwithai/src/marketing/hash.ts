@@ -124,6 +124,11 @@ export function buildFbc(fbclid: string, createdAt: number): string {
  * The pixel adopts an `_fbp` cookie it finds rather than minting its own, so a
  * value set here identifies the browser to both halves from the first request.
  */
-export function buildFbp(createdAt: number, random: number): string {
+export function buildFbp(createdAt: number, random = Math.floor(Math.random() * 2 ** 31)): string {
 	return `fb.1.${createdAt}.${random}`;
+}
+
+/** The click id inside an `_fbc` value, or undefined when it is not one. */
+export function fbclidOf(fbc: string | undefined): string | undefined {
+	return fbc?.match(/^fb\.\d+\.\d+\.(.+)$/)?.[1];
 }
