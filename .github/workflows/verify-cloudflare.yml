@@ -1,8 +1,15 @@
 name: Verify Cloudflare access
 
 # Read-only: proves the repository secrets reach the right Cloudflare account
-# without deploying anything. Deploy is the only other workflow holding the
+# without deploying anything. Deploy is the only other workflow holding a
 # token, and running it ships whatever main is to chillmypet.com.
+#
+# Three tokens are stored, one per job they do:
+#   CLOUDFLARE_WORKERS             deploys and Worker secrets
+#   CLOUDFLARE_DNS                 the chillmypet.com zone
+#   CLOUDFLARE_WORKERS_CONTAINERS  Containers
+# No account id is stored; wrangler reads it off the token, which works as long
+# as the token is scoped to a single account.
 
 on:
   workflow_dispatch:
@@ -13,17 +20,35 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - name: Secrets are present
+      - name: Each token is present and active
+        env:
+          CLOUDFLARE_WORKERS: ${{ secrets.CLOUDFLARE_WORKERS }}
+          CLOUDFLARE_DNS: ${{ secrets.CLOUDFLARE_DNS }}
+          CLOUDFLARE_WORKERS_CONTAINERS: ${{ secrets.CLOUDFLARE_WORKERS_CONTAINERS }}
         run: |
-          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is empty"; exit 1; }
-          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID is empty"; exit 1; }
-      - name: Token authenticates
-        run: npx --yes wrangler@4 whoami
-      - name: Account holds the production Worker
-        run: npx --yes wrangler@4 deployments list --name chillmypet
-      - name: Account holds the staging Worker
-        run: npx --yes wrangler@4 deployments list --name chillmypet-staging
+          failed=0
+          for name in CLOUDFLARE_WORKERS CLOUDFLARE_DNS CLOUDFLARE_WORKERS_CONTAINERS; do
+            token="${!name}"
+            if [ -z "$token" ]; then echo "$name: empty"; failed=1; continue; fi
+            status=$(curl -s -H "Authorization: Bearer $token" \
+              https://api.cloudflare.com/client/v4/user/tokens/verify | jq -r '.result.status // .errors[0].message')
+            echo "$name: $status"
+          done
+          exit $failed
+
+      - name: Workers token sees both Workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS }}
+        run: |
+          npx --yes wrangler@4 whoami
+          npx --yes wrangler@4 deployments list --name chillmypet
+          npx --yes wrangler@4 deployments list --name chillmypet-staging
+
+      - name: DNS token sees the chillmypet.com zone
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_DNS }}
+        run: |
+          curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/zones?name=chillmypet.com" \
+            | jq -e '.result[0] | {zone: .name, status, account: .account.name}'
