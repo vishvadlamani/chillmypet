@@ -94,9 +94,11 @@ account and is not part of the page.
 ⚠️ **The project is not on the storefront's Cloudflare account.** Checked
 2026-10-07: the `CLOUDFLARE_WORKERS` repository secret reaches only
 "Global.takeover7@gmail.com's Account", whose Pages projects do not include
-`chillmypet-hoodie` (Cloudflare answers 8000007, project not found). Whoever
-first published it holds the account, so an Actions deploy with the repo's
-secrets cannot update it.
+`chillmypet-hoodie` (Cloudflare answers 8000007, project not found). It lives on
+account `5fef1d1dbb6eaee72fdfc2b26a61a386`:
+[the project](https://dash.cloudflare.com/5fef1d1dbb6eaee72fdfc2b26a61a386/pages/view/chillmypet-hoodie).
+Dashboard: zip the folder's other files, then the project → Create deployment
+→ Production → upload the zip → Save and Deploy.
 
 Use the CLI, with a token for that account in `CLOUDFLARE_API_TOKEN`: copy the
 folder minus `README.md` to `dist/`, then
