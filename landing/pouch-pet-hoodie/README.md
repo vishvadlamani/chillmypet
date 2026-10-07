@@ -91,13 +91,14 @@ Cloudflare Pages, project name **`chillmypet-hoodie`**, production branch
 `main`. Publish this folder **without this README**, which names the Stripe
 account and is not part of the page.
 
-**Normally nothing to do:** `.github/workflows/deploy-hoodie.yml` publishes this
-folder whenever a change to it reaches `main`, with the `CLOUDFLARE_WORKERS`
-repository secret, and checks the live page afterwards. It refuses to deploy
-if that token cannot see the `chillmypet-hoodie` project. To publish without
-a change, run it from the Actions tab (Run workflow).
+⚠️ **The project is not on the storefront's Cloudflare account.** Checked
+2026-10-07: the `CLOUDFLARE_WORKERS` repository secret reaches only
+"Global.takeover7@gmail.com's Account", whose Pages projects do not include
+`chillmypet-hoodie` (Cloudflare answers 8000007, project not found). Whoever
+first published it holds the account, so an Actions deploy with the repo's
+secrets cannot update it.
 
-By hand, use the CLI, with a token for that account in `CLOUDFLARE_API_TOKEN`: copy the
+Use the CLI, with a token for that account in `CLOUDFLARE_API_TOKEN`: copy the
 folder minus `README.md` to `dist/`, then
 `npx wrangler pages deploy dist --project-name chillmypet-hoodie --branch main`.
 Without `--branch main` wrangler names the deploy after the git branch and it
