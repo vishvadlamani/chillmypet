@@ -98,6 +98,11 @@ function check(label, cond, detail) {
 	// Both tags ship server-rendered, on every page, before any JavaScript runs.
 	check('SSR carries the GTM container', /googletagmanager\.com\/gtm\.js/.test(html));
 	check('and its noscript iframe', /ns\.html\?id=GTM-T446VNH9/.test(html));
+	// One container, and only one. The site shipped GTM-N3Q25P9X for a while and
+	// the id moved on without the deploy following, so every tag anyone built was
+	// being published into a container the pages no longer loaded.
+	const containers = [...new Set(html.match(/GTM-[A-Z0-9]{4,12}/g) ?? [])].join(',');
+	check('and no other container is loaded alongside it', containers === 'GTM-T446VNH9', containers || 'no container at all');
 	// Asserted through the constants, so adding a pixel to the roster is one
 	// edit rather than one here and one silently-stale literal.
 	for (const id of ALL_PIXELS) {

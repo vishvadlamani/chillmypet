@@ -131,6 +131,17 @@ runs with the same reach as this codebase, by whoever holds container access —
 and a Meta pixel published in it would double-count against the ones the
 snippet already initialises.
 
+⚠️ **As of 2026-10-07 the live container has exactly that.** `gtm.js?id=GTM-T446VNH9`
+carries a Meta tag on `1341978141149107` that maps the dataLayer's GA4 events
+(`view_item`, `add_to_cart`, `begin_checkout`, `add_payment_info`, `purchase`)
+to Meta events, with an event id built from GTM's own `uniqueEventId` — never
+the one `track()` minted or `purchaseEventId()` derived. Meta cannot pair them,
+so the ad account's pixel sees every one of those events twice, Purchase
+included. It has to be paused or deleted in the GTM UI; no code change here
+removes it. `tests/e2e.mjs` fails "no pixel is initialised twice" while it is
+published, once the dev server runs with `GTM_CONTAINER_ID=GTM-T446VNH9` — the
+seed does not set a container, so locally the GTM checks need that env var.
+
 **Every browser event has a server copy, and they share an `event_id`.**
 `track()` mints one id, hands it to `fbq` as `eventID`, and posts the same id to
 `/api/track`, which sends the Conversions API copy using the cookies, address
@@ -699,6 +710,13 @@ Purchase events land in Events Manager > Test Events instead of ads reporting. K
 without it, a checkout test on staging is a fabricated conversion in the numbers
 the ad account optimizes against. Change the value to whatever code Events
 Manager shows you when you want to watch a run live.
+
+The test code only reroutes the *server* copy. The browser pixel has no such
+switch, so `wrangler.staging.toml` pins `META_PIXEL_ID`, `META_EXTRA_PIXEL_IDS`
+and `GTM_CONTAINER_ID` to empty — `??` keeps an empty string, so staging loads
+no pixel and no container instead of inheriting production's from the shared
+store row. Leave them empty; set `META_PIXEL_ID` for one run when you want to
+watch it in Test Events.
 
 Migrations run from a machine with the credentials, not from the Worker:
 
