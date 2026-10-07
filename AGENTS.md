@@ -141,6 +141,31 @@ goes missing to iOS and ad blockers is the one worth having. `/api/track`
 refuses `Purchase` and ignores any `user_data` in its body: a sale is reported
 from the order, and a public endpoint must not be able to claim identity.
 
+**The SSR PageView's server copy needs the browser's ids before the browser has
+them.** It leaves before `fbevents.js` has run, so on a first visit there is no
+`_fbp` yet, and on an ad click the pixel mints `_fbc` at a different millisecond
+from the server. `seedMetaCookies()` in `hooks.server.ts` writes both on GET
+requests that accept `text/html`, before `resolve` (SvelteKit puts cookies on the
+response inside it). The pixel adopts a well-formed cookie it finds, so both
+halves carry the same `fbp`/`fbc` from the first request. The same check keeps
+the server PageView to real page loads, and only on a 200. Crawlers (Meta's own
+fetches every ad's landing page), monitors, scripts and the scanners probing
+`/wp-login.php` read the HTML without ever running the pixel, so each one was a
+server-only PageView matched on an IP and a user agent. The dataset showed it:
+10.4K PageViews against 89 ViewContents on a site whose landing page fires
+ViewContent on every view, at a 3.2/10 match quality. `NON_BROWSER` must never
+match the Facebook and Instagram in-app browsers (`FBAN`, `Instagram`), which
+is where every ad click opens.
+
+**Don't put `original_event_data` on a live event.** It describes the past
+acquisition a *delayed* event belongs to, and it has its own `event_id` that
+Meta dedupes on. The framework sent it on every event, without that id, from
+the first commit, and Events Manager reported 0% of server PageViews carrying an
+event ID and 0% browser/server coverage on dataset `1341978141149107`, even
+though the top-level `event_id` was correct the whole time. It now goes out only
+beside `attribution_data`, and then it carries the same id. `hash.test.ts` pins
+both.
+
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires
 from the Stripe webhook and the browser event from the success page, two requests
@@ -187,6 +212,20 @@ surfacing them. Do not move it inside the try block that owns the order.
 **Advanced-matching fields are omitted, never null.** And `state`/`country` are
 only sent as 2-letter codes — truncating "Texas" to "te" hashes to a value that
 matches nobody. `hash.test.ts` pins these rules.
+
+**Every event names the visitor, not just Purchase.** The server copy of every
+event reads five first-party cookies. `_fbp` and `_fbc` are Meta's, seeded by
+`seedMetaCookies()` as above. `$lib/server/identity.ts` owns the other three:
+`cmp_vid`, sent hashed as `external_id`, is minted beside `_fbp` on the same
+page requests, *before* the page renders, so that page's own PageView carries
+it. `cmp_em` and `cmp_ph` hold SHA-256 digests
+of the email and phone a shopper gave at checkout, written by the checkout
+action and never by `/api/track`, so a returning shopper's PageView and
+ViewContent carry them too. `buildUserData` passes a 64-hex value through
+untouched; hash it again and it matches nobody. Phones get a calling code
+(`withCallingCode`) before hashing, in the cookie and on Purchase alike, or the
+same person hashes two ways. The visitor id rides to the webhook in Stripe
+metadata as `external_id`, like `fbp`/`fbc`.
 
 ## Gotchas that already cost debugging time
 
