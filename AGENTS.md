@@ -466,6 +466,35 @@ page the campaign lands on and `/checkout` is where it pays. The bundle picker
 adds real cart lines, the checkout prices through `/api/cart`, the Payment
 Element mounts under the shipping method, and Place order runs `placeOrder`.
 
+A second product, **`/products/pouch-pet-hoodie`** — a hoodie the owner wears
+with a front pouch the pet rides in — has its own manifest
+(`$lib/store/hoodie-manifest.ts`), English copy only, $49, in **Black, Gray,
+Pink and Cream** × XS–XL. Its page sets `pickSize: true` in `pages.ts`: the
+picker offers one "Colour / Size" choice per buyable variant behind a "Choose
+colour & size" prompt, and the host refuses to add anything until every unit is
+chosen. With a single colour the same code offers bare sizes behind "Choose your
+size". The life jacket still has the host pick its size (first in stock), and
+its page is unchanged. It has no size chart until there are manufacturer
+measurements for it.
+
+The four photos in `static/products/pouch-pet-hoodie/` are the ones the landing
+page at chillmypet-hoodie.pages.dev serves (`landing/pouch-pet-hoodie/`), supplied
+by the owner; their original source wasn't stated. `pink.jpg` is padded to a
+square on its white background so the gallery's square crop keeps the whole
+hoodie. They are 447–529px, soft at full gallery width. A Lotus colour was built
+first and held back; it is in the history of `scripts/hoodie.js`.
+
+**The landing page sells through a Stripe Payment Link on the owner's own
+account ("ChillMP")**, not through this store, so its orders never reach the
+database. The link has a required Size field but no colour field: the colour
+travels as `client_reference_id` (black, gray, pink, cream) and is only visible
+on the order in Stripe. Anyone fulfilling those orders has to read it there.
+
+**Adding a product to the live store is `npm run db:products`**, never
+`db:seed`. It inserts whatever in `scripts/add-products.js` is missing, skips
+what exists, and touches no other product. Both scripts write through
+`scripts/catalog.js`, so a seeded product and an added one have the same shape.
+
 ⚠️ **The invented reviews do not ship, and that is deliberate.** The 22
 testimonials that came with the block library are written words attributed to
 named people who never said them, the 4.9-from-1,127 rating was never counted,
