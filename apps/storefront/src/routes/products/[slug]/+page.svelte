@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import PageLayout from '@funnel/core/PageLayout.svelte';
-	import { DR_BLOCKS } from '@funnel/blocks-dr';
+	import { STORE_BLOCKS } from '$lib/store/blocks';
 	import type { FunnelStateAdapter, SubmitFn, TrackFn } from '@funnel/core';
 	import { toAmount } from 'ecomwithai/marketing';
 	import { page } from '$app/state';
@@ -184,7 +184,7 @@
 <PageLayout
 	definition={data.definition}
 	version={data.version}
-	components={DR_BLOCKS}
+	components={STORE_BLOCKS}
 	{track}
 	{submit}
 	state={funnelState}
