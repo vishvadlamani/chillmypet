@@ -6,7 +6,7 @@
  *   npm test
  */
 import { createHash } from 'node:crypto';
-import { buildFbc, buildUserData, normalize, sha256Hex } from './hash.ts';
+import { buildFbc, buildUserData, normalize, resolveFbc, sha256Hex } from './hash.ts';
 
 let failures = 0;
 
@@ -69,6 +69,15 @@ check('fbc is not hashed', userData.fbc, 'fb.1.1554763741205.AbCdEfGh');
 
 // --- fbc construction ---
 check('fbc format', buildFbc('AbCdEfGh', 1554763741205), 'fb.1.1554763741205.AbCdEfGh');
+
+// --- fbc resolution: the URL's click id must reach Meta untouched ---
+const now = 1700000000000;
+check('fbc keeps the cookie when the URL has no click id', resolveFbc('fb.1.1554763741205.Old', null, now), 'fb.1.1554763741205.Old');
+check('fbc mints from the URL when there is no cookie', resolveFbc(undefined, 'NeW_Click-Id', now), 'fb.1.1700000000000.NeW_Click-Id');
+check('fbc keeps the cookie when it carries the same click id', resolveFbc('fb.1.1554763741205.NeW_Click-Id', 'NeW_Click-Id', now), 'fb.1.1554763741205.NeW_Click-Id');
+check('fbc replaces a cookie from an earlier click', resolveFbc('fb.1.1554763741205.Old', 'NeW_Click-Id', now), 'fb.1.1700000000000.NeW_Click-Id');
+check('fbc treats a case-only difference as a different click', resolveFbc('fb.1.1554763741205.new_click-id', 'NeW_Click-Id', now), 'fb.1.1700000000000.NeW_Click-Id');
+check('fbc is absent with neither', resolveFbc(undefined, null, now), undefined);
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll normalization checks passed.');
 process.exitCode = failures ? 1 : 0;

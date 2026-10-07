@@ -141,6 +141,16 @@ goes missing to iOS and ad blockers is the one worth having. `/api/track`
 refuses `Purchase` and ignores any `user_data` in its body: a sale is reported
 from the order, and a public endpoint must not be able to claim identity.
 
+**`fbc` follows the page's `fbclid`, not the cookie, when the two disagree.**
+A returning visitor lands from a new ad with the previous click still in
+`_fbc`, and Meta's script only rewrites it after the server copy has gone out.
+Sending the stale value next to an `event_source_url` that carries the new one
+is what Events Manager flags as "modified fbclid" — on PageView and ViewContent,
+the landing-page events. `resolveFbc()` mints from the URL in that case and
+otherwise passes the cookie through byte for byte; never lowercase, trim or
+re-encode either. `/api/track` reads the click id off the body's
+`eventSourceUrl`, because the beacon's own URL never has one.
+
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires
 from the Stripe webhook and the browser event from the success page, two requests
