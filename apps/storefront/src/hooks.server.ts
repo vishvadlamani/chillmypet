@@ -2,6 +2,7 @@ import { error, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
 import { buildFbc, buildFbp, fbclidOf, newEventId } from 'ecomwithai/marketing';
+import { ADMIN_HEADERS, adminGate, isAdminPath } from '$lib/server/admin';
 import { ensureVisitorId, rememberedContact } from '$lib/server/identity';
 import { attributionFrom } from '$lib/server/purchase';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
@@ -136,6 +137,13 @@ function verificationTag(token: string): string {
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
+	// Before anything else, so an unauthenticated request costs no database read.
+	const isAdmin = isAdminPath(event.url.pathname);
+	if (isAdmin) {
+		const denied = await adminGate(event.request, env.ADMIN_PASSWORD);
+		if (denied) return denied;
+	}
+
 	const { db, stores } = getDirectory();
 
 	// Tenant comes from the Host header; localhost and preview URLs fall back to
@@ -230,8 +238,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		.split(',')
 		.map((id) => id.trim())
 		.filter(Boolean);
-	const pixelIds = [primaryPixelId, ...extraPixels].filter(Boolean);
-	const gtm = gtmSnippet(env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? '');
+	// No pixel, no container and so no server PageView on the admin: the
+	// operator packing orders is not a shopper, and the ad account would
+	// otherwise count every order they open as a visit.
+	const pixelIds = isAdmin ? [] : [primaryPixelId, ...extraPixels].filter(Boolean);
+	const gtm = gtmSnippet(isAdmin ? '' : (env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? ''));
 
 	const saved = event.cookies.get(LOCALE_COOKIE);
 	const locale = isLocale(saved)
@@ -302,6 +313,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// Called as a method — destructuring waitUntil loses `this` and throws.
 		const context = event.platform?.context;
 		if (send && context && typeof context.waitUntil === 'function') context.waitUntil(send);
+	}
+
+	if (isAdmin) {
+		for (const [name, value] of Object.entries(ADMIN_HEADERS)) response.headers.set(name, value);
 	}
 
 	return response;

@@ -682,7 +682,17 @@ Not built, in rough priority order:
    rather than building it.
 2. **Consent gate.** The pixel loads for everyone. GDPR/ePrivacy require prior
    consent for advertising cookies before taking EU traffic.
-3. **Admin.** No way to fulfil, refund, or look up a customer.
+3. **Admin — built, switched off.** `/admin` lists the queue to ship (paid,
+   unshipped, oldest first) and every order, searches by order number or
+   email, and marks an order shipped with carrier and tracking, which emails
+   the customer. It is a 404 until `ADMIN_PASSWORD` is a Worker secret, then
+   HTTP Basic auth against it; no pixel, container or server PageView runs on
+   it. Shipping is a row in `fulfillments`, **not** an order status: the
+   payment module reads `status = 'paid'` as settled, so a shipped order that
+   moved off `paid` could be settled — and reported — again. Run
+   `npm run db:migrate` against production before first use; the storefront
+   itself never reads that table. Refunds are still issued in Stripe.
+   `npm run test:admin` covers it.
 4. **Transactional email — built, switched off.** `$lib/server/email.ts` sends
    an order confirmation through Resend, beside the Purchase event, on the
    three paths that report a sale (webhook, receipt reconcile, no-payments

@@ -4,7 +4,14 @@
  *   node --experimental-strip-types src/lib/server/email.test.ts
  */
 import type { Order } from 'ecomwithai';
-import { escapeHtml, renderOrderConfirmation, sendOrderConfirmation, type EmailConfig } from './email.ts';
+import {
+	escapeHtml,
+	renderOrderConfirmation,
+	renderShippingNotification,
+	sendOrderConfirmation,
+	sendShippingNotification,
+	type EmailConfig
+} from './email.ts';
 
 let failures = 0;
 function check(label: string, cond: boolean, detail?: unknown) {
@@ -88,6 +95,30 @@ const throwing = (async () => {
 }) as unknown as typeof fetch;
 check('a network error reports failed, not a throw', (await sendOrderConfirmation(config, order, throwing)) === 'failed');
 console.error = origError;
+
+// --- shipping notification -----------------------------------------------
+const shipped = renderShippingNotification(
+	order,
+	{ carrier: 'Canada Post', trackingNumber: '7023 <x>', trackingUrl: 'https://track.example/?n=1&m=2' },
+	config.origin
+);
+check('shipping subject names the order', shipped.subject.includes('CMP-TEST1') && /on its way/.test(shipped.subject));
+check('tracking is in the text', shipped.text.includes('Tracking: Canada Post 7023 <x>'));
+check('tracking is escaped in the HTML', shipped.html.includes('7023 &lt;x&gt;'));
+check('tracking link is attribute-escaped', shipped.html.includes('href="https://track.example/?n=1&amp;m=2"'));
+const bare = renderShippingNotification(order, { carrier: null, trackingNumber: null, trackingUrl: null }, config.origin);
+check('no tracking, no tracking line', !bare.text.includes('Tracking') && !bare.html.includes('Track your package'));
+check('no "undefined" or "null" in a bare shipping email', !/undefined|null/.test(bare.text));
+
+calls.length = 0;
+check(
+	'shipping email sends',
+	(await sendShippingNotification(config, order, { carrier: null, trackingNumber: '1', trackingUrl: null }, ok)) === 'sent'
+);
+check(
+	'with its own idempotency key, so it is not dropped as the confirmation',
+	(calls[0]?.init.headers as Record<string, string>)?.['idempotency-key'] === 'shipped/CMP-TEST1'
+);
 
 if (failures) {
 	console.log(`\n${failures} email check(s) failed.`);

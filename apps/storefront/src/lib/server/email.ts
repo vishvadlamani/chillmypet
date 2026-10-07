@@ -23,6 +23,12 @@ const DEFAULT_ENDPOINT = 'https://api.resend.com/emails';
 
 export type SendResult = 'sent' | 'not_configured' | 'failed';
 
+export type Shipment = {
+	carrier: string | null;
+	trackingNumber: string | null;
+	trackingUrl: string | null;
+};
+
 /**
  * Never throws and never rejects: an email provider must not be able to fail a
  * paid order. Callers dispatch this through `waitUntil`, next to the Purchase
@@ -32,20 +38,39 @@ export type SendResult = 'sent' | 'not_configured' | 'failed';
  * The Idempotency-Key covers what that cannot: a Worker retried after the send
  * went out. Resend drops a repeat with the same key for 24 hours.
  */
-export async function sendOrderConfirmation(
+export function sendOrderConfirmation(
 	config: EmailConfig,
 	order: Order,
 	fetchImpl: typeof fetch = fetch
 ): Promise<SendResult> {
+	return send(config, order, 'order-confirmation', renderOrderConfirmation(order, config.origin), fetchImpl);
+}
+
+/** What the admin's "Mark shipped" sends. Same guarantees: never throws, once per order. */
+export function sendShippingNotification(
+	config: EmailConfig,
+	order: Order,
+	shipment: Shipment,
+	fetchImpl: typeof fetch = fetch
+): Promise<SendResult> {
+	return send(config, order, 'shipped', renderShippingNotification(order, shipment, config.origin), fetchImpl);
+}
+
+async function send(
+	config: EmailConfig,
+	order: Order,
+	kind: string,
+	{ subject, html, text }: { subject: string; html: string; text: string },
+	fetchImpl: typeof fetch
+): Promise<SendResult> {
 	if (!config.apiKey || !order.email) return 'not_configured';
 	try {
-		const { subject, html, text } = renderOrderConfirmation(order, config.origin);
 		const response = await fetchImpl(config.endpoint || DEFAULT_ENDPOINT, {
 			method: 'POST',
 			headers: {
 				authorization: `Bearer ${config.apiKey}`,
 				'content-type': 'application/json',
-				'idempotency-key': `order-confirmation/${order.orderNumber}`
+				'idempotency-key': `${kind}/${order.orderNumber}`
 			},
 			body: JSON.stringify({
 				from: config.from,
@@ -58,7 +83,7 @@ export async function sendOrderConfirmation(
 		});
 		if (!response.ok) {
 			console.error(
-				'Order confirmation email rejected',
+				`Email ${kind} rejected`,
 				order.orderNumber,
 				response.status,
 				await response.text().catch(() => '')
@@ -67,7 +92,7 @@ export async function sendOrderConfirmation(
 		}
 		return 'sent';
 	} catch (error) {
-		console.error('Order confirmation email failed', order.orderNumber, error);
+		console.error(`Email ${kind} failed`, order.orderNumber, error);
 		return 'failed';
 	}
 }
@@ -161,6 +186,48 @@ ${totals
 <p style="margin:0;color:#555;line-height:1.5;">${addressLines.map(escapeHtml).join('<br>')}</p>
 <p style="margin:28px 0;"><a href="${escapeHtml(receiptUrl)}" style="background:#1a1a1a;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;">View your order</a></p>
 <p style="margin:0;color:#888;font-size:13px;">Questions? Just reply to this email.</p>
+</td></tr>
+</table>
+</body></html>`;
+
+	return { subject, html, text };
+}
+
+export function renderShippingNotification(
+	order: Order,
+	shipment: Shipment,
+	origin: string
+): { subject: string; html: string; text: string } {
+	const receiptUrl = `${origin}/checkout/success?order=${encodeURIComponent(order.orderNumber)}`;
+	const tracking = [shipment.carrier, shipment.trackingNumber].filter(Boolean).join(' ');
+	const subject = `Your ChillMyPet order ${order.orderNumber} is on its way`;
+
+	const text = [
+		`Hi ${order.shipping.firstName},`,
+		'',
+		`Good news — your order ${order.orderNumber} has shipped.`,
+		...(tracking ? ['', `Tracking: ${tracking}`] : []),
+		...(shipment.trackingUrl ? [`Track it: ${shipment.trackingUrl}`] : []),
+		'',
+		...order.items.map((i) => `  ${i.quantity} × ${i.title}`),
+		'',
+		`Your order: ${receiptUrl}`,
+		'',
+		'Questions? Just reply to this email.',
+		'ChillMyPet'
+	].join('\n');
+
+	const html = `<!doctype html>
+<html><body style="margin:0;padding:24px;background:#f6f6f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;">
+<tr><td>
+<h1 style="font-size:22px;margin:0 0 8px;">Your order is on its way, ${escapeHtml(order.shipping.firstName)}!</h1>
+<p style="margin:0 0 20px;color:#555;">Order ${escapeHtml(order.orderNumber)} has shipped.</p>
+${tracking ? `<p style="margin:0 0 8px;"><strong>Tracking:</strong> ${escapeHtml(tracking)}</p>` : ''}
+${shipment.trackingUrl ? `<p style="margin:20px 0;"><a href="${escapeHtml(shipment.trackingUrl)}" style="background:#1a1a1a;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;">Track your package</a></p>` : ''}
+<p style="margin:20px 0 0;color:#555;line-height:1.6;">${order.items.map((i) => `${i.quantity} × ${escapeHtml(i.title)}`).join('<br>')}</p>
+<p style="margin:24px 0 0;"><a href="${escapeHtml(receiptUrl)}" style="color:#1a1a1a;">View your order</a></p>
+<p style="margin:16px 0 0;color:#888;font-size:13px;">Questions? Just reply to this email.</p>
 </td></tr>
 </table>
 </body></html>`;
