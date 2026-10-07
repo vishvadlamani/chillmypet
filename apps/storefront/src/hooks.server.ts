@@ -173,6 +173,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// alone leaves the form still offering everything on the account.
 	event.locals.stripePaymentMethodConfiguration = env.STRIPE_PAYMENT_METHOD_CONFIGURATION ?? '';
 	event.locals.settings = settings;
+	// Order confirmations. Without RESEND_API_KEY nothing is sent and nothing
+	// fails — the same degrade-quietly rule as the CAPI token. The sending domain
+	// has to be verified in Resend before the key is set, or every send is
+	// rejected into console.error.
+	event.locals.email = {
+		apiKey: env.RESEND_API_KEY,
+		from: env.EMAIL_FROM ?? settings.email_from ?? `${store.name} <orders@${store.domain}>`,
+		replyTo: env.EMAIL_REPLY_TO ?? settings.email_reply_to ?? `contact@${store.domain}`,
+		endpoint: env.EMAIL_API_ENDPOINT,
+		origin: event.url.origin
+	};
 	event.locals.commerce = createCommerce({
 		db,
 		store,

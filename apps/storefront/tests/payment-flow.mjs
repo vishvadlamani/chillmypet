@@ -9,7 +9,8 @@
  *   node tests/payment-flow.mjs
  *
  * Expects a dev server started with the same STRIPE_* env vars. See
- * `npm run test:payments`.
+ * `npm run test:payments`. For the confirmation-email checks it also needs
+ * RESEND_API_KEY set to anything and EMAIL_API_ENDPOINT=http://127.0.0.1:12113.
  */
 import { createServer } from 'node:http';
 import { createHash, createHmac } from 'node:crypto';
@@ -21,6 +22,7 @@ const RUN = Date.now().toString(36);
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? 'whsec_test_secret';
 const MOCK_PORT = Number(process.env.STRIPE_MOCK_PORT ?? 12111);
 const CAPI_PORT = Number(process.env.CAPI_MOCK_PORT ?? 12112);
+const EMAIL_PORT = Number(process.env.EMAIL_MOCK_PORT ?? 12113);
 
 let failures = 0;
 function check(label, cond, detail) {
@@ -129,6 +131,26 @@ const capiPurchases = () =>
 			}
 		})
 		.filter((e) => e?.event_name === 'Purchase');
+
+// --- mock email provider -------------------------------------------------
+// Stands in for Resend, so the test can count confirmations per order. The dev
+// server needs RESEND_API_KEY set and EMAIL_API_ENDPOINT pointed here.
+const emails = [];
+const mailer = createServer((req, res) => {
+	let body = '';
+	req.on('data', (c) => (body += c));
+	req.on('end', () => {
+		try {
+			emails.push({ headers: req.headers, ...JSON.parse(body) });
+		} catch {
+			emails.push({ headers: req.headers, unparsed: body });
+		}
+		res.writeHead(200, { 'content-type': 'application/json' });
+		res.end(JSON.stringify({ id: `em_${emails.length}` }));
+	});
+});
+await new Promise((resolve) => mailer.listen(EMAIL_PORT, '127.0.0.1', resolve));
+const emailsFor = (orderNumber) => emails.filter((e) => e.subject?.includes(orderNumber));
 
 const settle = () => new Promise((r) => setTimeout(r, 2000));
 
@@ -279,6 +301,11 @@ if (sessionCall) {
 		capiPurchases().length === 0,
 		`${capiPurchases().length} Purchase event(s) fired before any money moved`
 	);
+	check(
+		'and sends no confirmation email before payment',
+		emailsFor(orderNumber).length === 0,
+		`${emailsFor(orderNumber).length} sent`
+	);
 
 	// --- an unsigned webhook must be rejected -----------------------------
 	const totalCents = Number(p.get('line_items[0][price_data][unit_amount]'));
@@ -340,6 +367,23 @@ if (sessionCall) {
 	await settle();
 	const purchases = capiPurchases();
 	check('payment reports exactly one conversion', purchases.length === 1, `got ${purchases.length}`);
+	check(
+		'and emails exactly one confirmation',
+		emailsFor(orderNumber).length === 1,
+		`${emailsFor(orderNumber).length} sent`
+	);
+	const confirmation = emailsFor(orderNumber)[0];
+	check('to the address on the order', confirmation?.to?.[0] === 'payflow@example.com', JSON.stringify(confirmation?.to));
+	check(
+		'keyed so a retried send is dropped',
+		confirmation?.headers?.['idempotency-key'] === `order-confirmation/${orderNumber}`,
+		confirmation?.headers?.['idempotency-key']
+	);
+	check(
+		'linking to the receipt',
+		confirmation?.text?.includes(`/checkout/success?order=${orderNumber}`),
+		'no receipt link'
+	);
 
 	const purchase = purchases[0];
 	if (purchase) {
@@ -394,6 +438,11 @@ if (sessionCall) {
 		'a redelivered event does not report the sale twice',
 		capiPurchases().length === 1,
 		`${capiPurchases().length} Purchase events after redelivery`
+	);
+	check(
+		'nor email it twice',
+		emailsFor(orderNumber).length === 1,
+		`${emailsFor(orderNumber).length} sent`
 	);
 
 	// --- underpayment must not settle an order ----------------------------
@@ -576,6 +625,11 @@ if (sessionCall) {
 		const purchase = capiPurchases().find((e) => e.event_id === `purchase-${orderNumber}`);
 		check('the inline sale reports its own conversion', Boolean(purchase));
 		check(
+			'and emails its own confirmation',
+			emailsFor(orderNumber).length === 1 && emailsFor(orderNumber)[0]?.to?.[0] === 'inline@example.com',
+			`${emailsFor(orderNumber).length} sent`
+		);
+		check(
 			'for the amount actually charged',
 			purchase?.custom_data?.value === (Number(p.get('amount')) / 100).toFixed(2),
 			`${purchase?.custom_data?.value} vs ${(Number(p.get('amount')) / 100).toFixed(2)}`
@@ -722,6 +776,11 @@ if (sessionCall) {
 	);
 	await settle();
 	check('reloading the receipt does not sell it twice', reported().length === 1, `${reported().length} sent`);
+	check(
+		'the receipt that settled it sent the one confirmation',
+		emailsFor(orderNumber).length === 1 && emailsFor(orderNumber)[0]?.to?.[0] === 'nohook@example.com',
+		`${emailsFor(orderNumber).length} sent`
+	);
 
 	// And the webhook may still turn up afterwards — subscriptions get fixed,
 	// outages end, Stripe retries for days. It must find the order settled.
@@ -752,9 +811,11 @@ if (sessionCall) {
 	);
 	await settle();
 	check('and reports no second conversion', reported().length === 1, `${reported().length} sent`);
+	check('or second email', emailsFor(orderNumber).length === 1, `${emailsFor(orderNumber).length} sent`);
 }
 
 mock.close();
 capi.close();
+mailer.close();
 console.log(failures === 0 ? '\nPayment flow OK.' : `\n${failures} failure(s).`);
 process.exit(failures === 0 ? 0 : 1);

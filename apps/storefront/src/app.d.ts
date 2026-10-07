@@ -1,5 +1,6 @@
 import type { Commerce, Store } from 'ecomwithai';
 import type { Locale } from '$lib/i18n';
+import type { EmailConfig } from '$lib/server/email';
 
 declare global {
 	namespace App {
@@ -13,6 +14,8 @@ declare global {
 			commerce: Commerce;
 			stripePublishableKey: string;
 			stripePaymentMethodConfiguration: string;
+			/** Order confirmation email settings, built in hooks.server.ts. */
+			email: EmailConfig;
 		}
 
 		interface PageData {

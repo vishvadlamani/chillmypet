@@ -683,8 +683,13 @@ Not built, in rough priority order:
 2. **Consent gate.** The pixel loads for everyone. GDPR/ePrivacy require prior
    consent for advertising cookies before taking EU traffic.
 3. **Admin.** No way to fulfil, refund, or look up a customer.
-4. **Transactional email.** No order confirmation is sent. Once payments are on
-   Stripe emails a payment receipt — that is not an order confirmation.
+4. **Transactional email — built, switched off.** `$lib/server/email.ts` sends
+   an order confirmation through Resend, beside the Purchase event, on the
+   three paths that report a sale (webhook, receipt reconcile, no-payments
+   checkout). Each runs once per sale, which is what keeps it to one email;
+   `test:payments` counts them. It sends nothing until `RESEND_API_KEY` is a
+   Worker secret, and the sending domain (`orders@chillmypet.com` by default)
+   must be verified in Resend first. No shipping-notification email yet.
 5. ~~**Payments.**~~ Live, on a borrowed Stripe account — see above.
 6. ~~**DNS.**~~ Done — chillmypet.com and www are live on the `chillmypet`
    Worker, HTTPS enforced.

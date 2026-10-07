@@ -1,6 +1,7 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { CheckoutError, DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 import { isCountryCode } from '$lib/countries';
+import { sendOrderConfirmation } from '$lib/server/email';
 import { rememberContact } from '$lib/server/identity';
 import { attributionFrom, purchaseEventId, sendPurchase } from '$lib/server/purchase';
 
@@ -210,12 +211,15 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 	// No payment provider configured: the order is as complete as it will get,
 	// so report it here. This is the path the store ran on before Stripe.
 	const eventId = purchaseEventId(order.orderNumber);
-	const purchase = sendPurchase(commerce, order, {
-		eventSourceUrl: url.href,
-		attribution: attributionFrom(cookies, url, request.headers, event.getClientAddress())
-	});
+	const purchase = Promise.all([
+		sendPurchase(commerce, order, {
+			eventSourceUrl: url.href,
+			attribution: attributionFrom(cookies, url, request.headers, event.getClientAddress())
+		}),
+		sendOrderConfirmation(locals.email, order)
+	]);
 
-	// Don't make the customer wait on Meta. Called as a method —
+	// Don't make the customer wait on Meta or the mail provider. Called as a method —
 	// destructuring waitUntil loses `this` and throws on Workers.
 	const context = platform?.context;
 	if (context && typeof context.waitUntil === 'function') {

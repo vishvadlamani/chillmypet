@@ -1,3 +1,4 @@
+import { sendOrderConfirmation } from '$lib/server/email';
 import { sendPurchase } from '$lib/server/purchase';
 import type { RequestHandler } from './$types';
 
@@ -29,7 +30,7 @@ export const POST: RequestHandler = async ({ request, locals, url, platform }) =
 	// the event-id dedup table — so a redelivered event, which Stripe does
 	// aggressively, cannot report the same conversion twice.
 	if (result.handled && result.action === 'order_paid' && result.orderNumber) {
-		const tracking = trackPurchase(commerce, result.orderNumber, raw, url);
+		const tracking = trackPurchase(commerce, locals.email, result.orderNumber, raw, url);
 		const context = platform?.context;
 		if (context && typeof context.waitUntil === 'function') {
 			context.waitUntil(tracking);
@@ -43,11 +44,13 @@ export const POST: RequestHandler = async ({ request, locals, url, platform }) =
 };
 
 /**
- * Reports the conversion to Meta. Never rejects — Stripe must still get its 2xx
- * if this fails, or it will redeliver an event that was already applied.
+ * Reports the conversion to Meta and emails the customer their confirmation.
+ * Never rejects — Stripe must still get its 2xx if this fails, or it will
+ * redeliver an event that was already applied.
  */
 async function trackPurchase(
 	commerce: App.Locals['commerce'],
+	email: App.Locals['email'],
 	orderNumber: string,
 	rawBody: string,
 	url: URL
@@ -61,14 +64,17 @@ async function trackPurchase(
 		// taken from here — everything else comes from our own order row.
 		const metadata = readMetadata(rawBody);
 
-		await sendPurchase(commerce, order, {
-			eventSourceUrl: `${url.origin}/checkout/success?order=${encodeURIComponent(orderNumber)}`,
-			attribution: {
-				fbp: metadata.fbp,
-				fbc: metadata.fbc,
-				externalId: metadata.externalId
-			}
-		});
+		await Promise.all([
+			sendPurchase(commerce, order, {
+				eventSourceUrl: `${url.origin}/checkout/success?order=${encodeURIComponent(orderNumber)}`,
+				attribution: {
+					fbp: metadata.fbp,
+					fbc: metadata.fbc,
+					externalId: metadata.externalId
+				}
+			}),
+			sendOrderConfirmation(email, order)
+		]);
 	} catch (error) {
 		console.error('Purchase tracking failed after payment', orderNumber, error);
 	}
