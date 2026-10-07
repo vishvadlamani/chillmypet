@@ -36,7 +36,11 @@ jobs:
           api() { curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4$1"; }
           accounts=$(api /accounts)
           for account in $(echo "$accounts" | jq -r '.result[]?.id'); do
-            branch=$(api "/accounts/$account/pages/projects/chillmypet-hoodie" | jq -r '.result.production_branch // empty')
+            project=$(api "/accounts/$account/pages/projects/chillmypet-hoodie")
+            branch=$(echo "$project" | jq -r '.result.production_branch // empty')
+            # Cloudflare's own answer, so a missing project (8000007) and a token
+            # without Pages permission (10000) are told apart.
+            [ -n "$branch" ] || echo "$project" | jq -c '{account: "'"$account"'", errors}'
             if [ -n "$branch" ]; then
               echo "Found chillmypet-hoodie in $(echo "$accounts" | jq -r --arg a "$account" '.result[] | select(.id == $a) | .name'), production branch: $branch"
               echo "account=$account" >> "$GITHUB_OUTPUT"
@@ -46,6 +50,10 @@ jobs:
           done
           echo "::error::This token cannot see a Pages project named chillmypet-hoodie. Nothing was deployed."
           echo "$accounts" | jq '{success, errors, accounts: [.result[]? | .name]}'
+          # Every Pages project the token can list, if it may list them at all.
+          for account in $(echo "$accounts" | jq -r '.result[]?.id'); do
+            api "/accounts/$account/pages/projects" | jq -c '{success, errors, projects: [.result[]? | .name]}'
+          done
           exit 1
 
       # The README names the Stripe account and is not part of the page.
