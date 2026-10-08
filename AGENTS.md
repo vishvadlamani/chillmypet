@@ -129,6 +129,25 @@ runs with the same reach as this codebase, by whoever holds container access —
 and a Meta pixel published in it would double-count against the ones the
 snippet already initialises.
 
+What the container holds, as published on 2026-10-08:
+- A GA4 Google tag for `G-YCFPQ38SXP`, which sends page_view.
+- A GA4 event tag that forwards every dataLayer event and carries
+  `transaction_id`, `event_id` and the `_fbp`/`_fbc` values. Its
+  `transport_url` is empty, so there is no server-side GTM.
+- One **paused** custom-template tag. Leave it paused unless you know it is not
+  a Meta tag.
+
+**Google tag gateway runs through Cloudflare on the path `/qndl`** (set up
+2026-10-08 in Vish's Cloudflare account). GA4 hits go first-party to
+`chillmypet.com/qndl/ga/g/c` instead of google-analytics.com, which ad
+blockers and Safari's tracking prevention leave alone. `/qndl/gtm.js?id=…`
+also serves the container. The snippet in `hooks.server.ts` still loads GTM
+from googletagmanager.com, so a blocker that stops that host stops GA4 too.
+Pointing the snippet at `/qndl/` would close that gap, but it ties page loads
+to the gateway staying configured: if anyone removes the path in Cloudflare,
+GTM stops loading entirely. That route is a Cloudflare setting, not code, so
+it is invisible from this repo.
+
 **Every browser event has a server copy, and they share an `event_id`.**
 `track()` mints one id, hands it to `fbq` as `eventID`, and posts the same id to
 `/api/track`, which sends the Conversions API copy using the cookies, address
