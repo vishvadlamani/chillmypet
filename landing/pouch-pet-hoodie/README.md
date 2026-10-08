@@ -18,11 +18,13 @@ nothing it sells lands there.
   in front of the files (`_routes.json` limits it to `/api/*`). Every browser
   event is also posted to `/api/event` under the same id, and the worker sends
   it to Meta with the visitor's IP, user agent and `_fbp`/`_fbc`, so Meta keeps
-  one of the two and the copy an ad blocker or iOS stops still arrives. The
-  thank-you page posts its session id to `/api/purchase`; the worker asks Stripe
-  whether that session is complete, paid and from this Payment Link, and only
-  then sends Purchase with the buyer's hashed email, phone, name and address.
-  `/api/event` refuses Purchase, so nobody can claim a sale through it. Only
+  one of the two and the copy an ad blocker or iOS stops still arrives.
+  Purchase's server copy comes from Stripe: its webhook posts each paid hoodie
+  session to `/api/stripe-webhook`, and the worker checks Stripe's signature and
+  sends Purchase under the session id (the thank-you page's `eventID`) with the
+  buyer's hashed email, phone, name and address. It arrives even when the buyer
+  never returns to the thank-you page. `/api/event` refuses Purchase, so nobody
+  can claim a sale through it. Only
   pixel `1341978141149107` (the one the ad set optimises against) gets server
   copies: a CAPI token belongs to one dataset. The other two stay browser-only.
 - **Colour** (Black, Gray, Pink, Cream) is picked on this page, not on
@@ -100,13 +102,19 @@ account `5fef1d1dbb6eaee72fdfc2b26a61a386`:
 Dashboard: zip the folder's other files, then the project → Create deployment
 → Production → upload the zip → Save and Deploy.
 
-Use the CLI, with a token for that account in `CLOUDFLARE_API_TOKEN`: copy the
-folder minus `README.md` to `dist/`, then
-`npx wrangler pages deploy dist --project-name chillmypet-hoodie --branch main`.
-Without `--branch main` wrangler names the deploy after the git branch and it
-lands as a preview, not on the live URL. Prefer this over a dashboard zip
-upload, which is not guaranteed to pick up `_worker.js`: the page would look
-fine and quietly send no server events.
+Use the CLI, with a token for that account in `CLOUDFLARE_API_TOKEN`:
+`npm run deploy:hoodie` (`deploy.sh` here). It publishes exactly the page's
+files plus `_worker.js` and `_routes.json` (never this README or the tests), to
+the live `main` branch: without `--branch main` wrangler names the deploy after the
+git branch and it lands as a preview. Prefer it over a dashboard zip upload,
+which is not guaranteed to pick up `_worker.js`: the page would look fine and
+quietly send no server events.
+
+**All server code lives in `_worker.js`.** While it exists, Pages ignores a
+`functions/` folder completely. The Stripe webhook was first written as
+`functions/api/stripe-webhook.js` and was never served: Stripe's deliveries got
+a 405 from the static files for days. The test and `deploy.sh` both refuse a
+`functions/` folder now.
 
 ### Secrets for the server copies
 
@@ -115,12 +123,14 @@ On the project: Settings → Variables and Secrets → Production, as **Secret**
 | Name | Where it comes from |
 |---|---|
 | `META_CAPI_ACCESS_TOKEN` | Events Manager → pixel `1341978141149107` → Settings → Conversions API → Generate access token. A token for any other pixel is rejected. |
-| `STRIPE_SECRET_KEY` | Stripe Dashboard (the account holding the Payment Link) → Developers → API keys → Create restricted key, with **Checkout Sessions: Read** and nothing else. |
+| `STRIPE_WEBHOOK_SECRET` | Stripe Dashboard (the account holding the Payment Link) → Developers → Webhooks → the endpoint for `https://chillmypet-hoodie.pages.dev/api/stripe-webhook` (`we_1UO1BAJOsB1nguzlCakDMBBI`) → Signing secret. That endpoint needs only `checkout.session.completed` and `checkout.session.async_payment_succeeded`. |
 | `META_TEST_EVENT_CODE` | Optional. Set it to the code Events Manager → Test Events shows to watch a run live; delete it afterwards, or every event stays out of ads reporting. |
 
 Secrets take effect on the next deploy, so deploy after adding them. Without
 them the page works exactly as before and sends no server copies; the worker
-logs why (`wrangler pages deployment tail`).
+logs why (`wrangler pages deployment tail`), and the webhook answers Stripe 503
+so the sale is retried rather than lost. A `STRIPE_SECRET_KEY` left over from
+the old `/api/purchase` route is no longer read and can be deleted.
 
 ### Check it
 
@@ -129,12 +139,18 @@ logs why (`wrangler pages deployment tail`).
 - `curl -i -X POST https://chillmypet-hoodie.pages.dev/api/event -d 'x'`
   must answer **400**. A 405 or the page's HTML means the worker did not
   deploy.
+- `curl -i -X POST https://chillmypet-hoodie.pages.dev/api/stripe-webhook -d '{}'`
+  must answer **400** `invalid_signature` (or 503 naming a missing secret).
+  A 405 means Stripe's deliveries are not reaching the worker.
+- Stripe Dashboard → Webhooks → the endpoint: deliveries should be 200. After
+  a fix, resend the failed ones from there; each reports its sale at the time
+  it happened, and Meta drops any it already counted.
 - Events Manager → the pixel → Overview: PageView, ViewContent and
   InitiateCheckout should show both **Browser** and **Server**, with
   deduplication reported. Purchase shows Server from the first real order.
 
-`node landing/pouch-pet-hoodie.test.mjs` runs the worker against mocked Meta
-and Stripe; run it after any change to `_worker.js`.
+`npm run test:hoodie` (also part of `npm test`, so CI runs it) runs the worker
+against mocked Meta and signed Stripe events; run it after any change to `_worker.js`.
 
 Retire it once the product page is live on chillmypet.com: deactivate the
 Payment Link and point every ad at the real page.

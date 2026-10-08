@@ -30,11 +30,9 @@
 		var c = window.HOODIE;
 		// The value is one hoodie: Stripe's redirect does not say how many were
 		// bought, so a multi-unit order reports low rather than guessed.
+		// The server copy comes from Stripe's webhook (_worker.js) under the same
+		// id, so it arrives even when the buyer never gets back to this page.
 		fbq('track', 'Purchase', { content_ids: ['pouch-pet-hoodie'], content_type: 'product', value: c.price, currency: c.currency, num_items: 1 }, { eventID: id });
-		// The server copy, under the same id. It asks Stripe whether this
-		// session was really paid, so the page only has to name it.
-		var body = JSON.stringify({ session_id: id, url: location.href });
-		try { fetch('/api/purchase', { method: 'POST', body: body, keepalive: true }); } catch (e) {}
 	})();
 </script>
 </body>

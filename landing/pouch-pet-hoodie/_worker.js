@@ -8,38 +8,53 @@
  * META_PIXEL_ID gets these copies: a CAPI token belongs to exactly one dataset,
  * so it must be the pixel the ad set optimises against.
  *
- *   POST /api/event     PageView, ViewContent, InitiateCheckout
- *   POST /api/purchase  Purchase, only for a Checkout Session Stripe says is paid
+ *   POST /api/event           PageView, ViewContent, InitiateCheckout
+ *   POST /api/stripe-webhook  Purchase, when Stripe says a hoodie session is paid
+ *
+ * This file is the page's only server code. While a _worker.js exists, Pages
+ * ignores a functions/ folder entirely, so a route added there is never
+ * served: the Stripe webhook once lived in functions/ and Stripe's deliveries
+ * got a 405 from the static files. pouch-pet-hoodie.test.mjs fails if a
+ * functions/ folder comes back.
  *
  * Secrets, on the Pages project (Settings → Variables and Secrets, Production):
  *   META_CAPI_ACCESS_TOKEN  generated in Events Manager for META_PIXEL_ID
- *   STRIPE_SECRET_KEY       a restricted key with Checkout Sessions: Read
+ *   STRIPE_WEBHOOK_SECRET   whsec_… of the Stripe endpoint pointed at
+ *                           /api/stripe-webhook (we_1UO1BAJOsB1nguzlCakDMBBI)
  *   META_TEST_EVENT_CODE    optional; routes events to Test Events instead
  *
- * Tracking must never break the page: without a secret the endpoint does
- * nothing, and every failure is logged rather than returned to the buyer.
+ * Browser events must never break the page: without a secret /api/event does
+ * nothing and every failure is only logged. The webhook is the opposite: it
+ * does nothing but report, so a failure is a non-2xx that Stripe retries for
+ * three days and shows in its Dashboard, instead of a sale quietly lost.
  */
 
 const PIXEL_ID = '1341978141149107';
 const PAYMENT_LINK = 'plink_1ULu2aJOsB1nguzlIzkLcmZG';
+const THANK_YOU = 'https://chillmypet-hoodie.pages.dev/thank-you';
+// How old a Stripe signature may be, as Stripe's own libraries allow.
+const SIGNATURE_TOLERANCE = 300;
 const GRAPH = 'https://graph.facebook.com/v25.0';
 const PRODUCT_ID = 'pouch-pet-hoodie';
 
 // Purchase is deliberately absent: a public endpoint must not be able to claim
-// a sale. Sales come from /api/purchase, which asks Stripe first.
+// a sale. Sales come from /api/stripe-webhook, which only Stripe can sign.
 const BROWSER_EVENTS = new Set(['PageView', 'ViewContent', 'InitiateCheckout']);
 
 export default {
 	async fetch(request, env, ctx) {
 		const { pathname } = new URL(request.url);
-		if (pathname === '/api/event' || pathname === '/api/purchase') {
+		if (pathname === '/api/stripe-webhook') {
+			if (request.method !== 'POST') return new Response(null, { status: 405 });
+			return stripeWebhook(request, env);
+		}
+		if (pathname === '/api/event') {
 			if (request.method !== 'POST') return new Response(null, { status: 405 });
 			const body = await readJson(request);
 			if (!body) return new Response(null, { status: 400 });
-			const job = pathname === '/api/event' ? browserEvent(request, env, body) : purchase(request, env, body);
 			// Answer at once and send in the background: the InitiateCheckout
 			// beacon is fired on the way out to Stripe and nobody waits on it.
-			ctx.waitUntil(job.catch((e) => console.error('capi:', e && e.message)));
+			ctx.waitUntil(browserEvent(request, env, body).catch((e) => console.error('capi:', e && e.message)));
 			return new Response(null, { status: 204 });
 		}
 		return env.ASSETS.fetch(request);
@@ -59,22 +74,34 @@ async function browserEvent(request, env, body) {
 	});
 }
 
-async function purchase(request, env, body) {
-	const id = body.session_id;
-	if (typeof id !== 'string' || !/^cs_(live|test)_[A-Za-z0-9]{1,200}$/.test(id)) return;
-	if (!env.STRIPE_SECRET_KEY) return console.error('capi: STRIPE_SECRET_KEY not set, Purchase not sent');
+async function stripeWebhook(request, env) {
+	// 503 rather than 200 while unconfigured, so Stripe keeps retrying and a
+	// sale made before the secret is set is reported once it is.
+	if (!env.STRIPE_WEBHOOK_SECRET) return json({ handled: false, reason: 'missing STRIPE_WEBHOOK_SECRET' }, 503);
+	if (!env.META_CAPI_ACCESS_TOKEN) return json({ handled: false, reason: 'missing META_CAPI_ACCESS_TOKEN' }, 503);
 
-	const res = await fetch('https://api.stripe.com/v1/checkout/sessions/' + id, {
-		headers: { Authorization: 'Bearer ' + env.STRIPE_SECRET_KEY }
-	});
-	if (!res.ok) return console.error('capi: Stripe session lookup', res.status);
-	const s = await res.json();
-	// Only a finished, paid order from this page's own Payment Link is a sale.
-	// Anything else on the account (another product, an abandoned session, a
-	// made-up id) is not reported.
-	if (s.status !== 'complete' || s.payment_status !== 'paid' || s.payment_link !== PAYMENT_LINK) return;
+	// The exact bytes Stripe signed: parsing and re-serialising would change them.
+	const raw = await request.text();
+	if (!(await validStripeSignature(raw, request.headers.get('Stripe-Signature'), env.STRIPE_WEBHOOK_SECRET))) {
+		return json({ handled: false, reason: 'invalid_signature' }, 400);
+	}
+	const event = JSON.parse(raw);
+	const s = event.data && event.data.object;
 
-	const url = sameSiteUrl(request, body.url) || new URL('/thank-you', request.url).href;
+	// A card sale completes "paid". A delayed method (a bank debit) completes
+	// "unpaid" and settles later with async_payment_succeeded, which is the
+	// sale; reporting the first would count money that may never arrive.
+	const settled =
+		(event.type === 'checkout.session.completed' && s.payment_status === 'paid') ||
+		event.type === 'checkout.session.async_payment_succeeded';
+	if (!settled) return json({ handled: false, reason: 'ignored', type: event.type });
+	// The account also takes the storefront's payments, and this endpoint sees
+	// those sessions too. The link's metadata survives the link being replaced,
+	// as it was for the $49 price; the link id covers a session without it.
+	if (!((s.metadata && s.metadata.slug === PRODUCT_ID) || s.payment_link === PAYMENT_LINK)) {
+		return json({ handled: false, reason: 'not_hoodie' });
+	}
+
 	// The buyer is who clicked the ad, so their own details come first; the
 	// shipping name and address may be a gift's recipient, and only fill in
 	// what Stripe did not collect for the buyer (often just country and zip).
@@ -83,12 +110,18 @@ async function purchase(request, env, body) {
 	const own = c.address || {};
 	const addr = own.city ? own : { ...(ship.address || {}), ...pick(own) };
 	const names = splitName(c.name || ship.name);
-	await send(env, {
+	const sent = await send(env, {
 		event_name: 'Purchase',
-		// The browser's Purchase uses the session id too, so the two dedupe.
-		event_id: id,
-		event_source_url: url,
-		user_data: await userData(request, url, {
+		// thank-you.html's browser Purchase uses the session id too, so Meta
+		// keeps one of the two.
+		event_id: s.id,
+		// When the sale happened, not when this delivery arrived: a retry or a
+		// resend from the Dashboard can come days later.
+		event_time: event.created,
+		event_source_url: THANK_YOU,
+		// Stripe, not the buyer, makes this request, so there is no IP, user
+		// agent or _fbp to send; what the buyer typed at checkout matches them.
+		user_data: await hashed({
 			em: c.email && c.email.trim().toLowerCase(),
 			ph: c.phone && c.phone.replace(/\D/g, '').replace(/^0+/, ''),
 			fn: names.first,
@@ -103,15 +136,45 @@ async function purchase(request, env, body) {
 			currency: String(s.currency).toUpperCase(),
 			content_ids: [PRODUCT_ID],
 			content_type: 'product',
+			// The link fixes quantity at one.
 			num_items: 1,
-			order_id: id
+			order_id: s.id
 		}
 	});
+	// Meta dedupes Stripe's retries on event_id.
+	return sent ? json({ handled: true, eventId: s.id }) : json({ handled: false, reason: 'meta_rejected' }, 502);
 }
 
+// Stripe-Signature is "t=<unix>,v1=<hex>[,v1=<hex>…]": an HMAC-SHA256 of
+// "<t>.<body>" under the endpoint's secret. More than one v1 appears while a
+// secret is being rolled.
+async function validStripeSignature(raw, header, secret) {
+	const parts = (header || '').split(',').map((p) => p.split('='));
+	const t = Number((parts.find(([k]) => k === 't') || [])[1]);
+	const given = parts.filter(([k]) => k === 'v1').map(([, v]) => v);
+	if (!t || !given.length || Math.abs(Date.now() / 1000 - t) > SIGNATURE_TOLERANCE) return false;
+	const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+	const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${t}.${raw}`));
+	const expected = hex(mac);
+	return given.some((v) => sameString(v, expected));
+}
+
+function sameString(a, b) {
+	if (a.length !== b.length) return false;
+	let diff = 0;
+	for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+	return diff === 0;
+}
+
+const json = (body, status = 200) => Response.json(body, { status });
+
+// True when Meta accepted the event.
 async function send(env, event) {
-	if (!env.META_CAPI_ACCESS_TOKEN) return console.error('capi: META_CAPI_ACCESS_TOKEN not set,', event.event_name, 'not sent');
-	const payload = { data: [{ ...event, event_time: Math.floor(Date.now() / 1000), action_source: 'website' }] };
+	if (!env.META_CAPI_ACCESS_TOKEN) {
+		console.error('capi: META_CAPI_ACCESS_TOKEN not set,', event.event_name, 'not sent');
+		return false;
+	}
+	const payload = { data: [{ event_time: Math.floor(Date.now() / 1000), ...event, action_source: 'website' }] };
 	if (env.META_TEST_EVENT_CODE) payload.test_event_code = env.META_TEST_EVENT_CODE;
 	const res = await fetch(`${GRAPH}/${env.META_PIXEL_ID || PIXEL_ID}/events?access_token=${encodeURIComponent(env.META_CAPI_ACCESS_TOKEN)}`, {
 		method: 'POST',
@@ -119,13 +182,12 @@ async function send(env, event) {
 		body: JSON.stringify(payload)
 	});
 	if (!res.ok) console.error('capi:', event.event_name, res.status, await res.text());
+	return res.ok;
 }
 
-// The four request-side fields go unhashed; everything a buyer typed is
-// hashed, and empty fields are omitted rather than sent as hashes of nothing.
-async function userData(request, url, typed = {}) {
+// What the buyer's own request says about them, which Meta takes unhashed.
+async function userData(request, url) {
 	const out = {};
-	for (const [key, value] of Object.entries(typed)) if (value) out[key] = [await sha256(value)];
 	const ip = request.headers.get('CF-Connecting-IP');
 	const ua = request.headers.get('User-Agent');
 	const cookies = parseCookies(request.headers.get('Cookie'));
@@ -137,6 +199,14 @@ async function userData(request, url, typed = {}) {
 	const fbclid = new URL(url).searchParams.get('fbclid');
 	if (cookies._fbc) out.fbc = cookies._fbc;
 	else if (fbclid) out.fbc = `fb.1.${Date.now()}.${fbclid}`;
+	return out;
+}
+
+// Everything a buyer typed is hashed, and empty fields are omitted rather
+// than sent as hashes of nothing.
+async function hashed(typed) {
+	const out = {};
+	for (const [key, value] of Object.entries(typed)) if (value) out[key] = [await sha256(value)];
 	return out;
 }
 
@@ -205,6 +275,7 @@ function zip(v) {
 }
 
 async function sha256(value) {
-	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-	return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+	return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)));
 }
+
+const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
