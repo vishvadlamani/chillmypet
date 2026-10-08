@@ -59,7 +59,9 @@
 			"blue": "Azul",
 			"pink": "Rosa",
 			"purple": "Morado",
-			"red": "Rojo"
+			"red": "Rojo",
+			"red_santa": "Rojo Papá Noel",
+			"green_stocking": "Verde Calcetín"
 		},
 		"benefitsTitle": "Por qué nadan mejor con él",
 		"trustShipping": "Envío gratis",

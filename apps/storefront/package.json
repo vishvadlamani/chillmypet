@@ -12,11 +12,13 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"db:migrate": "node --env-file-if-exists=.env scripts/migrate.js",
 		"db:seed": "node --env-file-if-exists=.env scripts/seed.js",
+		"test": "node --experimental-strip-types src/lib/store/christmas.test.ts",
 		"test:e2e": "node tests/e2e.mjs",
 		"deploy": "npm run build && wrangler deploy",
 		"test:payments": "node tests/payment-flow.mjs",
-		"test:store": "node tests/store-flow.mjs",
-		"db:content": "node --env-file-if-exists=.env scripts/sync-content.js"
+		"test:store": "node tests/store-flow.mjs && node tests/christmas-hoodie.mjs",
+		"db:content": "node --env-file-if-exists=.env scripts/sync-content.js",
+		"db:products": "node --env-file-if-exists=.env scripts/add-products.js"
 	},
 	"dependencies": {
 		"@libsql/client": "^0.15.15",
