@@ -643,11 +643,20 @@ Not built, in rough priority order:
 | Meta dataset | `1341978141149107` (browser + CAPI); `1363695699271757`, `28272021345717397` browser only |
 | Hoodie landing page | `chillmypet-hoodie.pages.dev`, Cloudflare Pages, **not this repo** — see below |
 
-**Which Cloudflare account holds what.** The `chillmypet` and
-`chillmypet-staging` Workers, and the `chillmypet-hoodie` Pages project, live
-in the owner's own Cloudflare account. A `chillmypet` in a collaborator's
-account is not what serves chillmypet.com. When in doubt, change a value and
-watch the live page: the Stripe fragment trick above answers it in seconds.
+**Which Cloudflare account holds what.** Everything chillmypet.com runs on is
+in **Vish's** Cloudflare account, alongside many unrelated Workers. That covers
+the `chillmypet` and `chillmypet-staging` Workers, all their secrets, and the
+domain itself. chillmypet.com was registered through Cloudflare Registrar on
+2026-08-08 and expires 2027-08-08. The business owner has a separate,
+newer Cloudflare account that serves nothing for chillmypet.com. Never add
+chillmypet.com there through "Connect your domain": it would issue new
+nameservers for a domain that is already live elsewhere. Where the
+`chillmypet-hoodie` Pages project lives has not been checked. Moving the store
+into the owner's account is possible, but it is a planned migration (domain
+transfer between accounts, Worker and secrets re-created, custom domain
+re-bound), not a dashboard click. When in doubt about which account serves the
+site, change a value and watch the live page: the Stripe fragment trick above
+answers it in seconds.
 
 ### The hoodie landing page is a second, separate shop
 
