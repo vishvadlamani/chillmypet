@@ -14,6 +14,21 @@ chillmypet.com and shares no code or database with it.
 | Payment Links | 8, listed in `config.js`; each one's metadata carries `slug` and `sku` |
 | Webhook | `we_1UOEbvJOsB1nguzlbjDffhrK` → `/api/stripe-webhook`, `checkout.session.completed` and `checkout.session.async_payment_succeeded` |
 
+## Design
+
+Laid out on the MerryPaws product page at merryechoco.com, section by section,
+with its type scale, colours and spacing measured at 1440 and 390 wide. The
+Figma file holds both frames, the colour tokens and the components:
+https://www.figma.com/design/y7HKSgoD144ytJIwmU1sva
+
+What was **not** carried over, on purpose: a countdown to a sale that resets
+(ours counts to the real Christmas cut-off), a struck-through "was" price, a
+star rating, reviews and a "knock-off" comparison. There are no reviews to
+show, and invented ones are fake testimonials. Their places hold benefit
+cards, a safety note and a comparison with carrying your pet in your arms.
+Every photo on the page is one of the two product shots; the close-ups zoom
+them with CSS rather than adding images nobody has the rights to.
+
 ## How a sale flows
 
 1. The shopper picks a design and a size on the page. There is no default size,
