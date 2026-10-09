@@ -82,7 +82,8 @@ async function stripeWebhook(request, env) {
 	// 503 rather than 200 while unconfigured, so Stripe keeps retrying and a
 	// sale made before the secret is set is reported once it is.
 	if (!env.STRIPE_WEBHOOK_SECRET) return json({ handled: false, reason: 'missing STRIPE_WEBHOOK_SECRET' }, 503);
-	if (!env.META_CAPI_ACCESS_TOKEN) return json({ handled: false, reason: 'missing META_CAPI_ACCESS_TOKEN' }, 503);
+	const token = metaToken(env);
+	if (!token.value) return json({ handled: false, reason: token.problem }, 503);
 
 	// The exact bytes Stripe signed: parsing and re-serialising would change them.
 	const raw = await request.text();
@@ -173,15 +174,38 @@ function sameString(a, b) {
 
 const json = (body, status = 200) => Response.json(body, { status });
 
+// The Conversions API token, read forgivingly. It is pasted by hand into the
+// Pages dashboard, where a name or value carrying a stray space or an invisible
+// character is listed as saved but reads here as unset, and nothing on the page
+// says so. The name is therefore matched on its letters alone and the value is
+// trimmed; when there is still nothing usable, the reason says which half is
+// wrong. Values are never echoed.
+function metaToken(env) {
+	const exact = typeof env.META_CAPI_ACCESS_TOKEN === 'string' ? env.META_CAPI_ACCESS_TOKEN.trim() : '';
+	if (exact) return { value: exact };
+	let named = env.META_CAPI_ACCESS_TOKEN !== undefined;
+	for (const [name, value] of Object.entries(env)) {
+		if (name.toUpperCase().replace(/[^A-Z]/g, '') !== 'METACAPIACCESSTOKEN') continue;
+		named = true;
+		const v = typeof value === 'string' ? value.trim() : '';
+		if (v) return { value: v };
+	}
+	return {
+		value: '',
+		problem: named ? 'META_CAPI_ACCESS_TOKEN is set but empty' : 'missing META_CAPI_ACCESS_TOKEN'
+	};
+}
+
 // True when Meta accepted the event.
 async function send(env, event) {
-	if (!env.META_CAPI_ACCESS_TOKEN) {
-		console.error('capi: META_CAPI_ACCESS_TOKEN not set,', event.event_name, 'not sent');
+	const token = metaToken(env);
+	if (!token.value) {
+		console.error('capi:', token.problem + ',', event.event_name, 'not sent');
 		return false;
 	}
 	const payload = { data: [{ event_time: Math.floor(Date.now() / 1000), ...event, action_source: 'website' }] };
 	if (env.META_TEST_EVENT_CODE) payload.test_event_code = env.META_TEST_EVENT_CODE;
-	const res = await fetch(`${GRAPH}/${env.META_PIXEL_ID || PIXEL_ID}/events?access_token=${encodeURIComponent(env.META_CAPI_ACCESS_TOKEN)}`, {
+	const res = await fetch(`${GRAPH}/${env.META_PIXEL_ID || PIXEL_ID}/events?access_token=${encodeURIComponent(token.value)}`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(payload)

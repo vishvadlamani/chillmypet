@@ -113,6 +113,22 @@ const session = (metadata, extra = {}) => ({
 	check('fbp and fbc ride along', add?.user_data.fbp === 'fb.1.1.2' && /^fb\.1\.\d+\.abc$/.test(add?.user_data.fbc ?? ''));
 }
 
+// --- a token pasted by hand into the dashboard ----------------------------------------
+{
+	const { META_CAPI_ACCESS_TOKEN, ...rest } = env;
+	const sale = (e) => worker.fetch(signed(session({ slug: 'christmas-pouch-hoodie', sku: 'CMP-XH-SANTA-RED-S' })), e, ctx);
+
+	sent.length = 0;
+	const padded = await sale({ ...rest, 'META_CAPI_ACCESS_TOKEN ': '  token\n' });
+	check('a stray space in the name or value still finds the token', padded.status === 200 && sent[0]?.url.endsWith('access_token=token'), sent[0]?.url);
+
+	const empty = await (await sale({ ...rest, META_CAPI_ACCESS_TOKEN: '' })).json();
+	check('an empty token is named as empty, not missing', empty.reason === 'META_CAPI_ACCESS_TOKEN is set but empty', empty.reason);
+
+	const none = await (await sale(rest)).json();
+	check('no token at all is named as missing', none.reason === 'missing META_CAPI_ACCESS_TOKEN', none.reason);
+}
+
 if (failures) {
 	console.log(`\n${failures} failure(s)`);
 	process.exit(1);
