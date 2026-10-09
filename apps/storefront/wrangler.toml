@@ -39,6 +39,10 @@ compatibility_flags = ["nodejs_compat"]
 META_PIXEL_ID = "1341978141149107"
 META_EXTRA_PIXEL_IDS = "1363695699271757,28272021345717397"
 GTM_CONTAINER_ID = "GTM-T446VNH9"
+# Google tag gateway route, configured in Cloudflare (not in this repo). GTM
+# loads first-party from here and falls back to googletagmanager.com if the
+# route is ever removed. Staging has no gateway, so its config omits this.
+GTM_GATEWAY_PATH = "/qndl"
 
 [assets]
 directory = ".svelte-kit/cloudflare"

@@ -93,3 +93,22 @@ export async function buildUserData(input: CapiUserInput): Promise<HashedUserDat
 export function buildFbc(fbclid: string, createdAt: number): string {
 	return `fb.1.${createdAt}.${fbclid}`;
 }
+
+/**
+ * The `fbc` for an event on a page whose URL may carry a `fbclid`.
+ *
+ * A click id on the URL beats the `_fbc` cookie when the two disagree. The
+ * cookie still holds an earlier click until Meta's script rewrites it, and
+ * sending that next to a URL carrying the new one is what Events Manager flags
+ * as a modified fbclid — it compares the two, and a stale id reads as tampered.
+ * When they agree the cookie is kept, so its original timestamp survives.
+ */
+export function resolveFbc(
+	cookie: string | undefined,
+	fbclid: string | null | undefined,
+	now: number
+): string | undefined {
+	if (!fbclid) return cookie || undefined;
+	if (cookie?.split('.')[3] === fbclid) return cookie;
+	return buildFbc(fbclid, now);
+}

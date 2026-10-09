@@ -129,6 +129,28 @@ runs with the same reach as this codebase, by whoever holds container access —
 and a Meta pixel published in it would double-count against the ones the
 snippet already initialises.
 
+What the container holds, as published on 2026-10-08:
+- A GA4 Google tag for `G-YCFPQ38SXP`, which sends page_view.
+- A GA4 event tag that forwards every dataLayer event and carries
+  `transaction_id`, `event_id` and the `_fbp`/`_fbc` values. Its
+  `transport_url` is empty, so there is no server-side GTM.
+- One **paused** custom-template tag. Leave it paused unless you know it is not
+  a Meta tag.
+
+**Google tag gateway runs through Cloudflare on the path `/qndl`** (set up
+2026-10-08 in Vish's Cloudflare account). GA4 hits go first-party to
+`chillmypet.com/qndl/ga/g/c` instead of google-analytics.com, which ad
+blockers and Safari's tracking prevention leave alone. The container itself
+loads from there too: `GTM_GATEWAY_PATH = "/qndl"` in `wrangler.toml` makes the
+snippet request `/qndl/gtm.js`, so a blocker aimed at googletagmanager.com no
+longer stops GA4 before it starts. If that request errors, for example because
+someone removed the route in Cloudflare (a setting, invisible from this repo),
+the snippet loads googletagmanager.com instead, in the same page view, and
+`gtm.js` is pushed only once. Verified in Chromium for gateway up, gateway
+down and no gateway. Staging omits the variable because it has no gateway. The
+noscript iframe stays on Google, since the gateway does not serve `ns.html`.
+If the path ever changes in Cloudflare, change the variable with it.
+
 **Every browser event has a server copy, and they share an `event_id`.**
 `track()` mints one id, hands it to `fbq` as `eventID`, and posts the same id to
 `/api/track`, which sends the Conversions API copy using the cookies, address
@@ -140,6 +162,16 @@ Events Manager reports as the server sending fewer events — and the half that
 goes missing to iOS and ad blockers is the one worth having. `/api/track`
 refuses `Purchase` and ignores any `user_data` in its body: a sale is reported
 from the order, and a public endpoint must not be able to claim identity.
+
+**`fbc` follows the page's `fbclid`, not the cookie, when the two disagree.**
+A returning visitor lands from a new ad with the previous click still in
+`_fbc`, and Meta's script only rewrites it after the server copy has gone out.
+Sending the stale value next to an `event_source_url` that carries the new one
+is what Events Manager flags as "modified fbclid" — on PageView and ViewContent,
+the landing-page events. `resolveFbc()` mints from the URL in that case and
+otherwise passes the cookie through byte for byte; never lowercase, trim or
+re-encode either. `/api/track` reads the click id off the body's
+`eventSourceUrl`, because the beacon's own URL never has one.
 
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires
@@ -221,10 +253,10 @@ dataset. It sounds like free redundancy and is the opposite: Meta dedupes on
 `event_id`, this app derives Purchase's from the order number via
 `purchaseEventId()`, and Stripe mints its own — different ids, so no dedupe, so
 every sale counts twice and the ad account optimises against inflated numbers.
-Worse here specifically: the Stripe account is `acct_1Au2A6BbNuiab9E2`, shared
-with another business (see Content and provenance), so such a connection also
-reports **their** sales as ChillMyPet conversions and pushes their customers'
-hashed contact details into our Meta account. Conversions come from this
+It was worse while payments ran through a Stripe account shared with another
+business: such a connection would also have reported **their** sales as
+ChillMyPet conversions. Payments are on ChillMyPet's own account now (see
+Payments below), but the double-count is unchanged. Conversions come from this
 codebase, from the webhook, on `action === 'order_paid'`. If you find one of
 these connected, disconnect it at the Stripe end rather than filtering at the
 Meta end.
@@ -493,11 +525,21 @@ passed to `elements()` in the browser. Restricting only the intent changes what
 can be charged, not what is shown — which is exactly how Amazon Pay survived
 being turned off once already.
 
-Which methods appear is scoped by `STRIPE_PAYMENT_METHOD_CONFIGURATION`
-(`pmc_1U3QlJBbNuiab9E2mZmVymgE` — card, Apple Pay, Google Pay, Link, Cash App;
-Amazon Pay off). Do **not** change the account default instead: the Stripe
-account is shared with another business, and its default configuration is
-theirs.
+Which methods appear is scoped by `STRIPE_PAYMENT_METHOD_CONFIGURATION`, and on
+production it is deliberately **unset**: both call sites then fall back to the
+account's own default, `pmc_1U3NfSJOsB1nguzljz7ADcR4`, which is ours to edit in
+Stripe → Settings → Payment methods. That is where to switch a method on or
+off, not here. As of 2026-10-07 it has card, Apple Pay, Link and Klarna on for
+USD buyers (Bancontact, BLIK, EPS, MB Way, Pix and Satispay are also on but only
+show in their own currencies) and **Google Pay off** — it was on under the old
+account, so Android shoppers lost it in the move. Redirect methods such as
+Klarna work because `CardFields` confirms with a `return_url` and
+`redirect: 'if_required'`.
+
+Do **not** use `pmc_1UGKEnJOsB1nguzl8TDgEoLT`, even though the dashboard API
+lists it as a "Default". It belongs to a connected application
+(`ca_Swgjj07BVs6HeEHEehhBS5taE2VK9Tcj`), not to the account, and this app's own
+keys are not entitled to it.
 
 The form posts `cardReady`. When Stripe.js could not mount — an ad blocker on
 `js.stripe.com` is the usual reason on paid social — it is `0` and the action
@@ -519,25 +561,49 @@ touch this application. Staging deliberately has **no Stripe keys**, because it
 shares production's database — a card test there would be a real charge. With
 `commerce.payments` null it falls back to the old confirmation screen.
 
-⚠️ **The Stripe account is not ChillMyPet's.** It is `acct_1Au2A6BbNuiab9E2`,
-"Idea to Run" (`me@devyngreen.com`), used with the owner's agreement as a
-temporary arrangement until ChillMyPet has its own. Consequences to keep in
-mind: settlements land in that account, refunds and chargebacks are theirs to
-absorb, and `STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET` exists so buyers recognise
-the charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`. When
-ChillMyPet's own account is ready, the swap is configuration, not code — but it
-is **not** three secrets, and the count is where this bites.
+**Payments run on ChillMyPet's own Stripe account since 2026-10-07:
+`acct_1U3NewJOsB1nguzl`, "ChillMP".** It is registered in **CZ**, charges USD,
+has charges and payouts enabled, and its own statement descriptor is
+`CHILLMYPET`. Its endpoint for this app is `we_1UFU0bJOsB1nguzl4AwL0RK6` →
+`https://chillmypet.com/api/stripe/webhook`, subscribed to all seven events in
+`README.md` plus `charge.dispute.created` and `radar.early_fraud_warning.created`
+(which the handler acknowledges and ignores). The switch was verified by the
+publishable key the live checkout ships (`pk_live_51U3NewJOsB1nguzl…`) and by a
+signed `customer.created` probe that the live webhook accepted (200, `ignored`)
+while it rejected a wrong secret (400). A real order and refund has not been run
+yet; until one has, treat the end-to-end path as unproven.
 
-Stripe embeds the account in its object ids, so an id minted here is meaningless
-on another account. `acct_1Au2A6BbNuiab9E2` and
-`STRIPE_PAYMENT_METHOD_CONFIGURATION`'s `pmc_1U3QlJBbNuiab9E2mZmVymgE` share the
-fragment `BbNuiab9E2` for exactly that reason. Carry that value to a new account
-and it names an object that does not exist there.
+Before that, from launch to 2026-10-07, payments ran on a **borrowed account**:
+`acct_1Au2A6BbNuiab9E2`, "Idea to Run", used with its owner's agreement. Every
+order paid before the switch settled there, so **refunds and chargebacks for
+those orders still happen in that account**, not ChillMP, and that account's
+webhook (if it still points here) now fails our signature check. A refund
+issued there will not release stock or mark the order refunded here.
 
-Moving to a ChillMyPet-owned account (ordered):
+**Stripe embeds the account in its object ids, so an id from one account is
+meaningless on another.** The account id and every object minted on it share a
+fragment: `JOsB1nguzl` for ChillMP, `BbNuiab9E2` for the old account. That is
+also the fastest way to tell from outside which account the live site uses:
+look for the fragment in the checkout page's `pk_live_`. On a key that predates
+the format, look at any `pmc_` id on the page. A leftover id from the old
+account is the one value that fails at the customer, not in a log. It happened
+during this switch, for about a minute: the new keys were live while
+`STRIPE_PAYMENT_METHOD_CONFIGURATION` still named the old account's
+configuration.
+
+**The swap is configuration, not code, and it is four secrets, not three.**
+They live on the `chillmypet` Worker (Cloudflare → Workers & Pages → chillmypet →
+Settings → Variables and Secrets), not in `wrangler.toml`. The production Worker
+holds `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`,
+`STRIPE_STATEMENT_DESCRIPTOR`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` and
+`META_CAPI_ACCESS_TOKEN`. `wrangler secret delete` needs `--name` and no
+`--force` flag; when it fails, the secrets you just set are already live. Set
+and remove in one go, or remove first. To move to yet another account, follow
+the same steps (ordered):
 
 1. `wrangler secret put` **`STRIPE_SECRET_KEY`** and **`STRIPE_PUBLISHABLE_KEY`**
-   from the new account, on both Workers.
+   from the new account, on the production Worker only — staging has no Stripe
+   keys on purpose (see Live environment).
 2. **Clear `STRIPE_PAYMENT_METHOD_CONFIGURATION`**, or create a new
    configuration on the new account and use that id. Clearing is the better
    default: both call sites pass it only when set, so an empty value falls back
@@ -602,13 +668,18 @@ live subscription.
 Not built, in rough priority order:
 
 1. **Tax.** Nothing. EU VAT/OSS and US nexus are genuinely hard — use Stripe Tax
-   rather than building it.
+   rather than building it. More pressing since the Stripe account that takes the
+   money is Czech: the seller of record is now an EU business, so EU VAT applies
+   to its own sales, not only to EU shoppers. Settle that with an accountant
+   before scaling ad spend.
 2. **Consent gate.** The pixel loads for everyone. GDPR/ePrivacy require prior
-   consent for advertising cookies before taking EU traffic.
+   consent for advertising cookies before taking EU traffic. As with tax, an EU
+   merchant cannot treat this as somebody else's market.
 3. **Admin.** No way to fulfil, refund, or look up a customer.
 4. **Transactional email.** No order confirmation is sent. Once payments are on
    Stripe emails a payment receipt — that is not an order confirmation.
-5. ~~**Payments.**~~ Live, on a borrowed Stripe account — see above.
+5. ~~**Payments.**~~ Live, on ChillMyPet's own Stripe account since 2026-10-07
+   — see above.
 6. ~~**DNS.**~~ Done — chillmypet.com and www are live on the `chillmypet`
    Worker, HTTPS enforced.
 
@@ -619,6 +690,53 @@ Not built, in rough priority order:
 | Production | `chillmypet` Worker → chillmypet.com, www.chillmypet.com |
 | Staging | `chillmypet-staging` → workers.dev, no custom domain |
 | Database | Turso `chillmypet-vish.aws-us-west-2.turso.io` (group `default`) |
+| Payments | Stripe `acct_1U3NewJOsB1nguzl` ("ChillMP"), live since 2026-10-07 |
+| Meta dataset | `1341978141149107` (browser + CAPI); `1363695699271757`, `28272021345717397` browser only |
+| Hoodie landing page | `chillmypet-hoodie.pages.dev`, Cloudflare Pages, **not this repo** — see below |
+
+**Which Cloudflare account holds what.** Everything chillmypet.com runs on is
+in **Vish's** Cloudflare account, alongside many unrelated Workers. That covers
+the `chillmypet` and `chillmypet-staging` Workers, all their secrets, and the
+domain itself. chillmypet.com was registered through Cloudflare Registrar on
+2026-08-08 and expires 2027-08-08. The business owner has a separate,
+newer Cloudflare account that serves nothing for chillmypet.com. Never add
+chillmypet.com there through "Connect your domain": it would issue new
+nameservers for a domain that is already live elsewhere. Where the
+`chillmypet-hoodie` Pages project lives has not been checked. Moving the store
+into the owner's account is possible, but it is a planned migration (domain
+transfer between accounts, Worker and secrets re-created, custom domain
+re-bound), not a dashboard click. When in doubt about which account serves the
+site, change a value and watch the live page: the Stripe fragment trick above
+answers it in seconds.
+
+### The hoodie landing page is a second, separate shop
+
+`chillmypet-hoodie.pages.dev` ("Pouch Pet Hoodie · ChillMyPet") sells the cat
+pouch hoodie that the current Meta ads feature. The Reels say "Link in bio",
+so that traffic does not necessarily land on chillmypet.com. It is a static
+page outside this repository (`config.js`, `pixel.js`) and **shares none of
+this app's checkout**:
+
+- It loads the same three pixels, browser-side only. Its PageView has no
+  server copy and no shared `event_id`.
+- It sells through a Stripe **Payment Link** on ChillMP
+  (`plink_1ULu2aJOsB1nguzlIzkLcmZG`, buy.stripe.com/fZu28sfbIgamgIe8tp1wY01),
+  which returns to `thank-you.html`. A hoodie sale creates **no order in
+  Turso, sends no Conversions API Purchase**, and is invisible to everything
+  in this codebase. Whatever Purchase the ads see for it comes from that thank-you
+  page's browser pixel alone, the half iOS and blockers eat.
+- ChillMP also has a webhook to `chillmypet-hoodie.pages.dev/api/stripe-webhook`
+  (`we_1UO1BAJOsB1nguzlCakDMBBI`). That path answers every request with the
+  HTML page and a 200, so nothing processes those events. Stripe still counts
+  them as delivered.
+- The Payment Link's inactive message already reads "now sold at
+  chillmypet.com/products/pouch-pet-hoodie". That page does not exist yet
+  (404), and the only product seeded here is the dog life jacket.
+
+So the fbc, dedupe and webhook guarantees in this file cover chillmypet.com
+only. Before judging the hoodie ads by their reported conversions, either move
+the hoodie into this store, where it gets the CAPI Purchase and an order row,
+or count its sales from ChillMP's Payments in the Stripe dashboard.
 
 Both Workers hold `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` and
 `META_CAPI_ACCESS_TOKEN` as secrets, and **both point at the same database** — a
