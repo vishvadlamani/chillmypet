@@ -416,6 +416,35 @@ page the campaign lands on and `/checkout` is where it pays. The bundle picker
 adds real cart lines, the checkout prices through `/api/cart`, the Payment
 Element mounts under the shipping method, and Place order runs `placeOrder`.
 
+`/products/christmas-pouch-hoodie` is the second product page, built the same
+way with three differences worth knowing:
+
+- **The buyer picks the size.** `PRODUCT_PAGES` entries carry `pickSize`. Off
+  (the life jacket), the host buys the first size in stock in the chosen
+  colour; on (the hoodie, sized for the *wearer*), the host refuses to add
+  anything until a size is chosen and asks the picker to prompt instead. The
+  design fills option 1, the slot the cart and checkout call `colour`, so
+  nothing downstream changed. Its codes have entries under
+  `product.colors.<code>` in both language packs, or the checkout prints the key.
+- **Its blocks are the host's.** `design_size_picker`, `design_gallery`,
+  `size_guide` and `benefit_cards` live in `$lib/blocks` and are registered in
+  `$lib/store/blocks.ts`, not in `packages/blocks-dr` (a copy). The picker and
+  gallery share the choice through funnel state (`design`, `size`), and the
+  host writes `size_prompt` when someone taps buy without a size.
+- **A Christmas skin, scoped to the page** (`theme: 'christmas'`): Fredoka,
+  the navy/teal/orange brand colours as working colours, red/pine/snow as
+  accents, snowfall that stops under `prefers-reduced-motion`. The "order by"
+  strip reads `CHRISTMAS_DELIVERY.cutoff` in `$lib/store/christmas.ts`, a
+  config value that `christmas.test.ts` re-derives from the shipping promise
+  (4 business days + 12 days, worst case) and that a `christmas_cutoff` store
+  setting overrides without a deploy. Once the date has passed the strip drops
+  out through `requires`.
+
+The product itself is `scripts/christmas-hoodie.js`. `db:seed` writes it on a
+fresh database; a live one gets it from `npm run db:products`, which only adds
+products that are missing and never rewrites one. Until that has run against
+Turso, the page 404s in production even though the manifest is deployed.
+
 ⚠️ **The invented reviews do not ship, and that is deliberate.** The 22
 testimonials that came with the block library are written words attributed to
 named people who never said them, the 4.9-from-1,127 rating was never counted,
@@ -673,6 +702,13 @@ Still placeholders, and known to be: `product-floatly.webp` (a supplier photo,
 no visible branding), the customer UGC in `static/reviews/` standing in for
 product photography, and `avatar-floatly.webp`, which only renders if the
 spotlight quotes are switched back on.
+
+The Christmas hoodie's two photos (`static/products/christmas-pouch-hoodie/`)
+were supplied by the owner in chat as screenshots, with the instruction to use
+them. Their original source and licence were not stated, and they look like
+generated lifestyle shots from a supplier listing. Ask before treating them as
+cleared for ads. Both designs have a photo; a design added without one renders
+a box labelled "Placeholder", never another design's picture.
 
 Don't add further third-party branding, photography, or marketing text without
 the owner confirming rights for that specific source.
