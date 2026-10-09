@@ -8,7 +8,7 @@ chillmypet.com and shares no code or database with it.
 
 | | |
 |---|---|
-| Cloudflare | Pages project `chillmypet-christmas`, account `5fef1d1dbb6eaee72fdfc2b26a61a386` (marketa.tahar@gmail.com) |
+| Cloudflare | Pages project `chillmypet-christmas`, account `5fef1d1dbb6eaee72fdfc2b26a61a386` (the owner's) |
 | Stripe | ChillMP, `acct_1U3NewJOsB1nguzl`, live |
 | Products | 8, one per design and size (`prod_VP2apRPGQEClji` … `prod_VP2bV3r43YVy6x`), $54.99 each |
 | Payment Links | 8, listed in `config.js`; each one's metadata carries `slug` and `sku` |
