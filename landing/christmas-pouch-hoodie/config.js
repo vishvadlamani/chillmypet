@@ -22,9 +22,11 @@ window.XMAS = {
 	pixelIds: ['1341978141149107', '1363695699271757', '28272021345717397'],
 	cutoff: '2026-12-07',
 	cutoffZone: 'America/Los_Angeles',
+	// blurb, tag and detail are display copy: what is on the hoodie, the tab on
+	// its card's corner, and the caption of its close-up.
 	designs: [
-		{ code: 'red_santa', name: 'Santa Red', image: 'red_santa.jpg', thumb: 'red_santa-thumb.jpg' },
-		{ code: 'green_stocking', name: 'Stocking Green', image: 'green_stocking.jpg', thumb: 'green_stocking-thumb.jpg' }
+		{ code: 'red_santa', name: 'Santa Red', image: 'red_santa.jpg', thumb: 'red_santa-thumb.jpg', blurb: 'Santa and his sack, cloud ring', tag: 'Classic Santa', detail: 'Santa and his sack' },
+		{ code: 'green_stocking', name: 'Stocking Green', image: 'green_stocking.jpg', thumb: 'green_stocking-thumb.jpg', blurb: 'Stocking and bow, cat-ear ring', tag: 'Cat-ear ring', detail: 'Stocking and bow' }
 	],
 	sizes: ['S', 'M', 'L', 'XL'],
 	// design:size → { sku, url }. Payment Links plink_1UOEWYJOsB1nguzlJXtjB3lf

@@ -8,130 +8,300 @@
 <meta property="og:title" content="Christmas Pouch Hoodie · ChillMyPet">
 <meta property="og:description" content="Your pet, front and centre this Christmas. Two festive designs, $54.99.">
 <meta property="og:image" content="/red_santa.jpg">
+<meta name="theme-color" content="#173d2b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="config.js"></script>
 <script src="pixel.js"></script>
 </head>
 <body>
-<div class="snow" aria-hidden="true" id="snow"></div>
+<!--
+	Icons, drawn once and referenced with <use>. 24px grid, 2px strokes in
+	currentColor, so each one takes the colour of the text around it.
+-->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+	<defs>
+		<symbol id="i-paw" viewBox="0 0 24 24"><g fill="currentColor"><ellipse cx="6.2" cy="10" rx="2" ry="2.5"/><ellipse cx="10" cy="6.2" rx="2" ry="2.6"/><ellipse cx="14.4" cy="6.2" rx="2" ry="2.6"/><ellipse cx="18" cy="10" rx="2" ry="2.5"/><path d="M12.2 11.3c-2.6 0-5.4 3.6-5.4 6 0 1.7 1.3 2.5 2.8 2.5 1 0 1.8-.5 2.6-.5s1.6.5 2.6.5c1.5 0 2.8-.8 2.8-2.5 0-2.4-2.8-6-5.4-6z"/></g></symbol>
+		<symbol id="i-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></g></symbol>
+		<symbol id="i-sparkles" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M10 3.5l1.6 4.6 4.6 1.6-4.6 1.6L10 15.9l-1.6-4.6-4.6-1.6 4.6-1.6z"/><path d="M17.5 14l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></g></symbol>
+		<symbol id="i-pocket" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5h15v6.5a7.5 7.5 0 0 1-15 0z"/><path d="M8 9.5l4 3 4-3"/></g></symbol>
+		<symbol id="i-truck" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6h11v10h-11zM13.5 9.5h4l3 3.5v3h-7"/><circle cx="6.5" cy="17.5" r="1.8" fill="#fff"/><circle cx="16.5" cy="17.5" r="1.8" fill="#fff"/></g></symbol>
+		<symbol id="i-return" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h11a5 5 0 0 1 0 10H8"/><path d="M8 5L4 9l4 4"/></g></symbol>
+		<symbol id="i-bag" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2.2l2.2 11h10.4l2-7.6H6.3"/><circle cx="9" cy="19.2" r="1.3"/><circle cx="16.6" cy="19.2" r="1.3"/></g></symbol>
+		<symbol id="i-shield" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8l7.5 3v5.6c0 4.6-3.2 8.3-7.5 9.8-4.3-1.5-7.5-5.2-7.5-9.8V5.8z"/><path d="M8.7 12l2.3 2.3 4.4-4.6"/></g></symbol>
+		<symbol id="i-shield-solid" viewBox="0 0 24 24"><path fill="currentColor" d="M12 1.8l8.5 3.3v6.3c0 5.2-3.6 9.4-8.5 11-4.9-1.6-8.5-5.8-8.5-11V5.1z"/><path d="M7.8 12.1l3 3 5.6-5.8" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+		<symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></g></symbol>
+		<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+		<symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M7.2 12.3l3.2 3.2 6.4-6.6" fill="none" stroke="var(--tick, #fff)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+		<symbol id="i-x-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></symbol>
+		<symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></g></symbol>
+		<symbol id="i-mail" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></g></symbol>
+		<symbol id="i-menu" viewBox="0 0 24 24"><path d="M3 6.5h18M3 12h18M3 17.5h18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+		<symbol id="i-left" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+		<symbol id="i-right" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+		<symbol id="i-zoom" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="5.5"/><path d="M15 15l4.5 4.5"/></g></symbol>
+		<symbol id="i-tag" viewBox="0 0 24 24"><path fill="currentColor" d="M3 3h8.6l9.4 9.4-8.6 8.6L3 11.6zM7.5 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></symbol>
+		<symbol id="i-gift" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="8.5" width="17" height="4" rx="1"/><path d="M5 12.5v8h14v-8M12 8.5v12M12 8.5C10.5 5 7 4.5 7 6.6S10 8.5 12 8.5zM12 8.5c1.5-3.5 5-4 5-1.9S14 8.5 12 8.5z"/></g></symbol>
+	</defs>
+</svg>
 
-<p class="strip" id="christmas" hidden></p>
+<div class="countdown" id="christmas" hidden>
+	<p><b>ORDER BY <span class="hl" id="cutoff-day">DEC 7</span> FOR CHRISTMAS</b>:</p>
+	<ol class="clock" aria-label="Time left to order for Christmas delivery">
+		<li><b id="cd-d">00</b><span>Days</span></li>
+		<li><b id="cd-h">00</b><span>Hrs</span></li>
+		<li><b id="cd-m">00</b><span>Min</span></li>
+		<li><b id="cd-s">00</b><span>Sec</span></li>
+	</ol>
+</div>
+<p class="shipbar">FREE STANDARD SHIPPING ON ALL ORDERS</p>
 
-<header><div class="in">
-	<a class="brand" href="https://chillmypet.com">ChillMyPet</a>
-	<nav aria-label="Page">
+<header class="site"><div class="in">
+	<details class="menu">
+		<summary aria-label="Menu"><svg><use href="#i-menu"/></svg></summary>
+		<nav aria-label="Menu">
+			<a href="#product">Shop</a>
+			<a href="#size-guide">Size guide</a>
+			<a href="#faq">FAQ</a>
+			<a href="mailto:contact@chillmypet.com">Contact</a>
+		</nav>
+	</details>
+	<a class="logo" href="https://chillmypet.com" aria-label="ChillMyPet">
+		<svg viewBox="0 0 80 80" width="80" height="80" aria-hidden="true">
+			<rect width="80" height="80" fill="#fff9f0"/>
+			<g transform="translate(25 14) scale(1.25)" fill="#173d2b"><ellipse cx="6.2" cy="10" rx="2" ry="2.5"/><ellipse cx="10" cy="6.2" rx="2" ry="2.6"/><ellipse cx="14.4" cy="6.2" rx="2" ry="2.6"/><ellipse cx="18" cy="10" rx="2" ry="2.5"/><path d="M12.2 11.3c-2.6 0-5.4 3.6-5.4 6 0 1.7 1.3 2.5 2.8 2.5 1 0 1.8-.5 2.6-.5s1.6.5 2.6.5c1.5 0 2.8-.8 2.8-2.5 0-2.4-2.8-6-5.4-6z"/></g>
+			<path d="M33 18.5c4-6 12-7 16-3.5l4.5 4-3 1.3c-4-2.6-10.8-3-17.5-1.8z" fill="#b3202a"/>
+			<rect x="32" y="17.4" width="18.5" height="3.4" rx="1.7" fill="#fff" stroke="#e8dfd2" stroke-width=".6"/>
+			<circle cx="54" cy="20.6" r="2.2" fill="#fff" stroke="#e8dfd2" stroke-width=".6"/>
+			<text x="40" y="56" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="13.5" letter-spacing="-.3" fill="#173d2b">ChillMyPet</text>
+			<path d="M24 62h11M45 62h11" stroke="#c9a24a" stroke-width=".8"/>
+			<path d="M40 59.5l1 2.5-1 2.5-1-2.5z" fill="#c9a24a"/>
+		</svg>
+	</a>
+	<nav class="links" aria-label="Page">
+		<a class="on" href="#product">Shop</a>
 		<a href="#size-guide">Size guide</a>
 		<a href="#faq">FAQ</a>
 		<a href="mailto:contact@chillmypet.com">Contact</a>
 	</nav>
+	<p class="secure-label"><svg><use href="#i-lock"/></svg>Secure checkout <span>|</span> USD $</p>
+	<a class="icon" href="mailto:contact@chillmypet.com" aria-label="Email us"><svg><use href="#i-mail"/></svg></a>
 </div></header>
 
 <main>
-	<section class="hero">
+	<section class="product wrap" id="product">
 		<div class="gallery">
-			<div class="frame">
+			<div class="stage">
 				<img id="photo" src="red_santa.jpg" alt="Christmas Pouch Hoodie in Santa Red, worn with a cat peeking out of the pouch" width="1100" height="987" fetchpriority="high">
-				<span class="ribbon" id="ribbon">Santa Red</span>
 			</div>
-			<div class="thumbs" id="thumbs"></div>
+			<div class="thumbs">
+				<button class="arrow" type="button" id="prev" aria-label="Previous photo"><svg><use href="#i-left"/></svg></button>
+				<div class="track" id="thumbs"></div>
+				<button class="arrow" type="button" id="next" aria-label="Next photo"><svg><use href="#i-right"/></svg></button>
+			</div>
 		</div>
 
-		<div class="details">
+		<div class="buybox">
+			<p class="kicker"><span class="tree" aria-hidden="true">🎄</span><b>Christmas 2026</b> collection <span class="pill">For cats &amp; small dogs</span></p>
 			<h1>Christmas Pouch Hoodie</h1>
-			<ul class="points">
-				<li><span aria-hidden="true">🐾</span>A front pouch for your <b>cat or small dog</b></li>
-				<li><span aria-hidden="true">👀</span>A peek-out ring, so they can <b>watch the tree</b></li>
-				<li><span aria-hidden="true">🎄</span>Two festive designs: <b>Santa Red</b> and <b>Stocking Green</b></li>
+			<p class="price"><span class="amount">$54.99</span><span class="tagpill"><svg><use href="#i-truck"/></svg>FREE SHIPPING</span></p>
+
+			<ul class="benefits">
+				<li><span class="dot"><svg><use href="#i-paw"/></svg></span>A front pouch for your cat or small dog</li>
+				<li><span class="dot"><svg><use href="#i-eye"/></svg></span>A peek-out ring, so they can watch the tree</li>
+				<li><span class="dot"><svg><use href="#i-sparkles"/></svg></span>Two festive designs to choose from</li>
+				<li><span class="dot"><svg><use href="#i-pocket"/></svg></span>Two zip hand pockets for treats and keys</li>
 			</ul>
 
-			<p class="price"><span class="amount">$54.99</span><span class="note">Free standard shipping</span></p>
-
-			<fieldset>
-				<legend>Design: <b id="design-name">Santa Red</b></legend>
-				<div class="designs" id="designs"></div>
-			</fieldset>
-
-			<fieldset id="size-picker" aria-describedby="size-note size-error">
-				<legend>Your size<span id="size-name"></span></legend>
-				<p class="size-note" id="size-note">This is your size, not your pet’s. Pick the hoodie size you usually wear. The pouch fits one cat or small dog. <a href="#size-guide">Size guide</a></p>
-				<div class="sizes" id="sizes"></div>
-				<p class="error" id="size-error" role="alert"></p>
-			</fieldset>
-
-			<a class="cta buy" id="buy" href="#size-picker">Buy now · $54.99</a>
-			<p class="secure">🔒 Secure checkout by Stripe</p>
-			<div class="badges" aria-label="Accepted cards">
-				<span style="background:#1a1f71">VISA</span><span style="background:#111">MASTERCARD</span><span style="background:#016fd0">AMEX</span><span style="background:#fff;color:#111;border:1px solid #ddd">DISCOVER</span>
+			<div class="options" id="size-picker" role="radiogroup" aria-labelledby="choose">
+				<p class="rule" id="choose"><span>Choose your design</span></p>
+				<div id="designs"></div>
 			</div>
 
-			<div class="info">
-				<details><summary>When will it arrive? 🚚</summary><p>We take 2–4 business days to pack your order. Then it’s 5–12 days on the road.
+			<a class="cta buy" id="buy" href="#size-picker"><svg><use href="#i-bag"/></svg><span id="buy-label">BUY NOW - $54.99 USD</span></a>
+			<p class="assure"><span><svg><use href="#i-shield"/></svg>30-Day Money-Back Guarantee</span><span><svg><use href="#i-clock"/></svg>Free return label</span></p>
 
-Ordering for Christmas? Check the date at the top of the page.</p></details>
-				<details><summary>What if it doesn’t fit? 📏</summary><p>You get 30 days. Exchanges and returns are free, and we send the label.
+			<h2 class="carousel-title">See it up close</h2>
+			<ul class="closeups" id="closeups"></ul>
 
-Just email <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a> with your order number.</p></details>
+			<div class="accordion" id="faq">
+				<details>
+					<summary>Description</summary>
+					<div class="body">
+						<p>A cosy Christmas pullover with a front pouch for your cat or small dog, and a peek-out ring so they can see everything going on.</p>
+						<p>Two festive designs: <b>Santa Red</b>, with Santa and his sack round a cloud-shaped ring, and <b>Stocking Green</b>, with a stocking, a bow and a cat-ear ring.</p>
+						<p>Two zip hand pockets for treats, keys and your phone. Adult sizes S to XL. The size is yours, not your pet’s.</p>
+					</div>
+				</details>
+				<details>
+					<summary>How to wear it</summary>
+					<div class="body">
+						<p><b>1.</b> Pull the hoodie on like any pullover.</p>
+						<p><b>2.</b> Lift your pet into the front pouch, with a hand under them.</p>
+						<p><b>3.</b> Let them settle with their head at the peek-out ring.</p>
+						<p><b>4.</b> Start with short rides, and stay with them the whole time. Never leave a pet zipped in on their own.</p>
+					</div>
+				</details>
+				<details id="size-guide">
+					<summary>Size guide</summary>
+					<div class="body">
+						<p>Sizes are <b>for you, the human</b>. Your pet doesn’t need one.</p>
+						<p>Pick your <b>usual hoodie size</b>. It’s a relaxed pullover with room in front for the pouch.</p>
+						<p>Between two sizes? <b>Go up.</b> Your passenger will thank you.</p>
+						<p class="pending">Exact chest and length measurements are on their way from our maker. We’ll add them here as soon as we have them.</p>
+						<p>Not sure? Email <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a> with your height and usual size, and we’ll help you pick.</p>
+					</div>
+				</details>
+				<details>
+					<summary>Frequently Asked Questions</summary>
+					<div class="body">
+						<p><strong>Which size should I order?</strong><br>Your own size. The hoodie is for you, and the pouch is for your pet. Between sizes? Go up for a little extra pouch room.</p>
+						<p><strong>What pets fit in the pouch?</strong><br>Cats and small dogs who love being held. If you carry them comfortably in your arms, they’ll likely love the pouch. Bigger buddy? Email us before you order and we’ll give you an honest answer.</p>
+						<p><strong>Will my pet stay put?</strong><br>Most pets settle fast once they feel your warmth. Keep a hand under them for the first few rides, start short, and stay with them the whole time. Never leave a pet zipped in on their own.</p>
+						<p><strong>Will it arrive before Christmas?</strong><br>We take 2–4 business days to pack, then 5–12 days on the road. Order by the date in the banner at the top and it should reach a US address in time.</p>
+						<p><strong>How do I wash it?</strong><br>Follow the care label inside. A cold, gentle wash inside out, then air-dry, keeps it cosy for longer.</p>
+					</div>
+				</details>
+				<details>
+					<summary>Shipping &amp; Returns</summary>
+					<div class="body">
+						<p>Free standard shipping on every order. We take 2–4 business days to pack your order, then it’s 5–12 days on the road.</p>
+						<p>You get 30 days to return or swap an unworn hoodie. Exchanges and returns are free, and we send the label. Just email <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a> with your order number.</p>
+					</div>
+				</details>
 			</div>
+
+			<aside class="note">
+				<span class="avatar" aria-hidden="true"><svg><use href="#i-paw"/></svg></span>
+				<div>
+					<p class="who">Pet safety first <svg aria-hidden="true"><use href="#i-check-circle"/></svg></p>
+					<p>Most pets settle fast once they feel your warmth. Keep a hand under them for the first few rides, start short, and never leave a pet zipped in on their own.</p>
+				</div>
+			</aside>
 		</div>
 	</section>
 
-	<section class="block" id="size-guide">
-		<h2>Size guide</h2>
-		<ul class="tips">
-			<li>Sizes are <b>for you, the human</b>. Your pet doesn’t need one.</li>
-			<li>Pick your <b>usual hoodie size</b>. It’s a relaxed pullover with room in front for the pouch.</li>
-			<li>Between two sizes? <b>Go up.</b> Your passenger will thank you.</li>
+	<div class="marquee" aria-hidden="true"><div class="belt" id="belt">
+		<span><svg><use href="#i-lock"/></svg>Secure Stripe checkout</span>
+		<span><svg><use href="#i-truck"/></svg>Free shipping</span>
+		<span><svg><use href="#i-check-circle"/></svg>30-day returns</span>
+		<span><svg><use href="#i-paw"/></svg>Made for cats &amp; small dogs</span>
+	</div></div>
+
+	<section class="loves wrap">
+		<p class="pill big"><span aria-hidden="true">🐾</span> Made for cats &amp; small dogs <span class="muted">who love being held</span></p>
+		<h2 class="title">Why pets <em>love it</em></h2>
+		<div class="slider">
+			<ul class="cards" id="cards">
+				<li class="card">
+					<div class="shot"><img src="red_santa.jpg" alt="Santa Red hoodie, a ginger cat settled in the pouch" loading="lazy" style="--x:50%;--y:45%;--z:1.55"></div>
+					<div class="body">
+						<p class="badge">🤗 Hands-free cuddles</p>
+						<p>Your pet snuggles in the pouch, warm against you. Your hands stay free for cocoa, presents and the TV remote.</p>
+						<div class="mini"><img src="red_santa-thumb.jpg" alt="" width="60" height="60" loading="lazy"><div><b>Christmas Pouch Hoodie</b><span class="p">$54.99</span><small><svg><use href="#i-truck"/></svg>Free shipping · 30-day returns</small></div></div>
+					</div>
+				</li>
+				<li class="card">
+					<div class="shot"><img src="green_stocking.jpg" alt="A cat looking out of the cat-ear ring on the Stocking Green hoodie" loading="lazy" style="--x:50%;--y:40%;--z:2.1"></div>
+					<div class="body">
+						<p class="badge">🎄 Front-row seat</p>
+						<p>The peek-out ring lets them see everything going on. Tree trimming, gift wrapping, the lot. Nosy pets approve.</p>
+						<div class="mini"><img src="green_stocking-thumb.jpg" alt="" width="60" height="60" loading="lazy"><div><b>Christmas Pouch Hoodie</b><span class="p">$54.99</span><small><svg><use href="#i-truck"/></svg>Free shipping · 30-day returns</small></div></div>
+					</div>
+				</li>
+				<li class="card">
+					<div class="shot"><img src="red_santa.jpg" alt="The Santa Red hoodie by the Christmas tree" loading="lazy" style="--x:50%;--y:30%;--z:1"></div>
+					<div class="body">
+						<p class="badge">📸 Card-ready photos</p>
+						<p>A matching festive look for the two of you, with no costume wrestling. Stand by the tree and say cheese.</p>
+						<div class="mini"><img src="red_santa-thumb.jpg" alt="" width="60" height="60" loading="lazy"><div><b>Christmas Pouch Hoodie</b><span class="p">$54.99</span><small><svg><use href="#i-truck"/></svg>Free shipping · 30-day returns</small></div></div>
+					</div>
+				</li>
+				<li class="card">
+					<div class="shot"><img src="green_stocking.jpg" alt="The zip hand pockets on the Stocking Green hoodie" loading="lazy" style="--x:50%;--y:72%;--z:1.7"></div>
+					<div class="body">
+						<p class="badge">🧤 Pockets for you</p>
+						<p>Two zip hand pockets for treats, keys and your phone, so nothing falls out while your passenger rides along.</p>
+						<div class="mini"><img src="green_stocking-thumb.jpg" alt="" width="60" height="60" loading="lazy"><div><b>Christmas Pouch Hoodie</b><span class="p">$54.99</span><small><svg><use href="#i-truck"/></svg>Free shipping · 30-day returns</small></div></div>
+					</div>
+				</li>
+			</ul>
+		</div>
+		<div class="nav-buttons">
+			<button type="button" id="cards-prev" aria-label="Previous"><svg><use href="#i-left"/></svg></button>
+			<button type="button" id="cards-next" class="on" aria-label="Next"><svg><use href="#i-right"/></svg></button>
+		</div>
+	</section>
+
+	<section class="perfect">
+		<h2>PERFECT FOR</h2>
+		<div class="chips" aria-hidden="true"><div class="belt">
+			<span>🎁 Christmas gifting</span>
+			<span>📸 Holiday card photos</span>
+			<span>🎄 Tree-trimming nights</span>
+			<span>🐈 Cat parents</span>
+			<span>🐶 Small-dog parents</span>
+			<span>☕ Cosy movie nights</span>
+			<span>🧦 Secret Santa</span>
+			<span>❄️ Snow-day cuddles</span>
+		</div></div>
+		<p class="visually-hidden">Perfect for Christmas gifting, holiday card photos, tree-trimming nights, cat parents, small-dog parents, cosy movie nights, Secret Santa and snow-day cuddles.</p>
+	</section>
+
+	<section class="compare wrap">
+		<h2 class="title">Why a <em>pouch hoodie?</em></h2>
+		<p class="sub">Here’s what changes when your pet rides up front</p>
+		<table>
+			<thead>
+				<tr>
+					<th scope="col"><span class="visually-hidden">Feature</span></th>
+					<th scope="col" class="ours"><span class="name">Pouch Hoodie</span><span class="chip"><svg><use href="#i-check-circle"/></svg>ChillMyPet</span></th>
+					<th scope="col"><span class="name">Just your arms</span><span class="plain">🤲 The usual way</span></th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr><th scope="row">Hands free for cocoa</th><td class="ours"><svg aria-label="Yes"><use href="#i-check-circle"/></svg></td><td><svg class="no" aria-label="No"><use href="#i-x-circle"/></svg></td></tr>
+				<tr><th scope="row">Pet stays warm against you</th><td class="ours"><svg aria-label="Yes"><use href="#i-check-circle"/></svg></td><td><svg aria-label="Yes"><use href="#i-check-circle"/></svg></td></tr>
+				<tr><th scope="row">Peek-out ring to watch the tree</th><td class="ours"><svg aria-label="Yes"><use href="#i-check-circle"/></svg></td><td><svg class="no" aria-label="No"><use href="#i-x-circle"/></svg></td></tr>
+				<tr><th scope="row">Two zip hand pockets</th><td class="ours"><svg aria-label="Yes"><use href="#i-check-circle"/></svg></td><td><svg class="no" aria-label="No"><use href="#i-x-circle"/></svg></td></tr>
+				<tr><th scope="row">Matching Christmas photos</th><td class="ours"><svg aria-label="Yes"><use href="#i-check-circle"/></svg></td><td><svg class="no" aria-label="No"><use href="#i-x-circle"/></svg></td></tr>
+				<tr><th scope="row">30-Day Money-Back Guarantee</th><td class="ours"><svg aria-label="Yes"><use href="#i-check-circle"/></svg></td><td><svg class="no" aria-label="No"><use href="#i-x-circle"/></svg></td></tr>
+			</tbody>
+		</table>
+	</section>
+
+	<section class="guarantee wrap">
+		<svg class="shield" aria-hidden="true"><use href="#i-shield-solid"/></svg>
+		<h2><em>Money-Back</em> Guarantee</h2>
+		<p>Not quite right? Send it back unworn within 30 days for a full refund, and we’ll cover the return label. Swapping sizes is free too.</p>
+		<a class="cta" href="#size-picker">SHOP NOW</a>
+		<ul class="ticks">
+			<li><svg><use href="#i-check"/></svg>30-day returns</li>
+			<li><svg><use href="#i-check"/></svg>Free return label</li>
+			<li><svg><use href="#i-check"/></svg>Free size swaps</li>
 		</ul>
-		<p class="pending">Exact chest and length measurements are on their way from our maker. We’ll add them here as soon as we have them.</p>
-		<p class="small">Not sure? Email <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a> with your height and usual size, and we’ll help you pick.</p>
-	</section>
-
-	<section class="block">
-		<h2>Why pets (and their people) love it</h2>
-		<ul class="cards">
-			<li><span aria-hidden="true">🤗</span><h3>Hands-free cuddles</h3><p>Your pet snuggles in the pouch. Your hands stay free for cocoa.</p></li>
-			<li><span aria-hidden="true">🎄</span><h3>Front-row seat</h3><p>The peek-out ring lets them see everything. Nosy pets approve.</p></li>
-			<li><span aria-hidden="true">📸</span><h3>Card-ready photos</h3><p>Matching festive looks, no costume wrestling. Say cheese.</p></li>
-			<li><span aria-hidden="true">🧤</span><h3>Pockets for you</h3><p>Two zip hand pockets for treats, keys and your phone.</p></li>
-		</ul>
-	</section>
-
-	<section class="block" id="faq">
-		<h2>Questions, answered</h2>
-		<details><summary>Which size should I order?</summary><p>Your own size. The hoodie is for you, and the pouch is for your pet.
-
-Between sizes? Go up for a little extra pouch room.</p></details>
-		<details><summary>What pets fit in the pouch?</summary><p>Cats and small dogs who love being held. If you carry them comfortably in your arms, they’ll likely love the pouch.
-
-Bigger buddy? Email us before you order and we’ll give you an honest answer.</p></details>
-		<details><summary>Will my pet stay put?</summary><p>Most pets settle fast once they feel your warmth. Keep a hand under them for the first few rides, start short, and stay with them the whole time.
-
-Never leave a pet zipped in on their own.</p></details>
-		<details><summary>Will it arrive before Christmas?</summary><p>We take 2–4 business days to pack, then 5–12 days on the road. Order by the date in the banner at the top and it should reach a US address in time.</p></details>
-		<details><summary>How do I wash it?</summary><p>Follow the care label inside. A cold, gentle wash inside out, then air-dry, keeps it cosy for longer.</p></details>
-		<details><summary>Can I return or exchange it?</summary><p>Yes. You have 30 days to return or swap an unworn hoodie, and the return label is on us.</p></details>
-	</section>
-
-	<section class="block guarantee">
-		<img src="guarantee-30day.webp" alt="30-day money-back guarantee" width="160" height="160" loading="lazy">
-		<p class="eyebrow">Our 30-day promise</p>
-		<p>Not quite right? Send it back unworn within <b>30 days</b> for a full refund, and we’ll cover the return label. Swapping sizes is free too. <b>Easy.</b></p>
 	</section>
 </main>
 
 <div class="dock" id="dock" aria-hidden="true">
 	<img id="dock-photo" src="red_santa-thumb.jpg" alt="" width="48" height="48">
-	<div><b>Christmas Pouch Hoodie</b><span>$54.99</span></div>
-	<a class="cta buy" href="#size-picker" tabindex="-1">Buy now</a>
+	<div><b>Christmas Pouch Hoodie</b><span>$54.99 · Free shipping</span></div>
+	<a class="cta buy" href="#size-picker" tabindex="-1">BUY NOW</a>
 </div>
 
-<footer><div class="in">
-	<a href="https://chillmypet.com/policies/shipping">Shipping policy</a>
-	<a href="https://chillmypet.com/policies/refunds">Refund policy</a>
-	<a href="https://chillmypet.com/privacy">Privacy</a>
-	<a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a>
+<footer class="site"><div class="in">
+	<div class="cols">
+		<p class="small-title">Questions?<a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a></p>
+		<ul class="pay" aria-label="Accepted payment methods">
+			<li style="background:#1a1f71">VISA</li>
+			<li style="background:#111">MASTERCARD</li>
+			<li style="background:#016fd0">AMEX</li>
+			<li style="background:#fff;color:#111;border:1px solid #ddd">DISCOVER</li>
+		</ul>
+	</div>
+	<p class="legal">© 2026, ChillMyPet · Secure checkout by Stripe · <a href="https://chillmypet.com/policies/shipping">Shipping policy</a> · <a href="https://chillmypet.com/policies/refunds">Refund policy</a> · <a href="https://chillmypet.com/privacy">Privacy policy</a></p>
 </div></footer>
 
 <script src="app.js"></script>
