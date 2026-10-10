@@ -331,15 +331,6 @@ codebase, from the webhook, on `action === 'order_paid'`. If you find one of
 these connected, disconnect it at the Stripe end rather than filtering at the
 Meta end.
 
-**It applies to `acct_1U3NewJOsB1nguzl` ("ChillMP") too, and bites differently
-there.** The hoodie landing page charges through that account and reports its
-own Purchase from `landing/pouch-pet-hoodie/thank-you.html`, keyed on the
-Checkout Session id. An integration on it would mint a second id for the same
-sale — the same double-count — and that page sends no Conversions API copy, so
-there is no server-side event for anything downstream to notice it against.
-Switching one on while migrating the storefront would double-count on both
-accounts at once.
-
 **Don't delete `local.db` while the dev server is running.** It holds the file
 handle, keeps writing to the unlinked inode, and you'll chase phantom failures.
 Restart the server after reseeding.
