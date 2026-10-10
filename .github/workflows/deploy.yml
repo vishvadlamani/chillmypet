@@ -24,8 +24,12 @@ jobs:
       # Before the build, because this is the check for a failure nothing else
       # catches: a Conversions API token that belongs to another dataset is
       # rejected once per event, forever, in silence. Needs
-      # META_CAPI_ACCESS_TOKEN as a repository secret.
+      # META_CAPI_ACCESS_TOKEN as a repository secret. Only when this run is
+      # going to deploy: without the Cloudflare token nothing ships, and a
+      # missing Meta secret then failed every merge for a deploy that was
+      # never going to happen.
       - name: Verify the Meta CAPI token matches the pixel
+        if: env.HAS_CLOUDFLARE_TOKEN == 'true'
         run: npm run meta:check
         env:
           META_CAPI_ACCESS_TOKEN: ${{ secrets.META_CAPI_ACCESS_TOKEN }}
