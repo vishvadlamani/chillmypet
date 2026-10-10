@@ -51,6 +51,11 @@ export type CapiUserInput = {
 	state?: string;
 	zip?: string;
 	country?: string;
+	/**
+	 * A first-party id for the visitor, the same on every event they fire.
+	 * Hashed unless it already is a SHA-256 hex digest, which passes through.
+	 */
+	externalId?: string;
 	/** These four must NOT be hashed. */
 	clientIpAddress?: string;
 	clientUserAgent?: string;
@@ -59,6 +64,8 @@ export type CapiUserInput = {
 };
 
 export type HashedUserData = Record<string, string[] | string>;
+
+const SHA256_HEX = /^[a-f0-9]{64}$/;
 
 export async function buildUserData(input: CapiUserInput): Promise<HashedUserData> {
 	const fields: [string, string | undefined][] = [
@@ -79,6 +86,15 @@ export async function buildUserData(input: CapiUserInput): Promise<HashedUserDat
 		// signal and drags down the reported match quality.
 		if (!value) continue;
 		userData[key] = [await sha256Hex(value)];
+	}
+
+	// Meta's pixel sends an `external_id` that already looks like a SHA-256
+	// digest as it is, and hashes anything else. Doing the same here is what
+	// lets a host hand one id to both halves and have them agree: hash a digest
+	// a second time and the browser and server copies name two different people.
+	const externalId = input.externalId?.trim();
+	if (externalId) {
+		userData.external_id = [SHA256_HEX.test(externalId) ? externalId : await sha256Hex(externalId)];
 	}
 
 	if (input.clientIpAddress) userData.client_ip_address = input.clientIpAddress;

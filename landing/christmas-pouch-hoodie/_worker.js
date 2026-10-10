@@ -125,17 +125,22 @@ async function stripeWebhook(request, env) {
 		event_time: event.created,
 		event_source_url: THANK_YOU,
 		// Stripe, not the buyer, makes this request, so there is no IP, user
-		// agent or _fbp to send; what the buyer typed at checkout matches them.
-		user_data: await hashed({
-			em: c.email && c.email.trim().toLowerCase(),
-			ph: c.phone && c.phone.replace(/\D/g, '').replace(/^0+/, ''),
-			fn: names.first,
-			ln: names.last,
-			ct: addr.city && squash(addr.city),
-			st: twoLetters(addr.state),
-			zp: addr.postal_code && zip(addr.postal_code),
-			country: twoLetters(addr.country)
-		}),
+		// agent or _fbp to send; what the buyer typed at checkout matches them,
+		// and the visitor id app.js put on the link ties this sale to the same
+		// person's page events, which do carry those.
+		user_data: {
+			...(await hashed({
+				em: c.email && c.email.trim().toLowerCase(),
+				ph: c.phone && c.phone.replace(/\D/g, '').replace(/^0+/, ''),
+				fn: names.first,
+				ln: names.last,
+				ct: addr.city && squash(addr.city),
+				st: twoLetters(addr.state),
+				zp: addr.postal_code && zip(addr.postal_code),
+				country: twoLetters(addr.country)
+			})),
+			...(VISITOR_ID.test(s.client_reference_id || '') ? { external_id: [s.client_reference_id] } : {})
+		},
 		custom_data: {
 			value: s.amount_total / 100,
 			currency: String(s.currency).toUpperCase(),
@@ -225,6 +230,7 @@ async function userData(request, url) {
 	if (cookies._fbp) out.fbp = cookies._fbp;
 	const fbc = resolveFbc(cookies._fbc, new URL(url).searchParams.get('fbclid'), Date.now());
 	if (fbc) out.fbc = fbc;
+	if (VISITOR_ID.test(cookies.cmp_vid || '')) out.external_id = [cookies.cmp_vid];
 	return out;
 }
 
@@ -291,6 +297,11 @@ async function readJson(request) {
 const pick = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v));
 
 const validId = (id) => typeof id === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(id);
+
+// pixel.js's visitor id. Shaped like a SHA-256 digest so the pixel sends it
+// unhashed, which means this side must send it as it is too, or the two halves
+// would carry different external_ids.
+const VISITOR_ID = /^[a-f0-9]{64}$/;
 
 function parseCookies(header) {
 	const out = {};

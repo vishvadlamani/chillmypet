@@ -66,6 +66,21 @@ check('client ip is not hashed', userData.client_ip_address, '203.0.113.7');
 check('user agent is not hashed', userData.client_user_agent, 'Mozilla/5.0');
 check('fbp is not hashed', userData.fbp, 'fb.1.1558571054389.1098115397');
 check('fbc is not hashed', userData.fbc, 'fb.1.1554763741205.AbCdEfGh');
+check('absent external id is omitted', 'external_id' in userData, false);
+
+// --- external_id: the browser and server copies must carry the same string ---
+const digest = createHash('sha256').update('visitor-42').digest('hex');
+check(
+	'external id is hashed when it is not a digest yet',
+	(await buildUserData({ externalId: ' visitor-42 ' })).external_id,
+	[digest]
+);
+check(
+	'external id that is already a digest passes through, not hashed twice',
+	(await buildUserData({ externalId: digest })).external_id,
+	[digest]
+);
+check('blank external id is omitted', 'external_id' in (await buildUserData({ externalId: '  ' })), false);
 
 // --- fbc construction ---
 check('fbc format', buildFbc('AbCdEfGh', 1554763741205), 'fb.1.1554763741205.AbCdEfGh');
