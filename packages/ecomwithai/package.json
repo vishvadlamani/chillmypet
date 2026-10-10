@@ -20,6 +20,7 @@
     "./catalog": "./src/catalog/index.ts",
     "./customers": "./src/customers/index.ts",
     "./orders": "./src/orders/index.ts",
+    "./fulfillments": "./src/fulfillments/index.ts",
     "./stores": "./src/stores/index.ts",
     "./shipping": "./src/shipping.ts",
     "./marketing": "./src/marketing/index.ts",

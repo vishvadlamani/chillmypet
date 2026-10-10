@@ -164,9 +164,28 @@ Tracking never affects orders: the CAPI call happens after the order commits,
 dispatches via `waitUntil` so the customer never waits on Meta, and logs rather
 than surfaces failures.
 
-**Verifying.** Set `META_CAPI_TEST_EVENT_CODE` and watch Events Manager > Test
-Events. To inspect the exact payload without contacting Meta, point
-`META_CAPI_ENDPOINT` at a local server and place an order.
+**Verifying.** `npm run meta:check` asks Meta whether the token can actually
+post events to `META_PIXEL_ID`, and exits non-zero if not. Run it after changing
+either. It probes the events endpoint with an empty batch: Meta checks
+authorisation before it validates the payload, so a token that is allowed to
+post gets as far as "data must be non-empty" — which proves access while
+sending no event and fabricating no conversion. It deliberately does not read
+the dataset node instead, because that needs a permission a working Conversions
+API token need not hold, and would fail on a token that was never broken.
+It is also a step in `.github/workflows/deploy.yml`, which is what stops a
+mismatched token from reaching production — that step reads
+`META_CAPI_ACCESS_TOKEN` from repository secrets, so add it there or the deploy
+stops on this check.
+
+It exists because neither way of getting this wrong is loud. With no token
+`send()` returns `not_configured` and posts nothing; with a token belonging to
+another dataset Meta rejects every event. Both only reach `console.error`,
+because tracking must never be able to fail an order — so without this the first
+sign is a campaign reporting no conversions, weeks later.
+
+For the payload itself: set `META_CAPI_TEST_EVENT_CODE` and watch Events Manager
+> Test Events, or point `META_CAPI_ENDPOINT` at a local server and place an
+order to inspect the exact body without contacting Meta.
 
 **Before taking EU traffic**, add a consent gate. The pixel currently loads for
 everyone, and GDPR/ePrivacy require prior consent for advertising cookies.
@@ -299,6 +318,11 @@ npx wrangler secret put TURSO_DATABASE_URL
 npx wrangler secret put TURSO_AUTH_TOKEN
 npx wrangler secret put META_CAPI_ACCESS_TOKEN
 ```
+
+`META_CAPI_ACCESS_TOKEN` also goes in as a **repository** secret, which is the
+copy `npm run meta:check` verifies in CI before a deploy is allowed through.
+Setting it there needs repo admin, not a Cloudflare login. Keep the two in sync:
+the CI check can only vouch for the copy it is given.
 
 ### Pointing a domain at the Worker
 

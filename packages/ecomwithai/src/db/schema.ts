@@ -210,6 +210,20 @@ create table if not exists payment_events (
 	unique (provider, event_id)
 );
 
+-- One row per shipped order. Kept off orders.status on purpose: the payment
+-- module reads status = 'paid' as "already settled", so a shipped order that
+-- moved to another status could be settled, and reported, a second time.
+create table if not exists fulfillments (
+	id integer primary key autoincrement,
+	store_id text not null references stores (id) on delete cascade,
+	order_id integer not null unique references orders (id) on delete cascade,
+	carrier text,
+	tracking_number text,
+	tracking_url text,
+	shipped_at text not null default (datetime('now'))
+);
+
+create index if not exists idx_fulfillments_store on fulfillments (store_id, shipped_at);
 create index if not exists idx_payments_order on payments (order_id);
 create index if not exists idx_payments_store on payments (store_id, status);
 

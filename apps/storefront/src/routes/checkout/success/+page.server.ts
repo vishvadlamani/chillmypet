@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { sendOrderConfirmation } from '$lib/server/email';
 import { attributionFrom, purchaseEventId, sendPurchase } from '$lib/server/purchase';
 import type { PageServerLoad } from './$types';
 
@@ -67,10 +68,15 @@ export const load: PageServerLoad = async ({
 			// customer's cookies, address and user agent, which the webhook — a
 			// request from Stripe — never has. Same derived event id, so Meta
 			// still counts one sale.
-			const purchase = sendPurchase(commerce, order, {
-				eventSourceUrl: url.href,
-				attribution: attributionFrom(cookies, url, request.headers, getClientAddress())
-			});
+			// The confirmation email rides the same once-only branch: when the
+			// webhook settled this sale instead, it sent the email from there.
+			const purchase = Promise.all([
+				sendPurchase(commerce, order, {
+					eventSourceUrl: url.href,
+					attribution: attributionFrom(cookies, url, request.headers, getClientAddress())
+				}),
+				sendOrderConfirmation(locals.email, order)
+			]);
 
 			// Don't make the customer wait on Meta. Called as a method —
 			// destructuring waitUntil loses `this` and throws on Workers.

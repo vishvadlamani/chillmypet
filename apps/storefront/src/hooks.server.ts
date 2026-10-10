@@ -1,7 +1,9 @@
-import { error, type Handle } from '@sveltejs/kit';
+import { error, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
-import { newEventId } from 'ecomwithai/marketing';
+import { buildFbc, buildFbp, fbclidOf, newEventId } from 'ecomwithai/marketing';
+import { ADMIN_HEADERS, adminGate, isAdminPath } from '$lib/server/admin';
+import { rememberedContact } from '$lib/server/identity';
 import { attributionFrom, ensureVisitorId } from '$lib/server/purchase';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
@@ -93,12 +95,70 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 	};
 }
 
+/** Meta's own lifetime for both cookies. */
+const FB_COOKIE_MAX_AGE = 60 * 60 * 24 * 90;
+
+/**
+ * Writes `_fbp`, and `_fbc` on an ad click, before the first page renders.
+ *
+ * The pixel sets these itself, but only once `fbevents.js` has run in the
+ * browser, which is after this request's server PageView has already gone. So
+ * the first view of every visit reached Meta with no browser id, and on an ad
+ * click with an `fbc` minted at a different millisecond from the pixel's. The
+ * pixel adopts a well-formed cookie it finds rather than writing its own, so
+ * minting them here gives both copies of the event the same ids from the first
+ * request. Not httpOnly: the pixel has to read them.
+ */
+function seedMetaCookies(event: RequestEvent): void {
+	const options = {
+		path: '/',
+		maxAge: FB_COOKIE_MAX_AGE,
+		httpOnly: false,
+		sameSite: 'lax' as const
+	};
+	const now = Date.now();
+
+	if (!event.cookies.get('_fbp')) event.cookies.set('_fbp', buildFbp(now), options);
+
+	const fbclid = event.url.searchParams.get('fbclid');
+	if (fbclid && fbclidOf(event.cookies.get('_fbc')) !== fbclid) {
+		event.cookies.set('_fbc', buildFbc(fbclid, now), options);
+	}
+}
+
+/**
+ * Clients that fetch pages but never run the pixel: search and ad crawlers
+ * (Meta's own fetches every ad's landing page), link unfurlers, monitors and
+ * scripts. Each one used to get a server PageView that no browser event could
+ * ever match, and with only an IP and a user agent to go on.
+ */
+const NON_BROWSER =
+	/bot|crawl|spider|slurp|facebookexternalhit|facebookcatalog|meta-externalagent|preview|headless|lighthouse|pagespeed|pingdom|uptime|monitor|curl|wget|python|go-http|java\/|okhttp|axios|node-fetch|undici|httpclient|scrapy/i;
+
+/** A person's browser asking for a page, as opposed to data, an API call, an asset or a bot. */
+function isDocumentRequest(request: Request): boolean {
+	const agent = request.headers.get('user-agent') ?? '';
+	return (
+		request.method === 'GET' &&
+		(request.headers.get('accept') ?? '').includes('text/html') &&
+		agent !== '' &&
+		!NON_BROWSER.test(agent)
+	);
+}
+
 function verificationTag(token: string): string {
 	if (!/^[A-Za-z0-9_-]{1,128}$/.test(token)) return '';
 	return `<meta name="facebook-domain-verification" content="${token}" />`;
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
+	// Before anything else, so an unauthenticated request costs no database read.
+	const isAdmin = isAdminPath(event.url.pathname);
+	if (isAdmin) {
+		const denied = await adminGate(event.request, env.ADMIN_PASSWORD);
+		if (denied) return denied;
+	}
+
 	const { db, stores } = getDirectory();
 
 	// Tenant comes from the Host header; localhost and preview URLs fall back to
@@ -136,6 +196,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// alone leaves the form still offering everything on the account.
 	event.locals.stripePaymentMethodConfiguration = env.STRIPE_PAYMENT_METHOD_CONFIGURATION ?? '';
 	event.locals.settings = settings;
+	// Order confirmations. Without RESEND_API_KEY nothing is sent and nothing
+	// fails — the same degrade-quietly rule as the CAPI token. The sending domain
+	// has to be verified in Resend before the key is set, or every send is
+	// rejected into console.error.
+	event.locals.email = {
+		apiKey: env.RESEND_API_KEY,
+		from: env.EMAIL_FROM ?? settings.email_from ?? `${store.name} <orders@${store.domain}>`,
+		replyTo: env.EMAIL_REPLY_TO ?? settings.email_reply_to ?? `contact@${store.domain}`,
+		endpoint: env.EMAIL_API_ENDPOINT,
+		origin: event.url.origin
+	};
 	event.locals.commerce = createCommerce({
 		db,
 		store,
@@ -182,9 +253,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 		.split(',')
 		.map((id) => id.trim())
 		.filter(Boolean);
-	const pixelIds = [primaryPixelId, ...extraPixels].filter(Boolean);
+	// No pixel, no container and so no server PageView on the admin: the
+	// operator packing orders is not a shopper, and the ad account would
+	// otherwise count every order they open as a visit.
+	const pixelIds = isAdmin ? [] : [primaryPixelId, ...extraPixels].filter(Boolean);
 	const gtm = gtmSnippet(
-		env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? '',
+		isAdmin ? '' : (env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? ''),
 		env.GTM_GATEWAY_PATH ?? ''
 	);
 
@@ -205,6 +279,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Before resolve(), so the cookie is on this response and every read of it
 	// later in this request, PageView's server copy included, sees the same id.
 	const visitorId = ensureVisitorId(event.cookies);
+	const isDocument = pixelIds.length > 0 && isDocumentRequest(event.request);
+	// A browser's first page is where its PageView most needs identifiers and
+	// has the fewest, so Meta's `_fbp` and `_fbc` are minted here too, for the
+	// same requests that get a server PageView. A beacon or a form post always
+	// follows a page that already set them.
+	if (isDocument) seedMetaCookies(event);
 
 	const response = await resolve(event, {
 		transformPageChunk: ({ html }) =>
@@ -223,14 +303,24 @@ export const handle: Handle = async ({ event, resolve }) => {
 	});
 
 	// Documents only. `handle` also runs for data requests, form posts and the
-	// API, and none of those rendered a snippet to deduplicate against.
-	if (pixelIds.length > 0 && response.headers.get('content-type')?.includes('text/html')) {
+	// API, and none of those rendered a snippet to deduplicate against — and a
+	// HEAD gets no body, so no browser half ever runs for it either. Successful
+	// pages only: the 404s are overwhelmingly scanners probing `/wp-login.php`
+	// and `/.env`, which read the HTML and never execute it.
+	if (
+		isDocument &&
+		response.status === 200 &&
+		response.headers.get('content-type')?.includes('text/html')
+	) {
 		const send = event.locals.commerce.meta
 			?.send({
 				eventName: 'PageView',
 				eventId: pageViewEventId,
 				eventSourceUrl: event.url.href,
-				user: attributionFrom(event.cookies, event.url, event.request.headers, event.getClientAddress())
+				user: {
+					...rememberedContact(event.cookies),
+					...attributionFrom(event.cookies, event.url, event.request.headers, event.getClientAddress())
+				}
 			})
 			.then((result) => {
 				if (!result.sent) console.error('Meta CAPI PageView not sent', result.reason);
@@ -240,6 +330,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// Called as a method — destructuring waitUntil loses `this` and throws.
 		const context = event.platform?.context;
 		if (send && context && typeof context.waitUntil === 'function') context.waitUntil(send);
+	}
+
+	if (isAdmin) {
+		for (const [name, value] of Object.entries(ADMIN_HEADERS)) response.headers.set(name, value);
 	}
 
 	return response;

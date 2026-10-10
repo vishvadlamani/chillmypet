@@ -1,6 +1,8 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { CheckoutError, DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 import { isCountryCode } from '$lib/countries';
+import { sendOrderConfirmation } from '$lib/server/email';
+import { rememberContact } from '$lib/server/identity';
 import {
 	attributionFrom,
 	attributionMetadata,
@@ -134,6 +136,19 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 	// The order is committed from here on. Nothing below may turn a placed
 	// order into an error response.
 
+	// From here every event this browser sends can name the shopper, not just
+	// the sale. Only digests are kept, and a failure costs match quality, never
+	// the order.
+	try {
+		await rememberContact(cookies, {
+			email,
+			phone: value('phone') || undefined,
+			country
+		});
+	} catch (error) {
+		console.error('Could not remember contact for matching', error);
+	}
+
 	// With payments on, the sale is not a sale until Stripe says so, so hand
 	// the customer to the hosted page and let the webhook report the
 	// conversion. The customer's cookies, address and user agent ride along in
@@ -197,12 +212,15 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 	// No payment provider configured: the order is as complete as it will get,
 	// so report it here. This is the path the store ran on before Stripe.
 	const eventId = purchaseEventId(order.orderNumber);
-	const purchase = sendPurchase(commerce, order, {
-		eventSourceUrl: url.href,
-		attribution: attributionFrom(cookies, url, request.headers, event.getClientAddress())
-	});
+	const purchase = Promise.all([
+		sendPurchase(commerce, order, {
+			eventSourceUrl: url.href,
+			attribution: attributionFrom(cookies, url, request.headers, event.getClientAddress())
+		}),
+		sendOrderConfirmation(locals.email, order)
+	]);
 
-	// Don't make the customer wait on Meta. Called as a method —
+	// Don't make the customer wait on Meta or the mail provider. Called as a method —
 	// destructuring waitUntil loses `this` and throws on Workers.
 	const context = platform?.context;
 	if (context && typeof context.waitUntil === 'function') {
