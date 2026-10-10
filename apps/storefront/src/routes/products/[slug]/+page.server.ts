@@ -1,6 +1,8 @@
 import { error } from '@sveltejs/kit';
 import { bindDefinition, createRefResolver } from '@funnel/core';
 import { loadBundles } from '$lib/store/bundles';
+import { loadChristmasDelivery } from '$lib/store/christmas';
+import { garmentSizeRows } from '$lib/store/garment-sizes';
 import { loadOffer } from '$lib/store/offer';
 import { loadProduct } from '$lib/store/product';
 import { loadReviews } from '$lib/store/reviews';
@@ -8,7 +10,7 @@ import { loadFeaturedReviews, loadPhotoWall, loadSpotlightQuotes } from '$lib/st
 import { loadSizeChart } from '$lib/store/sizes';
 import { loadStock } from '$lib/store/stock';
 import { PRODUCT_PAGES } from '$lib/store/pages';
-import { variantChoices } from '$lib/store/variants';
+import { loadVariantPicker, variantEntries } from '$lib/store/variants';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -22,7 +24,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// another, and the page renders behind the slowest one either way.
 	const [product, bundles, offer, sizeChart, catalogue] = await Promise.all([
 		loadProduct(commerce, locale, slug),
-		loadBundles(commerce, locale, slug, page.pickSize),
+		loadBundles(commerce, locale, slug),
 		loadOffer(commerce, locale, settings, slug),
 		loadSizeChart(commerce, locale, slug),
 		commerce.catalog.getProduct(slug, locale)
@@ -46,7 +48,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			// The photos without the words, for as long as the words aren't real.
 			photos: loadPhotoWall()
 		},
-		sizes: sizeChart,
+		// A garment's chart is the wearer's measurements, a different shape from
+		// the life jacket's chest-and-weight rows.
+		sizes: page.pickSize ? { rows: garmentSizeRows(catalogue) } : sizeChart,
+		// The design and size pickers. Only a manifest that names them reads them.
+		variants: page.pickSize ? loadVariantPicker(catalogue, locale) : {},
+		// Config, not computation: see `$lib/store/christmas.ts`. Empty once the
+		// cut-off has passed, which drops the strip through `requires`.
+		christmas: page.theme === 'christmas' ? loadChristmasDelivery(settings) : {},
 		// Not a query: the scarcity bar is a marketing number from store
 		// settings, and inventory is maintained outside this system.
 		stock: loadStock(settings)
@@ -58,17 +67,43 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// reporting goes quietly useless.
 	const { definition, version } = bindDefinition(page.manifest, resolve);
 
-	// The blocks choose a label; they know nothing of variant ids, and they
+	// The blocks choose a colour; they know nothing of variant ids, and they
 	// must not — a block that carried one would be coupled to this catalogue.
 	// So the host ships the lookup and does the resolving in its own submit
-	// handler. Whether the label names a size too is the page's call.
-	const variantIndex = variantChoices(catalogue, page.pickSize);
+	// handler. Size is the host's call too: the first one actually buyable in
+	// that colour.
+	//
+	// Where the buyer picks the size, the lookup is every buyable pair instead,
+	// and the host matches both codes.
+	const sizes = catalogue.options[1]?.values ?? [];
+	const firstSizePerColour = (catalogue.options[0]?.values ?? []).flatMap((colour) => {
+		const match = sizes
+			.map((size) =>
+				catalogue.variants.find(
+					(v) => v.options[0] === colour.value && v.options[1] === size.value
+				)
+			)
+			.find((v) => v && v.stock > 0);
+		if (!match) return [];
+		return [
+			{
+				colour: colour.label ?? colour.value,
+				colourCode: colour.value,
+				size: match.options[1] ?? '',
+				variantId: match.id,
+				unitPriceCents: match.priceCents,
+				sku: match.sku
+			}
+		];
+	});
+	const variantIndex = page.pickSize ? variantEntries(catalogue) : firstSizePerColour;
 
 	return {
 		definition,
 		version,
 		variantIndex,
 		pickSize: page.pickSize,
+		theme: page.theme ?? null,
 		slug,
 		currency: catalogue.currency,
 		// The manifest is content, not metadata: the title and description that
@@ -77,7 +112,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		seo: {
 			title: catalogue.title,
 			description: catalogue.description ?? '',
-			priceCents: catalogue.priceCents
+			priceCents: catalogue.priceCents,
+			image: product.image
 		}
 	};
 };

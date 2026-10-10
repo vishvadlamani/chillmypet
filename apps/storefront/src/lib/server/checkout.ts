@@ -3,7 +3,12 @@ import { CheckoutError, DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 import { isCountryCode } from '$lib/countries';
 import { sendOrderConfirmation } from '$lib/server/email';
 import { rememberContact } from '$lib/server/identity';
-import { attributionFrom, purchaseEventId, sendPurchase } from '$lib/server/purchase';
+import {
+	attributionFrom,
+	attributionMetadata,
+	purchaseEventId,
+	sendPurchase
+} from '$lib/server/purchase';
 
 /**
  * Placing an order, shared by both checkouts.
@@ -146,16 +151,12 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 
 	// With payments on, the sale is not a sale until Stripe says so, so hand
 	// the customer to the hosted page and let the webhook report the
-	// conversion. `_fbp`/`_fbc` and the visitor id ride along in metadata
-	// because the webhook is a request from Stripe and has none of this
-	// customer's cookies.
+	// conversion. The customer's cookies, address and user agent ride along in
+	// metadata because the webhook is a request from Stripe and has none of them.
 	if (commerce.payments) {
-		const attribution = attributionFrom(cookies, url, request.headers);
-		const metadata = {
-			...(attribution.fbp ? { fbp: attribution.fbp } : {}),
-			...(attribution.fbc ? { fbc: attribution.fbc } : {}),
-			...(attribution.externalId ? { external_id: attribution.externalId } : {})
-		};
+		const metadata = attributionMetadata(
+			attributionFrom(cookies, url, request.headers, event.getClientAddress())
+		);
 		const successUrl = `${url.origin}/checkout/success?order=${encodeURIComponent(order.orderNumber)}`;
 
 		// The card form is already on the page, so what it needs back is a

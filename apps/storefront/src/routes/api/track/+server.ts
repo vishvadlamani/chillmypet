@@ -67,6 +67,15 @@ function cleanCustomData(input: unknown): MetaCustomData | undefined {
 	return Object.keys(out).length ? (out as MetaCustomData) : undefined;
 }
 
+/** The page the event happened on, or this request's URL if it won't parse. */
+function pageUrl(eventSourceUrl: string, fallback: URL): URL {
+	try {
+		return new URL(eventSourceUrl);
+	} catch {
+		return fallback;
+	}
+}
+
 export const POST: RequestHandler = async ({ request, locals, url, cookies, platform, getClientAddress }) => {
 	// 204 in every branch below: this is a tracking beacon, and a page must never
 	// see an error from one. Failures are logged, not surfaced.
@@ -86,18 +95,24 @@ export const POST: RequestHandler = async ({ request, locals, url, cookies, plat
 	const eventId = str(body.eventId);
 	if (!eventName || !eventId || !MIRRORED.has(eventName)) return done;
 
+	const eventSourceUrl = str(body.eventSourceUrl) ?? url.href;
+
 	const send = meta
 		.send({
 			eventName,
 			eventId,
-			eventSourceUrl: str(body.eventSourceUrl) ?? url.href,
+			eventSourceUrl,
 			// Never taken from the body. Cookies, IP and user agent are what this
 			// request actually carries, and a page cannot claim to be someone else.
-			// The email and phone are digests the checkout action stored, not
-			// anything this endpoint was told.
+			// The one exception is the click id, read off the page's URL: this
+			// beacon's own URL never has one, and the page's must agree with the
+			// fbc sent next to it. A page could forge it, but it could as easily
+			// forge the `_fbc` cookie it is checked against. The email and phone
+			// are digests the checkout action stored, not anything this endpoint
+			// was told.
 			user: {
 				...rememberedContact(cookies),
-				...attributionFrom(cookies, url, request.headers, getClientAddress())
+				...attributionFrom(cookies, pageUrl(eventSourceUrl, url), request.headers, getClientAddress())
 			},
 			customData: cleanCustomData(body.customData)
 		})

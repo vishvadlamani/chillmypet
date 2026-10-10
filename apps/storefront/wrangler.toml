@@ -41,6 +41,18 @@ compatibility_flags = ["nodejs_compat"]
 META_PIXEL_ID = "1341978141149107"
 META_EXTRA_PIXEL_IDS = "1363695699271757,28272021345717397"
 GTM_CONTAINER_ID = "GTM-T446VNH9"
+# Google tag gateway route, configured in Cloudflare (not in this repo). GTM
+# loads first-party from here and falls back to googletagmanager.com if the
+# route is ever removed. Staging has no gateway, so its config omits this.
+GTM_GATEWAY_PATH = "/qndl"
+# ChillMP's publishable key (acct_1U3NewJOsB1nguzl: note the JOsB1nguzl
+# fragment). Public by design, since Stripe.js needs it in the browser, so it
+# lives here and not in the dashboard. On 2026-10-09 a dashboard edit set this
+# name to a whsec_ webhook signing secret, and every checkout page then sent that
+# secret to the browser. Kept here, each deploy overwrites whatever the dashboard
+# holds. Never put any value but a pk_live_ key under this name. Staging
+# deliberately has no Stripe keys, so wrangler.staging.toml must not copy this.
+STRIPE_PUBLISHABLE_KEY = "pk_live_51U3NewJOsB1nguzlBy7u3DWXQguFi0g6lk1qwLtjuJKJtTqQdae4sRfa1tJRrCieXDWuhMFu4Td4MhksaKUY5h3k00aEEtoBx4"
 
 [assets]
 directory = ".svelte-kit/cloudflare"

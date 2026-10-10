@@ -52,10 +52,10 @@ export type CapiUserInput = {
 	zip?: string;
 	country?: string;
 	/**
-	 * A stable id for this visitor in your own system — a first-party cookie, a
-	 * customer id. Hashed like the contact fields. It is the one identifier you
-	 * can send on every event, including the first anonymous PageView, so it is
-	 * what ties a visitor's browsing to the purchase that comes later.
+	 * A first-party id for the visitor, the same on every event they fire,
+	 * including the first anonymous PageView, so it is what ties a visitor's
+	 * browsing to the purchase that comes later. Hashed unless it already is a
+	 * SHA-256 hex digest, which passes through.
 	 */
 	externalId?: string;
 	/** These four must NOT be hashed. */
@@ -84,8 +84,7 @@ export async function buildUserData(input: CapiUserInput): Promise<HashedUserDat
 		['ct', input.city, normalize.city],
 		['st', input.state, normalize.state],
 		['zp', input.zip, normalize.zip],
-		['country', input.country, normalize.country],
-		['external_id', input.externalId, (v) => v.trim()]
+		['country', input.country, normalize.country]
 	];
 
 	const userData: HashedUserData = {};
@@ -101,6 +100,15 @@ export async function buildUserData(input: CapiUserInput): Promise<HashedUserDat
 		// signal and drags down the reported match quality.
 		if (!value) continue;
 		userData[key] = [await sha256Hex(value)];
+	}
+
+	// Meta's pixel sends an `external_id` that already looks like a SHA-256
+	// digest as it is, and hashes anything else. Doing the same here is what
+	// lets a host hand one id to both halves and have them agree: hash a digest
+	// a second time and the browser and server copies name two different people.
+	const externalId = input.externalId?.trim();
+	if (externalId) {
+		userData.external_id = [SHA256_HEX.test(externalId) ? externalId : await sha256Hex(externalId)];
 	}
 
 	if (input.clientIpAddress) userData.client_ip_address = input.clientIpAddress;
@@ -131,4 +139,34 @@ export function buildFbp(createdAt: number, random = Math.floor(Math.random() * 
 /** The click id inside an `_fbc` value, or undefined when it is not one. */
 export function fbclidOf(fbc: string | undefined): string | undefined {
 	return fbc?.match(/^fb\.\d+\.\d+\.(.+)$/)?.[1];
+}
+
+/**
+ * `fb.<subdomain index>.<ms timestamp>.<click id>`, plus the optional appendix
+ * Meta's own libraries add.
+ */
+const FBC_SHAPE = /^fb\.\d+\.\d+\.[^.]+(\.[A-Za-z0-9_-]+)?$/;
+
+/**
+ * The `fbc` for an event on a page whose URL may carry a `fbclid`.
+ *
+ * A click id on the URL beats the `_fbc` cookie when the two disagree. The
+ * cookie still holds an earlier click until Meta's script rewrites it, and
+ * sending that next to a URL carrying the new one is what Events Manager flags
+ * as a modified fbclid — it compares the two, and a stale id reads as tampered.
+ * When they agree the cookie is kept, so its original timestamp survives.
+ *
+ * A cookie not in Meta's format is dropped, the way Meta's parameter-builder
+ * library drops one: no fbc costs a little matching, while an invalid one is
+ * reported against the whole dataset.
+ */
+export function resolveFbc(
+	cookie: string | undefined,
+	fbclid: string | null | undefined,
+	now: number
+): string | undefined {
+	const stored = cookie && FBC_SHAPE.test(cookie) ? cookie : undefined;
+	if (!fbclid) return stored;
+	if (stored?.split('.')[3] === fbclid) return stored;
+	return buildFbc(fbclid, now);
 }

@@ -154,6 +154,62 @@ const emailsFor = (orderNumber) => emails.filter((e) => e.subject?.includes(orde
 
 const settle = () => new Promise((r) => setTimeout(r, 2000));
 
+// What the customer's browser sends at checkout. The webhook that reports the
+// sale is a request from Stripe, so these only reach Meta if they travel
+// through the payment's metadata.
+const BUYER_UA = 'Mozilla/5.0 (PayFlowTest) Safari/605.1.15';
+const VISITOR = '0123456789abcdef'.repeat(4);
+
+/** The metadata we actually sent Stripe, as the object its webhook echoes back. */
+const sentMetadata = (params) =>
+	Object.fromEntries(
+		[...params].filter(([k]) => k.startsWith('metadata[')).map(([k, v]) => [k.slice(9, -1), v])
+	);
+
+const capiPayloads = () =>
+	capiEvents.flatMap((e) => {
+		try {
+			return JSON.parse(e.body).data ?? [];
+		} catch {
+			return [];
+		}
+	});
+
+// --- the server reports the click the browser saw -------------------------
+// A visitor carrying `_fbc` from an older ad click lands from a new one. The
+// pixel switches to the new click id, so the server copies must too, exactly
+// as issued. Meta's own example id: mixed case, `-` and `_`, none of which may
+// change.
+const CLICK = 'IwAR2F4-dbP0l7Mn1IawQQGCINEz7PYXQvwjNwB_qa2ofrHyiLjcbCRxTDMgk';
+const staleClick = { cookie: '_fbc=fb.1.1600000000000.OlderClickId' };
+const landing = `${BASE}/products/dog-life-jacket?fbclid=${CLICK}&run=${RUN}`;
+
+// As a browser asks for a page: the server copy of PageView goes only to real
+// page loads, never to a bot or a script fetching the HTML.
+await fetch(landing, { headers: { ...staleClick, accept: 'text/html', 'user-agent': BUYER_UA } });
+await fetch(`${BASE}/api/track`, {
+	method: 'POST',
+	headers: { ...staleClick, 'content-type': 'application/json' },
+	body: JSON.stringify({ eventName: 'ViewContent', eventId: `vc-${RUN}`, eventSourceUrl: landing })
+});
+await settle();
+
+const landingPageView = capiPayloads().find(
+	(e) => e.event_name === 'PageView' && e.event_source_url === landing
+);
+const landingViewContent = capiPayloads().find((e) => e.event_id === `vc-${RUN}`);
+const clickFbc = new RegExp(`^fb\\.1\\.\\d{13}\\.${CLICK}$`);
+check(
+	'the landing PageView carries the new click id, unaltered',
+	clickFbc.test(landingPageView?.user_data?.fbc ?? ''),
+	`fbc ${landingPageView?.user_data?.fbc}`
+);
+check(
+	"a beacon takes the click id from the page's URL, not its own",
+	clickFbc.test(landingViewContent?.user_data?.fbc ?? ''),
+	`fbc ${landingViewContent?.user_data?.fbc}`
+);
+
 const capiEventsNamed = (name) =>
 	capiEvents
 		.map((e) => {
@@ -181,7 +237,6 @@ const setCookies = (response) =>
 // Meta's script sets `_fbp` only once it runs, after the server's PageView for
 // that page has gone. The server mints it — and a visitor id — on the first
 // navigation, so even that PageView can be matched.
-const VISITOR = '0f8e3c1a-2b4d-4e6f-8a9b-1c2d3e4f5a6b';
 {
 	const landing = await fetch(`${BASE}/products/dog-life-jacket?first=${RUN}`, {
 		headers: { accept: 'text/html' }
@@ -189,7 +244,7 @@ const VISITOR = '0f8e3c1a-2b4d-4e6f-8a9b-1c2d3e4f5a6b';
 	await landing.text();
 	const set = setCookies(landing);
 	check('a first navigation is given an _fbp', /^fb\.1\.\d{13}\.\d+$/.test(set._fbp ?? ''), set._fbp);
-	check('and a visitor id', /^[a-f0-9-]{36}$/.test(set.cmp_vid ?? ''), set.cmp_vid);
+	check('and a visitor id', /^[a-f0-9]{64}$/.test(set.cmp_vid ?? ''), set.cmp_vid);
 	check(
 		'which script cannot read',
 		landing.headers.getSetCookie().some((c) => c.startsWith('cmp_vid=') && /httponly/i.test(c))
@@ -199,8 +254,8 @@ const VISITOR = '0f8e3c1a-2b4d-4e6f-8a9b-1c2d3e4f5a6b';
 	const pageView = capiEventsNamed('PageView').find((e) => e.event_source_url?.includes(`first=${RUN}`));
 	check('its server PageView carries the minted _fbp', pageView?.user_data?.fbp === set._fbp, JSON.stringify(pageView?.user_data));
 	check(
-		'and the visitor id, hashed, as external_id',
-		pageView?.user_data?.external_id?.[0] === sha256(set.cmp_vid ?? ''),
+		'and the visitor id as external_id, as is: it is already digest-shaped',
+		pageView?.user_data?.external_id?.[0] === set.cmp_vid,
 		JSON.stringify(pageView?.user_data?.external_id)
 	);
 
@@ -239,7 +294,8 @@ const placed = await fetch(`${BASE}/checkout`, {
 	headers: {
 		'content-type': 'application/x-www-form-urlencoded',
 		origin: BASE,
-		cookie: '_fbp=fb.1.1700000000000.1234567890; _fbc=fb.1.1700000000000.testclickid'
+		'user-agent': BUYER_UA,
+		cookie: `_fbp=fb.1.1700000000000.1234567890; _fbc=fb.1.1700000000000.testclickid; cmp_vid=${VISITOR}`
 	},
 	body: form
 });
@@ -277,6 +333,13 @@ if (sessionCall) {
 		'meta click identifiers ride along for the webhook',
 		p.get('metadata[fbp]') === 'fb.1.1700000000000.1234567890' &&
 			p.get('metadata[fbc]') === 'fb.1.1700000000000.testclickid'
+	);
+	check(
+		'so do the buyer’s user agent, address and visitor id',
+		p.get('metadata[client_ua]') === BUYER_UA &&
+			Boolean(p.get('metadata[client_ip]')) &&
+			p.get('metadata[external_id]') === VISITOR,
+		JSON.stringify(sentMetadata(p))
 	);
 	check('the secret key is sent as a bearer token', sessionCall.auth.startsWith('Bearer sk_'));
 	check(
@@ -322,12 +385,9 @@ if (sessionCall) {
 					client_reference_id: orderNumber,
 					amount_total: amountTotal,
 					currency: 'usd',
-					metadata: {
-						store_id: 'chillmypet',
-						order_number: orderNumber,
-						fbp: 'fb.1.1700000000000.1234567890',
-						fbc: 'fb.1.1700000000000.testclickid'
-					}
+					// Stripe echoes the session's metadata back verbatim, so the
+					// event carries exactly what the checkout sent.
+					metadata: sentMetadata(p)
 				}
 			}
 		});
@@ -408,6 +468,16 @@ if (sessionCall) {
 			purchase.user_data?.fbp === 'fb.1.1700000000000.1234567890' &&
 				purchase.user_data?.fbc === 'fb.1.1700000000000.testclickid',
 			JSON.stringify({ fbp: purchase.user_data?.fbp, fbc: purchase.user_data?.fbc })
+		);
+		check(
+			'the buyer’s user agent and address reach Meta, which a website event requires',
+			purchase.user_data?.client_user_agent === BUYER_UA && Boolean(purchase.user_data?.client_ip_address),
+			JSON.stringify({ ua: purchase.user_data?.client_user_agent, ip: purchase.user_data?.client_ip_address })
+		);
+		check(
+			'the visitor id is the external_id the pixel was given',
+			JSON.stringify(purchase.user_data?.external_id) === JSON.stringify([VISITOR]),
+			JSON.stringify(purchase.user_data?.external_id)
 		);
 		check(
 			'address fields from our own order row are matched on',
@@ -528,6 +598,7 @@ if (sessionCall) {
 		headers: {
 			'content-type': 'application/x-www-form-urlencoded',
 			origin: BASE,
+			'user-agent': BUYER_UA,
 			cookie: `_fbp=fb.1.1700000000000.1234567890; cmp_vid=${VISITOR}`
 		},
 		body: inline
@@ -580,6 +651,11 @@ if (sessionCall) {
 		);
 		check('so does the visitor id', p.get('metadata[external_id]') === VISITOR);
 		check(
+			'a first-time visitor gets a visitor id on the spot, and it rides along too',
+			/^[a-f0-9]{64}$/.test(p.get('metadata[external_id]') ?? '') && p.get('metadata[client_ua]') === BUYER_UA,
+			JSON.stringify(sentMetadata(p))
+		);
+		check(
 			'the card statement carries a descriptor the buyer will recognise',
 			p.get('statement_descriptor') === 'CHILLMYPET',
 			`got ${p.get('statement_descriptor')}`
@@ -595,12 +671,7 @@ if (sessionCall) {
 					id: intentId,
 					amount_received: Number(p.get('amount')),
 					currency: 'usd',
-					metadata: {
-						store_id: 'chillmypet',
-						order_number: orderNumber,
-						fbp: 'fb.1.1700000000000.1234567890',
-						external_id: VISITOR
-					}
+					metadata: sentMetadata(p)
 				}
 			}
 		});
@@ -630,13 +701,18 @@ if (sessionCall) {
 			`${emailsFor(orderNumber).length} sent`
 		);
 		check(
+			'with the buyer’s user agent, though Stripe sent the webhook',
+			purchase?.user_data?.client_user_agent === BUYER_UA,
+			JSON.stringify(purchase?.user_data)
+		);
+		check(
 			'for the amount actually charged',
 			purchase?.custom_data?.value === (Number(p.get('amount')) / 100).toFixed(2),
 			`${purchase?.custom_data?.value} vs ${(Number(p.get('amount')) / 100).toFixed(2)}`
 		);
 		check(
 			'naming the same visitor as the browsing before it',
-			purchase?.user_data?.external_id?.[0] === sha256(VISITOR),
+			purchase?.user_data?.external_id?.[0] === VISITOR,
 			JSON.stringify(purchase?.user_data?.external_id)
 		);
 		check(
@@ -686,7 +762,7 @@ if (sessionCall) {
 		check(
 			`a returning shopper's ${name} carries fbp, external_id, email and phone`,
 			u.fbp === 'fb.1.1700000000000.1234567890' &&
-				u.external_id?.[0] === sha256(VISITOR) &&
+				u.external_id?.[0] === VISITOR &&
 				u.em?.[0] === sha256('inline@example.com') &&
 				u.ph?.[0] === sha256('16045550199'),
 			JSON.stringify(u)

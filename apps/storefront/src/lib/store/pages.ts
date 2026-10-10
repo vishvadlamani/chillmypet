@@ -1,5 +1,5 @@
 import type { FunnelDefinition } from '@funnel/core';
-import { HOODIE_PAGE, HOODIE_SLUG } from './hoodie-manifest';
+import { CHRISTMAS_HOODIE_PAGE } from './christmas-hoodie-manifest';
 import { STORE_PAGE } from './manifest';
 import { PRODUCT_SLUG } from './product';
 
@@ -7,11 +7,16 @@ export interface ProductPage {
 	manifest: FunnelDefinition;
 	/**
 	 * Whether the buyer chooses the size. Off for the life jacket, where the
-	 * host picks the first size in stock; on for anything worn by a person, whose
-	 * size nobody else can guess.
+	 * host picks the first size in stock in the chosen colour; on for anything
+	 * worn by a person, whose size nobody else can guess.
 	 */
 	pickSize: boolean;
+	/** A seasonal skin layered over the brand, scoped to this page only. */
+	theme?: 'christmas';
 }
+
+/** Kept in step with `scripts/christmas-hoodie.js`. */
+export const CHRISTMAS_HOODIE_SLUG = 'christmas-pouch-hoodie';
 
 /**
  * Which manifest renders which product.
@@ -23,5 +28,5 @@ export interface ProductPage {
  */
 export const PRODUCT_PAGES: Record<string, ProductPage> = {
 	[PRODUCT_SLUG]: { manifest: STORE_PAGE, pickSize: false },
-	[HOODIE_SLUG]: { manifest: HOODIE_PAGE, pickSize: true }
+	[CHRISTMAS_HOODIE_SLUG]: { manifest: CHRISTMAS_HOODIE_PAGE, pickSize: true, theme: 'christmas' }
 };

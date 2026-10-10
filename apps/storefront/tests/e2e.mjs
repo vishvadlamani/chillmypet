@@ -106,8 +106,15 @@ function check(label, cond, detail) {
 	// Asserted through the constants, so adding a pixel to the roster is one
 	// edit rather than one here and one silently-stale literal.
 	for (const id of ALL_PIXELS) {
-		check(`SSR initialises pixel ${id}`, html.includes(`fbq('init', '${id}')`));
+		check(`SSR initialises pixel ${id}`, html.includes(`fbq('init', '${id}'`));
 	}
+
+	// One visitor id on every init, the same one each Conversions API copy
+	// sends as external_id. Shaped like a SHA-256 digest so the pixel passes it
+	// through rather than hashing it, which is what makes the halves agree.
+	const ids = [...html.matchAll(/fbq\('init', '\d+', \{external_id: '([a-f0-9]{64})'\}\)/g)].map((m) => m[1]);
+	check('every init carries the external_id', ids.length === ALL_PIXELS.length, `${ids.length} of ${ALL_PIXELS.length}`);
+	check('and it is one id, not one per pixel', new Set(ids).size === 1, JSON.stringify(ids));
 }
 
 {
@@ -141,6 +148,16 @@ check('gallery image actually loaded', heroOk);
 {
 	const calls = await fbqCalls();
 	check('pixel init fired', calls.some((c) => c[0] === 'init' && c[1] === STORE_PIXEL));
+	// The browser keeps its id across pages: a new one per page view would tie
+	// nothing together.
+	const vid = (await ctx.cookies()).find((c) => c.name === 'cmp_vid');
+	check('the visitor id is a first-party cookie', /^[a-f0-9]{64}$/.test(vid?.value ?? ''), JSON.stringify(vid));
+	check('that page script cannot read', vid?.httpOnly === true);
+	check(
+		'and the pixel was initialised with it',
+		calls.find((c) => c[0] === 'init' && c[1] === STORE_PIXEL)?.[2]?.external_id === vid?.value,
+		JSON.stringify(calls.find((c) => c[0] === 'init'))
+	);
 	check('PageView fired', Boolean(tracked(calls, 'PageView')));
 	check('ViewContent fired', Boolean(tracked(calls, 'ViewContent')));
 	check('ViewContent carries the product', tracked(calls, 'ViewContent')?.[2]?.content_ids?.[0] === 'dog-life-jacket');

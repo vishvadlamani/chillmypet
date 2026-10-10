@@ -1,13 +1,14 @@
 /**
  * Seeds this store into the framework's generic schema.
  *
- * Destructive: every product here is deleted and recreated, so this is for a
- * fresh or throwaway database. `add-products.js` is the path for a live one.
+ * Option *values* are stable codes ('blue_camo'), not display text, so the
+ * storefront can translate them through its language packs while the framework
+ * and any agent still get a readable `label`.
  */
 import { createDb, createStoreService } from 'ecomwithai';
 import { insertProduct, orderLines } from './catalog.js';
-import { BENEFITS, FAQ, SIZE_CHART, SLUG, STORE, TRANSLATIONS } from './content.js';
-import { HOODIE } from './hoodie.js';
+import { CHRISTMAS_HOODIE } from './christmas-hoodie.js';
+import { BENEFITS, EMAIL, FAQ, SIZE_CHART, SLUG, STORE, TRANSLATIONS } from './content.js';
 
 const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
 const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -78,88 +79,180 @@ for (const [key, value] of Object.entries(SETTINGS)) {
 	await stores.setSetting(STORE.id, key, value);
 }
 
-// --- products ---
-const SIZE_VALUES = SIZES.map((size) => ({ code: size, label: size }));
-
-/** @type {import('./catalog.js').ProductDefinition} */
-const LIFE_JACKET = {
-	slug: SLUG,
-	position: 0,
-	translations: TRANSLATIONS,
-	options: [
-		{ name: 'Color', values: COLOURS.map(([code, label, hex]) => ({ code, label, hex })) },
-		{ name: 'Size', values: SIZE_VALUES }
-	],
-	// One photo per colour.
-	media: COLOURS.map(([code, label]) => ({
-		url: `/products/${SLUG}/${code}.jpg`,
-		alt: `${TRANSLATIONS.en.title} in ${label}`,
-		option: code
-	})),
-	variants: COLOURS.flatMap(([code]) =>
-		SIZES.filter((size) => AVAILABILITY[code][size] !== '-').map((size) => ({
-			sku: `CMP-LJ-${code.toUpperCase()}-${size}`,
-			priceCents: PRICE_CENTS,
-			compareAtCents: COMPARE_AT_CENTS,
-			stock: AVAILABILITY[code][size],
-			options: [code, size]
-		}))
-	),
-	// Structured content the core does not model.
-	metafields: [
-		{ namespace: 'specs', key: 'size_chart', locale: null, value: SIZE_CHART },
-		...Object.entries(BENEFITS).map(([locale, entries]) => ({
-			namespace: 'content',
-			key: 'benefits',
-			locale,
-			value: entries.map(([title, body]) => ({ title, body }))
-		})),
-		...Object.entries(FAQ).map(([locale, entries]) => ({
-			namespace: 'content',
-			key: 'faq',
-			locale,
-			value: entries.map(([q, a]) => ({ q, a }))
-		}))
-	]
-};
-
-const PRODUCTS = [LIFE_JACKET, HOODIE];
-
-// Deleting a product cascades to its variants, and `order_items.variant_id`
+// --- product ---
+// Deleting the product cascades to its variants, and `order_items.variant_id`
 // has no ON DELETE action, so an order referencing one blocks the whole seed.
 // That refusal is the schema protecting order history — but it surfaces as a
 // bare SQLITE_CONSTRAINT_FOREIGNKEY stack trace, so say what actually happened.
-// Checked for every product before deleting any, so a refusal leaves the
-// catalogue exactly as it was.
-for (const { slug } of PRODUCTS) {
-	const referenced = await orderLines(db, STORE.id, slug);
-	if (referenced > 0) {
-		console.error(
-			`Refusing to reseed: ${referenced} order line(s) reference ` +
-				`variants of "${slug}" in ${url}.\n` +
-				`Seeding recreates the product, which would orphan them.\n` +
-				`On a throwaway database, delete the file and reseed. Against a real ` +
-				`one, migrate the catalogue instead — those are customer orders. ` +
-				`To add a new product to a live store, use db:products.`
-		);
-		process.exit(1);
-	}
+const referenced = await db.execute({
+	sql: `select count(*) as count from order_items oi
+	      join product_variants v on v.id = oi.variant_id
+	      join products p on p.id = v.product_id
+	      where p.store_id = ? and p.slug = ?`,
+	args: [STORE.id, SLUG]
+});
+if (Number(referenced.rows[0].count) > 0) {
+	console.error(
+		`Refusing to reseed: ${referenced.rows[0].count} order line(s) reference ` +
+			`variants of "${SLUG}" in ${url}.\n` +
+			`Seeding recreates the product, which would orphan them.\n` +
+			`On a throwaway database, delete the file and reseed. Against a real ` +
+			`one, migrate the catalogue instead — those are customer orders.`
+	);
+	process.exit(1);
 }
 
-for (const { slug } of PRODUCTS) {
+await db.execute({
+	sql: 'delete from products where store_id = ? and slug = ?',
+	args: [STORE.id, SLUG]
+});
+
+const product = await db.execute({
+	sql: `insert into products (store_id, slug, status) values (?, ?, 'active')`,
+	args: [STORE.id, SLUG]
+});
+const productId = Number(product.lastInsertRowid);
+
+for (const [locale, t] of Object.entries(TRANSLATIONS)) {
 	await db.execute({
-		sql: 'delete from products where store_id = ? and slug = ?',
-		args: [STORE.id, slug]
+		sql: `insert into product_translations
+		        (store_id, product_id, locale, title, subtitle, description)
+		      values (?, ?, ?, ?, ?, ?)`,
+		args: [STORE.id, productId, locale, t.title, t.subtitle, t.description]
 	});
 }
 
-for (const def of PRODUCTS) {
-	const { variants } = await insertProduct(db, STORE.id, def);
-	console.log(
-		`Seeded "${STORE.id}" (${STORE.domain}): ${def.slug} with ${def.options[0].values.length} colour(s), ` +
-			`${def.options[1].values.length} sizes, ${variants} variants, ` +
-			`${Object.keys(def.translations).length} locale(s)`
-	);
+// --- options ---
+const optionIds = {};
+for (const [index, name] of ['Color', 'Size'].entries()) {
+	const row = await db.execute({
+		sql: `insert into product_options (store_id, product_id, name, position) values (?, ?, ?, ?)`,
+		args: [STORE.id, productId, name, index]
+	});
+	optionIds[name] = Number(row.lastInsertRowid);
 }
 
+const colourValueIds = {};
+for (const [index, [code, label, hex]] of COLOURS.entries()) {
+	const row = await db.execute({
+		sql: `insert into product_option_values
+		        (store_id, option_id, value, label, swatch_hex, position)
+		      values (?, ?, ?, ?, ?, ?)`,
+		args: [STORE.id, optionIds.Color, code, label, hex, index]
+	});
+	colourValueIds[code] = Number(row.lastInsertRowid);
+}
+
+for (const [index, size] of SIZES.entries()) {
+	await db.execute({
+		sql: `insert into product_option_values (store_id, option_id, value, label, position)
+		      values (?, ?, ?, ?, ?)`,
+		args: [STORE.id, optionIds.Size, size, size, index]
+	});
+}
+
+// --- media, one photo per colour ---
+for (const [index, [code, label]] of COLOURS.entries()) {
+	await db.execute({
+		sql: `insert into product_media (store_id, product_id, url, alt, position, option_value_id)
+		      values (?, ?, ?, ?, ?, ?)`,
+		args: [
+			STORE.id,
+			productId,
+			`/products/${SLUG}/${code}.jpg`,
+			`${TRANSLATIONS.en.title} in ${label}`,
+			index,
+			colourValueIds[code]
+		]
+	});
+}
+
+// --- variants ---
+let variants = 0;
+let skipped = 0;
+for (const [code] of COLOURS) {
+	for (const size of SIZES) {
+		const stock = AVAILABILITY[code][size];
+		if (stock === '-') {
+			skipped += 1;
+			continue;
+		}
+		await db.execute({
+			sql: `insert into product_variants
+			        (store_id, product_id, sku, price_cents, compare_at_cents, stock, position, option1, option2)
+			      values (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			args: [
+				STORE.id,
+				productId,
+				`CMP-LJ-${code.toUpperCase()}-${size}`,
+				PRICE_CENTS,
+				COMPARE_AT_CENTS,
+				stock,
+				variants,
+				code,
+				size
+			]
+		});
+		variants += 1;
+	}
+}
+
+// --- metafields: structured content the core does not model ---
+await db.execute({
+	sql: `insert into product_metafields (store_id, product_id, namespace, key, locale, value_json)
+	      values (?, ?, 'specs', 'size_chart', null, ?)`,
+	args: [STORE.id, productId, JSON.stringify(SIZE_CHART)]
+});
+
+for (const [locale, entries] of Object.entries(BENEFITS)) {
+	await db.execute({
+		sql: `insert into product_metafields (store_id, product_id, namespace, key, locale, value_json)
+		      values (?, ?, 'content', 'benefits', ?, ?)`,
+		args: [
+			STORE.id,
+			productId,
+			locale,
+			JSON.stringify(entries.map(([title, body]) => ({ title, body })))
+		]
+	});
+}
+
+for (const [locale, entries] of Object.entries(FAQ)) {
+	await db.execute({
+		sql: `insert into product_metafields (store_id, product_id, namespace, key, locale, value_json)
+		      values (?, ?, 'content', 'faq', ?, ?)`,
+		args: [
+			STORE.id,
+			productId,
+			locale,
+			JSON.stringify(entries.map(([q, a]) => ({ q, a })))
+		]
+	});
+}
+
+// --- the Christmas hoodie, through the shared writer ---
+// Same refusal as above: recreating it would orphan order lines. A live store
+// gets it from `npm run db:products` instead, which only ever adds.
+{
+	const def = CHRISTMAS_HOODIE;
+	const lines = await orderLines(db, STORE.id, def.slug);
+	if (lines > 0) {
+		console.error(
+			`Refusing to reseed "${def.slug}": ${lines} order line(s) reference it in ${url}.`
+		);
+		process.exit(1);
+	}
+	await db.execute({
+		sql: 'delete from products where store_id = ? and slug = ?',
+		args: [STORE.id, def.slug]
+	});
+	const { variants: added } = await insertProduct(db, STORE.id, def);
+	console.log(`Seeded ${def.slug} with ${added} variants`);
+}
+
+console.log(
+	`Seeded "${STORE.id}" (${STORE.domain}): ${SLUG} with ${COLOURS.length} colours, ` +
+		`${SIZES.length} sizes, ${variants} variants (${skipped} not offered), ` +
+		`${Object.keys(TRANSLATIONS).length} locales`
+);
 db.close();

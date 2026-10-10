@@ -1,17 +1,17 @@
 /**
  * Writes one product into the framework's generic schema.
  *
- * Shared by `seed.js`, which rebuilds a throwaway catalogue, and
+ * Used by `seed.js`, which rebuilds a throwaway catalogue, and by
  * `add-products.js`, which adds a product to a live store without touching the
- * ones already selling. One writer is what keeps the two from producing
- * differently shaped products.
+ * ones already selling. One writer keeps the two from producing differently
+ * shaped products.
  *
- * Option *values* are stable codes ('blue_camo'), not display text, so the
+ * Option *values* are stable codes ('red_santa'), not display text, so the
  * storefront can translate them through its language packs while the framework
  * and any agent still get a readable `label`.
  *
- * Variants are positional: `options[0]` is option1, `options[1]` option2 — the
- * same order the product's options are declared in.
+ * Variants are positional: `options[0]` is option1, `options[1]` option2, in
+ * the order the product's options are declared.
  */
 
 /**
@@ -48,7 +48,7 @@ export async function productExists(db, storeId, slug) {
 }
 
 /**
- * Inserts the product and everything hanging off it, in one transaction — a
+ * Inserts the product and everything hanging off it in one transaction. A
  * half-written product (options but no variants) renders as a page nobody can
  * buy from, which is worse than no page.
  *

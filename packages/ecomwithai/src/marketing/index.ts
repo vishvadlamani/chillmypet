@@ -69,11 +69,6 @@ export function newEventId(): string {
 	return crypto.randomUUID();
 }
 
-/** The `fbc` value Meta expects when a visitor lands with `?fbclid=`. */
-export function buildFbc(fbclid: string, createdAt: number): string {
-	return `fb.1.${createdAt}.${fbclid}`;
-}
-
 export function createMetaService(config: MetaConfig): MetaService {
 	return {
 		isConfigured() {

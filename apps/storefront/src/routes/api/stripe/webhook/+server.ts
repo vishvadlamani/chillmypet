@@ -1,5 +1,5 @@
 import { sendOrderConfirmation } from '$lib/server/email';
-import { sendPurchase } from '$lib/server/purchase';
+import { attributionFromMetadata, sendPurchase } from '$lib/server/purchase';
 import type { RequestHandler } from './$types';
 
 /**
@@ -60,18 +60,13 @@ async function trackPurchase(
 		if (!order) return;
 
 		// Safe to read now: handleWebhook verified the signature before returning
-		// handled, so these bytes are Stripe's. Only the browser identifiers are
-		// taken from here — everything else comes from our own order row.
-		const metadata = readMetadata(rawBody);
-
+		// handled, so these bytes are Stripe's, carrying what the checkout put in
+		// metadata from the customer's own request. Only attribution is taken
+		// from here — everything else comes from our own order row.
 		await Promise.all([
 			sendPurchase(commerce, order, {
 				eventSourceUrl: `${url.origin}/checkout/success?order=${encodeURIComponent(orderNumber)}`,
-				attribution: {
-					fbp: metadata.fbp,
-					fbc: metadata.fbc,
-					externalId: metadata.externalId
-				}
+				attribution: attributionFromMetadata(readMetadata(rawBody))
 			}),
 			sendOrderConfirmation(email, order)
 		]);
@@ -80,19 +75,14 @@ async function trackPurchase(
 	}
 }
 
-function readMetadata(rawBody: string): { fbp?: string; fbc?: string; externalId?: string } {
+function readMetadata(rawBody: string): Record<string, unknown> {
 	try {
 		const event = JSON.parse(rawBody) as Record<string, unknown>;
 		const object = ((event.data as Record<string, unknown>)?.object ?? {}) as Record<
 			string,
 			unknown
 		>;
-		const metadata = (object.metadata ?? {}) as Record<string, unknown>;
-		return {
-			fbp: typeof metadata.fbp === 'string' ? metadata.fbp : undefined,
-			fbc: typeof metadata.fbc === 'string' ? metadata.fbc : undefined,
-			externalId: typeof metadata.external_id === 'string' ? metadata.external_id : undefined
-		};
+		return (object.metadata ?? {}) as Record<string, unknown>;
 	} catch {
 		return {};
 	}

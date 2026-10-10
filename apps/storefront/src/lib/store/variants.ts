@@ -1,23 +1,34 @@
 /**
- * What the bundle picker offers per unit, and which variant each choice buys.
+ * What the design and size pickers offer, and which variant each pair buys.
  *
- * The picker's options and the host's lookup both come from here, because they
- * are matched by label: if the two were derived separately, one renamed colour
- * would turn every order into the fallback variant.
+ * For a garment the size is the buyer's to make: there is no safe default, and
+ * picking one for them ships every order in S. So unlike the life jacket, whose
+ * host chooses the first size in stock, this page sends both choices and the
+ * host refuses to add anything until both are made.
  *
- * Two shapes:
- *   - colour only (`pickSize: false`) — the life jacket. The host picks the
- *     size: the first one actually buyable in that colour.
- *   - colour and size (`pickSize: true`) — one choice per buyable combination,
- *     "Black / M", or just "M" when there is only one colour to name. For a
- *     garment the size is the buyer's to make, and a default would ship every
- *     order in XS.
+ * The picker's options and the host's lookup both come from here, matched by
+ * option CODE, so renaming a design's label can never send an order to the
+ * fallback variant.
  */
 import type { Product } from 'ecomwithai';
+import { formatMoney, type Locale } from '$lib/i18n';
 
-export interface VariantChoice {
-	/** Exactly what the picker shows and sends back. */
+export interface DesignChoice {
+	code: string;
 	label: string;
+	swatch?: string;
+	image?: string;
+	alt?: string;
+}
+
+export interface SizeChoice {
+	code: string;
+	label: string;
+}
+
+/** One buyable combination: the host's lookup, never shown to a block. */
+export interface VariantEntry {
+	colour: string;
 	colourCode: string;
 	size: string;
 	variantId: number;
@@ -25,42 +36,51 @@ export interface VariantChoice {
 	sku: string;
 }
 
-/**
- * First entry in a size-picking dropdown, so nothing is pre-selected. Not a
- * variant: the host refuses to add it and sends the visitor back to choose.
- */
-export function choicePrompt(product: Product): string {
-	return (product.options[0]?.values.length ?? 0) > 1 ? 'Choose colour & size' : 'Choose your size';
+export interface VariantPicker {
+	designs: DesignChoice[];
+	sizes: SizeChoice[];
+	/** `design:size` pairs in stock — the picker greys out the rest. */
+	available: string[];
+	price: string;
 }
 
-export function variantChoices(product: Product, pickSize: boolean): VariantChoice[] {
-	// Positional options: this catalogue is Colour then Size.
-	const colours = product.options[0]?.values ?? [];
-	const sizes = product.options[1]?.values ?? [];
-	const variantFor = (colour: string, size: string) =>
-		product.variants.find((v) => v.options[0] === colour && v.options[1] === size);
-
-	// A colour nobody can choose between is noise in every dropdown entry.
-	const nameColour = colours.length > 1;
-
-	return colours.flatMap((colour) => {
-		const colourLabel = colour.label ?? colour.value;
-		const buyable = sizes
-			.map((size) => ({ size, variant: variantFor(colour.value, size.value) }))
-			.filter(({ variant }) => variant && variant.stock > 0);
-
-		const picked = pickSize ? buyable : buyable.slice(0, 1);
-		return picked.map(({ size, variant }) => ({
-			label: !pickSize
-				? colourLabel
-				: nameColour
-					? `${colourLabel} / ${size.label ?? size.value}`
-					: (size.label ?? size.value),
-			colourCode: colour.value,
-			size: variant!.options[1] ?? '',
-			variantId: variant!.id,
-			unitPriceCents: variant!.priceCents,
-			sku: variant!.sku
-		}));
+/** Every buyable design × size, positional: options[0] design, options[1] size. */
+export function variantEntries(product: Product): VariantEntry[] {
+	const designs = product.options[0]?.values ?? [];
+	return product.variants.flatMap((v) => {
+		const design = designs.find((d) => d.value === v.options[0]);
+		if (!design || !v.options[1] || v.stock <= 0) return [];
+		return [
+			{
+				colour: design.label ?? design.value,
+				colourCode: design.value,
+				size: v.options[1],
+				variantId: v.id,
+				unitPriceCents: v.priceCents,
+				sku: v.sku
+			}
+		];
 	});
+}
+
+export function loadVariantPicker(product: Product, locale: Locale): VariantPicker {
+	const entries = variantEntries(product);
+	return {
+		designs: (product.options[0]?.values ?? []).map((d) => {
+			const photo = product.media.find((m) => m.optionValue === d.value);
+			return {
+				code: d.value,
+				label: d.label ?? d.value,
+				swatch: d.swatchHex ?? undefined,
+				image: photo?.url,
+				alt: photo?.alt ?? undefined
+			};
+		}),
+		sizes: (product.options[1]?.values ?? []).map((s) => ({
+			code: s.value,
+			label: s.label ?? s.value
+		})),
+		available: entries.map((e) => `${e.colourCode}:${e.size}`),
+		price: formatMoney(product.priceCents, locale, product.currency)
+	};
 }

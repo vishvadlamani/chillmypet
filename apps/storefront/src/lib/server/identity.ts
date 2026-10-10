@@ -13,39 +13,14 @@ import { normalize, sha256Hex } from 'ecomwithai/marketing';
  * account optimizes against whatever it can match.
  */
 
-export const VISITOR_COOKIE = 'cmp_vid';
 const EMAIL_COOKIE = 'cmp_em';
 const PHONE_COOKIE = 'cmp_ph';
 
 const DAY = 60 * 60 * 24;
 const SHA256_HEX = /^[a-f0-9]{64}$/;
-const VISITOR_ID = /^[a-f0-9-]{36}$/;
 
-/**
- * Mints our own visitor id on the first page a browser asks for. `_fbp` and
- * `_fbc` are Meta's and are seeded beside it, by `seedMetaCookies` in
- * `hooks.server.ts`.
- *
- * Set before the page renders, so the server-side PageView of that same request
- * already carries it — `cookies.get` returns what this request set. It is sent
- * hashed as `external_id`, and unlike `_fbp` nothing in the browser needs to
- * read it, so it is httpOnly.
- */
-export function ensureVisitorId(cookies: Cookies): void {
-	if (!VISITOR_ID.test(cookies.get(VISITOR_COOKIE) ?? '')) {
-		cookies.set(VISITOR_COOKIE, crypto.randomUUID(), {
-			path: '/',
-			maxAge: 365 * DAY,
-			sameSite: 'lax',
-			httpOnly: true
-		});
-	}
-}
-
-export function visitorId(cookies: { get(name: string): string | undefined }): string | undefined {
-	const id = cookies.get(VISITOR_COOKIE);
-	return id && VISITOR_ID.test(id) ? id : undefined;
-}
+// The visitor id itself is `ensureVisitorId` in `purchase.ts`: one cookie, one
+// format, read by the pixel's init and every Conversions API copy alike.
 
 /** Countries on the North American Numbering Plan this store ships to. */
 const NANP = new Set(['US', 'CA', 'PR']);
