@@ -6,6 +6,8 @@
  * and any agent still get a readable `label`.
  */
 import { createDb, createStoreService } from 'ecomwithai';
+import { insertProduct, orderLines } from './catalog.js';
+import { CHRISTMAS_HOODIE } from './christmas-hoodie.js';
 import { BENEFITS, EMAIL, FAQ, SIZE_CHART, SLUG, STORE, TRANSLATIONS } from './content.js';
 
 const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
@@ -226,6 +228,26 @@ for (const [locale, entries] of Object.entries(FAQ)) {
 			JSON.stringify(entries.map(([q, a]) => ({ q, a })))
 		]
 	});
+}
+
+// --- the Christmas hoodie, through the shared writer ---
+// Same refusal as above: recreating it would orphan order lines. A live store
+// gets it from `npm run db:products` instead, which only ever adds.
+{
+	const def = CHRISTMAS_HOODIE;
+	const lines = await orderLines(db, STORE.id, def.slug);
+	if (lines > 0) {
+		console.error(
+			`Refusing to reseed "${def.slug}": ${lines} order line(s) reference it in ${url}.`
+		);
+		process.exit(1);
+	}
+	await db.execute({
+		sql: 'delete from products where store_id = ? and slug = ?',
+		args: [STORE.id, def.slug]
+	});
+	const { variants: added } = await insertProduct(db, STORE.id, def);
+	console.log(`Seeded ${def.slug} with ${added} variants`);
 }
 
 console.log(

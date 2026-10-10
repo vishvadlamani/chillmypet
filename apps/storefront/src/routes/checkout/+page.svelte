@@ -299,6 +299,7 @@
 			items: priced.lines.map((l) => ({
 				item_id: l.sku,
 				item_name: l.title,
+				item_variant: variantName(l.colour, l.size),
 				price: amount(l.unitPriceCents),
 				quantity: l.quantity
 			}))
@@ -416,6 +417,15 @@
 	function colourName(code: string): string {
 		return t(`product.colors.${code}` as never);
 	}
+
+	/**
+	 * GA4's `item_variant`, from the option codes rather than their translated
+	 * names: "red_santa / M" reads the same in every locale, so a report split
+	 * by variant doesn't also split by language.
+	 */
+	function variantName(colour: string, size: string): string {
+		return [colour, size].filter(Boolean).join(' / ');
+	}
 </script>
 
 <svelte:head>
@@ -486,6 +496,7 @@
 					items: (priced?.lines ?? []).map((l) => ({
 						item_id: l.sku,
 						item_name: l.title,
+						item_variant: variantName(l.colour, l.size),
 						price: amount(l.unitPriceCents),
 						quantity: l.quantity
 					}))

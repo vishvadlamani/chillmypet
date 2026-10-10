@@ -1,0 +1,36 @@
+# The store on the owner's own Cloudflare account ("Global.takeover7@gmail.com's
+# Account"), charging through the owner's own Stripe account (ChillMP,
+# acct_1U3NewJOsB1nguzl) and reading its own Turso database.
+#
+# No custom domain on purpose: chillmypet.com stays on the `chillmypet` Worker in
+# the other account, and declaring it here would try to take it over. This copy
+# serves on its workers.dev address.
+#
+#   npm run build && npx wrangler deploy -c wrangler.own.toml
+#
+# Secrets, set once with `npx wrangler secret put <NAME> -c wrangler.own.toml`:
+#   TURSO_DATABASE_URL, TURSO_AUTH_TOKEN      this deployment's own database
+#   STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY from ChillMP
+#   STRIPE_WEBHOOK_SECRET                     from the endpoint pointing at this Worker
+#   META_CAPI_ACCESS_TOKEN                    optional; without it Meta gets browser events only
+#
+# No STRIPE_PAYMENT_METHOD_CONFIGURATION: the id in the other deployment belongs
+# to the old Stripe account and names nothing on ChillMP. Unset, both call sites
+# fall back to ChillMP's own default, which is the owner's to set.
+
+name = "chillmypet"
+main = ".svelte-kit/cloudflare/_worker.js"
+compatibility_date = "2026-08-08"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[vars]
+# The same dataset the ads optimise against; see wrangler.toml for why.
+META_PIXEL_ID = "1341978141149107"
+META_EXTRA_PIXEL_IDS = "1363695699271757,28272021345717397"
+GTM_CONTAINER_ID = "GTM-T446VNH9"
+STRIPE_STATEMENT_DESCRIPTOR = "CHILLMYPET"
+
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"

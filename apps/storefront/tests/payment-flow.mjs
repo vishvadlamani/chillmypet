@@ -132,6 +132,60 @@ const capiPurchases = () =>
 
 const settle = () => new Promise((r) => setTimeout(r, 2000));
 
+// What the customer's browser sends at checkout. The webhook that reports the
+// sale is a request from Stripe, so these only reach Meta if they travel
+// through the payment's metadata.
+const BUYER_UA = 'Mozilla/5.0 (PayFlowTest) Safari/605.1.15';
+const VISITOR = '0123456789abcdef'.repeat(4);
+
+/** The metadata we actually sent Stripe, as the object its webhook echoes back. */
+const sentMetadata = (params) =>
+	Object.fromEntries(
+		[...params].filter(([k]) => k.startsWith('metadata[')).map(([k, v]) => [k.slice(9, -1), v])
+	);
+
+const capiPayloads = () =>
+	capiEvents.flatMap((e) => {
+		try {
+			return JSON.parse(e.body).data ?? [];
+		} catch {
+			return [];
+		}
+	});
+
+// --- the server reports the click the browser saw -------------------------
+// A visitor carrying `_fbc` from an older ad click lands from a new one. The
+// pixel switches to the new click id, so the server copies must too, exactly
+// as issued. Meta's own example id: mixed case, `-` and `_`, none of which may
+// change.
+const CLICK = 'IwAR2F4-dbP0l7Mn1IawQQGCINEz7PYXQvwjNwB_qa2ofrHyiLjcbCRxTDMgk';
+const staleClick = { cookie: '_fbc=fb.1.1600000000000.OlderClickId' };
+const landing = `${BASE}/products/dog-life-jacket?fbclid=${CLICK}&run=${RUN}`;
+
+await fetch(landing, { headers: staleClick });
+await fetch(`${BASE}/api/track`, {
+	method: 'POST',
+	headers: { ...staleClick, 'content-type': 'application/json' },
+	body: JSON.stringify({ eventName: 'ViewContent', eventId: `vc-${RUN}`, eventSourceUrl: landing })
+});
+await settle();
+
+const landingPageView = capiPayloads().find(
+	(e) => e.event_name === 'PageView' && e.event_source_url === landing
+);
+const landingViewContent = capiPayloads().find((e) => e.event_id === `vc-${RUN}`);
+const clickFbc = new RegExp(`^fb\\.1\\.\\d{13}\\.${CLICK}$`);
+check(
+	'the landing PageView carries the new click id, unaltered',
+	clickFbc.test(landingPageView?.user_data?.fbc ?? ''),
+	`fbc ${landingPageView?.user_data?.fbc}`
+);
+check(
+	"a beacon takes the click id from the page's URL, not its own",
+	clickFbc.test(landingViewContent?.user_data?.fbc ?? ''),
+	`fbc ${landingViewContent?.user_data?.fbc}`
+);
+
 // --- place an order --------------------------------------------------------
 const product = await fetch(`${BASE}/products/dog-life-jacket`).then((r) => r.text());
 // The page ships a variant index for the host's own submit handler — colour to
@@ -160,7 +214,8 @@ const placed = await fetch(`${BASE}/checkout`, {
 	headers: {
 		'content-type': 'application/x-www-form-urlencoded',
 		origin: BASE,
-		cookie: '_fbp=fb.1.1700000000000.1234567890; _fbc=fb.1.1700000000000.testclickid'
+		'user-agent': BUYER_UA,
+		cookie: `_fbp=fb.1.1700000000000.1234567890; _fbc=fb.1.1700000000000.testclickid; cmp_vid=${VISITOR}`
 	},
 	body: form
 });
@@ -198,6 +253,13 @@ if (sessionCall) {
 		'meta click identifiers ride along for the webhook',
 		p.get('metadata[fbp]') === 'fb.1.1700000000000.1234567890' &&
 			p.get('metadata[fbc]') === 'fb.1.1700000000000.testclickid'
+	);
+	check(
+		'so do the buyer’s user agent, address and visitor id',
+		p.get('metadata[client_ua]') === BUYER_UA &&
+			Boolean(p.get('metadata[client_ip]')) &&
+			p.get('metadata[external_id]') === VISITOR,
+		JSON.stringify(sentMetadata(p))
 	);
 	check('the secret key is sent as a bearer token', sessionCall.auth.startsWith('Bearer sk_'));
 	check(
@@ -238,12 +300,9 @@ if (sessionCall) {
 					client_reference_id: orderNumber,
 					amount_total: amountTotal,
 					currency: 'usd',
-					metadata: {
-						store_id: 'chillmypet',
-						order_number: orderNumber,
-						fbp: 'fb.1.1700000000000.1234567890',
-						fbc: 'fb.1.1700000000000.testclickid'
-					}
+					// Stripe echoes the session's metadata back verbatim, so the
+					// event carries exactly what the checkout sent.
+					metadata: sentMetadata(p)
 				}
 			}
 		});
@@ -307,6 +366,16 @@ if (sessionCall) {
 			purchase.user_data?.fbp === 'fb.1.1700000000000.1234567890' &&
 				purchase.user_data?.fbc === 'fb.1.1700000000000.testclickid',
 			JSON.stringify({ fbp: purchase.user_data?.fbp, fbc: purchase.user_data?.fbc })
+		);
+		check(
+			'the buyer’s user agent and address reach Meta, which a website event requires',
+			purchase.user_data?.client_user_agent === BUYER_UA && Boolean(purchase.user_data?.client_ip_address),
+			JSON.stringify({ ua: purchase.user_data?.client_user_agent, ip: purchase.user_data?.client_ip_address })
+		);
+		check(
+			'the visitor id is the external_id the pixel was given',
+			JSON.stringify(purchase.user_data?.external_id) === JSON.stringify([VISITOR]),
+			JSON.stringify(purchase.user_data?.external_id)
 		);
 		check(
 			'address fields from our own order row are matched on',
@@ -420,6 +489,7 @@ if (sessionCall) {
 		headers: {
 			'content-type': 'application/x-www-form-urlencoded',
 			origin: BASE,
+			'user-agent': BUYER_UA,
 			cookie: '_fbp=fb.1.1700000000000.1234567890'
 		},
 		body: inline
@@ -454,6 +524,11 @@ if (sessionCall) {
 			p.get('metadata[fbp]') === 'fb.1.1700000000000.1234567890'
 		);
 		check(
+			'a first-time visitor gets a visitor id on the spot, and it rides along too',
+			/^[a-f0-9]{64}$/.test(p.get('metadata[external_id]') ?? '') && p.get('metadata[client_ua]') === BUYER_UA,
+			JSON.stringify(sentMetadata(p))
+		);
+		check(
 			'the card statement carries a descriptor the buyer will recognise',
 			p.get('statement_descriptor') === 'CHILLMYPET',
 			`got ${p.get('statement_descriptor')}`
@@ -469,11 +544,7 @@ if (sessionCall) {
 					id: intentId,
 					amount_received: Number(p.get('amount')),
 					currency: 'usd',
-					metadata: {
-						store_id: 'chillmypet',
-						order_number: orderNumber,
-						fbp: 'fb.1.1700000000000.1234567890'
-					}
+					metadata: sentMetadata(p)
 				}
 			}
 		});
@@ -497,6 +568,11 @@ if (sessionCall) {
 		await settle();
 		const purchase = capiPurchases().find((e) => e.event_id === `purchase-${orderNumber}`);
 		check('the inline sale reports its own conversion', Boolean(purchase));
+		check(
+			'with the buyer’s user agent, though Stripe sent the webhook',
+			purchase?.user_data?.client_user_agent === BUYER_UA,
+			JSON.stringify(purchase?.user_data)
+		);
 		check(
 			'for the amount actually charged',
 			purchase?.custom_data?.value === (Number(p.get('amount')) / 100).toFixed(2),
