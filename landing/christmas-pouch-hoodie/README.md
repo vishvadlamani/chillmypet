@@ -76,7 +76,12 @@ browser half only. Nothing here goes through GTM.
   once that day is over in Los Angeles.
 - A new size or design needs a Stripe product, a Payment Link with the same
   `slug`/`sku` metadata and the redirect pattern above, and an entry in `config.js`.
-- Publish: `CLOUDFLARE_API_TOKEN=… ./deploy.sh`. It stages only the page's files.
+- Publish: merging a change to this folder publishes it, through
+  `.github/workflows/deploy-christmas.yml`. That needs the
+  `OWNER_CLOUDFLARE_API_TOKEN` repository secret, a token for account
+  5fef1d1d… (the repo's `CLOUDFLARE_API_TOKEN` is for Vish's account and cannot
+  reach this project). By hand: `CLOUDFLARE_API_TOKEN=… ./deploy.sh`. Either
+  way only the page's files are staged.
 - Test the worker: `node landing/christmas-pouch-hoodie.test.mjs`.
 
 ## Content provenance
