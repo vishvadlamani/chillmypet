@@ -1,5 +1,5 @@
 import { toAmount, type Commerce, type Order } from 'ecomwithai';
-import { buildFbc } from 'ecomwithai/marketing';
+import { resolveFbc } from 'ecomwithai/marketing';
 
 /**
  * One Purchase conversion, shared by every path that can report one.
@@ -23,9 +23,12 @@ export type PurchaseAttribution = {
 };
 
 /**
- * Reads `_fbc`, falling back to minting one from a `fbclid` on the landing URL —
- * Meta matches far better with a click id than without, and the cookie is only
- * set if their script ran.
+ * Reads `_fbc`, or mints one from a `fbclid` on `url` — Meta matches far better
+ * with a click id than without, and the cookie is only set if their script ran.
+ * A `fbclid` on `url` beats an older cookie; `resolveFbc` says why.
+ *
+ * `url` is the page the visitor is on, which for a beacon is not the request's
+ * own URL.
  */
 export function attributionFrom(
 	cookies: { get(name: string): string | undefined },
@@ -33,10 +36,9 @@ export function attributionFrom(
 	headers: Headers,
 	clientIpAddress?: string
 ): PurchaseAttribution {
-	const fbclid = url.searchParams.get('fbclid');
 	return {
 		fbp: cookies.get('_fbp'),
-		fbc: cookies.get('_fbc') ?? (fbclid ? buildFbc(fbclid, Date.now()) : undefined),
+		fbc: resolveFbc(cookies.get('_fbc'), url.searchParams.get('fbclid'), Date.now()),
 		clientIpAddress,
 		clientUserAgent: headers.get('user-agent') ?? undefined
 	};

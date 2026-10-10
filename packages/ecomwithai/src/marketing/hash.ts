@@ -93,3 +93,36 @@ export async function buildUserData(input: CapiUserInput): Promise<HashedUserDat
 export function buildFbc(fbclid: string, createdAt: number): string {
 	return `fb.1.${createdAt}.${fbclid}`;
 }
+
+/**
+ * `fb.<subdomain index>.<ms timestamp>.<click id>`, plus the optional appendix
+ * Meta's own libraries add.
+ */
+const FBC_SHAPE = /^fb\.\d+\.\d+\.[^.]+(\.[A-Za-z0-9_-]+)?$/;
+
+/**
+ * The `fbc` to send for one request, chosen the way Meta's pixel and its
+ * parameter-builder library choose it, so the server half of an event carries
+ * the same click id as the browser half.
+ *
+ * A `fbclid` on the page URL is the newest click and wins over an `_fbc` cookie
+ * left by an older one: the pixel overwrites the cookie in that case, so a
+ * server that kept the cookie reports a different click than the browser did
+ * for the same event. A cookie that already holds this click is sent as-is,
+ * keeping its original timestamp. A cookie not in Meta's format is dropped —
+ * no fbc costs a little matching, while an invalid one is flagged in Events
+ * Manager against the whole dataset.
+ *
+ * Neither value is trimmed, re-cased or shortened. Meta's rule is that the
+ * click id is case-sensitive and must reach them exactly as it was issued.
+ */
+export function resolveFbc(
+	cookie: string | undefined | null,
+	fbclid: string | undefined | null,
+	now: number
+): string | undefined {
+	const stored = cookie && FBC_SHAPE.test(cookie) ? cookie : undefined;
+	if (!fbclid) return stored;
+	if (stored && stored.split('.')[3] === fbclid) return stored;
+	return buildFbc(fbclid, now);
+}

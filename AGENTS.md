@@ -172,6 +172,14 @@ surfacing them. Do not move it inside the try block that owns the order.
 only sent as 2-letter codes — truncating "Texas" to "te" hashes to a value that
 matches nobody. `hash.test.ts` pins these rules.
 
+**The click id reaches Meta exactly as issued.** Every server event takes its
+`fbc` from `resolveFbc`, which chooses the way Meta's pixel does: a `fbclid` on
+the page URL beats an older `_fbc` cookie, a cookie already holding that click
+goes untouched, and a cookie not in `fb.N.<ms>.<id>` form is dropped. Never
+trim, re-case or shorten it — Events Manager reports a modified click id as an
+error against the whole dataset. `/api/track` reads `fbclid` from the page's
+URL in the body, because its own URL never has one.
+
 ## Gotchas that already cost debugging time
 
 **`waitUntil` must be called as a method.** `const w = platform.context.waitUntil`

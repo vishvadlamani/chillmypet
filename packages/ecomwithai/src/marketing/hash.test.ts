@@ -6,7 +6,7 @@
  *   npm test
  */
 import { createHash } from 'node:crypto';
-import { buildFbc, buildUserData, normalize, sha256Hex } from './hash.ts';
+import { buildFbc, buildUserData, normalize, resolveFbc, sha256Hex } from './hash.ts';
 
 let failures = 0;
 
@@ -69,6 +69,45 @@ check('fbc is not hashed', userData.fbc, 'fb.1.1554763741205.AbCdEfGh');
 
 // --- fbc construction ---
 check('fbc format', buildFbc('AbCdEfGh', 1554763741205), 'fb.1.1554763741205.AbCdEfGh');
+
+// --- fbc selection ---
+// Meta's own example click id: mixed case, `-` and `_`. It must reach Meta
+// exactly as issued, so every case below compares the exact string.
+const CLICK = 'IwAR2F4-dbP0l7Mn1IawQQGCINEz7PYXQvwjNwB_qa2ofrHyiLjcbCRxTDMgk';
+const NOW = 1700000000123;
+const STORED = `fb.1.1554763741205.${CLICK}`;
+
+check('no cookie, no fbclid: no fbc', resolveFbc(undefined, null, NOW), undefined);
+check('cookie only: sent verbatim', resolveFbc(STORED, null, NOW), STORED);
+check(
+	'cookie with an appendix is still valid',
+	resolveFbc(`${STORED}.AQ`, null, NOW),
+	`${STORED}.AQ`
+);
+check('fbclid only: minted, case kept', resolveFbc(undefined, CLICK, NOW), `fb.1.${NOW}.${CLICK}`);
+check(
+	'cookie already holding this click keeps its timestamp',
+	resolveFbc(STORED, CLICK, NOW),
+	STORED
+);
+check(
+	'a new click beats a stale cookie',
+	resolveFbc('fb.1.1554763741205.OlderClickId', CLICK, NOW),
+	`fb.1.${NOW}.${CLICK}`
+);
+check(
+	'a click differing only in case is a different click',
+	resolveFbc(`fb.1.1554763741205.${CLICK.toLowerCase()}`, CLICK, NOW),
+	`fb.1.${NOW}.${CLICK}`
+);
+for (const bad of ['testclickid', 'fb.1.abc.Click', 'fb.1.1554763741205.', 'fb.1.1554763741205', '']) {
+	check(`malformed cookie "${bad}" is dropped`, resolveFbc(bad, null, NOW), undefined);
+}
+check(
+	'malformed cookie falls back to the fbclid',
+	resolveFbc('not-an-fbc', CLICK, NOW),
+	`fb.1.${NOW}.${CLICK}`
+);
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll normalization checks passed.');
 process.exitCode = failures ? 1 : 0;

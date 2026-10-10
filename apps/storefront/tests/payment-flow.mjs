@@ -105,6 +105,48 @@ const capiPurchases = () =>
 
 const settle = () => new Promise((r) => setTimeout(r, 2000));
 
+const capiPayloads = () =>
+	capiEvents.flatMap((e) => {
+		try {
+			return JSON.parse(e.body).data ?? [];
+		} catch {
+			return [];
+		}
+	});
+
+// --- the server reports the click the browser saw -------------------------
+// A visitor carrying `_fbc` from an older ad click lands from a new one. The
+// pixel switches to the new click id, so the server copies must too, exactly
+// as issued. Meta's own example id: mixed case, `-` and `_`, none of which may
+// change.
+const CLICK = 'IwAR2F4-dbP0l7Mn1IawQQGCINEz7PYXQvwjNwB_qa2ofrHyiLjcbCRxTDMgk';
+const staleClick = { cookie: '_fbc=fb.1.1600000000000.OlderClickId' };
+const landing = `${BASE}/products/dog-life-jacket?fbclid=${CLICK}&run=${RUN}`;
+
+await fetch(landing, { headers: staleClick });
+await fetch(`${BASE}/api/track`, {
+	method: 'POST',
+	headers: { ...staleClick, 'content-type': 'application/json' },
+	body: JSON.stringify({ eventName: 'ViewContent', eventId: `vc-${RUN}`, eventSourceUrl: landing })
+});
+await settle();
+
+const landingPageView = capiPayloads().find(
+	(e) => e.event_name === 'PageView' && e.event_source_url === landing
+);
+const landingViewContent = capiPayloads().find((e) => e.event_id === `vc-${RUN}`);
+const clickFbc = new RegExp(`^fb\\.1\\.\\d{13}\\.${CLICK}$`);
+check(
+	'the landing PageView carries the new click id, unaltered',
+	clickFbc.test(landingPageView?.user_data?.fbc ?? ''),
+	`fbc ${landingPageView?.user_data?.fbc}`
+);
+check(
+	"a beacon takes the click id from the page's URL, not its own",
+	clickFbc.test(landingViewContent?.user_data?.fbc ?? ''),
+	`fbc ${landingViewContent?.user_data?.fbc}`
+);
+
 // --- place an order --------------------------------------------------------
 const product = await fetch(`${BASE}/products/dog-life-jacket`).then((r) => r.text());
 // The page ships a variant index for the host's own submit handler — colour to

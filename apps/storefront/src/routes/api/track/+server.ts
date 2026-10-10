@@ -85,14 +85,27 @@ export const POST: RequestHandler = async ({ request, locals, url, cookies, plat
 	const eventId = str(body.eventId);
 	if (!eventName || !eventId || !MIRRORED.has(eventName)) return done;
 
+	// The page the event happened on. Its `fbclid` is the click the browser half
+	// reports, and on a landing page it is often the only copy: the beacon can
+	// beat fbevents.js to writing `_fbc`, and this endpoint's own URL never
+	// carries one. A click id is not identity, and the body is no less
+	// trustworthy a source for it than `_fbc`, which the browser writes too.
+	const eventSourceUrl = str(body.eventSourceUrl);
+	let page = url;
+	try {
+		if (eventSourceUrl) page = new URL(eventSourceUrl);
+	} catch {
+		// Not a URL; the cookie is all there is.
+	}
+
 	const send = meta
 		.send({
 			eventName,
 			eventId,
-			eventSourceUrl: str(body.eventSourceUrl) ?? url.href,
+			eventSourceUrl: eventSourceUrl ?? url.href,
 			// Never taken from the body. Cookies, IP and user agent are what this
 			// request actually carries, and a page cannot claim to be someone else.
-			user: attributionFrom(cookies, url, request.headers, getClientAddress()),
+			user: attributionFrom(cookies, page, request.headers, getClientAddress()),
 			customData: cleanCustomData(body.customData)
 		})
 		.then((result) => {
