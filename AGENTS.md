@@ -153,6 +153,10 @@ down and no gateway. Staging omits the variable because it has no gateway. The
 noscript iframe stays on Google, since the gateway does not serve `ns.html`.
 If the path ever changes in Cloudflare, change the variable with it.
 
+`tests/e2e.mjs` fails "no pixel is initialised twice" if a Meta tag is ever
+published in the container again. Locally the GTM checks need the dev server
+started with `GTM_CONTAINER_ID=GTM-T446VNH9`: the seed sets no container.
+
 **Every browser event has a server copy, and they share an `event_id`.**
 `track()` mints one id, hands it to `fbq` as `eventID`, and posts the same id to
 `/api/track`, which sends the Conversions API copy using the cookies, address
@@ -164,6 +168,31 @@ Events Manager reports as the server sending fewer events — and the half that
 goes missing to iOS and ad blockers is the one worth having. `/api/track`
 refuses `Purchase` and ignores any `user_data` in its body: a sale is reported
 from the order, and a public endpoint must not be able to claim identity.
+
+**The SSR PageView's server copy needs the browser's ids before the browser has
+them.** It leaves before `fbevents.js` has run, so on a first visit there is no
+`_fbp` yet, and on an ad click the pixel mints `_fbc` at a different millisecond
+from the server. `seedMetaCookies()` in `hooks.server.ts` writes both on GET
+requests that accept `text/html`, before `resolve` (SvelteKit puts cookies on the
+response inside it). The pixel adopts a well-formed cookie it finds, so both
+halves carry the same `fbp`/`fbc` from the first request. The same check keeps
+the server PageView to real page loads, and only on a 200. Crawlers (Meta's own
+fetches every ad's landing page), monitors, scripts and the scanners probing
+`/wp-login.php` read the HTML without ever running the pixel, so each one was a
+server-only PageView matched on an IP and a user agent. The dataset showed it:
+10.4K PageViews against 89 ViewContents on a site whose landing page fires
+ViewContent on every view, at a 3.2/10 match quality. `NON_BROWSER` must never
+match the Facebook and Instagram in-app browsers (`FBAN`, `Instagram`), which
+is where every ad click opens.
+
+**Don't put `original_event_data` on a live event.** It describes the past
+acquisition a *delayed* event belongs to, and it has its own `event_id` that
+Meta dedupes on. The framework sent it on every event, without that id, from
+the first commit, and Events Manager reported 0% of server PageViews carrying an
+event ID and 0% browser/server coverage on dataset `1341978141149107`, even
+though the top-level `event_id` was correct the whole time. It now goes out only
+beside `attribution_data`, and then it carries the same id. `hash.test.ts` pins
+both.
 
 **`fbc` follows the page's `fbclid`, not the cookie, when the two disagree.**
 A returning visitor lands from a new ad with the previous click still in
@@ -252,6 +281,14 @@ be used for optimisation, and Events Manager scored Purchase's match quality at
 characters, so a longer value is left out rather than failing a checkout. Any new
 path that creates an intent or session must pass this metadata too. The hosted
 fallback in `/api/checkout/session` was missing it.
+
+**A returning shopper's events carry their email and phone too.**
+`$lib/server/identity.ts` keeps `cmp_em` and `cmp_ph`: SHA-256 digests of the
+email and phone a shopper gave at checkout, written by the checkout action and
+never by `/api/track`, so the next visit's PageView and ViewContent carry them.
+`buildUserData` passes a 64-hex value through untouched; hash it again and it
+matches nobody. Phones get a calling code (`withCallingCode`) before hashing, in
+the cookie and on Purchase alike, or the same person hashes two ways.
 
 ## Gotchas that already cost debugging time
 
@@ -510,6 +547,17 @@ fresh database; a live one gets it from `npm run db:products`, which only adds
 products that are missing and never rewrites one. Until that has run against
 Turso, the page 404s in production even though the manifest is deployed.
 
+**The Pouch Pet Hoodie has no product page here yet.** It sells from the
+landing page in `landing/pouch-pet-hoodie/` (chillmypet-hoodie.pages.dev,
+on the Cloudflare account its README names), through a Stripe Payment Link on
+ChillMP, so its orders never reach the database. The link has a required Size
+field but no colour field: the colour travels as `client_reference_id` (black,
+gray, pink, cream) and is only visible on the order in Stripe. An earlier
+`/products/pouch-pet-hoodie` built on the old colour-and-size dropdown was set
+aside when the design-and-size picker replaced it; it is in the history of
+`$lib/store/hoodie-manifest.ts` and `scripts/hoodie.js`. Rebuild it on the
+Christmas page's blocks, not from that.
+
 ⚠️ **The invented reviews do not ship, and that is deliberate.** The 22
 testimonials that came with the block library are written words attributed to
 named people who never said them, the 4.9-from-1,127 rating was never counted,
@@ -720,9 +768,24 @@ Not built, in rough priority order:
 2. **Consent gate.** The pixel loads for everyone. GDPR/ePrivacy require prior
    consent for advertising cookies before taking EU traffic. As with tax, an EU
    merchant cannot treat this as somebody else's market.
-3. **Admin.** No way to fulfil, refund, or look up a customer.
-4. **Transactional email.** No order confirmation is sent. Once payments are on
-   Stripe emails a payment receipt — that is not an order confirmation.
+3. **Admin — built, switched off.** `/admin` lists the queue to ship (paid,
+   unshipped, oldest first) and every order, searches by order number or
+   email, and marks an order shipped with carrier and tracking, which emails
+   the customer. It is a 404 until `ADMIN_PASSWORD` is a Worker secret, then
+   HTTP Basic auth against it; no pixel, container or server PageView runs on
+   it. Shipping is a row in `fulfillments`, **not** an order status: the
+   payment module reads `status = 'paid'` as settled, so a shipped order that
+   moved off `paid` could be settled — and reported — again. Run
+   `npm run db:migrate` against production before first use; the storefront
+   itself never reads that table. Refunds are still issued in Stripe.
+   `npm run test:admin` covers it.
+4. **Transactional email — built, switched off.** `$lib/server/email.ts` sends
+   an order confirmation through Resend, beside the Purchase event, on the
+   three paths that report a sale (webhook, receipt reconcile, no-payments
+   checkout). Each runs once per sale, which is what keeps it to one email;
+   `test:payments` counts them. It sends nothing until `RESEND_API_KEY` is a
+   Worker secret, and the sending domain (`orders@chillmypet.com` by default)
+   must be verified in Resend first. No shipping-notification email yet.
 5. ~~**Payments.**~~ Live, on ChillMyPet's own Stripe account since 2026-10-07
    — see above.
 6. ~~**DNS.**~~ Done — chillmypet.com and www are live on the `chillmypet`
@@ -737,7 +800,7 @@ Not built, in rough priority order:
 | Database | Turso `chillmypet-vish.aws-us-west-2.turso.io` (group `default`) |
 | Payments | Stripe `acct_1U3NewJOsB1nguzl` ("ChillMP"), live since 2026-10-07 |
 | Meta dataset | `1341978141149107` (browser + CAPI); `1363695699271757`, `28272021345717397` browser only |
-| Hoodie landing page | `chillmypet-hoodie.pages.dev`, Cloudflare Pages, **not this repo** — see below |
+| Hoodie landing page | `chillmypet-hoodie.pages.dev`, Cloudflare Pages, source in `landing/pouch-pet-hoodie/`, on a third Cloudflare account — see below |
 
 **Which Cloudflare account holds what.** Everything chillmypet.com runs on is
 in **Vish's** Cloudflare account, alongside many unrelated Workers. That covers
@@ -746,8 +809,12 @@ domain itself. chillmypet.com was registered through Cloudflare Registrar on
 2026-08-08 and expires 2027-08-08. The business owner has a separate,
 newer Cloudflare account that serves nothing for chillmypet.com. Never add
 chillmypet.com there through "Connect your domain": it would issue new
-nameservers for a domain that is already live elsewhere. Where the
-`chillmypet-hoodie` Pages project lives has not been checked. Moving the store
+nameservers for a domain that is already live elsewhere. The
+`chillmypet-hoodie` Pages project is on neither: it is on account
+`5fef1d1dbb6eaee72fdfc2b26a61a386` (checked 2026-10-07 — the repo's
+`CLOUDFLARE_WORKERS` token lists Vish's account's Pages projects, and it is not
+among them). So no workflow here can publish it; it is uploaded by hand, as its
+README says. Moving the store
 into the owner's account is possible, but it is a planned migration (domain
 transfer between accounts, Worker and secrets re-created, custom domain
 re-bound), not a dashboard click. When in doubt about which account serves the
@@ -759,11 +826,15 @@ answers it in seconds.
 `chillmypet-hoodie.pages.dev` ("Pouch Pet Hoodie · ChillMyPet") sells the cat
 pouch hoodie that the current Meta ads feature. The Reels say "Link in bio",
 so that traffic does not necessarily land on chillmypet.com. It is a static
-page outside this repository (`config.js`, `pixel.js`) and **shares none of
-this app's checkout**:
+page whose source is `landing/pouch-pet-hoodie/` (`config.js`, `pixel.js`,
+`_worker.js`), and it **shares none of this app's checkout**:
 
-- It loads the same three pixels, browser-side only. Its PageView has no
-  server copy and no shared `event_id`.
+- It loads the same three pixels. Since the upload of 2026-10-07 (four colours,
+  `_worker.js` running: `POST /api/event` answers 400 to a bad body) every
+  browser event is also posted to the worker under the same id, but the worker
+  only forwards it to Meta when the Pages project holds `META_CAPI_ACCESS_TOKEN`
+  — whether it does has not been checked. Without it, the page is browser-side
+  only.
 - It sells through a Stripe **Payment Link** on ChillMP
   (`plink_1ULu2aJOsB1nguzlIzkLcmZG`, buy.stripe.com/fZu28sfbIgamgIe8tp1wY01),
   which returns to `thank-you.html`. A hoodie sale creates **no order in
@@ -796,6 +867,13 @@ Purchase events land in Events Manager > Test Events instead of ads reporting. K
 without it, a checkout test on staging is a fabricated conversion in the numbers
 the ad account optimizes against. Change the value to whatever code Events
 Manager shows you when you want to watch a run live.
+
+The test code only reroutes the *server* copy. The browser pixel has no such
+switch, so `wrangler.staging.toml` pins `META_PIXEL_ID`, `META_EXTRA_PIXEL_IDS`
+and `GTM_CONTAINER_ID` to empty — `??` keeps an empty string, so staging loads
+no pixel and no container instead of inheriting production's from the shared
+store row. Leave them empty; set `META_PIXEL_ID` for one run when you want to
+watch it in Test Events.
 
 Migrations run from a machine with the credentials, not from the Worker:
 

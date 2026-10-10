@@ -83,14 +83,25 @@ export function createMetaService(config: MetaConfig): MetaService {
 				event_time: eventTime,
 				event_id: event.eventId,
 				action_source: 'website',
-				user_data: await buildUserData(event.user),
-				original_event_data: { event_name: event.eventName, event_time: eventTime }
+				user_data: await buildUserData(event.user)
 			};
 
 			if (event.eventSourceUrl) payload.event_source_url = event.eventSourceUrl;
 			if (event.customData) payload.custom_data = event.customData;
+			// `original_event_data` describes the past acquisition a *delayed*
+			// event belongs to, and it has an `event_id` of its own that Meta
+			// dedupes on. Sent on every live event without one, it told Meta the
+			// whole server stream had no dedupe key: Events Manager reported 0% of
+			// server PageViews carrying an event ID and 0% coverage, while the
+			// top-level `event_id` was there all along. It only belongs beside
+			// `attribution_data`, and then it must carry the same id.
 			if (config.attributionShare) {
 				payload.attribution_data = { attribution_share: config.attributionShare };
+				payload.original_event_data = {
+					event_name: event.eventName,
+					event_time: eventTime,
+					event_id: event.eventId
+				};
 			}
 
 			return payload;

@@ -14,6 +14,7 @@
 import { createCatalogService, type CatalogService } from './catalog/index.ts';
 import { createCustomerService, type CustomerService } from './customers/index.ts';
 import { createDb, type Client, type DatabaseConfig } from './db/index.ts';
+import { createFulfillmentService, type FulfillmentService } from './fulfillments/index.ts';
 import { createMetaService, type MetaConfig, type MetaService } from './marketing/index.ts';
 import { createOrderService, type OrderService } from './orders/index.ts';
 import { createStoreService, type Store, type StoreService } from './stores/index.ts';
@@ -46,6 +47,12 @@ export type {
 } from './catalog/index.ts';
 export type { CustomerService, Customer } from './customers/index.ts';
 export type { OrderService, Order, OrderItem, CreateOrderInput } from './orders/index.ts';
+export type {
+	FulfillmentService,
+	Fulfillment,
+	MarkShippedInput,
+	MarkShippedResult
+} from './fulfillments/index.ts';
 export { CheckoutError, type CheckoutErrorCode } from './orders/index.ts';
 export {
 	DEFAULT_SHIPPING_RATES,
@@ -84,6 +91,8 @@ export type Commerce = {
 	catalog: CatalogService;
 	customers: CustomerService;
 	orders: OrderService;
+	/** Shipping, recorded beside the order so `orders.status` stays `paid`. */
+	fulfillments: FulfillmentService;
 	/** Null unless a pixel id is configured for this store. */
 	meta: MetaService | null;
 	/** Null unless a payment provider is configured for this store. */
@@ -142,6 +151,8 @@ export function createCommerce(config: CommerceConfig): Commerce {
 		orderNumberPrefix: config.orderNumberPrefix
 	});
 
+	const fulfillments = createFulfillmentService({ db, storeId });
+
 	const pixelId = config.meta?.pixelId;
 	const meta = pixelId ? createMetaService({ ...config.meta, pixelId }) : null;
 
@@ -155,6 +166,7 @@ export function createCommerce(config: CommerceConfig): Commerce {
 		catalog,
 		customers,
 		orders,
+		fulfillments,
 		meta,
 		payments,
 		quantityBreaks: config.quantityBreaks ?? []

@@ -1,3 +1,4 @@
+import { rememberedContact } from '$lib/server/identity';
 import { attributionFrom } from '$lib/server/purchase';
 import type { MetaCustomData, MetaEventName } from 'ecomwithai/marketing';
 import type { RequestHandler } from './$types';
@@ -106,8 +107,13 @@ export const POST: RequestHandler = async ({ request, locals, url, cookies, plat
 			// The one exception is the click id, read off the page's URL: this
 			// beacon's own URL never has one, and the page's must agree with the
 			// fbc sent next to it. A page could forge it, but it could as easily
-			// forge the `_fbc` cookie it is checked against.
-			user: attributionFrom(cookies, pageUrl(eventSourceUrl, url), request.headers, getClientAddress()),
+			// forge the `_fbc` cookie it is checked against. The email and phone
+			// are digests the checkout action stored, not anything this endpoint
+			// was told.
+			user: {
+				...rememberedContact(cookies),
+				...attributionFrom(cookies, pageUrl(eventSourceUrl, url), request.headers, getClientAddress())
+			},
 			customData: cleanCustomData(body.customData)
 		})
 		.then((result) => {

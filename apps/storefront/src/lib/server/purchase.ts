@@ -1,5 +1,6 @@
 import { toAmount, type Commerce, type Order } from 'ecomwithai';
 import { resolveFbc } from 'ecomwithai/marketing';
+import { withCallingCode } from '$lib/server/identity';
 
 /**
  * One Purchase conversion, shared by every path that can report one.
@@ -32,7 +33,7 @@ type CookieJar = {
 const VISITOR_COOKIE = 'cmp_vid';
 const VISITOR_ID = /^[a-f0-9]{64}$/;
 
-function visitorId(cookies: { get(name: string): string | undefined }): string | undefined {
+export function visitorId(cookies: { get(name: string): string | undefined }): string | undefined {
 	const value = cookies.get(VISITOR_COOKIE);
 	return value && VISITOR_ID.test(value) ? value : undefined;
 }
@@ -149,7 +150,9 @@ export function sendPurchase(
 			eventSourceUrl: options.eventSourceUrl,
 			user: {
 				email: order.email,
-				phone: shipping.phone ?? undefined,
+				// With its calling code, so it hashes the same as the copy the
+				// earlier PageView and ViewContent events sent from the cookie.
+				phone: shipping.phone ? withCallingCode(shipping.phone, shipping.country) : undefined,
 				firstName: shipping.firstName,
 				lastName: shipping.lastName,
 				city: shipping.city,

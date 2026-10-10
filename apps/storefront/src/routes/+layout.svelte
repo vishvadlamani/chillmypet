@@ -12,6 +12,8 @@
 	// navigations would otherwise go unrecorded.
 	afterNavigate((navigation) => {
 		if (navigation.type === 'enter') return;
+		// The admin loads no pixel, and its page views are not a shopper's.
+		if (isAdmin) return;
 		// Plain, not scoped: every pixel is initialised by the snippet in
 		// app.html, so one call gives each of them exactly one PageView.
 		track('PageView');
@@ -30,11 +32,17 @@
 	 */
 	let ownsAnnouncement = $derived(Boolean(page.data.definition));
 
+	/** The admin renders bare: no shop header, cart or footer around an order list. */
+	let isAdmin = $derived(page.url.pathname === '/admin' || page.url.pathname.startsWith('/admin/'));
+
 	$effect(() => {
 		cart.hydrate();
 	});
 </script>
 
+{#if isAdmin}
+	{@render children()}
+{:else}
 <div class="flex min-h-screen flex-col">
 	{#if !ownsAnnouncement}
 		<p class="bg-tide-700 px-4 py-2 text-center text-sm text-white">
@@ -112,3 +120,4 @@
 		</div>
 	</footer>
 </div>
+{/if}

@@ -52,8 +52,10 @@ export type CapiUserInput = {
 	zip?: string;
 	country?: string;
 	/**
-	 * A first-party id for the visitor, the same on every event they fire.
-	 * Hashed unless it already is a SHA-256 hex digest, which passes through.
+	 * A first-party id for the visitor, the same on every event they fire,
+	 * including the first anonymous PageView, so it is what ties a visitor's
+	 * browsing to the purchase that comes later. Hashed unless it already is a
+	 * SHA-256 hex digest, which passes through.
 	 */
 	externalId?: string;
 	/** These four must NOT be hashed. */
@@ -65,23 +67,35 @@ export type CapiUserInput = {
 
 export type HashedUserData = Record<string, string[] | string>;
 
+/**
+ * A value that is already a SHA-256 digest. Passed through untouched, the way
+ * Meta's own SDKs do it: a host that stores contact details only as hashes (in a
+ * cookie, say) can send them without ever holding the plaintext again.
+ * Normalizing one first would destroy it — phone normalization strips letters.
+ */
 const SHA256_HEX = /^[a-f0-9]{64}$/;
 
 export async function buildUserData(input: CapiUserInput): Promise<HashedUserData> {
-	const fields: [string, string | undefined][] = [
-		['em', input.email && normalize.email(input.email)],
-		['ph', input.phone && normalize.phone(input.phone)],
-		['fn', input.firstName && normalize.name(input.firstName)],
-		['ln', input.lastName && normalize.name(input.lastName)],
-		['ct', input.city && normalize.city(input.city)],
-		['st', input.state && normalize.state(input.state)],
-		['zp', input.zip && normalize.zip(input.zip)],
-		['country', input.country && normalize.country(input.country)]
+	const fields: [string, string | undefined, (v: string) => string][] = [
+		['em', input.email, normalize.email],
+		['ph', input.phone, normalize.phone],
+		['fn', input.firstName, normalize.name],
+		['ln', input.lastName, normalize.name],
+		['ct', input.city, normalize.city],
+		['st', input.state, normalize.state],
+		['zp', input.zip, normalize.zip],
+		['country', input.country, normalize.country]
 	];
 
 	const userData: HashedUserData = {};
 
-	for (const [key, value] of fields) {
+	for (const [key, raw, clean] of fields) {
+		if (!raw) continue;
+		if (SHA256_HEX.test(raw)) {
+			userData[key] = [raw];
+			continue;
+		}
+		const value = clean(raw);
 		// Omit empty keys rather than sending `[null]` — a null entry carries no
 		// signal and drags down the reported match quality.
 		if (!value) continue;
@@ -108,6 +122,23 @@ export async function buildUserData(input: CapiUserInput): Promise<HashedUserDat
 /** The `fbc` value Meta expects when a visitor lands with `?fbclid=`. */
 export function buildFbc(fbclid: string, createdAt: number): string {
 	return `fb.1.${createdAt}.${fbclid}`;
+}
+
+/**
+ * A browser id in the `_fbp` format, for a host to set before Meta's script has.
+ *
+ * The pixel only creates `_fbp` once `fbevents.js` runs in the browser, which
+ * is after the first page's server-side PageView has already gone without one.
+ * The pixel adopts an `_fbp` cookie it finds rather than minting its own, so a
+ * value set here identifies the browser to both halves from the first request.
+ */
+export function buildFbp(createdAt: number, random = Math.floor(Math.random() * 2 ** 31)): string {
+	return `fb.1.${createdAt}.${random}`;
+}
+
+/** The click id inside an `_fbc` value, or undefined when it is not one. */
+export function fbclidOf(fbc: string | undefined): string | undefined {
+	return fbc?.match(/^fb\.\d+\.\d+\.(.+)$/)?.[1];
 }
 
 /**

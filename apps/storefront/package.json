@@ -13,11 +13,12 @@
 		"db:migrate": "node --env-file-if-exists=.env scripts/migrate.js",
 		"db:seed": "node --env-file-if-exists=.env scripts/seed.js",
 		"meta:check": "node --env-file-if-exists=.env scripts/meta-check.js",
-		"test": "node --experimental-strip-types src/lib/store/christmas.test.ts",
+		"test": "node --experimental-strip-types src/lib/store/christmas.test.ts && node --experimental-strip-types src/lib/server/email.test.ts",
 		"test:e2e": "node tests/e2e.mjs",
 		"deploy": "npm run build && wrangler deploy",
 		"test:payments": "node tests/payment-flow.mjs",
 		"test:store": "node tests/store-flow.mjs && node tests/christmas-hoodie.mjs",
+		"test:admin": "node tests/admin-flow.mjs",
 		"db:content": "node --env-file-if-exists=.env scripts/sync-content.js",
 		"db:products": "node --env-file-if-exists=.env scripts/add-products.js"
 	},
