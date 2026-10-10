@@ -70,6 +70,20 @@ const session = (metadata, extra = {}) => ({
 	check('with hashed buyer details', /^[0-9a-f]{64}$/.test(e?.user_data.em?.[0] ?? '') && /^[0-9a-f]{64}$/.test(e?.user_data.country?.[0] ?? ''));
 }
 
+// --- the sale names the same visitor as the page's events -------------------------
+{
+	const VID = 'a'.repeat(64);
+	sent.length = 0;
+	await worker.fetch(signed(session({ slug: 'christmas-pouch-hoodie', sku: 'CMP-XH-SANTA-RED-S' }, { client_reference_id: VID })), env, ctx);
+	const e = sent[0]?.body.data[0];
+	check('the link’s visitor id is the Purchase’s external_id, as it is', JSON.stringify(e?.user_data.external_id) === JSON.stringify([VID]), JSON.stringify(e?.user_data));
+	check('alongside the hashed buyer details', /^[0-9a-f]{64}$/.test(e?.user_data.em?.[0] ?? ''));
+
+	sent.length = 0;
+	await worker.fetch(signed(session({ slug: 'christmas-pouch-hoodie', sku: 'CMP-XH-SANTA-RED-S' }, { client_reference_id: 'order-from-elsewhere' })), env, ctx);
+	check('a client_reference_id of any other shape is not sent as one', !('external_id' in (sent[0]?.body.data[0].user_data ?? {})), JSON.stringify(sent[0]?.body.data[0].user_data));
+}
+
 // --- what it must not report -----------------------------------------------------
 {
 	sent.length = 0;
@@ -111,6 +125,31 @@ const session = (metadata, extra = {}) => ({
 	check('the server copy keeps the browser’s event id', add?.event_id === 'id-AddToCart-123');
 	check('unknown content ids are dropped', JSON.stringify(add?.custom_data.content_ids) === '["CMP-XH-SANTA-RED-M"]', JSON.stringify(add?.custom_data));
 	check('fbp and fbc ride along', add?.user_data.fbp === 'fb.1.1.2' && /^fb\.1\.\d+\.abc$/.test(add?.user_data.fbc ?? ''));
+	check('no visitor cookie, no external_id', !('external_id' in (add?.user_data ?? {})));
+}
+
+// --- the visitor id from pixel.js goes out exactly as the pixel sends it ------------
+{
+	const copyWith = async (cookie) => {
+		sent.length = 0;
+		waits.length = 0;
+		await worker.fetch(
+			new Request(`${ORIGIN}/api/event`, {
+				method: 'POST',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({ name: 'ViewContent', id: 'id-ViewContent-123', url: `${ORIGIN}/`, data: {} })
+			}),
+			env,
+			ctx
+		);
+		await Promise.all(waits);
+		return sent[0]?.body.data[0].user_data;
+	};
+	const VID = '0123456789abcdef'.repeat(4);
+	const ok = await copyWith(`_fbp=fb.1.1.2; cmp_vid=${VID}`);
+	check('the visitor id is the external_id, unhashed like the pixel’s', JSON.stringify(ok?.external_id) === JSON.stringify([VID]), JSON.stringify(ok));
+	const odd = await copyWith('cmp_vid=<script>');
+	check('a visitor cookie of any other shape is dropped', !('external_id' in (odd ?? {})), JSON.stringify(odd));
 }
 
 // --- fbc: the click id on the URL wins over a stale cookie ---------------------------

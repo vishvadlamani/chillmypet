@@ -186,8 +186,13 @@
 		};
 		xmasTrack('AddToCart', data, true);
 		xmasTrack('InitiateCheckout', data, true);
+		// The visitor id rides to Stripe as client_reference_id, the one value a
+		// Payment Link carries through to the session, so the webhook's Purchase
+		// names the same person as the events above.
+		var url = target.url;
+		if (window.XMAS.visitorId) url += (url.indexOf('?') < 0 ? '?' : '&') + 'client_reference_id=' + window.XMAS.visitorId;
 		// A beat for the beacons, then on to Stripe.
-		setTimeout(function () { location.href = target.url; }, 150);
+		setTimeout(function () { location.href = url; }, 150);
 	}
 	all('.buy').forEach(function (a) { a.addEventListener('click', buy); });
 

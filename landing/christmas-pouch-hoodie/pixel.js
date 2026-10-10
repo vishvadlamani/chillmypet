@@ -4,7 +4,28 @@ n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
 n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
-(window.XMAS.pixelIds || []).forEach(function (id) { fbq('init', id); });
+/*
+ * The visitor's external_id: one id on every pixel init, every /api/event copy
+ * and, through the Payment Link's client_reference_id, the webhook's Purchase,
+ * so Meta can tie them to one person before anyone has typed an email.
+ * 64 hex characters on purpose: the pixel sends a value shaped like a SHA-256
+ * digest as it is, and _worker.js sends this same string, so both halves
+ * agree. Random, never derived from anything about the person.
+ */
+window.XMAS.visitorId = (function () {
+	var m = /(?:^|; )cmp_vid=([a-f0-9]{64})(?:;|$)/.exec(document.cookie);
+	if (m) return m[1];
+	if (!window.crypto || !crypto.getRandomValues) return '';
+	var id = Array.prototype.map.call(crypto.getRandomValues(new Uint8Array(32)), function (b) {
+		return ('0' + b.toString(16)).slice(-2);
+	}).join('');
+	document.cookie = 'cmp_vid=' + id + '; Max-Age=31536000; Path=/; SameSite=Lax; Secure';
+	return id;
+})();
+(window.XMAS.pixelIds || []).forEach(function (id) {
+	if (window.XMAS.visitorId) fbq('init', id, { external_id: window.XMAS.visitorId });
+	else fbq('init', id);
+});
 
 /*
  * Every event goes twice under one id: to the pixel here, and to /api/event,

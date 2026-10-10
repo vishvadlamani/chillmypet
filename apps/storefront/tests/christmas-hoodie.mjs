@@ -44,7 +44,7 @@ function check(label, cond, detail) {
 	check('no countdown, stock counter or viewers', !/sale ends|left in stock|viewing|people are/i.test(html));
 	check('no ratings or reviews', !/★|Pet Parents|What owners are saying/.test(html));
 	check('og:image is absolute', /property="og:image" content="https?:\/\//.test(html));
-	check('the Meta pixel is the dataset 1341978141149107', html.includes("fbq('init', '1341978141149107')"));
+	check('the Meta pixel is the dataset 1341978141149107', html.includes("fbq('init', '1341978141149107'"));
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });

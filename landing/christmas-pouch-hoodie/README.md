@@ -42,6 +42,20 @@ them with CSS rather than adding images nobody has the rights to.
 4. Stripe's webhook reaches `_worker.js`, which sends the server **Purchase**
    under the same session id with the buyer's hashed details. Meta keeps one.
 
+Every event names the visitor with one `external_id`: `pixel.js` mints a random
+64-hex id into the `cmp_vid` cookie, passes it to each `fbq('init')`, and the
+worker sends the same string with each `/api/event` copy. Buy appends it to the
+Payment Link as `client_reference_id`, the one value a link carries through to
+the session, and the webhook's Purchase sends it back as `external_id`. That is
+how the sale is tied to the visitor's earlier events. The webhook is Stripe's
+request, so it has no IP, user agent, `_fbp` or `_fbc` for the buyer.
+
+The webhook Purchase still lacks `client_user_agent`, which Meta lists as
+required for website events. The fix needs somewhere to keep the browser's
+details between InitiateCheckout and the webhook, such as a KV namespace bound
+to this Pages project and keyed by the visitor id. That means setting something
+up in the owner's Cloudflare account, so it has not been done.
+
 **ViewContent** fires on load with the product slug, as on chillmypet.com.
 Every event goes to dataset `1341978141149107`; the two extra pixels get the
 browser half only. Nothing here goes through GTM.

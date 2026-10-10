@@ -2,7 +2,7 @@ import { error, type Handle } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
 import { newEventId } from 'ecomwithai/marketing';
-import { attributionFrom } from '$lib/server/purchase';
+import { attributionFrom, ensureVisitorId } from '$lib/server/purchase';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
 export const LOCALE_COOKIE = 'locale';
@@ -30,13 +30,18 @@ function getDirectory() {
  * initialised pixel, so each gets exactly one, and the same holds for the
  * events the app fires later.
  *
- * Guards against database content reaching the page as markup.
+ * Each init carries the visitor's `external_id`, the same string every
+ * Conversions API copy sends, so the two halves of an event name one person.
+ *
+ * Guards against database content reaching the page as markup, and against a
+ * cookie doing the same: the id is checked against its exact shape again here.
  */
-function pixelSnippet(pixelIds: string[], pageViewEventId: string): string {
+function pixelSnippet(pixelIds: string[], pageViewEventId: string, externalId: string): string {
 	const ids = pixelIds.filter((id) => /^\d{1,20}$/.test(id));
 	if (ids.length === 0) return '';
 
-	const inits = ids.map((id) => `fbq('init', '${id}');`).join('\n');
+	const matching = /^[a-f0-9]{64}$/.test(externalId) ? `, {external_id: '${externalId}'}` : '';
+	const inits = ids.map((id) => `fbq('init', '${id}'${matching});`).join('\n');
 	const noscript = ids
 		.map(
 			(id) => `<noscript><img height="1" width="1" style="display:none" alt=""
@@ -197,13 +202,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// from this same request, which already holds the cookies, address and user
 	// agent that make it matchable.
 	const pageViewEventId = newEventId();
+	// Before resolve(), so the cookie is on this response and every read of it
+	// later in this request, PageView's server copy included, sees the same id.
+	const visitorId = ensureVisitorId(event.cookies);
 
 	const response = await resolve(event, {
 		transformPageChunk: ({ html }) =>
 			html
 				.replace('%lang%', locale)
 				.replace('%dir%', textDirection(locale))
-				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId))
+				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId, visitorId))
 				.replace('%gtm_head%', gtm.head)
 				.replace('%gtm_body%', gtm.body)
 				.replace(

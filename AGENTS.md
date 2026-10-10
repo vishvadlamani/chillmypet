@@ -220,6 +220,35 @@ surfacing them. Do not move it inside the try block that owns the order.
 only sent as 2-letter codes — truncating "Texas" to "te" hashes to a value that
 matches nobody. `hash.test.ts` pins these rules.
 
+**Every event names the visitor with one `external_id`, and it is 64 hex
+characters on purpose.** `ensureVisitorId()` in `$lib/server/purchase.ts` mints
+a random id into the httpOnly `cmp_vid` cookie in `hooks.server.ts`, before
+`resolve()`. The same string goes onto every `fbq('init', …)` and onto every
+Conversions API copy, so Meta can tie a ViewContent, an InitiateCheckout and the
+Purchase to one person on a landing page where nobody has typed an email yet.
+Events Manager asked for exactly that coverage on ViewContent. The shape is what
+makes the two halves agree: the pixel sends a value that looks like a SHA-256
+digest as it is and hashes anything else, and `buildUserData` follows the same
+rule. Change the id to a UUID and the browser copy carries its hash while the
+server copy carries something else, and they stop matching without any error.
+The id is random, never derived from the person. Like `_fbp`, it is an
+advertising identifier: the consent gate (Not built, below) has to hold this
+cookie back too. The Christmas page (`landing/`) mints the same cookie in
+`pixel.js`.
+
+**The webhook's Purchase carries the buyer's address and user agent through
+Stripe.** The webhook is a request from Stripe, so it has none of the customer's
+cookies, IP or user agent. `attributionMetadata()` packs `fbp`, `fbc`,
+`external_id`, `client_ip` and `client_ua` from the checkout request into the
+intent or session metadata, and `attributionFromMetadata()` unpacks them for the
+Purchase. Before this the Purchase went out with no `client_user_agent`, which
+Meta lists as required for website events. Such events are accepted but may not
+be used for optimisation, and Events Manager scored Purchase's match quality at
+0. Stripe refuses a whole request when any metadata value is over 500
+characters, so a longer value is left out rather than failing a checkout. Any new
+path that creates an intent or session must pass this metadata too. The hosted
+fallback in `/api/checkout/session` was missing it.
+
 ## Gotchas that already cost debugging time
 
 **`waitUntil` must be called as a method.** `const w = platform.context.waitUntil`
@@ -776,6 +805,18 @@ verify a build before touching production:
 cd apps/storefront
 npm run build && npx wrangler deploy -c wrangler.staging.toml
 ```
+
+**Merging to `main` does not deploy.** `.github/workflows/deploy.yml` checks,
+tests and builds on every push, but `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` have never been added as repository secrets. Without
+them the run skips `wrangler deploy` and posts a "chillmypet.com was NOT
+deployed" warning on its summary page. It used to fail at that step instead,
+which emailed the owner a failure on every merge even though the code was fine.
+Once both secrets exist the same workflow deploys production on every merge,
+with no code change. Until then, deploy by hand as below, and check the live page
+before assuming a merged fix is running. On 2026-10-10 chillmypet.com still
+served a build from before 2026-10-08: the `/qndl` GTM gateway was absent from
+its HTML.
 
 The production config (`wrangler.toml`) declares chillmypet.com and www as
 custom domains. Deploying it points the live domain at whatever you just built,

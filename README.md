@@ -286,7 +286,10 @@ npm run deploy
 Or push to `main` and let `.github/workflows/deploy.yml` run it, once
 `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are repository secrets. Give
 the token the "Edit Cloudflare Workers" template plus **Zone → DNS → Edit** on
-each store domain.
+each store domain. Until they are set, the workflow still checks, tests and
+builds, then skips the deploy and says so with a warning on the run's summary
+page. A green run without that warning is a deploy. A green run with it means
+production did not change.
 
 Worker secrets:
 
