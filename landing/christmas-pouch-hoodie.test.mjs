@@ -113,6 +113,33 @@ const session = (metadata, extra = {}) => ({
 	check('fbp and fbc ride along', add?.user_data.fbp === 'fb.1.1.2' && /^fb\.1\.\d+\.abc$/.test(add?.user_data.fbc ?? ''));
 }
 
+// --- fbc: the click id on the URL wins over a stale cookie ---------------------------
+{
+	const fbcFor = async (cookie, url) => {
+		sent.length = 0;
+		waits.length = 0;
+		await worker.fetch(
+			new Request(`${ORIGIN}/api/event`, {
+				method: 'POST',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({ name: 'PageView', id: 'id-PageView-123', url, data: {} })
+			}),
+			env,
+			ctx
+		);
+		await Promise.all(waits);
+		return sent[0]?.body.data[0].user_data.fbc;
+	};
+	const stale = await fbcFor('_fbp=fb.1.1.2; _fbc=fb.1.1554763741205.OldClick', `${ORIGIN}/?fbclid=NeW_Click-Id`);
+	check('a cookie from an earlier click gives way to the URL’s', /^fb\.1\.\d+\.NeW_Click-Id$/.test(stale ?? '') && !stale.startsWith('fb.1.1554763741205.'), stale);
+	const same = await fbcFor('_fbc=fb.1.1554763741205.NeW_Click-Id', `${ORIGIN}/?fbclid=NeW_Click-Id`);
+	check('a cookie carrying the same click keeps its timestamp', same === 'fb.1.1554763741205.NeW_Click-Id', same);
+	const noUrl = await fbcFor('_fbc=fb.1.1554763741205.OldClick', `${ORIGIN}/`);
+	check('with no click on the URL the cookie is sent as it is', noUrl === 'fb.1.1554763741205.OldClick', noUrl);
+	const caseOnly = await fbcFor('_fbc=fb.1.1554763741205.new_click-id', `${ORIGIN}/?fbclid=NeW_Click-Id`);
+	check('the click id is never lowercased', /\.NeW_Click-Id$/.test(caseOnly ?? ''), caseOnly);
+}
+
 // --- a token pasted by hand into the dashboard ----------------------------------------
 {
 	const { META_CAPI_ACCESS_TOKEN, ...rest } = env;
