@@ -14,10 +14,43 @@ compatibility_flags = ["nodejs_compat"]
 #
 # META_EXTRA_PIXEL_IDS are additional pixels measuring the same pages,
 # comma-separated. They share the one loader and every event, but get no CAPI.
+#
+# Which id belongs to whom, because the numbers are unmemorable and picking the
+# wrong one is a silent month of zero reported conversions:
+#
+#   1341978141149107  ad account 1550461850095009, portfolio "Vish Ads"
+#                     (239590337358646) — the account that runs the ads, so the
+#                     one that must get both halves. Meta merged pixel and
+#                     dataset into one object, so this single id is both.
+#   1363695699271757  ad account 1431226177195979 — retired. It priced in CZK
+#                     with no way to change it. Kept here for browser events
+#                     only so its history keeps accruing and nothing is lost;
+#                     it no longer receives the Conversions API copy.
+#   28272021345717397 a second account measuring the same pages. Browser only.
+#
+# ⚠️ DEPLOY ORDER. A CAPI token belongs to exactly one dataset. Until
+# META_CAPI_ACCESS_TOKEN is regenerated for 1341978141149107 and put on both
+# Workers, deploying this file sends server events to a dataset the live token
+# does not cover and Meta rejects every one — silently, into console.error,
+# because tracking must never fail an order. Set the secret first, deploy
+# second, then confirm in Events Manager that the dataset shows both a browser
+# and a server copy of the same event.
 [vars]
-META_PIXEL_ID = "1363695699271757"
-META_EXTRA_PIXEL_IDS = "28272021345717397"
+META_PIXEL_ID = "1341978141149107"
+META_EXTRA_PIXEL_IDS = "1363695699271757,28272021345717397"
 GTM_CONTAINER_ID = "GTM-T446VNH9"
+# Google tag gateway route, configured in Cloudflare (not in this repo). GTM
+# loads first-party from here and falls back to googletagmanager.com if the
+# route is ever removed. Staging has no gateway, so its config omits this.
+GTM_GATEWAY_PATH = "/qndl"
+# ChillMP's publishable key (acct_1U3NewJOsB1nguzl: note the JOsB1nguzl
+# fragment). Public by design, since Stripe.js needs it in the browser, so it
+# lives here and not in the dashboard. On 2026-10-09 a dashboard edit set this
+# name to a whsec_ webhook signing secret, and every checkout page then sent that
+# secret to the browser. Kept here, each deploy overwrites whatever the dashboard
+# holds. Never put any value but a pk_live_ key under this name. Staging
+# deliberately has no Stripe keys, so wrangler.staging.toml must not copy this.
+STRIPE_PUBLISHABLE_KEY = "pk_live_51U3NewJOsB1nguzlBy7u3DWXQguFi0g6lk1qwLtjuJKJtTqQdae4sRfa1tJRrCieXDWuhMFu4Td4MhksaKUY5h3k00aEEtoBx4"
 
 [assets]
 directory = ".svelte-kit/cloudflare"

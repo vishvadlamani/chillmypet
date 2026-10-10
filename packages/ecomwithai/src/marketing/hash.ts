@@ -51,6 +51,11 @@ export type CapiUserInput = {
 	state?: string;
 	zip?: string;
 	country?: string;
+	/**
+	 * A first-party id for the visitor, the same on every event they fire.
+	 * Hashed unless it already is a SHA-256 hex digest, which passes through.
+	 */
+	externalId?: string;
 	/** These four must NOT be hashed. */
 	clientIpAddress?: string;
 	clientUserAgent?: string;
@@ -59,6 +64,8 @@ export type CapiUserInput = {
 };
 
 export type HashedUserData = Record<string, string[] | string>;
+
+const SHA256_HEX = /^[a-f0-9]{64}$/;
 
 export async function buildUserData(input: CapiUserInput): Promise<HashedUserData> {
 	const fields: [string, string | undefined][] = [
@@ -81,6 +88,15 @@ export async function buildUserData(input: CapiUserInput): Promise<HashedUserDat
 		userData[key] = [await sha256Hex(value)];
 	}
 
+	// Meta's pixel sends an `external_id` that already looks like a SHA-256
+	// digest as it is, and hashes anything else. Doing the same here is what
+	// lets a host hand one id to both halves and have them agree: hash a digest
+	// a second time and the browser and server copies name two different people.
+	const externalId = input.externalId?.trim();
+	if (externalId) {
+		userData.external_id = [SHA256_HEX.test(externalId) ? externalId : await sha256Hex(externalId)];
+	}
+
 	if (input.clientIpAddress) userData.client_ip_address = input.clientIpAddress;
 	if (input.clientUserAgent) userData.client_user_agent = input.clientUserAgent;
 	if (input.fbp) userData.fbp = input.fbp;
@@ -101,28 +117,25 @@ export function buildFbc(fbclid: string, createdAt: number): string {
 const FBC_SHAPE = /^fb\.\d+\.\d+\.[^.]+(\.[A-Za-z0-9_-]+)?$/;
 
 /**
- * The `fbc` to send for one request, chosen the way Meta's pixel and its
- * parameter-builder library choose it, so the server half of an event carries
- * the same click id as the browser half.
+ * The `fbc` for an event on a page whose URL may carry a `fbclid`.
  *
- * A `fbclid` on the page URL is the newest click and wins over an `_fbc` cookie
- * left by an older one: the pixel overwrites the cookie in that case, so a
- * server that kept the cookie reports a different click than the browser did
- * for the same event. A cookie that already holds this click is sent as-is,
- * keeping its original timestamp. A cookie not in Meta's format is dropped —
- * no fbc costs a little matching, while an invalid one is flagged in Events
- * Manager against the whole dataset.
+ * A click id on the URL beats the `_fbc` cookie when the two disagree. The
+ * cookie still holds an earlier click until Meta's script rewrites it, and
+ * sending that next to a URL carrying the new one is what Events Manager flags
+ * as a modified fbclid — it compares the two, and a stale id reads as tampered.
+ * When they agree the cookie is kept, so its original timestamp survives.
  *
- * Neither value is trimmed, re-cased or shortened. Meta's rule is that the
- * click id is case-sensitive and must reach them exactly as it was issued.
+ * A cookie not in Meta's format is dropped, the way Meta's parameter-builder
+ * library drops one: no fbc costs a little matching, while an invalid one is
+ * reported against the whole dataset.
  */
 export function resolveFbc(
-	cookie: string | undefined | null,
-	fbclid: string | undefined | null,
+	cookie: string | undefined,
+	fbclid: string | null | undefined,
 	now: number
 ): string | undefined {
 	const stored = cookie && FBC_SHAPE.test(cookie) ? cookie : undefined;
 	if (!fbclid) return stored;
-	if (stored && stored.split('.')[3] === fbclid) return stored;
+	if (stored?.split('.')[3] === fbclid) return stored;
 	return buildFbc(fbclid, now);
 }

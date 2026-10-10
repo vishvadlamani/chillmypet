@@ -6,15 +6,28 @@
  * and any agent still get a readable `label`.
  */
 import { createDb, createStoreService } from 'ecomwithai';
+import { insertProduct, orderLines } from './catalog.js';
+import { CHRISTMAS_HOODIE } from './christmas-hoodie.js';
 import { BENEFITS, EMAIL, FAQ, SIZE_CHART, SLUG, STORE, TRANSLATIONS } from './content.js';
 
 const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
 const authToken = process.env.TURSO_AUTH_TOKEN;
 const db = createDb(authToken ? { url, authToken } : { url });
 
-// Public identifiers — both appear in the served page source.
+// Public identifiers — all of these appear in the served page source.
+//
+// These are only the fallback: hooks.server.ts prefers the env vars, which is
+// how wrangler.toml corrects a deployed store without a database write. They
+// still matter, because a fresh local database is what the browser tests run
+// against — leave the retired pixel here and a developer verifies tracking
+// against a dataset no ad account reads.
 const SETTINGS = {
-	meta_pixel_id: '1363695699271757',
+	// Ad account 1550461850095009, portfolio "Vish Ads". Gets browser events
+	// and the Conversions API copy. See wrangler.toml for the full roster.
+	meta_pixel_id: '1341978141149107',
+	// Browser events only: the retired CZK ad account, and a second account
+	// measuring the same pages.
+	meta_extra_pixel_ids: '1363695699271757,28272021345717397',
 	meta_domain_verification: '0d821f82wjdsr4q7owd17wo659qt6h'
 };
 
@@ -215,6 +228,26 @@ for (const [locale, entries] of Object.entries(FAQ)) {
 			JSON.stringify(entries.map(([q, a]) => ({ q, a })))
 		]
 	});
+}
+
+// --- the Christmas hoodie, through the shared writer ---
+// Same refusal as above: recreating it would orphan order lines. A live store
+// gets it from `npm run db:products` instead, which only ever adds.
+{
+	const def = CHRISTMAS_HOODIE;
+	const lines = await orderLines(db, STORE.id, def.slug);
+	if (lines > 0) {
+		console.error(
+			`Refusing to reseed "${def.slug}": ${lines} order line(s) reference it in ${url}.`
+		);
+		process.exit(1);
+	}
+	await db.execute({
+		sql: 'delete from products where store_id = ? and slug = ?',
+		args: [STORE.id, def.slug]
+	});
+	const { variants: added } = await insertProduct(db, STORE.id, def);
+	console.log(`Seeded ${def.slug} with ${added} variants`);
 }
 
 console.log(
