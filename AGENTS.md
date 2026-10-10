@@ -170,8 +170,10 @@ Sending the stale value next to an `event_source_url` that carries the new one
 is what Events Manager flags as "modified fbclid" — on PageView and ViewContent,
 the landing-page events. `resolveFbc()` mints from the URL in that case and
 otherwise passes the cookie through byte for byte; never lowercase, trim or
-re-encode either. `/api/track` reads the click id off the body's
-`eventSourceUrl`, because the beacon's own URL never has one.
+re-encode either. A cookie not shaped `fb.N.<ms>.<id>` is dropped rather than
+sent. `/api/track` reads the click id off the body's `eventSourceUrl`, because
+the beacon's own URL never has one. `tests/payment-flow.mjs` replays a stale
+cookie against a new click through both paths.
 
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires

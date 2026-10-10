@@ -57,6 +57,7 @@ export {
 	newEventId,
 	toAmount,
 	buildFbc,
+	resolveFbc,
 	type MetaConfig,
 	type MetaService
 } from './marketing/index.ts';

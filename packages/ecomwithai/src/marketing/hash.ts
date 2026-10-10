@@ -111,6 +111,12 @@ export function buildFbc(fbclid: string, createdAt: number): string {
 }
 
 /**
+ * `fb.<subdomain index>.<ms timestamp>.<click id>`, plus the optional appendix
+ * Meta's own libraries add.
+ */
+const FBC_SHAPE = /^fb\.\d+\.\d+\.[^.]+(\.[A-Za-z0-9_-]+)?$/;
+
+/**
  * The `fbc` for an event on a page whose URL may carry a `fbclid`.
  *
  * A click id on the URL beats the `_fbc` cookie when the two disagree. The
@@ -118,13 +124,18 @@ export function buildFbc(fbclid: string, createdAt: number): string {
  * sending that next to a URL carrying the new one is what Events Manager flags
  * as a modified fbclid — it compares the two, and a stale id reads as tampered.
  * When they agree the cookie is kept, so its original timestamp survives.
+ *
+ * A cookie not in Meta's format is dropped, the way Meta's parameter-builder
+ * library drops one: no fbc costs a little matching, while an invalid one is
+ * reported against the whole dataset.
  */
 export function resolveFbc(
 	cookie: string | undefined,
 	fbclid: string | null | undefined,
 	now: number
 ): string | undefined {
-	if (!fbclid) return cookie || undefined;
-	if (cookie?.split('.')[3] === fbclid) return cookie;
+	const stored = cookie && FBC_SHAPE.test(cookie) ? cookie : undefined;
+	if (!fbclid) return stored;
+	if (stored?.split('.')[3] === fbclid) return stored;
 	return buildFbc(fbclid, now);
 }

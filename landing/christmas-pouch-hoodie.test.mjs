@@ -177,6 +177,8 @@ const session = (metadata, extra = {}) => ({
 	check('with no click on the URL the cookie is sent as it is', noUrl === 'fb.1.1554763741205.OldClick', noUrl);
 	const caseOnly = await fbcFor('_fbc=fb.1.1554763741205.new_click-id', `${ORIGIN}/?fbclid=NeW_Click-Id`);
 	check('the click id is never lowercased', /\.NeW_Click-Id$/.test(caseOnly ?? ''), caseOnly);
+	const malformed = await fbcFor('_fbc=testclickid', `${ORIGIN}/`);
+	check('a cookie not in Meta’s format is not sent', malformed === undefined, malformed);
 }
 
 // --- a token pasted by hand into the dashboard ----------------------------------------

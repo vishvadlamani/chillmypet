@@ -239,11 +239,13 @@ async function userData(request, url) {
 // pixel rewrites it, and pixel.js posts as soon as _fbp exists, which for them
 // is at once. Sending that stale id beside the browser event's fresh one is what
 // Events Manager flags as a "modified fbclid". When they agree the cookie is
-// kept, so its original timestamp survives. As in
-// packages/ecomwithai/src/marketing/hash.ts.
+// kept, so its original timestamp survives. A cookie not in Meta's format is
+// dropped rather than sent. As in packages/ecomwithai/src/marketing/hash.ts.
+const FBC_SHAPE = /^fb\.\d+\.\d+\.[^.]+(\.[A-Za-z0-9_-]+)?$/;
 function resolveFbc(cookie, fbclid, now) {
-	if (!fbclid) return cookie || undefined;
-	if (cookie && cookie.split('.')[3] === fbclid) return cookie;
+	const stored = cookie && FBC_SHAPE.test(cookie) ? cookie : undefined;
+	if (!fbclid) return stored;
+	if (stored && stored.split('.')[3] === fbclid) return stored;
 	return `fb.1.${now}.${fbclid}`;
 }
 
