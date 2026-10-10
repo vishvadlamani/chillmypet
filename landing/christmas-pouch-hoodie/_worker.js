@@ -223,12 +223,22 @@ async function userData(request, url) {
 	if (ip) out.client_ip_address = ip;
 	if (ua) out.client_user_agent = ua;
 	if (cookies._fbp) out.fbp = cookies._fbp;
-	// The pixel writes _fbc from ?fbclid= once it loads; an event that beats it
-	// there builds the same value from the landing URL.
-	const fbclid = new URL(url).searchParams.get('fbclid');
-	if (cookies._fbc) out.fbc = cookies._fbc;
-	else if (fbclid) out.fbc = `fb.1.${Date.now()}.${fbclid}`;
+	const fbc = resolveFbc(cookies._fbc, new URL(url).searchParams.get('fbclid'), Date.now());
+	if (fbc) out.fbc = fbc;
 	return out;
+}
+
+// A click id on the URL beats the _fbc cookie when the two disagree. A visitor
+// back from a second ad click still carries the first click's cookie until the
+// pixel rewrites it, and pixel.js posts as soon as _fbp exists, which for them
+// is at once. Sending that stale id beside the browser event's fresh one is what
+// Events Manager flags as a "modified fbclid". When they agree the cookie is
+// kept, so its original timestamp survives. As in
+// packages/ecomwithai/src/marketing/hash.ts.
+function resolveFbc(cookie, fbclid, now) {
+	if (!fbclid) return cookie || undefined;
+	if (cookie && cookie.split('.')[3] === fbclid) return cookie;
+	return `fb.1.${now}.${fbclid}`;
 }
 
 // Everything a buyer typed is hashed, and empty fields are omitted rather
