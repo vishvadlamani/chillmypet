@@ -777,6 +777,18 @@ cd apps/storefront
 npm run build && npx wrangler deploy -c wrangler.staging.toml
 ```
 
+**Merging to `main` does not deploy.** `.github/workflows/deploy.yml` checks,
+tests and builds on every push, but `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` have never been added as repository secrets. Without
+them the run skips `wrangler deploy` and posts a "chillmypet.com was NOT
+deployed" warning on its summary page. It used to fail at that step instead,
+which emailed the owner a failure on every merge even though the code was fine.
+Once both secrets exist the same workflow deploys production on every merge,
+with no code change. Until then, deploy by hand as below, and check the live page
+before assuming a merged fix is running. On 2026-10-10 chillmypet.com still
+served a build from before 2026-10-08: the `/qndl` GTM gateway was absent from
+its HTML.
+
 The production config (`wrangler.toml`) declares chillmypet.com and www as
 custom domains. Deploying it points the live domain at whatever you just built,
 in one step, with no staged rollout — so the store must be able to serve a
