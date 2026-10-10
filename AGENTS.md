@@ -623,16 +623,28 @@ configuration.
 **The swap is configuration, not code, and it is four secrets, not three.**
 They live on the `chillmypet` Worker (Cloudflare → Workers & Pages → chillmypet →
 Settings → Variables and Secrets), not in `wrangler.toml`. The production Worker
-holds `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`,
+holds `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
 `STRIPE_STATEMENT_DESCRIPTOR`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` and
-`META_CAPI_ACCESS_TOKEN`. `wrangler secret delete` needs `--name` and no
+`META_CAPI_ACCESS_TOKEN` as secrets.
+
+⚠️ **`STRIPE_PUBLISHABLE_KEY` is the exception: it is public, and it lives in
+`wrangler.toml`.** It goes to every visitor's browser, so whatever value it holds
+is published. On 2026-10-09 a dashboard edit set it, as a plain-text variable,
+to a `whsec_…` webhook signing secret. Every `/checkout` page then carried that
+secret in its HTML, and the card form could not mount, so every buyer was sent to
+the hosted page. It was found on 2026-10-10. Pinning the real `pk_live_` key in
+`wrangler.toml` means each deploy overwrites whatever the dashboard holds. Never
+type a secret into this name. The webhook secret that leaked has to be rolled
+in Stripe (Developers → Webhooks → the endpoint → Roll secret) and the new value
+set where that endpoint's secret lives. `wrangler secret delete` needs `--name` and no
 `--force` flag; when it fails, the secrets you just set are already live. Set
 and remove in one go, or remove first. To move to yet another account, follow
 the same steps (ordered):
 
-1. `wrangler secret put` **`STRIPE_SECRET_KEY`** and **`STRIPE_PUBLISHABLE_KEY`**
-   from the new account, on the production Worker only — staging has no Stripe
-   keys on purpose (see Live environment).
+1. `wrangler secret put` **`STRIPE_SECRET_KEY`** from the new account, on the
+   production Worker only — staging has no Stripe keys on purpose (see Live
+   environment) — and change **`STRIPE_PUBLISHABLE_KEY`** in `wrangler.toml` to
+   the new account's `pk_live_` key in the same deploy.
 2. **Clear `STRIPE_PAYMENT_METHOD_CONFIGURATION`**, or create a new
    configuration on the new account and use that id. Clearing is the better
    default: both call sites pass it only when set, so an empty value falls back
