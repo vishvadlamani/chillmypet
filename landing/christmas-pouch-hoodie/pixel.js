@@ -1,4 +1,34 @@
 /* Meta pixel: loads once, initialises every id in config.js, sends one PageView. */
+
+/*
+ * Quiet mode: nothing reaches Meta, and Buy marks the Stripe checkout test_.
+ * It is on for the owner's own test visits (open the page with ?test, end it
+ * with ?test=off) and on every preview copy of the page, which Cloudflare
+ * serves on a subdomain of chillmypet-christmas.pages.dev (pr-35.…), so looking
+ * at a change before approving it never counts as a visitor.
+ *
+ * It lives in a cookie, set on the whole chillmypet-christmas.pages.dev family,
+ * because Stripe sends every buyer back to the live thank-you page: without it
+ * a test checkout, or one started from a preview, would come back and report a
+ * Purchase from there. A day, so a forgotten test ends on its own, and a banner
+ * says it is on for as long as it lasts.
+ */
+window.XMAS.quiet = (function () {
+	var host = location.hostname;
+	var family = /(^|\.)chillmypet-christmas\.pages\.dev$/.test(host) ? '; Domain=chillmypet-christmas.pages.dev' : '';
+	var set = function (value, age) { document.cookie = 'cmp_test=' + value + '; Max-Age=' + age + '; Path=/; SameSite=Lax; Secure' + family; };
+	var asked = new URLSearchParams(location.search).get('test');
+	var preview = /\.chillmypet-christmas\.pages\.dev$/.test(host);
+	if (asked === 'off' && !preview) { set('', 0); return ''; }
+	if (asked !== null || preview) set('1', 86400);
+	if (preview) return 'preview';
+	return asked !== null || /(?:^|; )cmp_test=1(?:;|$)/.test(document.cookie) ? 'test' : '';
+})();
+// A stand-in fbq before the loader below runs: it sees fbq defined and returns
+// without fetching fbevents.js, and every fbq call on the page, the thank-you
+// page's Purchase included, lands here and goes nowhere.
+if (window.XMAS.quiet) window.fbq = function () {};
+
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
 n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
@@ -38,6 +68,7 @@ window.XMAS.visitorId = (function () {
  */
 window.xmasTrack = function (name, data, leaving) {
 	var id = window.crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+	if (window.XMAS.quiet) return id;
 	fbq('track', name, data || {}, { eventID: id });
 	var body = JSON.stringify({ name: name, id: id, url: location.href, data: data || {} });
 	function post() {
@@ -54,3 +85,17 @@ window.xmasTrack = function (name, data, leaving) {
 	return id;
 };
 xmasTrack('PageView');
+
+// Say so whenever quiet mode is on, so a test never passes for a real visit
+// and a forgotten one is noticed. Payments are not tests: the links are live.
+if (window.XMAS.quiet) {
+	document.addEventListener('DOMContentLoaded', function () {
+		var bar = document.createElement('div');
+		bar.setAttribute('role', 'status');
+		bar.style.cssText = 'background:#ffd400;color:#111;font:600 14px/1.4 system-ui,sans-serif;text-align:center;padding:8px 16px';
+		bar.innerHTML = window.XMAS.quiet === 'preview'
+			? 'PREVIEW of a change, not live yet. Nothing here is sent to Meta. Payments are real.'
+			: 'TEST MODE: this visit is not sent to Meta, and checkouts are marked “test” in Stripe. Payments are real. <a href="?test=off" style="color:inherit">Turn test mode off</a>';
+		document.body.insertBefore(bar, document.body.firstChild);
+	});
+}

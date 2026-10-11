@@ -53,6 +53,7 @@ export default {
 		}
 		if (pathname === '/api/event') {
 			if (request.method !== 'POST') return new Response(null, { status: 405 });
+			if (quiet(request)) return new Response(null, { status: 204 });
 			const body = await readJson(request);
 			if (!body) return new Response(null, { status: 400 });
 			// Answer at once and send in the background: AddToCart and
@@ -64,6 +65,14 @@ export default {
 		return env.ASSETS.fetch(request);
 	}
 };
+
+// pixel.js's quiet mode: a preview copy of the page, or a visit the owner
+// marked as a test. pixel.js already sends nothing then; this is for a copy
+// that reaches here anyway, such as a preview whose project has the secrets.
+function quiet(request) {
+	if (/\.chillmypet-christmas\.pages\.dev$/.test(new URL(request.url).hostname)) return true;
+	return parseCookies(request.headers.get('Cookie')).cmp_test === '1';
+}
 
 async function browserEvent(request, env, body) {
 	if (!BROWSER_EVENTS.has(body.name) || !validId(body.id)) return;
@@ -105,6 +114,9 @@ async function stripeWebhook(request, env) {
 	// metadata, which Stripe copies onto each session it creates.
 	const meta = s.metadata || {};
 	if (meta.slug !== PRODUCT_ID) return json({ handled: false, reason: 'not_christmas_hoodie' });
+	// Started in quiet mode (app.js prefixes the reference test_): the owner's own
+	// test, or a buy from a preview copy. Real money, but not a sale to optimise on.
+	if (/^test_/.test(s.client_reference_id || '')) return json({ handled: false, reason: 'test' });
 	const sku = SKU.test(meta.sku || '') ? meta.sku : PRODUCT_ID;
 
 	// The buyer is who clicked the ad, so their own details come first; the
@@ -153,7 +165,13 @@ async function stripeWebhook(request, env) {
 		}
 	});
 	// Meta dedupes Stripe's retries on event_id.
-	return sent ? json({ handled: true, eventId: s.id }) : json({ handled: false, reason: 'meta_rejected' }, 502);
+	if (sent.ok) return json({ handled: true, eventId: s.id });
+	if (sent.retry) return json({ handled: false, reason: 'meta_unavailable', detail: sent.detail }, 502);
+	// Meta refused this event as built, and would refuse every resend of it. A
+	// 2xx stops Stripe retrying for three days and reporting the endpoint as
+	// failing over one sale; the reason stays readable in the Dashboard's
+	// delivery log, and the browser Purchase from thank-you.html still counts it.
+	return json({ handled: false, reason: 'meta_refused', detail: sent.detail });
 }
 
 // Stripe-Signature is "t=<unix>,v1=<hex>[,v1=<hex>…]": an HMAC-SHA256 of
@@ -201,22 +219,47 @@ function metaToken(env) {
 	};
 }
 
-// True when Meta accepted the event.
+// { ok } when Meta accepted the event. Otherwise { retry, detail }: retry says
+// whether sending the same event again could succeed.
 async function send(env, event) {
 	const token = metaToken(env);
 	if (!token.value) {
 		console.error('capi:', token.problem + ',', event.event_name, 'not sent');
-		return false;
+		return { ok: false, retry: true, detail: token.problem };
 	}
 	const payload = { data: [{ event_time: Math.floor(Date.now() / 1000), ...event, action_source: 'website' }] };
 	if (env.META_TEST_EVENT_CODE) payload.test_event_code = env.META_TEST_EVENT_CODE;
-	const res = await fetch(`${GRAPH}/${env.META_PIXEL_ID || PIXEL_ID}/events?access_token=${encodeURIComponent(token.value)}`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(payload)
-	});
-	if (!res.ok) console.error('capi:', event.event_name, res.status, await res.text());
-	return res.ok;
+	let res;
+	try {
+		res = await fetch(`${GRAPH}/${env.META_PIXEL_ID || PIXEL_ID}/events?access_token=${encodeURIComponent(token.value)}`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(payload)
+		});
+	} catch (e) {
+		console.error('capi:', event.event_name, 'network', e && e.message);
+		return { ok: false, retry: true, detail: 'network' };
+	}
+	if (res.ok) return { ok: true };
+	const text = await res.text();
+	console.error('capi:', event.event_name, res.status, text);
+	let error = {};
+	try { error = JSON.parse(text).error || {}; } catch {}
+	return {
+		ok: false,
+		retry: retryable(res.status, error.code),
+		detail: `${res.status} ${error.code ?? ''} ${error.message ?? ''}`.replace(/\s+/g, ' ').trim().slice(0, 300)
+	};
+}
+
+// Worth sending again: Meta or the line to it having a moment (5xx, 429, codes
+// 1 and 2, the rate-limit codes), or a token or permission someone can fix
+// within the three days Stripe keeps retrying (190 expired or wrong token, 10
+// and 200-299 permissions). Anything else, 100 for a bad or missing parameter
+// above all, is Meta refusing the event as built, and it will refuse every resend.
+function retryable(status, code) {
+	if (status >= 500 || status === 429) return true;
+	return [1, 2, 4, 17, 32, 613, 190, 10].includes(code) || (code >= 200 && code < 300);
 }
 
 // What the buyer's own request says about them, which Meta takes unhashed.

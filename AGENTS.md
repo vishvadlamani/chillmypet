@@ -811,7 +811,7 @@ Not built, in rough priority order:
 | Payments | Stripe `acct_1U3NewJOsB1nguzl` ("ChillMP"), live since 2026-10-07 |
 | Meta dataset | `1341978141149107` (browser + CAPI); `1363695699271757` browser only. `28272021345717397` removed 2026-10-11: nobody could say whose it was |
 | Hoodie landing page | `chillmypet-hoodie.pages.dev`, Cloudflare Pages, source in `landing/pouch-pet-hoodie/`, on a third Cloudflare account — see below. Off sale; redirects to the Christmas page since 2026-10-11 |
-| Christmas landing page | `chillmypet-christmas.pages.dev`, Cloudflare Pages on the same account, source in `landing/christmas-pouch-hoodie/`, published on merge by `deploy-christmas.yml` |
+| Christmas landing page | `chillmypet-christmas.pages.dev`, Cloudflare Pages on the same account, source in `landing/christmas-pouch-hoodie/`, published on merge by `deploy-christmas.yml`, previewed per pull request at `pr-<n>.chillmypet-christmas.pages.dev` by `preview-christmas.yml`. `?test` puts a browser in quiet mode (nothing to Meta, checkout marked `test_`) |
 
 **Which Cloudflare account holds what.** Everything chillmypet.com runs on is
 in **Vish's** Cloudflare account, alongside many unrelated Workers. That covers

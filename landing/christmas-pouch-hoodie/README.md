@@ -56,6 +56,41 @@ details between InitiateCheckout and the webhook, such as a KV namespace bound
 to this Pages project and keyed by the visitor id. That means setting something
 up in the owner's Cloudflare account, so it has not been done.
 
+Whether Meta refuses a Purchase without it is not documented, and no real sale
+has tested it. So the webhook only asks Stripe to retry (a non-2xx, which
+Stripe resends for three days) when a retry can help: Meta or the network
+down, a rate limit, or a token or permission problem someone can fix in that
+time. When Meta refuses the event as built (code 100 and the like), it answers
+2xx with `reason: meta_refused` and Meta's message, readable in the Stripe
+Dashboard's delivery log. Otherwise one such sale would fail for three days and
+show the endpoint as failing. The browser Purchase from the thank-you page
+still counts the sale either way.
+
+## Testing it yourself: quiet mode
+
+Open **https://chillmypet-christmas.pages.dev/?test** and a yellow banner says
+test mode is on. For a day, or until **Turn test mode off** (`?test=off`), that
+browser sends nothing to Meta, from the page or the thank-you page, and Buy
+marks the Stripe checkout `client_reference_id=test_…`, so it is easy to tell
+apart in the Dashboard. If a test checkout is paid, the webhook sees `test_`
+and does not report it (`reason: test`). The Payment Links are live, so a
+payment is real money: refund it in Stripe.
+
+It is a `cmp_test` cookie set for the whole `chillmypet-christmas.pages.dev`
+family, because Stripe sends every buyer back to the live thank-you page.
+`_worker.js` also drops `/api/event` copies that carry it.
+
+## Previews of a change
+
+Every pull request that touches this folder gets a copy of the page at
+**https://pr-&lt;number&gt;.chillmypet-christmas.pages.dev**, linked in a
+comment on the pull request, through `.github/workflows/preview-christmas.yml`.
+The page's tests run first, so a broken change shows up before it is approved
+rather than after. A preview host is always in quiet mode, with a PREVIEW
+banner: looking at a change never counts as a visitor, and buying from it is
+marked `test_`. `deploy.sh` publishes previews only through `PREVIEW=pr-<n>`,
+and refuses `main`, so a preview can never replace the live page.
+
 **ViewContent** fires on load with the product slug, as on chillmypet.com.
 Every event goes to dataset `1341978141149107`; the old ad account's pixel
 `1363695699271757` gets the browser half only. A third, `28272021345717397`,
@@ -128,7 +163,8 @@ Stripe are the record of what happens here.
   `OWNER_CLOUDFLARE_API_TOKEN` repository secret, a token for account
   5fef1d1d… (the repo's `CLOUDFLARE_API_TOKEN` is for Vish's account and cannot
   reach this project). By hand: `CLOUDFLARE_API_TOKEN=… ./deploy.sh`. Either
-  way only the page's files are staged.
+  way only the page's files are staged. Before that, each pull request gets a
+  preview (see above).
 - Test the worker: `node landing/christmas-pouch-hoodie.test.mjs`.
 
 ## Content provenance
