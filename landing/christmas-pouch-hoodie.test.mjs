@@ -289,15 +289,17 @@ const session = (metadata, extra = {}) => ({
 }
 
 // --- the pixels config.js initialises -------------------------------------------
-// Every listed pixel receives every visitor's browsing. 28272021345717397 was
-// listed until 2026-10-11 although nobody could say whose it was, so it is
-// asserted absent rather than just deleted, and can't drift back in on a copy.
+// Every listed pixel receives every visitor's browsing. Two were listed until
+// 2026-10-11: 28272021345717397, which nobody could say whose it was, and the
+// retired CZK ad account's 1363695699271757, which nothing running used. Both
+// are asserted absent rather than just deleted, so neither drifts back on a copy.
 {
 	const window = {};
 	new Function('window', readFileSync(new URL('./christmas-pouch-hoodie/config.js', import.meta.url), 'utf8'))(window);
 	const ids = window.XMAS.pixelIds;
 	check('config initialises the dataset the ads optimise against', ids.includes('1341978141149107'), JSON.stringify(ids));
 	check('and not the unclaimed pixel', !ids.includes('28272021345717397'), JSON.stringify(ids));
+	check('nor the retired CZK account’s', !ids.includes('1363695699271757'), JSON.stringify(ids));
 }
 
 if (failures) {

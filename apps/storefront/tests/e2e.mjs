@@ -56,14 +56,11 @@ const pageViews = (calls) => calls.filter((c) => c[0] === 'track' && c[1] === 'P
 // The dataset the live ad account (1550461850095009) optimises against, so the
 // only one that also gets the Conversions API copy.
 const STORE_PIXEL = '1341978141149107';
-// Browser events only. LEGACY_PIXEL belonged to the retired CZK ad account and
-// is kept initialised so its history keeps accruing. See
-// apps/storefront/wrangler.toml.
-const LEGACY_PIXEL = '1363695699271757';
-const ALL_PIXELS = [STORE_PIXEL, LEGACY_PIXEL];
-// Initialised until 2026-10-11, when nobody could say whose it was. Asserted
-// absent, because every pixel on the page receives every visitor's browsing.
-const REMOVED_PIXEL = '28272021345717397';
+const ALL_PIXELS = [STORE_PIXEL];
+// Initialised until 2026-10-11: one nobody could say whose it was, and the
+// retired CZK ad account's, which nothing running used. Asserted absent,
+// because every pixel on the page receives every visitor's browsing.
+const REMOVED_PIXELS = ['28272021345717397', '1363695699271757'];
 
 // `detail` is printed only on failure. Several assertions already passed one
 // and it was being dropped, so a failing pixel or eventID check reported the
@@ -110,7 +107,9 @@ function check(label, cond, detail) {
 	for (const id of ALL_PIXELS) {
 		check(`SSR initialises pixel ${id}`, html.includes(`fbq('init', '${id}'`));
 	}
-	check(`SSR no longer mentions the unclaimed pixel ${REMOVED_PIXEL}`, !html.includes(REMOVED_PIXEL));
+	for (const id of REMOVED_PIXELS) {
+		check(`SSR no longer mentions the removed pixel ${id}`, !html.includes(id));
+	}
 
 	// One visitor id on every init, the same one each Conversions API copy
 	// sends as external_id. Shaped like a SHA-256 digest so the pixel passes it
