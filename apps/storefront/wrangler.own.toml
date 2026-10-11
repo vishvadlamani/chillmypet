@@ -27,7 +27,8 @@ workers_dev = true
 [vars]
 # The same dataset the ads optimise against; see wrangler.toml for why.
 META_PIXEL_ID = "1341978141149107"
-META_EXTRA_PIXEL_IDS = "1363695699271757"
+# Empty, not absent: see wrangler.toml.
+META_EXTRA_PIXEL_IDS = ""
 GTM_CONTAINER_ID = "GTM-T446VNH9"
 STRIPE_STATEMENT_DESCRIPTOR = "CHILLMYPET"
 

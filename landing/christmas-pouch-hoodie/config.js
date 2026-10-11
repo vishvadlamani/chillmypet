@@ -20,7 +20,7 @@ window.XMAS = {
 	title: 'Christmas Pouch Hoodie',
 	price: 54.99,
 	currency: 'USD',
-	pixelIds: ['1341978141149107', '1363695699271757'],
+	pixelIds: ['1341978141149107'],
 	cutoff: '2026-12-07',
 	cutoffZone: 'America/Los_Angeles',
 	// blurb, tag and detail are display copy: what is on the hoodie, the tab on

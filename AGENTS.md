@@ -109,9 +109,10 @@ event — both only reach `console.error`, because tracking must never fail an
 order. Events Manager, not the logs, is where you notice.
 
 The roster now reads `META_PIXEL_ID = 1341978141149107` (ad account
-`1550461850095009`, portfolio "Vish Ads") with the retired CZK account's
-`1363695699271757` demoted into `META_EXTRA_PIXEL_IDS`, where it keeps
-collecting browser events rather than being dropped. `wrangler.toml` carries the
+`1550461850095009`, portfolio "Vish Ads") and nothing else.
+`META_EXTRA_PIXEL_IDS` is set, and empty: the retired CZK account's
+`1363695699271757` was removed on 2026-10-11, and an unset variable would fall
+back to the database setting, which may still list it. `wrangler.toml` carries the
 full which-id-is-whose table — read it before touching any of these numbers.
 
 **The dataLayer is the container's whole view of the app.** GTM tags cannot
@@ -809,7 +810,7 @@ Not built, in rough priority order:
 | Staging | `chillmypet-staging` → workers.dev, no custom domain |
 | Database | Turso `chillmypet-vish.aws-us-west-2.turso.io` (group `default`) |
 | Payments | Stripe `acct_1U3NewJOsB1nguzl` ("ChillMP"), live since 2026-10-07 |
-| Meta dataset | `1341978141149107` (browser + CAPI); `1363695699271757` browser only. `28272021345717397` removed 2026-10-11: nobody could say whose it was |
+| Meta dataset | `1341978141149107` (browser + CAPI), the only pixel. Removed 2026-10-11: `28272021345717397` (nobody could say whose it was) and `1363695699271757` (the retired CZK account's; nothing running used it) |
 | Hoodie landing page | `chillmypet-hoodie.pages.dev`, Cloudflare Pages, source in `landing/pouch-pet-hoodie/`, on a third Cloudflare account — see below. Off sale; redirects to the Christmas page since 2026-10-11 |
 | Christmas landing page | `chillmypet-christmas.pages.dev`, Cloudflare Pages on the same account, source in `landing/christmas-pouch-hoodie/`, published on merge by `deploy-christmas.yml`, previewed per pull request at `pr-<n>.chillmypet-christmas.pages.dev` by `preview-christmas.yml`. `?test` puts a browser in quiet mode (nothing to Meta, checkout marked `test_`) |
 
@@ -849,8 +850,8 @@ All current advertising is in the Meta ad account **Vish Kanada**
 
 Earlier, the old ad account `act_1431226177195979` (CZK) ran four "Dog Vest"
 ads to `/products/dog-life-jacket`, optimising for Purchase or
-InitiateCheckout on `1363695699271757`. That pixel now gets browser events
-only, so don't restart those ads there.
+InitiateCheckout on `1363695699271757`. That pixel is no longer on any page,
+so don't restart those ads there.
 
 **Never optimise a Payment Link page for AddPaymentInfo.** The card is typed on
 Stripe's page, which reports nothing to the pixel, so the event can never fire

@@ -22,10 +22,12 @@ compatibility_flags = ["nodejs_compat"]
 #                     (239590337358646) — the account that runs the ads, so the
 #                     one that must get both halves. Meta merged pixel and
 #                     dataset into one object, so this single id is both.
-#   1363695699271757  ad account 1431226177195979 — retired. It priced in CZK
-#                     with no way to change it. Kept here for browser events
-#                     only so its history keeps accruing and nothing is lost;
-#                     it no longer receives the Conversions API copy.
+#
+# 1363695699271757, the retired CZK ad account 1431226177195979's pixel, was
+# kept here for browser events until 2026-10-11. Nothing running used it: what
+# it fed was a test conversion and audiences of about twenty people. The owner
+# had it removed, and if that account is ever used again, share
+# 1341978141149107 with it rather than bringing this one back.
 #
 # 28272021345717397 was listed here too until 2026-10-11. It was in none of the
 # owner's ad accounts and nobody could say whose it was, so every visitor's
@@ -43,7 +45,9 @@ compatibility_flags = ["nodejs_compat"]
 # and a server copy of the same event.
 [vars]
 META_PIXEL_ID = "1341978141149107"
-META_EXTRA_PIXEL_IDS = "1363695699271757"
+# Empty, not absent: unset, hooks.server.ts falls back to the database setting,
+# which may still list the pixels removed above.
+META_EXTRA_PIXEL_IDS = ""
 GTM_CONTAINER_ID = "GTM-T446VNH9"
 # Google tag gateway route, configured in Cloudflare (not in this repo). GTM
 # loads first-party from here and falls back to googletagmanager.com if the

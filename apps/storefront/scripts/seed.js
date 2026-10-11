@@ -25,8 +25,9 @@ const SETTINGS = {
 	// Ad account 1550461850095009, portfolio "Vish Ads". Gets browser events
 	// and the Conversions API copy. See wrangler.toml for the full roster.
 	meta_pixel_id: '1341978141149107',
-	// Browser events only: the retired CZK ad account.
-	meta_extra_pixel_ids: '1363695699271757',
+	// None. The retired CZK account's 1363695699271757 was removed on
+	// 2026-10-11; see wrangler.toml.
+	meta_extra_pixel_ids: '',
 	meta_domain_verification: '0d821f82wjdsr4q7owd17wo659qt6h'
 };
 

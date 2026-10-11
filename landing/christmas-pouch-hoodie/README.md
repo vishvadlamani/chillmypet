@@ -93,11 +93,10 @@ marked `test_`. `deploy.sh` publishes previews only through `PREVIEW=pr-<n>`,
 and refuses `main`, so a preview can never replace the live page.
 
 **ViewContent** fires on load with the product slug, as on chillmypet.com.
-Every event goes to dataset `1341978141149107`; the old ad account's pixel
-`1363695699271757` gets the browser half only. A third, `28272021345717397`,
-was taken off on 2026-10-11: it was in no ad account the owner can see and
-nobody could say whose it was, so every visitor's browsing was going to a
-pixel no one here controls. Nothing here goes through GTM.
+Every event goes to dataset `1341978141149107`, the only pixel on the page.
+Two more were taken off on 2026-10-11: `28272021345717397`, which was in no ad
+account the owner can see and nobody could say whose it was, and
+`1363695699271757`, the retired CZK ad account's, which nothing running used. Nothing here goes through GTM.
 
 ### Checked on the live page, 2026-10-11
 
