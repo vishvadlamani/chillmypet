@@ -20,6 +20,20 @@
  * nothing, and every failure is logged rather than returned to the buyer.
  */
 
+/*
+ * The hoodie is not on sale: its Payment Link was switched off on 2026-10-09,
+ * and Buy ended on Stripe's inactive message. Until the owner decides, after
+ * Christmas, whether it comes back as a product page on chillmypet.com, every
+ * page request goes to the Christmas Pouch Hoodie page, which can sell.
+ * _routes.json sends all paths here for that.
+ *
+ * 302, not 301: a browser caches a permanent redirect, so a 301 would outlive
+ * the hoodie's return. The query string goes along so a click's fbclid and utm
+ * tags reach the Christmas page's pixel. To bring the page back, delete this
+ * redirect, put _routes.json back to "/api/*", and reactivate the link.
+ */
+const SELLING_INSTEAD = 'https://chillmypet-christmas.pages.dev/';
+
 const PIXEL_ID = '1341978141149107';
 const PAYMENT_LINK = 'plink_1ULu2aJOsB1nguzlIzkLcmZG';
 const GRAPH = 'https://graph.facebook.com/v25.0';
@@ -42,7 +56,7 @@ export default {
 			ctx.waitUntil(job.catch((e) => console.error('capi:', e && e.message)));
 			return new Response(null, { status: 204 });
 		}
-		return env.ASSETS.fetch(request);
+		return Response.redirect(SELLING_INSTEAD + new URL(request.url).search, 302);
 	}
 };
 

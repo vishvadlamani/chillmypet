@@ -60,12 +60,28 @@ up in the owner's Cloudflare account, so it has not been done.
 Every event goes to dataset `1341978141149107`; the two extra pixels get the
 browser half only. Nothing here goes through GTM.
 
+### Checked on the live page, 2026-10-11
+
+With 17 clicks and no AddToCart reported, the live page was driven in a
+browser as an ad click (iPhone Facebook in-app user agent, `fbclid` on the
+URL), with every `facebook.com/tr` hit, every `/api/event` post and the
+Payment Link answered locally, so nothing reached Meta or Stripe. Load sent
+PageView and ViewContent to all three pixels with `external_id` and `fbc`,
+plus their server copies. Picking a size and tapping Buy sent AddToCart and
+InitiateCheckout under shared event ids about 120 ms before the redirect to
+Stripe, with `client_reference_id` on the link. `thank-you?session_id=…`
+sent Purchase with the session id as its event id. The eight links redirect
+there, and Pages' 308 from `thank-you.html` keeps the query. So a zero in
+Ads Manager means no ad visitor tapped Buy with a size chosen, not that the
+event was lost. The ViewContent the ads report proves the page's events
+reach the dataset and are credited to the ad.
+
 ## Secrets (Pages → chillmypet-christmas → Settings → Variables and Secrets)
 
 | Name | State |
 |---|---|
 | `STRIPE_WEBHOOK_SECRET` | set, from `we_1UOEbvJOsB1nguzlbjDffhrK` |
-| `META_CAPI_ACCESS_TOKEN` | **not set yet.** Events Manager → dataset 1341978141149107 → Settings → Conversions API → Generate access token. Until it is set, browser events still work, server copies are skipped, and the webhook answers 503 so Stripe retries each sale for up to three days and it is reported once the token exists. Redeploy after adding it. |
+| `META_CAPI_ACCESS_TOKEN` | set. Confirmed 2026-10-11 from outside: an unsigned POST to `/api/stripe-webhook` answers `invalid_signature`, which the worker only reaches once both this and `STRIPE_WEBHOOK_SECRET` are present (without either it answers 503 and names the missing one). That proves the token exists, not that Meta accepts it: a token generated for another dataset is rejected into the logs. Events Manager → dataset 1341978141149107 → Overview shows which: events from this page should list "Browser · Server". To replace it: Settings → Conversions API → Generate access token, then redeploy. |
 | `META_TEST_EVENT_CODE` | optional, to watch events in Test Events; remove it afterwards |
 
 ## Changing things
