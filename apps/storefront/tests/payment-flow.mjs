@@ -210,6 +210,27 @@ check(
 	`fbc ${landingViewContent?.user_data?.fbc}`
 );
 
+// --- the deployed token can be checked from outside -------------------------
+// Every server event carries the browser's event_id, so a dataset that reports
+// server events with no dedupe key and no coverage is usually not receiving the
+// server half at all. /api/meta-status asks Meta, with an empty batch, whether
+// the Worker's own token may post to its dataset.
+{
+	const before = capiEvents.length;
+	const status = await fetch(`${BASE}/api/meta-status`);
+	const report = await status.json();
+	const probe = capiEvents.slice(before).at(-1);
+	check('meta-status reports the server half can land', status.status === 200 && report.server_events === 'accepted', JSON.stringify(report));
+	check('meta-status names the dataset it posts to', /^\d+$/.test(report.dataset ?? ''), JSON.stringify(report));
+	check(
+		'meta-status asks with an empty batch, sending no event',
+		probe?.path?.endsWith(`/${report.dataset}/events`) && new URLSearchParams(probe.body).get('data') === '[]',
+		JSON.stringify(probe)
+	);
+	const token = process.env.META_CAPI_ACCESS_TOKEN;
+	check('meta-status never shows the token', !token || !JSON.stringify(report).includes(token));
+}
+
 const capiEventsNamed = (name) =>
 	capiEvents
 		.map((e) => {

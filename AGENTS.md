@@ -195,7 +195,37 @@ the first commit, and Events Manager reported 0% of server PageViews carrying an
 event ID and 0% browser/server coverage on dataset `1341978141149107`, even
 though the top-level `event_id` was correct the whole time. It now goes out only
 beside `attribution_data`, and then it carries the same id. `hash.test.ts` pins
-both.
+both. That fix reached `main` on 2026-10-10 but chillmypet.com only on
+2026-10-11 at 22:24 UTC (`/_app/version.json` gives a deploy's build time), so
+Meta's 7-day figures span both sides of it until about 2026-10-19.
+
+**When Events Manager says server events have no dedupe key, check delivery
+before the payload.** On 2026-10-11 it reported, for ViewContent on
+`1341978141149107`, 0% of server events with an event ID and 0% coverage. Every
+sender was checked against that: the storefront's `track()` → `/api/track`, the
+Christmas page's `xmasTrack` → `/api/event`, and the hoodie page's, all put the
+browser's `eventID` on the server copy as `event_id`, and the live Christmas
+files were byte-identical to the repo. Nothing else posts to the dataset: no
+Zaraz, no server-side GTM (the container's GA4 tag carries an `event_id` for
+GA4 only). A correct payload reading as 0% means old events in the window, or
+server events not arriving at all. In that order:
+
+1. `GET /api/meta-status` on chillmypet.com and on the Christmas page. Each asks
+   Meta, with an empty batch, whether *that deployment's* token may post to its
+   dataset, which is the token nobody can read back. `accepted` (200) or not
+   (503, with Meta's reason, token redacted). Cached five minutes per isolate.
+2. `npm run meta:dedupe`, or the "Meta deduplication report" workflow in
+   Actions: Meta's own per-event figures from the Dataset Quality API, against
+   the goals of 95% of server events with `event_id` and 75% coverage.
+3. Coverage is a 7-day average, so after a fix, wait the week.
+
+Coverage also counts browser events whose server copy never left. The
+Christmas page's `xmasTrack` holds each copy up to 3 s for `_fbp`, and a visitor
+who left in that window took it with them. Driven in Chromium with Meta's script
+blocked and the page left after 500 ms, that was 0 of 2 server copies for a
+PageView and ViewContent the pixel had fired. Waiting copies now go out on
+`pagehide`/`visibilitychange`, which gives 2 of 2 under the same event ids and
+still one copy each on a longer visit.
 
 **`fbc` follows the page's `fbclid`, not the cookie, when the two disagree.**
 A returning visitor lands from a new ad with the previous click still in
@@ -587,14 +617,21 @@ browser pixel and the Conversions API both fire, deduplicated on `event_id`, and
 the whole path was verified end to end against Meta's real API — payload built
 by the framework, `events_received: 1`, no warnings.
 
-⚠️ **The outstanding step is the CAPI token.** The config now points at dataset
-`1341978141149107`, the one the live ad account optimises against, but the token
-on both Workers was generated for the retired `1363695699271757`. A token is
-scoped to one dataset, so until a new one is generated and set, deploying sends
-server events that Meta rejects — silently, into `console.error`. Browser events
-still arrive, so Events Manager looks alive while the half that survives iOS and
-ad blockers is missing. Generate the token, `wrangler secret put` it on
-`chillmypet` and `chillmypet-staging`, then deploy. Note the token's `debug_token` scopes read
+⚠️ **Whether each site's token is for this dataset has never been confirmed.**
+The config has pointed at dataset `1341978141149107` since 2026-09-16, but the
+token on the Workers was generated for the retired `1363695699271757`, and
+nothing records it being replaced; the Christmas page's token was only ever
+proven to *exist*. A token is scoped to one dataset, so a stale one means every
+server event is refused, silently, into `console.error`, while browser events
+keep arriving. Check it, don't assume it: open
+`https://chillmypet.com/api/meta-status` and
+`https://chillmypet-christmas.pages.dev/api/meta-status` (see "When Events
+Manager says server events have no dedupe key" above). Anything but
+`"server_events": "accepted"` means: generate a token for `1341978141149107`
+(Events Manager → the dataset → Settings → Conversions API → Generate access
+token), `wrangler secret put META_CAPI_ACCESS_TOKEN` on `chillmypet` and
+`chillmypet-staging`, set it on the Pages project, and update the repository
+secret. Note the token's `debug_token` scopes read
 `read_ads_dataset_quality` only and a `GET /{pixel_id}` returns "Missing
 Permission"; that is expected. Posting to `/{dataset_id}/events` is a
 dataset-level grant, separate from the pixel-read scope, so don't take a failed

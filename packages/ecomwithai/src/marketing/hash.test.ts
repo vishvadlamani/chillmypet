@@ -7,7 +7,7 @@
  */
 import { createHash } from 'node:crypto';
 import { buildFbc, buildFbp, buildUserData, fbclidOf, normalize, resolveFbc, sha256Hex } from './hash.ts';
-import { createMetaService } from './index.ts';
+import { createMetaService, redactToken } from './index.ts';
 
 let failures = 0;
 
@@ -128,6 +128,55 @@ check(
 	shared.original_event_data,
 	{ event_name: 'PageView', event_time: 1700000000, event_id: 'abc-123' }
 );
+
+// --- verify(): can this token post to this dataset? ---
+// A token for another dataset is rejected once per event, silently, so the
+// server half never arrives. verify() asks with an empty batch and must never
+// hand the token back, even when Meta quotes it.
+const TOKEN = 'EAAtesttoken1234567890abcdef';
+const realFetch = globalThis.fetch;
+let posted: { url: string; body: string } | undefined;
+const answer = (status: number, body: unknown) => {
+	globalThis.fetch = (async (url: string, init?: RequestInit) => {
+		posted = { url: String(url), body: String(init?.body) };
+		return new Response(JSON.stringify(body), { status });
+	}) as typeof fetch;
+};
+const probe = () =>
+	createMetaService({ pixelId: '1341978141149107', accessToken: TOKEN, endpoint: 'https://capi.test' }).verify();
+
+answer(400, { error: { message: '(#100) The parameter data must be non-empty', code: 100 } });
+check('verify accepts a token Meta only faults for the empty batch', await probe(), { ok: true });
+check('verify posts to the pixel, with no event in the batch', posted?.url, 'https://capi.test/v25.0/1341978141149107/events');
+check('verify sends an empty data array', new URLSearchParams(posted?.body).get('data'), '[]');
+
+answer(400, { error: { message: 'Unsupported post request. Object with ID 1341978141149107 does not exist', code: 100 } });
+check('verify rejects a token for another dataset', await probe(), {
+	ok: false,
+	reason: 'rejected',
+	detail: '(#100) Unsupported post request. Object with ID 1341978141149107 does not exist'
+});
+
+answer(400, { error: { message: `Malformed access token ${TOKEN}`, code: 190 } });
+const malformed = await probe();
+check('verify rejects an invalid token', malformed.ok ? 'ok' : malformed.reason, 'rejected');
+check('verify never echoes the token', JSON.stringify(malformed).includes(TOKEN), false);
+check('verify redacts other tokens Meta quotes', redactToken('bad EAAotherTOKEN0123456789xyz here', TOKEN), 'bad [token] here');
+
+check('verify without a token sends nothing', await createMetaService({ pixelId: '1' }).verify(), {
+	ok: false,
+	reason: 'not_configured'
+});
+
+globalThis.fetch = (async () => {
+	throw new Error('connect ECONNREFUSED');
+}) as typeof fetch;
+check('verify reports an unreachable endpoint', await probe(), {
+	ok: false,
+	reason: 'unreachable',
+	detail: 'Error: connect ECONNREFUSED'
+});
+globalThis.fetch = realFetch;
 
 // --- fbc resolution: the URL's click id must reach Meta untouched ---
 const now = 1700000000000;
