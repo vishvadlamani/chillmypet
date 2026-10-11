@@ -809,7 +809,7 @@ Not built, in rough priority order:
 | Staging | `chillmypet-staging` → workers.dev, no custom domain |
 | Database | Turso `chillmypet-vish.aws-us-west-2.turso.io` (group `default`) |
 | Payments | Stripe `acct_1U3NewJOsB1nguzl` ("ChillMP"), live since 2026-10-07 |
-| Meta dataset | `1341978141149107` (browser + CAPI); `1363695699271757`, `28272021345717397` browser only |
+| Meta dataset | `1341978141149107` (browser + CAPI); `1363695699271757` browser only. `28272021345717397` removed 2026-10-11: nobody could say whose it was |
 | Hoodie landing page | `chillmypet-hoodie.pages.dev`, Cloudflare Pages, source in `landing/pouch-pet-hoodie/`, on a third Cloudflare account — see below. Off sale; redirects to the Christmas page since 2026-10-11 |
 | Christmas landing page | `chillmypet-christmas.pages.dev`, Cloudflare Pages on the same account, source in `landing/christmas-pouch-hoodie/`, published on merge by `deploy-christmas.yml` |
 
