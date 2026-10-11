@@ -809,7 +809,7 @@ Not built, in rough priority order:
 | Database | Turso `chillmypet-vish.aws-us-west-2.turso.io` (group `default`) |
 | Payments | Stripe `acct_1U3NewJOsB1nguzl` ("ChillMP"), live since 2026-10-07 |
 | Meta dataset | `1341978141149107` (browser + CAPI); `1363695699271757`, `28272021345717397` browser only |
-| Hoodie landing page | `chillmypet-hoodie.pages.dev`, Cloudflare Pages, source in `landing/pouch-pet-hoodie/`, on a third Cloudflare account — see below |
+| Hoodie landing page | `chillmypet-hoodie.pages.dev`, Cloudflare Pages, source in `landing/pouch-pet-hoodie/`, on a third Cloudflare account — see below. Off sale; redirects to the Christmas page since 2026-10-11 |
 | Christmas landing page | `chillmypet-christmas.pages.dev`, Cloudflare Pages on the same account, source in `landing/christmas-pouch-hoodie/`, published on merge by `deploy-christmas.yml` |
 
 **Which Cloudflare account holds what.** Everything chillmypet.com runs on is
@@ -823,8 +823,9 @@ nameservers for a domain that is already live elsewhere. The
 `chillmypet-hoodie` Pages project is on neither: it is on account
 `5fef1d1dbb6eaee72fdfc2b26a61a386` (checked 2026-10-07 — the repo's
 `CLOUDFLARE_WORKERS` token lists Vish's account's Pages projects, and it is not
-among them). So no workflow here can publish it; it is uploaded by hand, as its
-README says. Moving the store
+among them). The Christmas page's project is on the same account, and the
+`OWNER_CLOUDFLARE_API_TOKEN` repository secret reaches it, so both pages now
+publish on merge (`deploy-christmas.yml`, `deploy-hoodie.yml`). Moving the store
 into the owner's account is possible, but it is a planned migration (domain
 transfer between accounts, Worker and secrets re-created, custom domain
 re-bound), not a dashboard click. When in doubt about which account serves the
@@ -851,13 +852,18 @@ page whose source is `landing/pouch-pet-hoodie/` (`config.js`, `pixel.js`,
   Turso, sends no Conversions API Purchase**, and is invisible to everything
   in this codebase. Whatever Purchase the ads see for it comes from that thank-you
   page's browser pixel alone, the half iOS and blockers eat.
-- ⚠️ **The page cannot sell right now.** Its Payment Link was deactivated
-  from the Stripe Dashboard on 2026-10-09 (18:17 UTC), the day after the last
-  hoodie campaign ended. Buy still fires InitiateCheckout and opens the link,
-  and Stripe then shows its inactive message, "now sold at
+- ⚠️ **The hoodie is off sale, and the page redirects to the Christmas page.**
+  Its Payment Link was deactivated from the Stripe Dashboard on 2026-10-09
+  (18:17 UTC), the day after the last hoodie campaign ended. After that, Buy
+  led to Stripe's inactive message, "now sold at
   chillmypet.com/products/pouch-pet-hoodie", a page that is a 404 on
-  production. Either reactivate the link or take the page's Buy button down
-  before any ad or bio link sends people here again.
+  production. On 2026-10-11 the owner chose to send that traffic where it can
+  buy: `_worker.js` answers every page request with a 302 to
+  chillmypet-christmas.pages.dev, query string kept, and both hoodie Payment
+  Links' inactive messages name the Christmas page. **After Christmas the
+  owner decides** whether the plain hoodie returns as
+  `/products/pouch-pet-hoodie` here, which was the plan the old message
+  described. Until then, don't reactivate the link or remove the redirect.
 - The old webhook to `chillmypet-hoodie.pages.dev/api/stripe-webhook`
   (`we_1UO1BAJOsB1nguzlCakDMBBI`) is gone. As of 2026-10-11 ChillMP has two
   endpoints: chillmypet.com's and the Christmas page's.

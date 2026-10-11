@@ -53,10 +53,15 @@ async function test(name, fn) {
 	console.log('ok', name);
 }
 
-await test('static files pass through to the assets', async () => {
-	const { res, meta } = await hit('/index.html', null, { method: 'GET' });
-	assert.equal(await res.text(), 'static');
-	assert.equal(meta.length, 0);
+await test('every page redirects to the Christmas page, keeping the query', async () => {
+	for (const path of ['/', '/index.html', '/thank-you?session_id=cs_live_x', '/hoodie-black.jpg']) {
+		const { res, meta } = await hit(path, null, { method: 'GET' });
+		assert.equal(res.status, 302, path);
+		assert.equal(res.headers.get('Location'), 'https://chillmypet-christmas.pages.dev/' + new URL(HOST + path).search, path);
+		assert.equal(meta.length, 0);
+	}
+	const { res } = await hit('/?utm_source=facebook&fbclid=CLICK1', null, { method: 'GET' });
+	assert.equal(res.headers.get('Location'), 'https://chillmypet-christmas.pages.dev/?utm_source=facebook&fbclid=CLICK1');
 });
 
 await test('a browser event gets a server copy with the same id', async () => {

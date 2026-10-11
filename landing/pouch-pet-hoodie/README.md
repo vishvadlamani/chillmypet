@@ -1,5 +1,17 @@
 # Pouch Pet Hoodie: standalone landing page
 
+> **Off sale since 2026-10-09; redirecting since 2026-10-11.** The Payment
+> Link below is deactivated, so Buy could only reach Stripe's "inactive"
+> message. `_worker.js` now answers every page request with a 302 to
+> https://chillmypet-christmas.pages.dev, keeping the query string, so
+> "link in bio" visitors land where they can buy. `_routes.json` routes
+> `/*` to the worker for that. Both hoodie Payment Links' inactive messages
+> point to the Christmas page too. The owner decides after Christmas whether
+> the hoodie returns as `/products/pouch-pet-hoodie` on chillmypet.com. To
+> bring this page back instead, remove the redirect, set `_routes.json` back
+> to `"/api/*"`, reactivate the link, and merge. Everything below describes
+> the page as it was when it sold.
+
 A stopgap so the hoodie can sell before `/products/pouch-pet-hoodie` is live on
 chillmypet.com (which needs the catalogue row added with the store database's
 credentials, see `npm run db:products`). It is static HTML with no build step and
@@ -90,6 +102,14 @@ checkout page shows that account's name and branding. The descriptor suffix
 Cloudflare Pages, project name **`chillmypet-hoodie`**, production branch
 `main`. Publish this folder **without this README**, which names the Stripe
 account and is not part of the page.
+
+**Merging a change to this folder publishes it**, through
+`.github/workflows/deploy-hoodie.yml` and `deploy.sh`, with the
+`OWNER_CLOUDFLARE_API_TOKEN` secret the Christmas page deploys with. Both
+projects are on the same account. `deploy.sh` checks the project exists
+before deploying, so a token that cannot see it fails the run rather than
+creating an empty project. By hand: `CLOUDFLARE_API_TOKEN=… ./deploy.sh`.
+The manual routes below remain for when the workflow cannot run.
 
 ⚠️ **The project is not on the storefront's Cloudflare account.** Checked
 2026-10-07: the `CLOUDFLARE_WORKERS` repository secret reaches only
