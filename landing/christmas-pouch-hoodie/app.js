@@ -189,8 +189,12 @@
 		// The visitor id rides to Stripe as client_reference_id, the one value a
 		// Payment Link carries through to the session, so the webhook's Purchase
 		// names the same person as the events above.
+		// In quiet mode it is prefixed test_, which is how the owner tells their
+		// own checkouts apart in the Stripe Dashboard, and how the webhook knows
+		// not to report the sale if one is paid.
 		var url = target.url;
-		if (window.XMAS.visitorId) url += (url.indexOf('?') < 0 ? '?' : '&') + 'client_reference_id=' + window.XMAS.visitorId;
+		var ref = c.quiet ? 'test_' + (c.visitorId || 'visit') : c.visitorId;
+		if (ref) url += (url.indexOf('?') < 0 ? '?' : '&') + 'client_reference_id=' + ref;
 		// A beat for the beacons, then on to Stripe.
 		setTimeout(function () { location.href = url; }, 150);
 	}

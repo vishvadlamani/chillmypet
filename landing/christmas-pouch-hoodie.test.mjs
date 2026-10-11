@@ -4,8 +4,11 @@
  *
  *   node landing/christmas-pouch-hoodie.test.mjs
  */
+import { execFileSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import worker from './christmas-pouch-hoodie/_worker.js';
 
 let failures = 0;
@@ -15,9 +18,12 @@ function check(label, cond, detail) {
 }
 
 const sent = [];
+// What the stub Meta answers; a test swaps it to see how a refusal is handled.
+const accepted = () => new Response('{"events_received":1}', { status: 200 });
+let meta = accepted;
 globalThis.fetch = async (url, init) => {
 	sent.push({ url: String(url), body: JSON.parse(init.body) });
-	return new Response('{"events_received":1}', { status: 200 });
+	return meta();
 };
 
 const SECRET = 'whsec_test';
@@ -196,6 +202,89 @@ const session = (metadata, extra = {}) => ({
 
 	const none = await (await sale(rest)).json();
 	check('no token at all is named as missing', none.reason === 'missing META_CAPI_ACCESS_TOKEN', none.reason);
+}
+
+// --- when Meta says no: retry only what a retry can fix ----------------------------
+// Stripe resends a non-2xx for three days. That is right while Meta or the line
+// to it is down, or the token needs fixing; for an event Meta refuses as built
+// it is three days of failures reported on the endpoint over one sale.
+{
+	const sale = () => worker.fetch(signed(session({ slug: 'christmas-pouch-hoodie', sku: 'CMP-XH-SANTA-RED-S' })), env, ctx);
+	const metaError = (status, code, message) => () => Response.json({ error: { message, type: 'OAuthException', code } }, { status });
+
+	meta = metaError(400, 100, 'Invalid parameter');
+	const refused = await sale();
+	const refusedBody = await refused.json();
+	check('an event Meta refuses as built is answered 2xx, so Stripe stops resending it', refused.status === 200 && refusedBody.reason === 'meta_refused', `${refused.status} ${JSON.stringify(refusedBody)}`);
+	check('with Meta’s reason in the answer, for the Dashboard', /400 100 Invalid parameter/.test(refusedBody.detail ?? ''), refusedBody.detail);
+
+	meta = metaError(400, 190, 'Error validating access token');
+	check('a token Meta rejects is retried, since it can be fixed within Stripe’s three days', (await sale()).status === 502);
+
+	meta = () => new Response('Service Unavailable', { status: 503 });
+	check('Meta being down is retried', (await sale()).status === 502);
+
+	meta = metaError(429, 4, 'Application request limit reached');
+	check('a rate limit is retried', (await sale()).status === 502);
+
+	meta = () => { throw new TypeError('fetch failed'); };
+	check('a network failure is retried', (await sale()).status === 502);
+
+	meta = accepted;
+}
+
+// --- quiet mode: the owner's tests and preview copies send nothing ---------------------
+{
+	sent.length = 0;
+	const test = await (await worker.fetch(signed(session({ slug: 'christmas-pouch-hoodie', sku: 'CMP-XH-SANTA-RED-S' }, { client_reference_id: 'test_' + 'a'.repeat(64) })), env, ctx)).json();
+	check('a checkout started in test mode is not reported, even when paid', test.handled === false && test.reason === 'test' && sent.length === 0, JSON.stringify(test));
+
+	const copy = async (origin, cookie) => {
+		sent.length = 0;
+		waits.length = 0;
+		const res = await worker.fetch(
+			new Request(`${origin}/api/event`, {
+				method: 'POST',
+				headers: { 'User-Agent': 'test', Cookie: cookie },
+				body: JSON.stringify({ name: 'AddToCart', id: 'id-AddToCart-q', url: `${origin}/`, data: {} })
+			}),
+			env,
+			ctx
+		);
+		await Promise.all(waits);
+		return { status: res.status, n: sent.length };
+	};
+	const tester = await copy(ORIGIN, '_fbp=fb.1.1.2; cmp_test=1');
+	check('a test visitor’s event is answered but not sent', tester.status === 204 && tester.n === 0, JSON.stringify(tester));
+	const preview = await copy('https://pr-35.chillmypet-christmas.pages.dev', '_fbp=fb.1.1.2');
+	check('nor is one from a preview copy of the page', preview.status === 204 && preview.n === 0, JSON.stringify(preview));
+	const live = await copy(ORIGIN, '_fbp=fb.1.1.2; cmp_test=0');
+	check('while a live visitor’s still is', live.n === 1, JSON.stringify(live));
+}
+
+// --- deploy.sh: a preview never lands on the live page -------------------------------
+// Runs the real script against a stand-in npx that only records its arguments.
+{
+	const bin = mkdtempSync(join(tmpdir(), 'xmas-deploy-'));
+	const log = join(bin, 'args');
+	writeFileSync(join(bin, 'npx'), `#!/bin/sh\necho "$@" > "${log}"\n`);
+	chmodSync(join(bin, 'npx'), 0o755);
+	const script = new URL('./christmas-pouch-hoodie/deploy.sh', import.meta.url).pathname;
+	const deploy = (extra) => {
+		rmSync(log, { force: true });
+		const { PREVIEW, ...rest } = process.env;
+		try {
+			execFileSync('sh', [script], { env: { ...rest, ...extra, PATH: `${bin}:${process.env.PATH}` }, stdio: 'pipe' });
+			return readFileSync(log, 'utf8');
+		} catch {
+			return null;
+		}
+	};
+	check('without PREVIEW it publishes the live page', / --branch main /.test(deploy({}) ?? ''));
+	const pr = deploy({ PREVIEW: 'pr-35' }) ?? '';
+	check('PREVIEW=pr-35 publishes a preview under that name', / --branch pr-35 /.test(pr) && !/--branch main/.test(pr), pr);
+	check('PREVIEW=main is refused before anything is published', deploy({ PREVIEW: 'main' }) === null && !existsSync(log));
+	rmSync(bin, { recursive: true, force: true });
 }
 
 // --- the pixels config.js initialises -------------------------------------------
