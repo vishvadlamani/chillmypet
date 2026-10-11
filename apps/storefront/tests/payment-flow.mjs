@@ -751,12 +751,36 @@ if (sessionCall) {
 	});
 	check('the beacon answers 204', beacon.status === 204, `got ${beacon.status}`);
 
+	// AddToCart is the event the campaign optimises on, so its server copy
+	// must carry every parameter Meta lists for it, not only an identity.
+	const cartId = `cart-${RUN}`;
+	const added = {
+		content_type: 'product',
+		content_ids: ['CMP-LJ-TEST'],
+		contents: [{ id: 'CMP-LJ-TEST', quantity: 1, item_price: 44.97 }],
+		num_items: 1,
+		currency: 'USD',
+		value: '44.97'
+	};
+	await fetch(`${BASE}/api/track`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json', cookie },
+		body: JSON.stringify({ eventName: 'AddToCart', eventId: cartId, customData: added })
+	});
+
 	await settle();
 	const pageView = capiEventsNamed('PageView').find((e) => e.event_source_url?.includes(`back=${RUN}`));
 	const view = capiEventsNamed('ViewContent').find((e) => e.event_id === viewId);
+	const cart = capiEventsNamed('AddToCart').find((e) => e.event_id === cartId);
+	check(
+		"AddToCart's server copy carries every parameter Meta lists for it",
+		Object.entries(added).every(([k, v]) => JSON.stringify(cart?.custom_data?.[k]) === JSON.stringify(v)),
+		JSON.stringify(cart?.custom_data)
+	);
 	for (const [name, ev] of [
 		['PageView', pageView],
-		['ViewContent', view]
+		['ViewContent', view],
+		['AddToCart', cart]
 	]) {
 		const u = ev?.user_data ?? {};
 		check(
