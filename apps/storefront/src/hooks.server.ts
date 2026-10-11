@@ -1,8 +1,10 @@
-import { error, type Handle } from '@sveltejs/kit';
+import { error, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
-import { newEventId } from 'ecomwithai/marketing';
-import { attributionFrom, ensureAttributionCookies, isVisitorId } from '$lib/server/purchase';
+import { buildFbc, buildFbp, fbclidOf, newEventId } from 'ecomwithai/marketing';
+import { ADMIN_HEADERS, adminGate, isAdminPath } from '$lib/server/admin';
+import { rememberedContact } from '$lib/server/identity';
+import { attributionFrom, ensureVisitorId } from '$lib/server/purchase';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
 export const LOCALE_COOKIE = 'locale';
@@ -30,18 +32,17 @@ function getDirectory() {
  * initialised pixel, so each gets exactly one, and the same holds for the
  * events the app fires later.
  *
- * `external_id` is the visitor cookie the Conversions API copy reports. The
- * pixel hashes it itself, so it gets the raw value; the server hashes the same
- * string, and the two halves of each event agree on who it was.
+ * Each init carries the visitor's `external_id`, the same string every
+ * Conversions API copy sends, so the two halves of an event name one person.
  *
- * Guards against database content — and cookie content — reaching the page as
- * markup.
+ * Guards against database content reaching the page as markup, and against a
+ * cookie doing the same: the id is checked against its exact shape again here.
  */
-function pixelSnippet(pixelIds: string[], pageViewEventId: string, visitorId: string): string {
+function pixelSnippet(pixelIds: string[], pageViewEventId: string, externalId: string): string {
 	const ids = pixelIds.filter((id) => /^\d{1,20}$/.test(id));
 	if (ids.length === 0) return '';
 
-	const matching = isVisitorId(visitorId) ? `, {external_id: '${visitorId}'}` : '';
+	const matching = /^[a-f0-9]{64}$/.test(externalId) ? `, {external_id: '${externalId}'}` : '';
 	const inits = ids.map((id) => `fbq('init', '${id}'${matching});`).join('\n');
 	const noscript = ids
 		.map(
@@ -69,19 +70,80 @@ ${noscript}`;
  * access to it, and anything it loads runs with the same reach as this file's
  * own code. The id is validated here; note that a Meta pixel published inside
  * the container would double-count against the ones initialised above.
+ *
+ * With `gatewayPath` (Google tag gateway, a Cloudflare route) the container
+ * loads first-party from that path, where a blocker aimed at
+ * googletagmanager.com cannot see it. The gateway is configured in Cloudflare,
+ * not here, so if the route disappears the request errors and the script falls
+ * back to Google's host. A page never depends on the gateway to get its tags.
+ * The noscript iframe stays on Google: the gateway does not serve `ns.html`.
  */
-function gtmSnippet(containerId: string): { head: string; body: string } {
+function gtmSnippet(containerId: string, gatewayPath = ''): { head: string; body: string } {
 	if (!/^GTM-[A-Z0-9]{4,12}$/.test(containerId)) return { head: '', body: '' };
+	const gateway = /^\/[a-z0-9_-]{1,32}$/.test(gatewayPath) ? gatewayPath : '';
 
 	return {
-		head: `<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+		head: `<script>(function(w,d,s,l,i,p){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','${containerId}');</script>`,
+dl=l!='dataLayer'?'&l='+l:'',g='https://www.googletagmanager.com/gtm.js';
+function load(u,fb){var j=d.createElement(s);j.async=true;j.src=u+'?id='+i+dl;
+if(fb)j.onerror=function(){load(fb)};f.parentNode.insertBefore(j,f)}
+load(p?p+'/gtm.js':g,p?g:'');
+})(window,document,'script','dataLayer','${containerId}','${gateway}');</script>`,
 		body: `<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${containerId}"
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`
 	};
+}
+
+/** Meta's own lifetime for both cookies. */
+const FB_COOKIE_MAX_AGE = 60 * 60 * 24 * 90;
+
+/**
+ * Writes `_fbp`, and `_fbc` on an ad click, before the first page renders.
+ *
+ * The pixel sets these itself, but only once `fbevents.js` has run in the
+ * browser, which is after this request's server PageView has already gone. So
+ * the first view of every visit reached Meta with no browser id, and on an ad
+ * click with an `fbc` minted at a different millisecond from the pixel's. The
+ * pixel adopts a well-formed cookie it finds rather than writing its own, so
+ * minting them here gives both copies of the event the same ids from the first
+ * request. Not httpOnly: the pixel has to read them.
+ */
+function seedMetaCookies(event: RequestEvent): void {
+	const options = {
+		path: '/',
+		maxAge: FB_COOKIE_MAX_AGE,
+		httpOnly: false,
+		sameSite: 'lax' as const
+	};
+	const now = Date.now();
+
+	if (!event.cookies.get('_fbp')) event.cookies.set('_fbp', buildFbp(now), options);
+
+	const fbclid = event.url.searchParams.get('fbclid');
+	if (fbclid && fbclidOf(event.cookies.get('_fbc')) !== fbclid) {
+		event.cookies.set('_fbc', buildFbc(fbclid, now), options);
+	}
+}
+
+/**
+ * Clients that fetch pages but never run the pixel: search and ad crawlers
+ * (Meta's own fetches every ad's landing page), link unfurlers, monitors and
+ * scripts. Each one used to get a server PageView that no browser event could
+ * ever match, and with only an IP and a user agent to go on.
+ */
+const NON_BROWSER =
+	/bot|crawl|spider|slurp|facebookexternalhit|facebookcatalog|meta-externalagent|preview|headless|lighthouse|pagespeed|pingdom|uptime|monitor|curl|wget|python|go-http|java\/|okhttp|axios|node-fetch|undici|httpclient|scrapy/i;
+
+/** A person's browser asking for a page, as opposed to data, an API call, an asset or a bot. */
+function isDocumentRequest(request: Request): boolean {
+	const agent = request.headers.get('user-agent') ?? '';
+	return (
+		request.method === 'GET' &&
+		(request.headers.get('accept') ?? '').includes('text/html') &&
+		agent !== '' &&
+		!NON_BROWSER.test(agent)
+	);
 }
 
 function verificationTag(token: string): string {
@@ -90,6 +152,13 @@ function verificationTag(token: string): string {
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
+	// Before anything else, so an unauthenticated request costs no database read.
+	const isAdmin = isAdminPath(event.url.pathname);
+	if (isAdmin) {
+		const denied = await adminGate(event.request, env.ADMIN_PASSWORD);
+		if (denied) return denied;
+	}
+
 	const { db, stores } = getDirectory();
 
 	// Tenant comes from the Host header; localhost and preview URLs fall back to
@@ -127,6 +196,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// alone leaves the form still offering everything on the account.
 	event.locals.stripePaymentMethodConfiguration = env.STRIPE_PAYMENT_METHOD_CONFIGURATION ?? '';
 	event.locals.settings = settings;
+	// Order confirmations. Without RESEND_API_KEY nothing is sent and nothing
+	// fails — the same degrade-quietly rule as the CAPI token. The sending domain
+	// has to be verified in Resend before the key is set, or every send is
+	// rejected into console.error.
+	event.locals.email = {
+		apiKey: env.RESEND_API_KEY,
+		from: env.EMAIL_FROM ?? settings.email_from ?? `${store.name} <orders@${store.domain}>`,
+		replyTo: env.EMAIL_REPLY_TO ?? settings.email_reply_to ?? `contact@${store.domain}`,
+		endpoint: env.EMAIL_API_ENDPOINT,
+		origin: event.url.origin
+	};
 	event.locals.commerce = createCommerce({
 		db,
 		store,
@@ -173,8 +253,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 		.split(',')
 		.map((id) => id.trim())
 		.filter(Boolean);
-	const pixelIds = [primaryPixelId, ...extraPixels].filter(Boolean);
-	const gtm = gtmSnippet(env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? '');
+	// No pixel, no container and so no server PageView on the admin: the
+	// operator packing orders is not a shopper, and the ad account would
+	// otherwise count every order they open as a visit.
+	const pixelIds = isAdmin ? [] : [primaryPixelId, ...extraPixels].filter(Boolean);
+	const gtm = gtmSnippet(
+		isAdmin ? '' : (env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? ''),
+		env.GTM_GATEWAY_PATH ?? ''
+	);
 
 	const saved = event.cookies.get(LOCALE_COOKIE);
 	const locale = isLocale(saved)
@@ -183,11 +269,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	event.locals.locale = locale;
 
-	// Before anything reads attribution: the PageView below and every route
-	// that reports an event see the cookies this sets on the same request. A
-	// store with no pixel has nothing to attribute, so it sets none.
-	const visitorId = pixelIds.length > 0 ? ensureAttributionCookies(event.cookies, event.url) : '';
-
 	// This snippet's PageView is the only event the browser fires that never
 	// reaches the `track()` wrapper, so it is the only one that cannot mint its
 	// own id and post its own server copy. Both halves are issued here instead:
@@ -195,6 +276,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// from this same request, which already holds the cookies, address and user
 	// agent that make it matchable.
 	const pageViewEventId = newEventId();
+	// Before resolve(), so the cookie is on this response and every read of it
+	// later in this request, PageView's server copy included, sees the same id.
+	const visitorId = ensureVisitorId(event.cookies);
+	const isDocument = pixelIds.length > 0 && isDocumentRequest(event.request);
+	// A browser's first page is where its PageView most needs identifiers and
+	// has the fewest, so Meta's `_fbp` and `_fbc` are minted here too, for the
+	// same requests that get a server PageView. A beacon or a form post always
+	// follows a page that already set them.
+	if (isDocument) seedMetaCookies(event);
 
 	const response = await resolve(event, {
 		transformPageChunk: ({ html }) =>
@@ -213,14 +303,24 @@ export const handle: Handle = async ({ event, resolve }) => {
 	});
 
 	// Documents only. `handle` also runs for data requests, form posts and the
-	// API, and none of those rendered a snippet to deduplicate against.
-	if (pixelIds.length > 0 && response.headers.get('content-type')?.includes('text/html')) {
+	// API, and none of those rendered a snippet to deduplicate against — and a
+	// HEAD gets no body, so no browser half ever runs for it either. Successful
+	// pages only: the 404s are overwhelmingly scanners probing `/wp-login.php`
+	// and `/.env`, which read the HTML and never execute it.
+	if (
+		isDocument &&
+		response.status === 200 &&
+		response.headers.get('content-type')?.includes('text/html')
+	) {
 		const send = event.locals.commerce.meta
 			?.send({
 				eventName: 'PageView',
 				eventId: pageViewEventId,
 				eventSourceUrl: event.url.href,
-				user: attributionFrom(event.cookies, event.url, event.request.headers, event.getClientAddress())
+				user: {
+					...rememberedContact(event.cookies),
+					...attributionFrom(event.cookies, event.url, event.request.headers, event.getClientAddress())
+				}
 			})
 			.then((result) => {
 				if (!result.sent) console.error('Meta CAPI PageView not sent', result.reason);
@@ -230,6 +330,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// Called as a method — destructuring waitUntil loses `this` and throws.
 		const context = event.platform?.context;
 		if (send && context && typeof context.waitUntil === 'function') context.waitUntil(send);
+	}
+
+	if (isAdmin) {
+		for (const [name, value] of Object.entries(ADMIN_HEADERS)) response.headers.set(name, value);
 	}
 
 	return response;

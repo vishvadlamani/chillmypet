@@ -59,7 +59,9 @@
 			"blue": "Blue",
 			"pink": "Pink",
 			"purple": "Purple",
-			"red": "Red"
+			"red": "Red",
+			"red_santa": "Santa Red",
+			"green_stocking": "Stocking Green"
 		},
 		"benefitsTitle": "Why dogs swim better in it",
 		"trustShipping": "Free shipping",

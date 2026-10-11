@@ -6,6 +6,7 @@ backend-for-frontend per storefront.
 ```
 packages/ecomwithai/   the open-source framework (edit here; sync out to publish)
 apps/storefront/       SvelteKit BFF: UI, language packs, routes that compose modules
+landing/               standalone product pages that sell through Stripe Payment Links
 ```
 
 This store runs on [ecomwithai](https://github.com/vishvadlamani/ecomwithai), the
@@ -138,7 +139,8 @@ Browser pixel and server-side Conversions API run together, deduplicated.
 - **Secret:** `META_CAPI_ACCESS_TOKEN`, a Worker secret. Never in the repo.
 
 Events: `PageView` (initial load plus every client-side navigation),
-`ViewContent`, `AddToCart`, `InitiateCheckout`, `Purchase`.
+`ViewContent`, `AddToCart`, `InitiateCheckout` (once per cart per session, not
+once per view of `/checkout`), `AddPaymentInfo`, `Purchase`.
 
 **Deduplication.** Purchase's `event_id` is derived from the order number by
 `purchaseEventId()` rather than minted per call: the server event fires from the
@@ -152,12 +154,9 @@ optimizes spend against whatever it is told. With no payment provider configured
 there is nothing to settle, so it fires at order creation instead.
 
 **Advanced matching.** `packages/ecomwithai/src/marketing/hash.ts` normalizes and
-SHA-256 hashes email, phone, name, city, state, zip, country and `external_id`;
+SHA-256 hashes email, phone, name, city, state, zip and country;
 `client_ip_address`, `client_user_agent`, `fbp` and `fbc` go unhashed, as Meta
-requires. `external_id` is a first-party visitor cookie (`vid`) set by
-`hooks.server.ts`, which also writes `_fbc` from a landing `?fbclid=` — so the
-events fired before checkout (AddToCart above all) still carry an identity and
-the ad click when the visitor blocks `fbevents.js`. Absent fields are **omitted, never sent as `null`** — a null carries no
+requires. Absent fields are **omitted, never sent as `null`** — a null carries no
 signal and lowers match quality. State and country are only sent as 2-letter
 codes, since truncating "Texas" to "te" hashes to something matching nobody;
 that's why the checkout country field is an ISO select.
@@ -166,9 +165,28 @@ Tracking never affects orders: the CAPI call happens after the order commits,
 dispatches via `waitUntil` so the customer never waits on Meta, and logs rather
 than surfaces failures.
 
-**Verifying.** Set `META_CAPI_TEST_EVENT_CODE` and watch Events Manager > Test
-Events. To inspect the exact payload without contacting Meta, point
-`META_CAPI_ENDPOINT` at a local server and place an order.
+**Verifying.** `npm run meta:check` asks Meta whether the token can actually
+post events to `META_PIXEL_ID`, and exits non-zero if not. Run it after changing
+either. It probes the events endpoint with an empty batch: Meta checks
+authorisation before it validates the payload, so a token that is allowed to
+post gets as far as "data must be non-empty" — which proves access while
+sending no event and fabricating no conversion. It deliberately does not read
+the dataset node instead, because that needs a permission a working Conversions
+API token need not hold, and would fail on a token that was never broken.
+It is also a step in `.github/workflows/deploy.yml`, which is what stops a
+mismatched token from reaching production — that step reads
+`META_CAPI_ACCESS_TOKEN` from repository secrets, so add it there or the deploy
+stops on this check.
+
+It exists because neither way of getting this wrong is loud. With no token
+`send()` returns `not_configured` and posts nothing; with a token belonging to
+another dataset Meta rejects every event. Both only reach `console.error`,
+because tracking must never be able to fail an order — so without this the first
+sign is a campaign reporting no conversions, weeks later.
+
+For the payload itself: set `META_CAPI_TEST_EVENT_CODE` and watch Events Manager
+> Test Events, or point `META_CAPI_ENDPOINT` at a local server and place an
+order to inspect the exact body without contacting Meta.
 
 **Before taking EU traffic**, add a consent gate. The pixel currently loads for
 everyone, and GDPR/ePrivacy require prior consent for advertising cookies.
@@ -195,13 +213,47 @@ has one configured, so an account already at Stripe's 22-character limit needs
 the full form.
 
 Point a Stripe webhook endpoint at `https://<domain>/api/stripe/webhook` and
-subscribe it to `checkout.session.completed`, `checkout.session.expired` and
-`charge.refunded`.
+subscribe it to all seven events the handler acts on:
 
-With keys set, the checkout action creates the order, then redirects to Stripe's
-hosted page; the customer returns to `/checkout/success`, which reads the payment
-row rather than trusting the query string, and shows "processing" until the
-webhook confirms. **No card details reach this application either way.**
+| Event | What it does |
+|---|---|
+| `payment_intent.succeeded` | **settles the inline card form — the default path** |
+| `checkout.session.completed` | settles a hosted-page order |
+| `checkout.session.async_payment_succeeded` | settles a delayed method |
+| `checkout.session.expired` | releases stock on an abandoned order |
+| `checkout.session.async_payment_failed` | releases stock on a failed delayed method |
+| `charge.refunded` / `refund.created` | releases stock on a refund |
+
+⚠️ **`payment_intent.succeeded` is the one that matters and the one that is
+easy to miss.** With a publishable key set, the checkout action mints a payment
+intent for the card form already on the page — it never creates a Checkout
+Session, so `checkout.session.completed` never fires for a normal sale. An
+endpoint subscribed only to the session events hears nothing about any real
+order. Check the subscription list before trusting a quiet Events Manager.
+
+**Reconciliation is the backstop, not a replacement.** Because that failure is
+invisible from inside the app — the card is charged and the order simply stays
+`pending_payment` — `/checkout/success` no longer only waits to be told. If the
+order it is rendering is unpaid, it calls `payments.reconcile()`, which asks
+Stripe what actually happened to the intent and settles the order if Stripe says
+it succeeded, asserting the same amount the webhook does. The sale is then
+reported from there, with the customer's own cookies and address attached —
+better matching than the webhook, which is a request from Stripe and carries
+none of them.
+
+Both paths converge on one `settleOrder`, and it refuses to settle an order that
+is already paid, so whichever arrives second reports nothing and a sale is
+counted once. Keep the subscription correct anyway: a customer who closes the
+tab at the bank's 3-D Secure step never loads the receipt, and the webhook is
+the only thing that will ever settle that order.
+
+With keys set and the inline form mounted, the checkout action creates the order
+and returns a payment intent the page confirms in place. Only when the form
+could not mount — `cardReady=0`, usually an ad blocker on `js.stripe.com` — does
+it fall back to redirecting to Stripe's hosted page. Either way the customer
+ends on `/checkout/success`, which reads the payment row rather than trusting the
+query string, and shows "processing" until the webhook confirms. **No card
+details reach this application either way.**
 
 The conversion is reported when the payment settles, not when the order row is
 written — otherwise every abandoned checkout is a sale as far as Meta is
@@ -254,7 +306,10 @@ npm run deploy
 Or push to `main` and let `.github/workflows/deploy.yml` run it, once
 `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are repository secrets. Give
 the token the "Edit Cloudflare Workers" template plus **Zone → DNS → Edit** on
-each store domain.
+each store domain. Until they are set, the workflow still checks, tests and
+builds, then skips the deploy and says so with a warning on the run's summary
+page. A green run without that warning is a deploy. A green run with it means
+production did not change.
 
 Worker secrets:
 
@@ -264,6 +319,17 @@ npx wrangler secret put TURSO_DATABASE_URL
 npx wrangler secret put TURSO_AUTH_TOKEN
 npx wrangler secret put META_CAPI_ACCESS_TOKEN
 ```
+
+`META_CAPI_ACCESS_TOKEN` also goes in as a **repository** secret, which is the
+copy `npm run meta:check` verifies in CI before a deploy is allowed through.
+Setting it there needs repo admin, not a Cloudflare login. Keep the two in sync:
+the CI check can only vouch for the copy it is given.
+
+The pages under `landing/` are not part of this Worker. Each is a Cloudflare
+Pages project on the business owner's account, published on merge by
+`deploy-christmas.yml` and `deploy-hoodie.yml` with the
+`OWNER_CLOUDFLARE_API_TOKEN` repository secret. Their READMEs cover what each
+one sells, its secrets and how to check it.
 
 ### Pointing a domain at the Worker
 

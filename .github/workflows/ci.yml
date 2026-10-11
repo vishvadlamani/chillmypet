@@ -1,0 +1,27 @@
+name: CI
+
+# Every pull request, and on demand. Deliberately separate from deploy.yml:
+# that one only runs after a merge has already landed on main, which is too
+# late to stop anything — main deploys.
+on:
+  pull_request:
+  workflow_dispatch:
+
+# Deliberately needs no secrets. A check that depends on one cannot run on a
+# fork's pull request and goes green-by-absence when the secret is missing,
+# which is how a repo ends up trusting a check that never actually ran. The
+# token-scoped check that does need a secret stays in deploy.yml, where a
+# missing secret stops the deploy rather than waving it through.
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build

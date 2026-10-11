@@ -221,6 +221,37 @@ check('orders list is store-scoped', (await bravo.orders.list()).length, 1);
 check('status update works', await alpha.orders.setStatus(order.orderNumber, 'paid'), true);
 check('status persisted', (await alpha.orders.byNumber(order.orderNumber))?.status, 'paid');
 
+// --- fulfilments ---
+check('a paid order is in the queue to ship', await alpha.fulfillments.unshipped(), [order.orderNumber]);
+check(
+	'an unpaid order cannot ship',
+	await alpha.fulfillments.markShipped(first.orderNumber),
+	{ ok: false, reason: 'not_paid' }
+);
+check(
+	"another store cannot ship this store's order",
+	await bravo.fulfillments.markShipped(order.orderNumber),
+	{ ok: false, reason: 'order_not_found' }
+);
+const shipped = await alpha.fulfillments.markShipped(order.orderNumber, {
+	carrier: ' Canada Post ',
+	trackingNumber: '1234',
+	trackingUrl: 'javascript:alert(1)'
+});
+check('a paid order ships', shipped.ok, true);
+check('carrier is trimmed', shipped.ok && shipped.fulfillment.carrier, 'Canada Post');
+check('a non-http tracking link is dropped', shipped.ok && shipped.fulfillment.trackingUrl, null);
+check(
+	'it ships once',
+	await alpha.fulfillments.markShipped(order.orderNumber),
+	{ ok: false, reason: 'already_shipped' }
+);
+check('shipping leaves the order paid', (await alpha.orders.byNumber(order.orderNumber))?.status, 'paid');
+check('and takes it out of the queue', await alpha.fulfillments.unshipped(), []);
+check('fulfilments are looked up by page', [...(await alpha.fulfillments.forOrders([order.orderNumber, first.orderNumber])).keys()], [order.orderNumber]);
+check("another store cannot read the fulfilment", await bravo.fulfillments.byOrderNumber(order.orderNumber), null);
+check("nor see it in a page lookup", (await bravo.fulfillments.forOrders([order.orderNumber])).size, 0);
+
 // --- stock adjustment ---
 check('stock can be added', await alpha.catalog.adjustStock(alphaSeed.variantIds['TEE-BLUE-M'], 5), 5);
 let belowZero = 'no error';

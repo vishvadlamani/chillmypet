@@ -1,6 +1,6 @@
-import type { Cookies } from '@sveltejs/kit';
 import { toAmount, type Commerce, type Order } from 'ecomwithai';
-import { buildFbc } from 'ecomwithai/marketing';
+import { resolveFbc } from 'ecomwithai/marketing';
+import { withCallingCode } from '$lib/server/identity';
 
 /**
  * One Purchase conversion, shared by every path that can report one.
@@ -19,96 +19,115 @@ export type PurchaseAttribution = {
 	/** Meta's browser cookies. Absent when the customer blocks them. */
 	fbp?: string;
 	fbc?: string;
+	/** Our own visitor id, sent as `external_id`. See `ensureVisitorId`. */
+	externalId?: string;
 	clientIpAddress?: string;
 	clientUserAgent?: string;
-	/** This browser's first-party visitor id — Meta's `external_id`. */
-	externalId?: string;
 };
 
-/**
- * First-party visitor id, reported to Meta as `external_id`.
- *
- * A visitor who reaches AddToCart has given no email or phone yet, so without
- * this the event's only identifiers are the IP, the user agent and Meta's own
- * cookies — and the cookies are exactly what an ad blocker removes. This one is
- * set by the server, survives a blocked `fbevents.js`, and is the same value the
- * pixel is initialised with, so both halves of every event name one person.
- */
-export const VISITOR_COOKIE = 'vid';
+type CookieJar = {
+	get(name: string): string | undefined;
+	set(name: string, value: string, opts: { path: string; httpOnly?: boolean; sameSite?: 'lax'; maxAge?: number }): void;
+};
 
-const VISITOR_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const VISITOR_COOKIE = 'cmp_vid';
+const VISITOR_ID = /^[a-f0-9]{64}$/;
 
-/**
- * The value goes into an inline script and a Stripe metadata field, and it
- * arrives in a cookie the client controls — so anything that isn't the UUID
- * this server mints is treated as absent.
- */
-export function isVisitorId(value: unknown): value is string {
-	return typeof value === 'string' && VISITOR_ID.test(value);
+export function visitorId(cookies: { get(name: string): string | undefined }): string | undefined {
+	const value = cookies.get(VISITOR_COOKIE);
+	return value && VISITOR_ID.test(value) ? value : undefined;
 }
 
-// fbclid is base64url-ish. Anything else is not a click id Meta issued, and has
-// no business being written into a cookie.
-const FBCLID = /^[A-Za-z0-9_-]{1,500}$/;
-
 /**
- * Sets the identifiers the Conversions API needs, on the request that first
- * has them, and returns the visitor id.
+ * The visitor's `external_id`: one id, on the pixel's init and on every
+ * Conversions API copy, so Meta can tie a ViewContent, an InitiateCheckout and
+ * the Purchase to the same person even where no email has been typed yet —
+ * which, on a landing page, is everywhere.
  *
- * `_fbc` is normally written by `fbevents.js`, so a visitor who blocks it
- * arrives from an ad with `?fbclid=` and the click is gone by the next request:
- * the landing PageView could rebuild it from its own URL, but AddToCart is
- * posted to `/api/track`, whose URL never carries one. Writing it here keeps
- * the click on every later event. A new click replaces an older one, which is
- * what the pixel does too; the cookie is not httpOnly because the pixel reads
- * and maintains the same one.
+ * 64 hex characters on purpose. The pixel sends a value shaped like a SHA-256
+ * digest as it is and hashes anything else, and `buildUserData` follows the
+ * same rule, so this exact string is what both halves carry. Any other shape
+ * and one of them hashes it while the other does not, and the two copies never
+ * match. Random, never derived from anything about the person.
+ *
+ * httpOnly because only the server reads it: it is written into the init call
+ * in the page itself. Call before `resolve()`, so the cookie rides on this
+ * response and later reads in the same request see it.
  */
-export function ensureAttributionCookies(cookies: Cookies, url: URL): string {
-	const fbclid = url.searchParams.get('fbclid');
-	if (fbclid && FBCLID.test(fbclid) && !cookies.get('_fbc')?.endsWith(`.${fbclid}`)) {
-		cookies.set('_fbc', buildFbc(fbclid, Date.now()), {
-			path: '/',
-			httpOnly: false,
-			sameSite: 'lax',
-			// Meta's own lifetime for the cookie.
-			maxAge: 60 * 60 * 24 * 90
-		});
-	}
+export function ensureVisitorId(cookies: CookieJar): string {
+	const existing = visitorId(cookies);
+	if (existing) return existing;
 
-	const existing = cookies.get(VISITOR_COOKIE);
-	if (isVisitorId(existing)) return existing;
-
-	const minted = crypto.randomUUID();
-	cookies.set(VISITOR_COOKIE, minted, {
+	const bytes = crypto.getRandomValues(new Uint8Array(32));
+	const id = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+	cookies.set(VISITOR_COOKIE, id, {
 		path: '/',
-		// Only the server reads it; the pixel is handed the value in its snippet.
 		httpOnly: true,
 		sameSite: 'lax',
 		maxAge: 60 * 60 * 24 * 365
 	});
-	return minted;
+	return id;
 }
 
 /**
- * Reads `_fbc`, falling back to minting one from a `fbclid` on the landing URL —
- * Meta matches far better with a click id than without, and the cookie is only
- * set if their script ran.
+ * Reads `_fbc`, or mints one from a `fbclid` on the page's URL — Meta matches
+ * far better with a click id than without, and the cookie is only set if their
+ * script ran. `pageUrl` is the page the event happened on, which for a beacon is
+ * not the request's own URL.
  */
 export function attributionFrom(
 	cookies: { get(name: string): string | undefined },
-	url: URL,
+	pageUrl: URL,
 	headers: Headers,
 	clientIpAddress?: string
 ): PurchaseAttribution {
-	const fbclid = url.searchParams.get('fbclid');
-	const visitorId = cookies.get(VISITOR_COOKIE);
 	return {
 		fbp: cookies.get('_fbp'),
-		fbc: cookies.get('_fbc') ?? (fbclid ? buildFbc(fbclid, Date.now()) : undefined),
+		fbc: resolveFbc(cookies.get('_fbc'), pageUrl.searchParams.get('fbclid'), Date.now()),
+		externalId: visitorId(cookies),
 		clientIpAddress,
-		clientUserAgent: headers.get('user-agent') ?? undefined,
-		externalId: isVisitorId(visitorId) ? visitorId : undefined
+		clientUserAgent: headers.get('user-agent') ?? undefined
 	};
+}
+
+// Stripe metadata keys, and Stripe's own cap on a value. A request carrying a
+// longer one is refused whole, so an oversized value is left out instead.
+const METADATA_KEYS = {
+	fbp: 'fbp',
+	fbc: 'fbc',
+	externalId: 'external_id',
+	clientIpAddress: 'client_ip',
+	clientUserAgent: 'client_ua'
+} as const satisfies Record<keyof PurchaseAttribution, string>;
+const STRIPE_METADATA_MAX = 500;
+
+/**
+ * The customer's attribution, packed into Stripe metadata for the webhook.
+ *
+ * The webhook that reports the sale is a request from Stripe: none of this
+ * customer's cookies, address or user agent are on it. Without these the
+ * Purchase reached Meta with no `client_user_agent`, which Meta lists as
+ * required for a website event — such an event is accepted but may not be
+ * used for optimisation or measurement, and Events Manager scored Purchase's
+ * match quality at 0. Taken from the checkout request, the customer's own.
+ */
+export function attributionMetadata(attribution: PurchaseAttribution): Record<string, string> {
+	const out: Record<string, string> = {};
+	for (const [field, key] of Object.entries(METADATA_KEYS)) {
+		const value = attribution[field as keyof PurchaseAttribution];
+		if (value && value.length <= STRIPE_METADATA_MAX) out[key] = value;
+	}
+	return out;
+}
+
+/** The other end of `attributionMetadata`, from a verified Stripe object. */
+export function attributionFromMetadata(metadata: Record<string, unknown>): PurchaseAttribution {
+	const out: PurchaseAttribution = {};
+	for (const [field, key] of Object.entries(METADATA_KEYS)) {
+		const value = metadata[key];
+		if (typeof value === 'string' && value) out[field as keyof PurchaseAttribution] = value;
+	}
+	return out;
 }
 
 /**
@@ -131,7 +150,9 @@ export function sendPurchase(
 			eventSourceUrl: options.eventSourceUrl,
 			user: {
 				email: order.email,
-				phone: shipping.phone ?? undefined,
+				// With its calling code, so it hashes the same as the copy the
+				// earlier PageView and ViewContent events sent from the cookie.
+				phone: shipping.phone ? withCallingCode(shipping.phone, shipping.country) : undefined,
 				firstName: shipping.firstName,
 				lastName: shipping.lastName,
 				city: shipping.city,

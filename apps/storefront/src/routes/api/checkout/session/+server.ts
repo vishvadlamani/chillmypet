@@ -1,4 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
+import { attributionFrom, attributionMetadata } from '$lib/server/purchase';
 
 /**
  * Creates a Stripe-hosted checkout session for an order that is still awaiting
@@ -10,7 +11,7 @@ import { json, type RequestHandler } from '@sveltejs/kit';
  * able to, so failing over to the hosted page is worth more than the redirect
  * costs.
  */
-export const POST: RequestHandler = async ({ request, locals, url }) => {
+export const POST: RequestHandler = async ({ request, locals, url, cookies, getClientAddress }) => {
 	const { payments, orders } = locals.commerce;
 	if (!payments) return json({ error: 'payments_unavailable' }, { status: 503 });
 
@@ -37,7 +38,10 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 			orderNumber: order.orderNumber,
 			uiMode: 'hosted',
 			successUrl: `${url.origin}/checkout/success?order=${encodeURIComponent(order.orderNumber)}`,
-			cancelUrl: `${url.origin}/checkout?cancelled=${encodeURIComponent(order.orderNumber)}`
+			cancelUrl: `${url.origin}/checkout?cancelled=${encodeURIComponent(order.orderNumber)}`,
+			// A new session settles through its own webhook event, so it needs the
+			// same attribution the checkout gave the intent it replaces.
+			metadata: attributionMetadata(attributionFrom(cookies, url, request.headers, getClientAddress()))
 		});
 		return json({ url: checkout.url });
 	} catch (error) {

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Thank you · ChillMyPet</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&text=ChillMyPet&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+<script src="pixel.js"></script>
+</head>
+<body>
+<header class="site"><div class="in"><a class="brand" href="https://chillmypet.com">ChillMyPet</a></div></header>
+<main class="thanks">
+	<h1>Thank you! 🎄🐾</h1>
+	<p>Your Christmas Pouch Hoodie is ordered. Stripe has emailed your receipt, and we’ll be in touch when it ships.</p>
+	<p class="small">Questions? <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a></p>
+</main>
+<script>
+	(function () {
+		// Stripe appends ?session_id=… through the link's after-payment redirect,
+		// and the link itself adds &sku=. No session id, no Purchase: someone
+		// opening this page by hand has bought nothing.
+		var q = new URLSearchParams(location.search);
+		var id = q.get('session_id');
+		if (!id || !/^cs_[A-Za-z0-9_]+$/.test(id)) return;
+		var c = window.XMAS;
+		var known = Object.keys(c.links).map(function (k) { return c.links[k].sku; });
+		var sku = known.indexOf(q.get('sku')) >= 0 ? q.get('sku') : c.slug;
+		// Once per order: a reload or a second tab must not count the sale again.
+		var key = 'purchase:' + id;
+		try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) {}
+		// The server copy comes from Stripe's webhook (_worker.js) under the same
+		// id, so it arrives even when the buyer never gets back to this page.
+		fbq('track', 'Purchase', {
+			content_type: 'product',
+			content_ids: [sku],
+			contents: [{ id: sku, quantity: 1, item_price: c.price }],
+			num_items: 1,
+			value: c.price,
+			currency: c.currency
+		}, { eventID: id });
+	})();
+</script>
+</body>
+</html>

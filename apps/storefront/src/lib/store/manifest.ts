@@ -164,11 +164,16 @@ export const STORE_PAGE: FunnelDefinition = {
 			component: 'payment_badges',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
-			// Cards only, because that is what the checkout takes — the Stripe
-			// payment method configuration for this store is card-only, so a PayPal
-			// or Google Pay badge here promises a button that isn't on the next
-			// page. Add them back to both places together, never to one.
-			props: { methods: ['visa', 'mastercard', 'amex', 'discover'], width: 'full' }
+			// Exactly what the checkout takes: cards, plus the Apple Pay and Google
+			// Pay wallets that STRIPE_PAYMENT_METHOD_CONFIGURATION turns on. A badge
+			// for a method that isn't there (PayPal, Amazon Pay) promises a button
+			// the next page doesn't have, so change this list and that config
+			// together, never one without the other. Rendered with real artwork by
+			// $lib/components/PaymentIcons.svelte.
+			props: {
+				methods: ['amex', 'applepay', 'discover', 'googlepay', 'mastercard', 'visa'],
+				width: 'full'
+			}
 		},
 		{
 			id: 'stock-bar',

@@ -1,0 +1,47 @@
+name: Deploy Christmas page
+
+# Publishes landing/christmas-pouch-hoodie to chillmypet-christmas.pages.dev on
+# every merge that changes it, and on demand. That Pages project is on the
+# business owner's Cloudflare account (5fef1d1d…), not Vish's account that
+# runs chillmypet.com, so it needs its own token: CLOUDFLARE_API_TOKEN here
+# cannot reach it. Before this, the page was uploaded by hand and the live copy
+# fell behind main (the header redesign of 2026-10-09 never went out).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'landing/christmas-pouch-hoodie/**'
+      - 'landing/christmas-pouch-hoodie.test.mjs'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      # Step conditions cannot read secrets, so only whether it exists.
+      HAS_TOKEN: ${{ secrets.OWNER_CLOUDFLARE_API_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node landing/christmas-pouch-hoodie.test.mjs
+
+      - name: Report that nothing was deployed
+        if: env.HAS_TOKEN != 'true'
+        run: |
+          echo "::warning title=Christmas page was NOT deployed::OWNER_CLOUDFLARE_API_TOKEN is not a repository secret. Add a token for Cloudflare account 5fef1d1dbb6eaee72fdfc2b26a61a386 under Settings > Secrets and variables > Actions, then re-run."
+          {
+            echo "## ⚠️ chillmypet-christmas.pages.dev was not deployed"
+            echo
+            echo "Tests passed. The repository has no \`OWNER_CLOUDFLARE_API_TOKEN\` secret, a token for the Cloudflare account that holds the page, so the live page is unchanged."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish to Cloudflare Pages
+        if: env.HAS_TOKEN == 'true'
+        run: sh landing/christmas-pouch-hoodie/deploy.sh
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.OWNER_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 5fef1d1dbb6eaee72fdfc2b26a61a386
