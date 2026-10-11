@@ -2,7 +2,7 @@ import { error, type Handle } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
 import { newEventId } from 'ecomwithai/marketing';
-import { attributionFrom } from '$lib/server/purchase';
+import { attributionFrom, ensureAttributionCookies, isVisitorId } from '$lib/server/purchase';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
 export const LOCALE_COOKIE = 'locale';
@@ -30,13 +30,19 @@ function getDirectory() {
  * initialised pixel, so each gets exactly one, and the same holds for the
  * events the app fires later.
  *
- * Guards against database content reaching the page as markup.
+ * `external_id` is the visitor cookie the Conversions API copy reports. The
+ * pixel hashes it itself, so it gets the raw value; the server hashes the same
+ * string, and the two halves of each event agree on who it was.
+ *
+ * Guards against database content — and cookie content — reaching the page as
+ * markup.
  */
-function pixelSnippet(pixelIds: string[], pageViewEventId: string): string {
+function pixelSnippet(pixelIds: string[], pageViewEventId: string, visitorId: string): string {
 	const ids = pixelIds.filter((id) => /^\d{1,20}$/.test(id));
 	if (ids.length === 0) return '';
 
-	const inits = ids.map((id) => `fbq('init', '${id}');`).join('\n');
+	const matching = isVisitorId(visitorId) ? `, {external_id: '${visitorId}'}` : '';
+	const inits = ids.map((id) => `fbq('init', '${id}'${matching});`).join('\n');
 	const noscript = ids
 		.map(
 			(id) => `<noscript><img height="1" width="1" style="display:none" alt=""
@@ -177,6 +183,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	event.locals.locale = locale;
 
+	// Before anything reads attribution: the PageView below and every route
+	// that reports an event see the cookies this sets on the same request. A
+	// store with no pixel has nothing to attribute, so it sets none.
+	const visitorId = pixelIds.length > 0 ? ensureAttributionCookies(event.cookies, event.url) : '';
+
 	// This snippet's PageView is the only event the browser fires that never
 	// reaches the `track()` wrapper, so it is the only one that cannot mint its
 	// own id and post its own server copy. Both halves are issued here instead:
@@ -190,7 +201,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			html
 				.replace('%lang%', locale)
 				.replace('%dir%', textDirection(locale))
-				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId))
+				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId, visitorId))
 				.replace('%gtm_head%', gtm.head)
 				.replace('%gtm_body%', gtm.body)
 				.replace(

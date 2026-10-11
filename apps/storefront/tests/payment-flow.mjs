@@ -12,7 +12,7 @@
  * `npm run test:payments`.
  */
 import { createServer } from 'node:http';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
 // Event ids are deduped forever in the payments table, so a fixed id would make
@@ -92,7 +92,7 @@ const capi = createServer((req, res) => {
 });
 await new Promise((resolve) => capi.listen(CAPI_PORT, '127.0.0.1', resolve));
 
-const capiPurchases = () =>
+const capiData = () =>
 	capiEvents
 		.map((e) => {
 			try {
@@ -101,12 +101,108 @@ const capiPurchases = () =>
 				return null;
 			}
 		})
-		.filter((e) => e?.event_name === 'Purchase');
+		.filter(Boolean);
+const capiPurchases = () => capiData().filter((e) => e.event_name === 'Purchase');
 
 const settle = () => new Promise((r) => setTimeout(r, 2000));
 
+// --- AddToCart's server copy ----------------------------------------------
+// A visitor from an ad whose blocker ate fbevents.js: no `_fbp`, no `_fbc`,
+// nothing but `?fbclid=` on the landing URL. AddToCart is posted to
+// /api/track, whose own URL never carries the click, so unless the landing
+// request kept it, the server copy reaches Meta with an IP and a user agent
+// and nothing else to match on.
+const CLICK = `IwAR_test-${RUN}`;
+const landing = await fetch(`${BASE}/products/dog-life-jacket?fbclid=${CLICK}`, {
+	headers: { 'user-agent': 'payflow-test' }
+});
+const product = await landing.text();
+const jar = landing.headers.getSetCookie().map((c) => c.split(';')[0]);
+const cookieValue = (name) => jar.find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1);
+const fbc = cookieValue('_fbc');
+const vid = cookieValue('vid') ?? '';
+const hashedVid = createHash('sha256').update(vid).digest('hex');
+
+check(
+	'the landing request keeps the ad click as a first-party cookie',
+	Boolean(fbc?.startsWith('fb.1.') && fbc.endsWith(`.${CLICK}`)),
+	`_fbc=${fbc}`
+);
+check('and gives the visitor an id', /^[0-9a-f]{8}-[0-9a-f-]{27}$/.test(vid), `vid=${vid}`);
+check(
+	'the pixel is initialised with that same id',
+	product.includes(`fbq('init', '1363695699271757', {external_id: '${vid}'})`),
+	'browser and server halves would describe two different people'
+);
+
+const atcId = `atc-${RUN}`;
+await fetch(`${BASE}/api/track`, {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		cookie: jar.join('; '),
+		'user-agent': 'payflow-test'
+	},
+	body: JSON.stringify({
+		eventName: 'AddToCart',
+		eventId: atcId,
+		eventSourceUrl: `${BASE}/products/dog-life-jacket?fbclid=${CLICK}`,
+		customData: {
+			content_type: 'product',
+			content_ids: ['CMP-LJ-TEST'],
+			contents: [{ id: 'CMP-LJ-TEST', quantity: 1, item_price: 44.97 }],
+			num_items: 1,
+			currency: 'USD',
+			value: '44.97'
+		},
+		// A public endpoint must not let a page claim to be someone.
+		user_data: { em: ['f660ab912ec121d1b1e928a0bb4bc61b15f5ad44d5efdc4e1c92a25e99b8e44a'] }
+	})
+});
+await settle();
+
+const atc = capiData().find((e) => e.event_name === 'AddToCart' && e.event_id === atcId);
+check('AddToCart reaches the Conversions API', Boolean(atc));
+if (atc) {
+	const cd = atc.custom_data ?? {};
+	check(
+		'it names the visitor by a hashed external_id',
+		JSON.stringify(atc.user_data?.external_id) === JSON.stringify([hashedVid]),
+		JSON.stringify(atc.user_data?.external_id)
+	);
+	check('the raw visitor id never leaves', !JSON.stringify(atc).includes(vid));
+	check(
+		'it carries the ad click the pixel never got to store',
+		atc.user_data?.fbc === fbc,
+		`${atc.user_data?.fbc} vs ${fbc}`
+	);
+	check(
+		'and the address and browser of the request itself',
+		Boolean(atc.user_data?.client_ip_address) && atc.user_data?.client_user_agent === 'payflow-test'
+	);
+	check(
+		'every parameter Meta lists for AddToCart arrives',
+		cd.content_type === 'product' &&
+			cd.content_ids?.[0] === 'CMP-LJ-TEST' &&
+			cd.contents?.[0]?.id === 'CMP-LJ-TEST' &&
+			cd.contents?.[0]?.quantity === 1 &&
+			cd.contents?.[0]?.item_price === 44.97 &&
+			cd.num_items === 1 &&
+			cd.currency === 'USD' &&
+			cd.value === '44.97',
+		JSON.stringify(cd)
+	);
+	check('a page cannot claim an identity through the beacon', !('em' in (atc.user_data ?? {})));
+}
+
+const landingView = capiData().find((e) => e.event_name === 'PageView' && e.user_data?.fbc === fbc);
+check(
+	'the landing PageView names the same visitor',
+	JSON.stringify(landingView?.user_data?.external_id) === JSON.stringify([hashedVid]),
+	JSON.stringify(landingView?.user_data?.external_id)
+);
+
 // --- place an order --------------------------------------------------------
-const product = await fetch(`${BASE}/products/dog-life-jacket`).then((r) => r.text());
 // The page ships a variant index for the host's own submit handler — colour to
 // variant id — which is the only place a real id appears in the markup now.
 const variant = Number(/variantId["'\s:]+(\d+)/.exec(product)?.[1] ?? 0) || null;
@@ -133,7 +229,7 @@ const placed = await fetch(`${BASE}/checkout`, {
 	headers: {
 		'content-type': 'application/x-www-form-urlencoded',
 		origin: BASE,
-		cookie: '_fbp=fb.1.1700000000000.1234567890; _fbc=fb.1.1700000000000.testclickid'
+		cookie: `_fbp=fb.1.1700000000000.1234567890; _fbc=fb.1.1700000000000.testclickid; vid=${vid}`
 	},
 	body: form
 });
@@ -172,6 +268,7 @@ if (sessionCall) {
 		p.get('metadata[fbp]') === 'fb.1.1700000000000.1234567890' &&
 			p.get('metadata[fbc]') === 'fb.1.1700000000000.testclickid'
 	);
+	check('so does the visitor id', p.get('metadata[external_id]') === vid);
 	check('the secret key is sent as a bearer token', sessionCall.auth.startsWith('Bearer sk_'));
 	check(
 		'the card statement carries a descriptor the buyer will recognise',
@@ -215,7 +312,8 @@ if (sessionCall) {
 						store_id: 'chillmypet',
 						order_number: orderNumber,
 						fbp: 'fb.1.1700000000000.1234567890',
-						fbc: 'fb.1.1700000000000.testclickid'
+						fbc: 'fb.1.1700000000000.testclickid',
+						external_id: vid
 					}
 				}
 			}
@@ -280,6 +378,11 @@ if (sessionCall) {
 			purchase.user_data?.fbp === 'fb.1.1700000000000.1234567890' &&
 				purchase.user_data?.fbc === 'fb.1.1700000000000.testclickid',
 			JSON.stringify({ fbp: purchase.user_data?.fbp, fbc: purchase.user_data?.fbc })
+		);
+		check(
+			'the sale names the visitor its AddToCart did',
+			JSON.stringify(purchase.user_data?.external_id) === JSON.stringify([hashedVid]),
+			JSON.stringify(purchase.user_data?.external_id)
 		);
 		check(
 			'address fields from our own order row are matched on',

@@ -131,13 +131,15 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 
 	// With payments on, the sale is not a sale until Stripe says so, so hand
 	// the customer to the hosted page and let the webhook report the
-	// conversion. `_fbp`/`_fbc` ride along in metadata because the webhook is
-	// a request from Stripe and has none of this customer's cookies.
+	// conversion. `_fbp`/`_fbc` and the visitor id ride along in metadata
+	// because the webhook is a request from Stripe and has none of this
+	// customer's cookies.
 	if (commerce.payments) {
 		const attribution = attributionFrom(cookies, url, request.headers);
 		const metadata = {
 			...(attribution.fbp ? { fbp: attribution.fbp } : {}),
-			...(attribution.fbc ? { fbc: attribution.fbc } : {})
+			...(attribution.fbc ? { fbc: attribution.fbc } : {}),
+			...(attribution.externalId ? { external_id: attribution.externalId } : {})
 		};
 		const successUrl = `${url.origin}/checkout/success?order=${encodeURIComponent(order.orderNumber)}`;
 

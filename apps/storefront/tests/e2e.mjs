@@ -85,8 +85,16 @@ function check(label, cond) {
 	// Both tags ship server-rendered, on every page, before any JavaScript runs.
 	check('SSR carries the GTM container', /googletagmanager\.com\/gtm\.js/.test(html));
 	check('and its noscript iframe', /ns\.html\?id=GTM-T446VNH9/.test(html));
-	check('SSR initialises the store pixel', html.includes("fbq('init', '1363695699271757')"));
-	check('SSR initialises the second pixel', html.includes("fbq('init', '28272021345717397')"));
+	check('SSR initialises the store pixel', html.includes("fbq('init', '1363695699271757'"));
+	check('SSR initialises the second pixel', html.includes("fbq('init', '28272021345717397'"));
+
+	// Both pixels carry the visitor id the Conversions API copy is hashed from.
+	// Without it AddToCart's server half has nothing but an IP and a user agent
+	// to match on whenever the pixel's own cookies are blocked.
+	const ids = [...html.matchAll(/fbq\('init', '\d+', \{external_id: '([0-9a-f-]{36})'\}\)/g)].map(
+		(m) => m[1]
+	);
+	check('every pixel is initialised with the visitor id', ids.length === 2 && ids[0] === ids[1]);
 }
 
 {

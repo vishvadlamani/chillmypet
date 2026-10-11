@@ -33,6 +33,7 @@ check('zip strips dashes', normalize.zip('1100-001'), '1100001');
 check('zip truncates US ZIP+4 to 5', normalize.zip('94107-1234'), '94107');
 check('country accepts alpha-2', normalize.country('PT'), 'pt');
 check('country omits full names', normalize.country('Portugal'), '');
+check('external id trims and lowercases', normalize.externalId(' 3F2B-ab '), '3f2b-ab');
 
 // --- hashing matches a reference implementation ---
 const reference = createHash('sha256').update('vish@example.com').digest('hex');
@@ -51,7 +52,8 @@ const userData = await buildUserData({
 	clientIpAddress: '203.0.113.7',
 	clientUserAgent: 'Mozilla/5.0',
 	fbp: 'fb.1.1558571054389.1098115397',
-	fbc: 'fb.1.1554763741205.AbCdEfGh'
+	fbc: 'fb.1.1554763741205.AbCdEfGh',
+	externalId: '6F1C2A9E-0B7D-4C1E-9A3F-2D5E8B7C4A10'
 });
 
 check('email hashed and wrapped in an array', userData.em, [reference]);
@@ -66,6 +68,18 @@ check('client ip is not hashed', userData.client_ip_address, '203.0.113.7');
 check('user agent is not hashed', userData.client_user_agent, 'Mozilla/5.0');
 check('fbp is not hashed', userData.fbp, 'fb.1.1558571054389.1098115397');
 check('fbc is not hashed', userData.fbc, 'fb.1.1554763741205.AbCdEfGh');
+// The pixel hashes its copy of external_id itself, from the raw value, so the
+// server must hash the same normalized string or the two never meet.
+check(
+	'external id hashed from its normalized form',
+	userData.external_id,
+	[createHash('sha256').update('6f1c2a9e-0b7d-4c1e-9a3f-2d5e8b7c4a10').digest('hex')]
+);
+check(
+	'absent external id is omitted',
+	'external_id' in (await buildUserData({ clientIpAddress: '203.0.113.7' })),
+	false
+);
 
 // --- fbc construction ---
 check('fbc format', buildFbc('AbCdEfGh', 1554763741205), 'fb.1.1554763741205.AbCdEfGh');

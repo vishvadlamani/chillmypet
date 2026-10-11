@@ -135,6 +135,16 @@ goes missing to iOS and ad blockers is the one worth having. `/api/track`
 refuses `Purchase` and ignores any `user_data` in its body: a sale is reported
 from the order, and a public endpoint must not be able to claim identity.
 
+**Both halves name the visitor by one `external_id`.** `hooks.server.ts` mints
+a `vid` cookie (a UUID, httpOnly) and initialises every pixel with
+`{external_id: vid}`; the server hashes the same string into `user_data`, and
+the pixel hashes its copy itself — so hand it the raw value, never the hash, or
+the two halves stop matching. The same hook writes `_fbc` from a landing
+`?fbclid=`, because `/api/track`'s own URL never carries one and `_fbc` is
+otherwise only set by the script an ad blocker removes. Purchase gets the id
+through Stripe metadata (`external_id`), like `fbp`/`fbc`. The cookie value
+reaches an inline script, so `isVisitorId` validates it at every read.
+
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires
 from the Stripe webhook and the browser event from the success page, two requests

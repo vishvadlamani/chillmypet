@@ -39,7 +39,14 @@ export const normalize = {
 	country: (v: string) => {
 		const cleaned = v.trim().toLowerCase().replace(/[^a-z]/g, '');
 		return cleaned.length === 2 ? cleaned : '';
-	}
+	},
+	/**
+	 * Trim, lowercase, as Meta's own SDKs normalize before hashing. The pixel
+	 * hashes its copy from `fbq('init', id, { external_id })` itself, so give
+	 * it an id already in this form — a lowercase UUID, say — and both halves
+	 * hash the same string whatever the pixel does to it first.
+	 */
+	externalId: (v: string) => v.trim().toLowerCase()
 };
 
 export type CapiUserInput = {
@@ -51,6 +58,13 @@ export type CapiUserInput = {
 	state?: string;
 	zip?: string;
 	country?: string;
+	/**
+	 * The advertiser's own id for this person — a customer id, or a first-party
+	 * cookie for a visitor who hasn't identified themselves. Hashed, and it has
+	 * to be the same value the pixel is initialised with, or the browser and
+	 * server copies of an event describe two different people.
+	 */
+	externalId?: string;
 	/** These four must NOT be hashed. */
 	clientIpAddress?: string;
 	clientUserAgent?: string;
@@ -69,7 +83,8 @@ export async function buildUserData(input: CapiUserInput): Promise<HashedUserDat
 		['ct', input.city && normalize.city(input.city)],
 		['st', input.state && normalize.state(input.state)],
 		['zp', input.zip && normalize.zip(input.zip)],
-		['country', input.country && normalize.country(input.country)]
+		['country', input.country && normalize.country(input.country)],
+		['external_id', input.externalId && normalize.externalId(input.externalId)]
 	];
 
 	const userData: HashedUserData = {};

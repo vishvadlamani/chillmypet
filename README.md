@@ -152,9 +152,12 @@ optimizes spend against whatever it is told. With no payment provider configured
 there is nothing to settle, so it fires at order creation instead.
 
 **Advanced matching.** `packages/ecomwithai/src/marketing/hash.ts` normalizes and
-SHA-256 hashes email, phone, name, city, state, zip and country;
+SHA-256 hashes email, phone, name, city, state, zip, country and `external_id`;
 `client_ip_address`, `client_user_agent`, `fbp` and `fbc` go unhashed, as Meta
-requires. Absent fields are **omitted, never sent as `null`** — a null carries no
+requires. `external_id` is a first-party visitor cookie (`vid`) set by
+`hooks.server.ts`, which also writes `_fbc` from a landing `?fbclid=` — so the
+events fired before checkout (AddToCart above all) still carry an identity and
+the ad click when the visitor blocks `fbevents.js`. Absent fields are **omitted, never sent as `null`** — a null carries no
 signal and lowers match quality. State and country are only sent as 2-letter
 codes, since truncating "Texas" to "te" hashes to something matching nobody;
 that's why the checkout country field is an ISO select.
