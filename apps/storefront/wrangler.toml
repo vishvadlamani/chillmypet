@@ -26,7 +26,11 @@ compatibility_flags = ["nodejs_compat"]
 #                     with no way to change it. Kept here for browser events
 #                     only so its history keeps accruing and nothing is lost;
 #                     it no longer receives the Conversions API copy.
-#   28272021345717397 a second account measuring the same pages. Browser only.
+#
+# 28272021345717397 was listed here too until 2026-10-11. It was in none of the
+# owner's ad accounts and nobody could say whose it was, so every visitor's
+# browsing was going to a pixel no one on this side controls; it was removed.
+# Only add a pixel whose owner you can name.
 #
 # ⚠️ DEPLOY ORDER. A CAPI token belongs to exactly one dataset. Until
 # META_CAPI_ACCESS_TOKEN covers 1341978141149107 and is on both Workers,
@@ -39,7 +43,7 @@ compatibility_flags = ["nodejs_compat"]
 # and a server copy of the same event.
 [vars]
 META_PIXEL_ID = "1341978141149107"
-META_EXTRA_PIXEL_IDS = "1363695699271757,28272021345717397"
+META_EXTRA_PIXEL_IDS = "1363695699271757"
 GTM_CONTAINER_ID = "GTM-T446VNH9"
 # Google tag gateway route, configured in Cloudflare (not in this repo). GTM
 # loads first-party from here and falls back to googletagmanager.com if the

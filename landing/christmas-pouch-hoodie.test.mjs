@@ -5,6 +5,7 @@
  *   node landing/christmas-pouch-hoodie.test.mjs
  */
 import { createHmac } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import worker from './christmas-pouch-hoodie/_worker.js';
 
 let failures = 0;
@@ -195,6 +196,18 @@ const session = (metadata, extra = {}) => ({
 
 	const none = await (await sale(rest)).json();
 	check('no token at all is named as missing', none.reason === 'missing META_CAPI_ACCESS_TOKEN', none.reason);
+}
+
+// --- the pixels config.js initialises -------------------------------------------
+// Every listed pixel receives every visitor's browsing. 28272021345717397 was
+// listed until 2026-10-11 although nobody could say whose it was, so it is
+// asserted absent rather than just deleted, and can't drift back in on a copy.
+{
+	const window = {};
+	new Function('window', readFileSync(new URL('./christmas-pouch-hoodie/config.js', import.meta.url), 'utf8'))(window);
+	const ids = window.XMAS.pixelIds;
+	check('config initialises the dataset the ads optimise against', ids.includes('1341978141149107'), JSON.stringify(ids));
+	check('and not the unclaimed pixel', !ids.includes('28272021345717397'), JSON.stringify(ids));
 }
 
 if (failures) {

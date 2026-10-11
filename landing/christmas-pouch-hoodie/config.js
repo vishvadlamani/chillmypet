@@ -12,14 +12,15 @@
  *            Wed 23 Dec. The strip disappears once the day is over in
  *            Los Angeles.
  * pixelIds   the same pixels chillmypet.com initialises. One fbq('track')
- *            reports to each of them once.
+ *            reports to each of them once. Only add a pixel whose owner you
+ *            can name: every visitor's browsing goes to each one listed.
  */
 window.XMAS = {
 	slug: 'christmas-pouch-hoodie',
 	title: 'Christmas Pouch Hoodie',
 	price: 54.99,
 	currency: 'USD',
-	pixelIds: ['1341978141149107', '1363695699271757', '28272021345717397'],
+	pixelIds: ['1341978141149107', '1363695699271757'],
 	cutoff: '2026-12-07',
 	cutoffZone: 'America/Los_Angeles',
 	// blurb, tag and detail are display copy: what is on the hoodie, the tab on
