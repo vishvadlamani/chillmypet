@@ -204,10 +204,10 @@ const session = (metadata, extra = {}) => ({
 	check('no token at all is named as missing', none.reason === 'missing META_CAPI_ACCESS_TOKEN', none.reason);
 }
 
-// --- when Meta says no: retry only what a retry can fix ----------------------------
-// Stripe resends a non-2xx for three days. That is right while Meta or the line
-// to it is down, or the token needs fixing; for an event Meta refuses as built
-// it is three days of failures reported on the endpoint over one sale.
+// --- when Meta says no: Stripe must hear about it ------------------------------------
+// Stripe resends a non-2xx for three days and shows the endpoint failing. A
+// refusal Meta would repeat is a bug in the event that hits every sale, so it
+// fails loudly too; the reason only says whether a resend can help.
 {
 	const sale = () => worker.fetch(signed(session({ slug: 'christmas-pouch-hoodie', sku: 'CMP-XH-SANTA-RED-S' })), env, ctx);
 	const metaError = (status, code, message) => () => Response.json({ error: { message, type: 'OAuthException', code } }, { status });
@@ -215,11 +215,12 @@ const session = (metadata, extra = {}) => ({
 	meta = metaError(400, 100, 'Invalid parameter');
 	const refused = await sale();
 	const refusedBody = await refused.json();
-	check('an event Meta refuses as built is answered 2xx, so Stripe stops resending it', refused.status === 200 && refusedBody.reason === 'meta_refused', `${refused.status} ${JSON.stringify(refusedBody)}`);
+	check('an event Meta refuses as built still fails, so a broken Purchase cannot pass for a sale reported', refused.status === 502 && refusedBody.reason === 'meta_refused', `${refused.status} ${JSON.stringify(refusedBody)}`);
 	check('with Meta’s reason in the answer, for the Dashboard', /400 100 Invalid parameter/.test(refusedBody.detail ?? ''), refusedBody.detail);
 
 	meta = metaError(400, 190, 'Error validating access token');
-	check('a token Meta rejects is retried, since it can be fixed within Stripe’s three days', (await sale()).status === 502);
+	const token = await sale();
+	check('a token Meta rejects is retried, and named as fixable', token.status === 502 && (await token.json()).reason === 'meta_unavailable');
 
 	meta = () => new Response('Service Unavailable', { status: 503 });
 	check('Meta being down is retried', (await sale()).status === 502);

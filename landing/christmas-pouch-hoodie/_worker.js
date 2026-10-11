@@ -166,12 +166,12 @@ async function stripeWebhook(request, env) {
 	});
 	// Meta dedupes Stripe's retries on event_id.
 	if (sent.ok) return json({ handled: true, eventId: s.id });
-	if (sent.retry) return json({ handled: false, reason: 'meta_unavailable', detail: sent.detail }, 502);
-	// Meta refused this event as built, and would refuse every resend of it. A
-	// 2xx stops Stripe retrying for three days and reporting the endpoint as
-	// failing over one sale; the reason stays readable in the Dashboard's
-	// delivery log, and the browser Purchase from thank-you.html still counts it.
-	return json({ handled: false, reason: 'meta_refused', detail: sent.detail });
+	// Every failure is a non-2xx, including one Meta would repeat on every
+	// resend. A refusal like that is a payload bug, and it hits every sale, not
+	// one: answered 2xx, each lost sale would read as a success in Stripe, and
+	// the endpoint failing is the only alarm this page has. The reason says
+	// whether a resend can help; Meta's own words are in the detail.
+	return json({ handled: false, reason: sent.retry ? 'meta_unavailable' : 'meta_refused', detail: sent.detail }, 502);
 }
 
 // Stripe-Signature is "t=<unix>,v1=<hex>[,v1=<hex>…]": an HMAC-SHA256 of

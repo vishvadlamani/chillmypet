@@ -56,15 +56,16 @@ details between InitiateCheckout and the webhook, such as a KV namespace bound
 to this Pages project and keyed by the visitor id. That means setting something
 up in the owner's Cloudflare account, so it has not been done.
 
-Whether Meta refuses a Purchase without it is not documented, and no real sale
-has tested it. So the webhook only asks Stripe to retry (a non-2xx, which
-Stripe resends for three days) when a retry can help: Meta or the network
-down, a rate limit, or a token or permission problem someone can fix in that
-time. When Meta refuses the event as built (code 100 and the like), it answers
-2xx with `reason: meta_refused` and Meta's message, readable in the Stripe
-Dashboard's delivery log. Otherwise one such sale would fail for three days and
-show the endpoint as failing. The browser Purchase from the thank-you page
-still counts the sale either way.
+Meta does not refuse a Purchase without it: chillmypet.com sent exactly that
+for weeks, and Meta accepted every one and scored its match quality at 0 (see
+AGENTS.md). So every failure the webhook meets is answered non-2xx, which
+Stripe resends for three days and shows as a failing endpoint. That includes
+a refusal Meta would repeat (code 100 and the like, `reason: meta_refused`),
+because such a refusal is a bug in the event and hits every sale. Answered
+2xx, the sales would be lost while Stripe reported success. A failure a resend
+can fix, such as Meta down, a rate limit or a token someone needs to replace,
+is `reason: meta_unavailable`. Meta's message is in `detail` either way,
+readable in the Stripe Dashboard's delivery log.
 
 ## Testing it yourself: quiet mode
 
