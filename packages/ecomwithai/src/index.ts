@@ -65,6 +65,7 @@ export {
 	toAmount,
 	buildFbc,
 	resolveFbc,
+	type CapiVerification,
 	type MetaConfig,
 	type MetaService
 } from './marketing/index.ts';

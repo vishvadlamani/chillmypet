@@ -11,6 +11,8 @@
  *   POST /api/event           PageView, ViewContent, AddToCart, InitiateCheckout
  *   POST /api/stripe-webhook  Purchase, when Stripe says a Christmas hoodie
  *                             session is paid
+ *   GET  /api/meta-status     whether Meta takes this project's token for the
+ *                             dataset, asked without sending an event
  *
  * This file is the page's only server code. While a _worker.js exists, Pages
  * ignores a functions/ folder entirely, so a route added there is never
@@ -62,9 +64,69 @@ export default {
 			ctx.waitUntil(browserEvent(request, env, body).catch((e) => console.error('capi:', e && e.message)));
 			return new Response(null, { status: 204 });
 		}
+		if (pathname === '/api/meta-status') {
+			if (request.method !== 'GET') return new Response(null, { status: 405 });
+			return metaStatus(env);
+		}
 		return env.ASSETS.fetch(request);
 	}
 };
+
+/*
+ * Whether the server copies can land, readable from a browser. /api/event
+ * answers 204 whatever Meta says, so a token generated for another dataset is
+ * refused once per event into the logs while the pixel's half keeps arriving,
+ * and Events Manager reports it as server events with no dedupe key covering
+ * none of the browser's. The token cannot be read back from the dashboard; this
+ * asks Meta with an empty batch, which it refuses as "must be non-empty" only
+ * once it has accepted the token for this dataset. Nothing is sent, the token
+ * is never in the answer, and 503 means the server half is not landing.
+ *
+ * One answer per isolate for a few minutes: this is a public URL, and each
+ * uncached hit is a call to the Graph API.
+ */
+const STATUS_TTL = 5 * 60 * 1000;
+let lastStatus;
+
+async function metaStatus(env) {
+	const dataset = env.META_PIXEL_ID || PIXEL_ID;
+	const token = metaToken(env);
+	const key = `${dataset} ${token.value}`;
+	if (!lastStatus || lastStatus.key !== key || Date.now() - lastStatus.at >= STATUS_TTL) {
+		lastStatus = { key, at: Date.now(), result: await probeMeta(dataset, token) };
+	}
+	const { result, at } = lastStatus;
+	return Response.json(
+		{ dataset, ...result, checked_at: new Date(at).toISOString() },
+		{ status: result.server_events === 'accepted' ? 200 : 503, headers: { 'Cache-Control': 'no-store' } }
+	);
+}
+
+async function probeMeta(dataset, token) {
+	if (!token.value) return { server_events: 'not_configured', detail: token.problem };
+	let res;
+	try {
+		res = await fetch(`${GRAPH}/${dataset}/events`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: new URLSearchParams({ data: '[]', access_token: token.value })
+		});
+	} catch (e) {
+		return { server_events: 'unreachable', detail: redact(String(e && e.message), token.value) };
+	}
+	let error = {};
+	try { error = (await res.json()).error || {}; } catch {}
+	const message = error.message || `HTTP ${res.status}`;
+	if (res.ok || /non-empty/i.test(message)) return { server_events: 'accepted' };
+	const coded = error.code === undefined ? message : `(#${error.code}) ${message}`;
+	return { server_events: 'rejected', detail: redact(coded, token.value) };
+}
+
+// Graph quotes a token it cannot parse back in its message ("Malformed access
+// token EAA…"), and this answer is public.
+function redact(text, token) {
+	return text.split(token).join('[token]').replace(/EAA[A-Za-z0-9]{16,}/g, '[token]');
+}
 
 // pixel.js's quiet mode: a preview copy of the page, or a visit the owner
 // marked as a test. pixel.js already sends nothing then; this is for a copy

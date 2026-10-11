@@ -92,7 +92,10 @@ banner: looking at a change never counts as a visitor, and buying from it is
 marked `test_`. `deploy.sh` publishes previews only through `PREVIEW=pr-<n>`,
 and refuses `main`, so a preview can never replace the live page.
 
-**ViewContent** fires on load with the product slug, as on chillmypet.com.
+**ViewContent** fires on load with the product slug, as on chillmypet.com. Its
+server copy, like PageView's, waits up to 3 s for the pixel's `_fbp` so it can
+carry it, and goes at once if the visitor leaves first: a bounce must not keep
+the browser's half and lose the server's, which Meta counts against coverage.
 Every event goes to dataset `1341978141149107`, the only pixel on the page.
 Two more were taken off on 2026-10-11: `28272021345717397`, which was in no ad
 account the owner can see and nobody could say whose it was, and
@@ -147,7 +150,7 @@ Stripe are the record of what happens here.
 | Name | State |
 |---|---|
 | `STRIPE_WEBHOOK_SECRET` | set, from `we_1UOEbvJOsB1nguzlbjDffhrK` |
-| `META_CAPI_ACCESS_TOKEN` | set. Confirmed 2026-10-11 from outside: an unsigned POST to `/api/stripe-webhook` answers `invalid_signature`, which the worker only reaches once both this and `STRIPE_WEBHOOK_SECRET` are present (without either it answers 503 and names the missing one). That proves the token exists, not that Meta accepts it: a token generated for another dataset is rejected into the logs. Events Manager → dataset 1341978141149107 → Overview shows which: events from this page should list "Browser · Server". To replace it: Settings → Conversions API → Generate access token, then redeploy. |
+| `META_CAPI_ACCESS_TOKEN` | set. Confirmed 2026-10-11 from outside: an unsigned POST to `/api/stripe-webhook` answers `invalid_signature`, which the worker only reaches once both this and `STRIPE_WEBHOOK_SECRET` are present (without either it answers 503 and names the missing one). That proves the token exists, not that Meta accepts it: a token generated for another dataset is rejected into the logs, and Events Manager then reports this page's events as server events with no dedupe key and 0% coverage. **https://chillmypet-christmas.pages.dev/api/meta-status** answers which: it asks Meta with an empty batch (no event sent) and reads `"server_events": "accepted"` (200) or says why not (503). To replace it: Events Manager → dataset 1341978141149107 → Settings → Conversions API → Generate access token, set it here, then redeploy. |
 | `META_TEST_EVENT_CODE` | optional, to watch events in Test Events; remove it afterwards |
 
 ## Changing things

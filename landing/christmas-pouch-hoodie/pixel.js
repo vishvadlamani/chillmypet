@@ -65,19 +65,42 @@ window.XMAS.visitorId = (function () {
  * `leaving` is for an event fired on the way off the page: send now. Otherwise
  * wait briefly for the pixel's _fbp cookie, which only exists once
  * fbevents.js has loaded, so the server copy carries the same browser id.
+ *
+ * A visitor who leaves during that wait (an ad click that bounces, a browser
+ * that blocks the cookie) must not take the server copy with them: the pixel
+ * may already have sent its half, and a browser event with no server copy is
+ * exactly what Events Manager counts against coverage. So whatever is still
+ * waiting goes out as the page is hidden. Without fbp it still dedupes on the
+ * event id and matches on external_id.
  */
+var waiting = [];
+function sendWaiting() {
+	while (waiting.length) waiting[0]();
+}
+addEventListener('pagehide', sendWaiting);
+document.addEventListener('visibilitychange', function () {
+	if (document.visibilityState === 'hidden') sendWaiting();
+});
+
 window.xmasTrack = function (name, data, leaving) {
 	var id = window.crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
 	if (window.XMAS.quiet) return id;
 	fbq('track', name, data || {}, { eventID: id });
 	var body = JSON.stringify({ name: name, id: id, url: location.href, data: data || {} });
+	var sent = false;
 	function post() {
+		var at = waiting.indexOf(post);
+		if (at >= 0) waiting.splice(at, 1);
+		if (sent) return;
+		sent = true;
 		try { if (navigator.sendBeacon && navigator.sendBeacon('/api/event', body)) return; } catch (e) {}
 		try { fetch('/api/event', { method: 'POST', body: body, keepalive: true }); } catch (e) {}
 	}
 	if (leaving) return post();
+	waiting.push(post);
 	var waited = 0;
 	(function tick() {
+		if (sent) return;
 		if (/(^|; )_fbp=/.test(document.cookie) || waited >= 3000) return post();
 		waited += 100;
 		setTimeout(tick, 100);

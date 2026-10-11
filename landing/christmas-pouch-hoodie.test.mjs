@@ -22,7 +22,9 @@ const sent = [];
 const accepted = () => new Response('{"events_received":1}', { status: 200 });
 let meta = accepted;
 globalThis.fetch = async (url, init) => {
-	sent.push({ url: String(url), body: JSON.parse(init.body) });
+	// Events go as JSON; the token probe as a form, the way Meta was proven to answer it.
+	const body = typeof init.body === 'string' ? JSON.parse(init.body) : new URLSearchParams(init.body);
+	sent.push({ url: String(url), body });
 	return meta();
 };
 
@@ -230,6 +232,41 @@ const session = (metadata, extra = {}) => ({
 
 	meta = () => { throw new TypeError('fetch failed'); };
 	check('a network failure is retried', (await sale()).status === 502);
+
+	meta = accepted;
+}
+
+// --- /api/meta-status: can the server copies land at all? ----------------------------
+// /api/event answers 204 whatever Meta says, so a token for another dataset
+// loses every server copy in silence and Events Manager reports no dedupe key
+// and no coverage. This is the one place that can be seen from outside.
+{
+	const status = async (e = env) => {
+		const res = await worker.fetch(new Request(`${ORIGIN}/api/meta-status`), e, ctx);
+		return { status: res.status, body: await res.json() };
+	};
+
+	sent.length = 0;
+	meta = () => Response.json({ error: { message: '(#100) The parameter data must be non-empty', code: 100 } }, { status: 400 });
+	const ok = await status();
+	check('a token Meta takes for the dataset reads as accepted', ok.status === 200 && ok.body.server_events === 'accepted' && ok.body.dataset === '1341978141149107', JSON.stringify(ok));
+	check('asked with an empty batch, so no event is sent', sent.length === 1 && sent[0].url.endsWith('/1341978141149107/events') && sent[0].body.get('data') === '[]', JSON.stringify(sent));
+	sent.length = 0;
+	await status();
+	check('and answered from memory for a few minutes', sent.length === 0, `${sent.length} probe(s)`);
+
+	const WRONG = 'EAAtokenForAnotherDataset123456';
+	meta = () => Response.json({ error: { message: `Malformed access token ${WRONG}`, code: 190 } }, { status: 400 });
+	const wrong = await status({ ...env, META_CAPI_ACCESS_TOKEN: WRONG });
+	check('a token Meta refuses reads as rejected, with a 503', wrong.status === 503 && wrong.body.server_events === 'rejected', JSON.stringify(wrong));
+	check('with Meta’s reason, never the token', /^\(#190\) Malformed access token \[token\]$/.test(wrong.body.detail ?? '') && !JSON.stringify(wrong.body).includes(WRONG), wrong.body.detail);
+
+	const { META_CAPI_ACCESS_TOKEN, ...rest } = env;
+	const none = await status(rest);
+	check('no token reads as not configured, and says which', none.status === 503 && none.body.server_events === 'not_configured' && none.body.detail === 'missing META_CAPI_ACCESS_TOKEN', JSON.stringify(none));
+
+	const posted = await worker.fetch(new Request(`${ORIGIN}/api/meta-status`, { method: 'POST' }), env, ctx);
+	check('it only answers GET', posted.status === 405);
 
 	meta = accepted;
 }
