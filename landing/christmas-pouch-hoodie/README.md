@@ -76,6 +76,34 @@ Ads Manager means no ad visitor tapped Buy with a size chosen, not that the
 event was lost. The ViewContent the ads report proves the page's events
 reach the dataset and are credited to the ad.
 
+A second run let Stripe load for real (Stocking Green, size L). The Payment
+Link opened Stripe's checkout showing "Christmas Pouch Hoodie — Stocking Green,
+size L", $54.99, with the shipping and card form, and the run stopped there.
+That leaves one unpaid session in the Dashboard, which expires by itself. Each
+such run does the same, so keep them rare. The other seven links were checked
+through the API instead: all active, $54.99, each redirecting to `thank-you`
+with its own SKU. Paying is the one step never run live. Proving it takes a
+real purchase and a refund, which costs Stripe's fee and puts a fabricated
+Purchase in front of the ad set, so it needs the owner's say-so.
+
+## Ads that land here
+
+As of 2026-10-11: "Christmas Hoodie Campaign - Copy" (Meta ad account Vish
+Kanada, $10/day, 10–20 Oct), optimising for **Purchase** on
+`1341978141149107`. The original "Christmas Hoodie Campaign" is paused and
+still set to AddPaymentInfo, which this page can never send: the card is typed
+on Stripe's page, which reports nothing to the pixel. Before restarting it,
+switch its conversion event to Purchase, or to AddToCart or InitiateCheckout
+for more signal at a small budget.
+
+`chillmypet-hoodie.pages.dev` redirects here since 2026-10-11, query string
+kept, so "link in bio" visitors from the hoodie Reels arrive here too.
+
+There is no GA4 on this page. The ads' `utm_*` tags reach the URL but nothing
+here reads them, and a visitor who clicks through to chillmypet.com shows in
+GA4 as a referral from `chillmypet-christmas.pages.dev`. Ads Manager and
+Stripe are the record of what happens here.
+
 ## Secrets (Pages → chillmypet-christmas → Settings → Variables and Secrets)
 
 | Name | State |

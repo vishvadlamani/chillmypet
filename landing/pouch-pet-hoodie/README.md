@@ -66,9 +66,9 @@ back; add them when they are true, not to fill the page.
 
 ## The Payment Link
 
-Live on the **Milligram** Stripe account (`acct_1U3NewJOsB1nguzl`), chosen by
-the owner. That is neither ChillMyPet's own account nor the "Idea to Run"
-account the storefront charges through, so these sales settle there and Stripe's
+On `acct_1U3NewJOsB1nguzl`, the owner's Stripe account, which was called
+Milligram when this page launched. It is now named ChillMP, and since
+2026-10-07 it is also the account chillmypet.com charges through. Stripe's
 checkout page shows that account's name and branding. The descriptor suffix
 `CHILLMYPET` is set so the charge is recognisable on a statement.
 
@@ -77,6 +77,7 @@ checkout page shows that account's name and branding. The descriptor suffix
 | Link | https://buy.stripe.com/fZu28sfbIgamgIe8tp1wY01 (`plink_1ULu2aJOsB1nguzlIzkLcmZG`) |
 | Product | `prod_VMc9qoS3upuwT6`, "Pouch Pet Hoodie" |
 | Price | `price_1ULu2LJOsB1nguzldpv94rU1`, $49 one-off |
+| State | **Inactive** since 2026-10-09. Its inactive message, and that of the earlier link it replaced (`plink_1ULsvvJOsB1nguzlWIBkKc0K`), reads: "The Pouch Pet Hoodie is sold out for now. Our Christmas Pouch Hoodie, with the same front pouch for your pet, is available at chillmypet-christmas.pages.dev" (set 2026-10-11). |
 
 - Quantity is fixed at **one**. A single Size field cannot describe two hoodies
   of different sizes, and it keeps the thank-you page's one-unit Purchase value
@@ -95,7 +96,9 @@ checkout page shows that account's name and branding. The descriptor suffix
   The product image is `https://chillmypet-hoodie.pages.dev/hoodie-black.jpg`.
   **Both need this folder published under that exact project name.** If
   Pages hands you a different host, edit the link's after-payment redirect and
-  the product image in the Dashboard to match.
+  the product image in the Dashboard to match. While the redirect is in place,
+  both URLs answer with a 302 to the Christmas page, so the product image
+  only works again once the page is restored.
 
 ## To publish
 

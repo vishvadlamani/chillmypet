@@ -10,6 +10,8 @@ packages/ecomwithai/    the open-source framework — EDIT HERE
 packages/funnel-core/   block runtime: manifests, $ref binding, page layout
 packages/blocks-dr/     direct-response block library — A COPY, see below
 apps/storefront/        BFF: SvelteKit UI, language packs, routes
+landing/                static Payment Link pages on Cloudflare Pages, outside the store:
+                        christmas-pouch-hoodie (live), pouch-pet-hoodie (redirects to it)
 ```
 
 `packages/ecomwithai` is the editable copy of the framework, and the public repo
@@ -331,14 +333,13 @@ codebase, from the webhook, on `action === 'order_paid'`. If you find one of
 these connected, disconnect it at the Stripe end rather than filtering at the
 Meta end.
 
-**It applies to `acct_1U3NewJOsB1nguzl` ("ChillMP") too, and bites differently
-there.** The hoodie landing page charges through that account and reports its
-own Purchase from `landing/pouch-pet-hoodie/thank-you.html`, keyed on the
-Checkout Session id. An integration on it would mint a second id for the same
-sale — the same double-count — and that page sends no Conversions API copy, so
-there is no server-side event for anything downstream to notice it against.
-Switching one on while migrating the storefront would double-count on both
-accounts at once.
+**It applies to the Payment Link pages too.** `acct_1U3NewJOsB1nguzl`
+("ChillMP") is the storefront's account and also the Christmas page's, which
+charges through Payment Links and reports its own Purchase twice under one id,
+the Checkout Session id: from `landing/christmas-pouch-hoodie/thank-you.html`
+in the browser and from its `_worker.js` webhook on the server. An integration
+would mint a third id for the same sale, and nothing dedupes it. The hoodie
+page did the same until it went off sale on 2026-10-09.
 
 **Don't delete `local.db` while the dev server is running.** It holds the file
 handle, keeps writing to the unlinked inode, and you'll chase phantom failures.
@@ -832,9 +833,54 @@ re-bound), not a dashboard click. When in doubt about which account serves the
 site, change a value and watch the live page: the Stripe fragment trick above
 answers it in seconds.
 
-### The hoodie landing page is a second, separate shop
+### Ads, and the pages they land on
 
-`chillmypet-hoodie.pages.dev` ("Pouch Pet Hoodie · ChillMyPet") sells the cat
+All current advertising is in the Meta ad account **Vish Kanada**
+(`act_1550461850095009`, USD). Campaigns and ads as of 2026-10-11:
+
+| Campaign | Ads | Lands on | Optimises for | State |
+|---|---|---|---|---|
+| Christmas Hoodie Campaign - Copy | "Christmas Hoodie Ad - Copy" (active), "Christmas Hoodie Ad" (paused) | Christmas page | Purchase | **Live**, $10/day, 10–20 Oct |
+| Christmas Hoodie Campaign | Christmas Hoodie Ad | Christmas page | ⚠️ AddPaymentInfo | Paused |
+| Hoodie Campaign - Copy | Hoodie Ad | hoodie page | Purchase | Ended 8 Oct |
+| Hoodie Campaign | Hoodie Ad | hoodie page | ⚠️ AddPaymentInfo | Paused, ended 8 Oct |
+| New Traffic Campaign | New Traffic Ad | `/products/dog-life-jacket` | Landing page views | Ended 20 Sep |
+| Purchase Campaign, New Sales Campaign | none delivered | — | — | Ended 23 Sep, never served |
+
+Earlier, the old ad account `act_1431226177195979` (CZK) ran four "Dog Vest"
+ads to `/products/dog-life-jacket`, optimising for Purchase or
+InitiateCheckout on `1363695699271757`. That pixel now gets browser events
+only, so don't restart those ads there.
+
+**Never optimise a Payment Link page for AddPaymentInfo.** The card is typed on
+Stripe's page, which reports nothing to the pixel, so the event can never fire
+and Meta spends against a goal nobody can reach. The two paused campaigns
+marked ⚠️ still have it, and the fix (conversion event → Purchase) is waiting
+on a decision to restart them. The "- Copy" campaigns were made to correct it.
+
+**A zero in Ads Manager is not evidence that tracking broke.** On 2026-10-11,
+17 clicks and no AddToCart looked like a fault and was not. The way to tell is
+in the Christmas page's README ("Checked on the live page"): drive the live
+page as an ad click with every pixel hit and server copy answered locally,
+then follow it to Stripe's real checkout and stop before paying. That run
+covered all three pages. The Christmas page and `/products/dog-life-jacket`
+reach a working payment form with PageView, ViewContent, AddToCart and
+InitiateCheckout sent. The hoodie page reached Stripe's inactive message, which
+is what led to its redirect. Payment itself has never been run live on any of
+them.
+
+**Where to read the numbers.** The Supermetrics connector reads the Meta ad
+accounts and GA4 property `557080165` ("Chillmypet"). Its Meta access is
+**read-only**: write access is not enabled for this team, so campaign changes
+through it are refused, and those go through Ads Manager. GA4 runs only on
+chillmypet.com through GTM. The landing pages load no GA4, so their visitors
+appear in GA4 only when they click through to chillmypet.com, as a referral
+from `chillmypet-christmas.pages.dev`. The ads' `utm_*` tags are not read
+anywhere on the landing pages. Ads Manager and Stripe are the record there.
+
+### The hoodie landing page, a second shop now off sale
+
+`chillmypet-hoodie.pages.dev` ("Pouch Pet Hoodie · ChillMyPet") sold the cat
 pouch hoodie that the Hoodie campaigns (2–8 Oct 2026) featured. The Reels say "Link in bio",
 so that traffic does not necessarily land on chillmypet.com. It is a static
 page whose source is `landing/pouch-pet-hoodie/` (`config.js`, `pixel.js`,
@@ -846,12 +892,13 @@ page whose source is `landing/pouch-pet-hoodie/` (`config.js`, `pixel.js`,
   only forwards it to Meta when the Pages project holds `META_CAPI_ACCESS_TOKEN`
   — whether it does has not been checked. Without it, the page is browser-side
   only.
-- It sells through a Stripe **Payment Link** on ChillMP
+- It sold through a Stripe **Payment Link** on ChillMP
   (`plink_1ULu2aJOsB1nguzlIzkLcmZG`, buy.stripe.com/fZu28sfbIgamgIe8tp1wY01),
   which returns to `thank-you.html`. A hoodie sale creates **no order in
-  Turso, sends no Conversions API Purchase**, and is invisible to everything
-  in this codebase. Whatever Purchase the ads see for it comes from that thank-you
-  page's browser pixel alone, the half iOS and blockers eat.
+  Turso** and is invisible to everything in the storefront. Its Purchase came
+  from that thank-you page's pixel, plus a server copy from `/api/purchase`
+  when the Pages project holds `STRIPE_SECRET_KEY` and the token, which was
+  never confirmed.
 - ⚠️ **The hoodie is off sale, and the page redirects to the Christmas page.**
   Its Payment Link was deactivated from the Stripe Dashboard on 2026-10-09
   (18:17 UTC), the day after the last hoodie campaign ended. After that, Buy
