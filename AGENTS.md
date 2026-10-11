@@ -810,6 +810,7 @@ Not built, in rough priority order:
 | Payments | Stripe `acct_1U3NewJOsB1nguzl` ("ChillMP"), live since 2026-10-07 |
 | Meta dataset | `1341978141149107` (browser + CAPI); `1363695699271757`, `28272021345717397` browser only |
 | Hoodie landing page | `chillmypet-hoodie.pages.dev`, Cloudflare Pages, source in `landing/pouch-pet-hoodie/`, on a third Cloudflare account — see below |
+| Christmas landing page | `chillmypet-christmas.pages.dev`, Cloudflare Pages on the same account, source in `landing/christmas-pouch-hoodie/`, published on merge by `deploy-christmas.yml` |
 
 **Which Cloudflare account holds what.** Everything chillmypet.com runs on is
 in **Vish's** Cloudflare account, alongside many unrelated Workers. That covers
@@ -833,7 +834,7 @@ answers it in seconds.
 ### The hoodie landing page is a second, separate shop
 
 `chillmypet-hoodie.pages.dev` ("Pouch Pet Hoodie · ChillMyPet") sells the cat
-pouch hoodie that the current Meta ads feature. The Reels say "Link in bio",
+pouch hoodie that the Hoodie campaigns (2–8 Oct 2026) featured. The Reels say "Link in bio",
 so that traffic does not necessarily land on chillmypet.com. It is a static
 page whose source is `landing/pouch-pet-hoodie/` (`config.js`, `pixel.js`,
 `_worker.js`), and it **shares none of this app's checkout**:
@@ -850,13 +851,16 @@ page whose source is `landing/pouch-pet-hoodie/` (`config.js`, `pixel.js`,
   Turso, sends no Conversions API Purchase**, and is invisible to everything
   in this codebase. Whatever Purchase the ads see for it comes from that thank-you
   page's browser pixel alone, the half iOS and blockers eat.
-- ChillMP also has a webhook to `chillmypet-hoodie.pages.dev/api/stripe-webhook`
-  (`we_1UO1BAJOsB1nguzlCakDMBBI`). That path answers every request with the
-  HTML page and a 200, so nothing processes those events. Stripe still counts
-  them as delivered.
-- The Payment Link's inactive message already reads "now sold at
-  chillmypet.com/products/pouch-pet-hoodie". That page does not exist yet
-  (404), and the only product seeded here is the dog life jacket.
+- ⚠️ **The page cannot sell right now.** Its Payment Link was deactivated
+  from the Stripe Dashboard on 2026-10-09 (18:17 UTC), the day after the last
+  hoodie campaign ended. Buy still fires InitiateCheckout and opens the link,
+  and Stripe then shows its inactive message, "now sold at
+  chillmypet.com/products/pouch-pet-hoodie", a page that is a 404 on
+  production. Either reactivate the link or take the page's Buy button down
+  before any ad or bio link sends people here again.
+- The old webhook to `chillmypet-hoodie.pages.dev/api/stripe-webhook`
+  (`we_1UO1BAJOsB1nguzlCakDMBBI`) is gone. As of 2026-10-11 ChillMP has two
+  endpoints: chillmypet.com's and the Christmas page's.
 
 So the fbc, dedupe and webhook guarantees in this file cover chillmypet.com
 only. Before judging the hoodie ads by their reported conversions, either move
