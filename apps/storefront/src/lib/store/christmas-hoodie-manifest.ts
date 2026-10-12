@@ -92,9 +92,15 @@ export const CHRISTMAS_HOODIE_PAGE: FunnelDefinition = {
 			component: 'payment_badges',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
-			// Same list as the life jacket, for the same reason: only what the
-			// checkout takes. Change both together.
-			props: { methods: ['visa', 'mastercard', 'amex', 'discover'], width: 'full' }
+			// Only what the checkout takes, and the same list as the life jacket:
+			// change both together. Checked against Stripe on 2026-10-12: ChillMP's
+			// default configuration has card, Apple Pay, Link and Klarna on and
+			// Google Pay off, and chillmypet.com is a registered Apple Pay domain,
+			// so the Payment Element really does offer Apple Pay on an iPhone —
+			// which is most of this page's traffic. Link and Klarna have no
+			// artwork in payment-icons.ts; the checkout shows them itself. Add
+			// Google Pay here only once it is on in Stripe, never before.
+			props: { methods: ['visa', 'mastercard', 'amex', 'discover', 'applepay'], width: 'full' }
 		},
 		{
 			id: 'hero-info',

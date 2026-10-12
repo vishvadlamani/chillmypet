@@ -164,14 +164,18 @@ export const STORE_PAGE: FunnelDefinition = {
 			component: 'payment_badges',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
-			// Exactly what the checkout takes: cards, plus the Apple Pay and Google
-			// Pay wallets that STRIPE_PAYMENT_METHOD_CONFIGURATION turns on. A badge
-			// for a method that isn't there (PayPal, Amazon Pay) promises a button
-			// the next page doesn't have, so change this list and that config
-			// together, never one without the other. Rendered with real artwork by
+			// Exactly what the checkout takes, so this list follows the Stripe
+			// configuration, not taste. Read through the Stripe API on 2026-10-12:
+			// ChillMP's default configuration has card, Apple Pay, Link and Klarna
+			// on and Google Pay OFF (it was on under the old account, and this list
+			// still promised it), and chillmypet.com is a registered Apple Pay
+			// domain. A badge for a method that isn't there promises a button the
+			// next page doesn't have, so change this list and that configuration
+			// together, never one without the other, and keep it identical to the
+			// Christmas hoodie page's. Rendered with real artwork by
 			// $lib/components/PaymentIcons.svelte.
 			props: {
-				methods: ['amex', 'applepay', 'discover', 'googlepay', 'mastercard', 'visa'],
+				methods: ['visa', 'mastercard', 'amex', 'discover', 'applepay'],
 				width: 'full'
 			}
 		},
