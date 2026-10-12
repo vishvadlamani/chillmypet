@@ -9,10 +9,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      # Step conditions cannot read secrets, so whether each one exists is
-      # worked out here. Never the value, only true or false.
+      # Step conditions cannot read secrets, so whether it exists is worked
+      # out here. Never the value, only true or false.
       HAS_CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
-      HAS_TURSO: ${{ secrets.TURSO_DATABASE_URL != '' && secrets.TURSO_AUTH_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,45 +34,6 @@ jobs:
         env:
           META_CAPI_ACCESS_TOKEN: ${{ secrets.META_CAPI_ACCESS_TOKEN }}
       - run: npm run build
-
-      # A product page is code AND a row. The manifest in src/lib/store/pages.ts
-      # ships with the Worker, but it serves nothing until the product it names
-      # is in the live database — and that is exactly how
-      # /products/christmas-pouch-hoodie was a 404 on chillmypet.com for days
-      # after the page itself had deployed: the Worker answered "No product at",
-      # because nobody had run db:products against Turso. So the deploy brings
-      # the database up to date first. Both scripts are safe to repeat:
-      # db:migrate is create-if-not-exists, and db:products only adds products
-      # the store lacks — it never rewrites one that is selling. It runs before
-      # wrangler deploy so a database the code cannot serve from stops the
-      # release, the same way a failing check would.
-      - name: Bring the live database up to date with the code
-        if: env.HAS_CLOUDFLARE_TOKEN == 'true' && env.HAS_TURSO == 'true'
-        run: npm run db:migrate && npm run db:products
-        env:
-          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-
-      # Without the Turso secrets the Worker still ships, but any product the
-      # code knows and the database lacks stays a 404. Said out loud, with the
-      # command, because a quiet skip is how that 404 went unnoticed.
-      - name: Report that the database was not updated
-        if: env.HAS_CLOUDFLARE_TOKEN == 'true' && env.HAS_TURSO != 'true'
-        run: |
-          echo "::warning title=Live database NOT updated::TURSO_DATABASE_URL and TURSO_AUTH_TOKEN are not both repository secrets, so db:migrate and db:products did not run. A product page whose row is missing from Turso stays a 404 until someone runs them by hand."
-          {
-            echo "## ⚠️ The live database was not brought up to date"
-            echo
-            echo "The Worker deploys below, but \`npm run db:migrate\` and \`npm run db:products\` were skipped because \`TURSO_DATABASE_URL\` and \`TURSO_AUTH_TOKEN\` are not both repository secrets."
-            echo
-            echo "Either add them under **Settings › Secrets and variables › Actions** (the same values the Worker holds), or run from a machine with the credentials:"
-            echo
-            echo '```sh'
-            echo 'export TURSO_DATABASE_URL=libsql://chillmypet-vish.aws-us-west-2.turso.io'
-            echo 'export TURSO_AUTH_TOKEN=…'
-            echo 'npm run db:migrate && npm run db:products'
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
 
       # CLOUDFLARE_API_TOKEN has been a repository secret since 2026-10-11, so a
       # merge to main is a release. The fallback stays: if the secret ever goes
@@ -98,3 +58,20 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # A product page is code AND a row. The manifest ships with the Worker,
+      # but the page is a 404 until the product is in the live database, which
+      # is exactly how /products/christmas-pouch-hoodie was a 404 on
+      # chillmypet.com for days after it had deployed. This pipeline cannot
+      # bring the database up to date itself: that needs the database's token,
+      # and the repository's owner does not hold it. The Worker does, because it
+      # serves every page from that database, so the Worker does the job on its
+      # first request after a deploy (apps/storefront/src/lib/server/catalogue.ts).
+      # What this run can do is prove the result from outside: every product
+      # page the code defines has to answer 200 on the live site. A deploy is
+      # not visible everywhere at once, and that first request also does the
+      # sync, so the check retries for a few minutes before calling the release
+      # broken. A red run here means a page is not selling — look, don't re-run.
+      - name: Check every product page answers on chillmypet.com
+        if: env.HAS_CLOUDFLARE_TOKEN == 'true'
+        run: node apps/storefront/scripts/check-live.js https://chillmypet.com

@@ -13,10 +13,8 @@
  */
 import { createDb } from 'ecomwithai';
 import { insertProduct, productExists } from './catalog.js';
-import { CHRISTMAS_HOODIE } from './christmas-hoodie.js';
+import { PRODUCTS } from './products.js';
 import { STORE } from './content.js';
-
-const PRODUCTS = [CHRISTMAS_HOODIE];
 
 const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
 const authToken = process.env.TURSO_AUTH_TOKEN;

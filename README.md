@@ -311,14 +311,18 @@ is ever missing, the workflow still checks, tests and builds, then skips the
 deploy and says so with a warning on the run's summary page. A green run without
 that warning is a deploy. A green run with it means production did not change.
 
-The same workflow brings the live database up to date before it deploys —
-`npm run db:migrate`, then `npm run db:products`, which adds any product the
-catalogue scripts define and the store lacks and never rewrites one that is
-selling — when `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are also repository
-secrets. Without them the Worker still ships and the run's summary says the
-database step was skipped, with the command to run by hand. A product page is
-code *and* a row: the manifest deploys with the Worker, but the page is a 404
-until the row exists.
+A product page is code *and* a row: the manifest deploys with the Worker, but
+the page is a 404 until the row exists. The Worker brings the live database up
+to date itself on its first request after a deploy: it creates any table or
+index the schema has gained and adds any product
+`apps/storefront/scripts/products.js` defines that the store lacks, never
+rewriting one that is selling. No Turso secret is needed in GitHub for that,
+which matters because the database is in an account the repository's owner
+cannot reach. The workflow then fetches every product page on chillmypet.com
+(`apps/storefront/scripts/check-live.js`) and fails if one is not a 200 within
+four minutes, so a product page that is code without a row is a red run, not a
+quiet 404. By hand, `npm run db:migrate` and `npm run db:products` do the same
+against whatever `TURSO_DATABASE_URL` points at.
 
 Worker secrets:
 

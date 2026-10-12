@@ -27,7 +27,13 @@
  * }} ProductDefinition
  */
 
-/** How many order lines point at this product's variants. */
+/**
+ * How many order lines point at this product's variants.
+ *
+ * @param {import('ecomwithai/db').Client} db
+ * @param {string} storeId
+ * @param {string} slug
+ */
 export async function orderLines(db, storeId, slug) {
 	const result = await db.execute({
 		sql: `select count(*) as count from order_items oi
@@ -39,6 +45,11 @@ export async function orderLines(db, storeId, slug) {
 	return Number(result.rows[0].count);
 }
 
+/**
+ * @param {import('ecomwithai/db').Client} db
+ * @param {string} storeId
+ * @param {string} slug
+ */
 export async function productExists(db, storeId, slug) {
 	const result = await db.execute({
 		sql: 'select 1 from products where store_id = ? and slug = ?',
@@ -52,6 +63,8 @@ export async function productExists(db, storeId, slug) {
  * half-written product (options but no variants) renders as a page nobody can
  * buy from, which is worse than no page.
  *
+ * @param {import('ecomwithai/db').Client} db
+ * @param {string} storeId
  * @param {ProductDefinition} def
  */
 export async function insertProduct(db, storeId, def) {
@@ -73,6 +86,7 @@ export async function insertProduct(db, storeId, def) {
 		}
 
 		// code -> option_value id, so media can name the value it illustrates.
+		/** @type {Record<string, number>} */
 		const valueIds = {};
 		for (const [index, option] of def.options.entries()) {
 			const row = await tx.execute({
