@@ -11,7 +11,9 @@
 		design: c.designs.some(function (d) { return d.code === asked; }) ? asked : c.designs[0].code,
 		// No default size: it is the wearer's, and a guess ships the wrong one.
 		size: '',
-		view: 0
+		view: 0,
+		// The ad's video, when the file is here (see below); false shows a photo.
+		video: false
 	};
 	var design = function (code) { return c.designs.filter(function (d) { return d.code === (code || state.design); })[0]; };
 	var link = function () { return c.links[state.design + ':' + state.size]; };
@@ -21,7 +23,7 @@
 	// that the buyer won't receive.
 	var views = [];
 	c.designs.forEach(function (d) {
-		views.push({ design: d.code, src: d.image, z: 1, x: '50%', y: '30%', alt: c.title + ' in ' + d.name + ', worn with a cat peeking out of the pouch' });
+		views.push({ design: d.code, src: d.image, z: 1, x: '50%', y: '35%', alt: c.title + ' in ' + d.name + ', worn with a cat peeking out of the pouch' });
 		views.push({ design: d.code, src: d.image, z: 2.3, x: '50%', y: '36%', alt: 'Close-up of the peek-out ring on ' + d.name, label: 'Peek-out ring' });
 		views.push({ design: d.code, src: d.image, z: 2.2, x: '50%', y: '83%', alt: 'Close-up of the ' + d.detail.toLowerCase() + ' on ' + d.name, label: d.detail });
 	});
@@ -51,7 +53,7 @@
 		function tick() {
 			var left = Math.max(0, Math.floor((end - Date.now()) / 1000));
 			if (!left) { bar.hidden = true; return; }
-			$('cd-d').textContent = two(Math.floor(left / 86400));
+			$('cd-d').textContent = String(Math.floor(left / 86400));
 			$('cd-h').textContent = two(Math.floor(left / 3600) % 24);
 			$('cd-m').textContent = two(Math.floor(left / 60) % 60);
 			$('cd-s').textContent = two(left % 60);
@@ -62,101 +64,188 @@
 	})();
 
 	// --- gallery ---------------------------------------------------------------
+	var stage = $('stage');
+	var photo = $('photo');
 	views.forEach(function (v, i) {
 		var b = document.createElement('button');
 		b.type = 'button';
 		b.setAttribute('aria-label', 'Show ' + (v.label ? v.label + ', ' : '') + design(v.design).name);
-		b.innerHTML = '<img src="' + design(v.design).thumb + '" alt="" width="62" height="68">';
+		b.innerHTML = '<img src="' + design(v.design).thumb + '" alt="" width="64" height="64">';
 		zoom(b.querySelector('img'), v);
 		b.onclick = function () { show(i); };
 		$('thumbs').appendChild(b);
 	});
-	$('prev').onclick = function () { show((state.view + views.length - 1) % views.length); };
-	$('next').onclick = function () { show((state.view + 1) % views.length); };
-
+	$('prev').onclick = function () { step(-1); };
+	$('next').onclick = function () { step(1); };
+	function step(by) {
+		// The video, when present, sits before the first photo in the strip.
+		var i = state.video ? -1 : state.view;
+		var n = views.length + (video ? 1 : 0);
+		i = ((i + 1 + by) % n + n) % n - 1;
+		if (i < 0) showVideo(); else show(i);
+	}
 	function show(i) {
+		state.video = false;
 		state.view = i;
 		state.design = views[i].design;
 		render();
 	}
 
-	// "See it up close": each design's ring and its appliqué.
-	[1, 2, 4, 5].forEach(function (i) {
-		var v = views[i];
-		var li = document.createElement('li');
-		li.innerHTML = '<button type="button"><img src="' + v.src + '" alt="' + v.alt + '" loading="lazy"><span class="play" aria-hidden="true"><svg><use href="#i-zoom"/></svg></span><span class="cap">' + (v.label || design(v.design).name) + '</span></button>';
-		zoom(li.querySelector('img'), v);
-		li.querySelector('button').onclick = function () {
-			show(i);
-			if (window.matchMedia('(max-width: 989px)').matches) document.querySelector('.gallery').scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
-		};
-		$('closeups').appendChild(li);
-	});
+	// --- the ad's video, when the file is in the folder ---------------------------
+	// A <video> whose file is missing fires error and nothing changes; one that
+	// loads becomes the first thing in the strip and plays on arrival: the ad
+	// the visitor just tapped, continued. Muted and inline, which is what iOS
+	// and the Facebook in-app browser require before they autoplay anything.
+	// Sound is the visitor's choice, through the full-screen button.
+	var video = null;
+	if (c.video) {
+		var el = document.createElement('video');
+		el.muted = true;
+		el.loop = true;
+		el.playsInline = true;
+		el.setAttribute('muted', '');
+		el.setAttribute('playsinline', '');
+		el.preload = 'metadata';
+		el.poster = design().image;
+		el.setAttribute('aria-label', 'The ad video for the ' + c.title);
+		el.hidden = true;
+		el.src = c.video;
+		el.addEventListener('loadedmetadata', function () {
+			video = el;
+			var b = document.createElement('button');
+			b.type = 'button';
+			b.id = 'thumb-video';
+			b.setAttribute('aria-label', 'Play the video');
+			b.innerHTML = '<img src="' + design().thumb + '" alt="" width="64" height="64"><span class="vid"><svg><use href="#i-play"/></svg></span>';
+			b.onclick = showVideo;
+			$('thumbs').insertBefore(b, $('thumbs').firstChild);
+			var expand = document.createElement('button');
+			expand.type = 'button';
+			expand.className = 'expand';
+			expand.id = 'expand';
+			expand.innerHTML = '<svg aria-hidden="true"><use href="#i-play"/></svg>Watch with sound';
+			expand.onclick = function () {
+				el.muted = false;
+				el.controls = true;
+				if (el.webkitEnterFullscreen) el.webkitEnterFullscreen();
+				else if (el.requestFullscreen) el.requestFullscreen().catch(function () {});
+				el.play().catch(function () {});
+			};
+			stage.appendChild(el);
+			stage.appendChild(expand);
+			showVideo();
+		}, { once: true });
+		el.addEventListener('error', function () { el.remove(); }, { once: true });
+		// Attached only once it loads; until then it is off the page.
+		el.load();
+	}
+	function showVideo() {
+		if (!video) return;
+		state.video = true;
+		render();
+		video.play().catch(function () {});
+	}
 
-	// --- design cards ------------------------------------------------------------
-	var extras = '<span class="extras">' +
-		'<span class="extra"><svg class="ok" aria-hidden="true"><use href="#i-check-circle"/></svg><span class="ic"><svg><use href="#i-truck"/></svg></span><b>+ Free standard shipping</b><span>FREE</span></span>' +
-		'<span class="extra"><svg class="ok" aria-hidden="true"><use href="#i-check-circle"/></svg><span class="ic"><svg><use href="#i-return"/></svg></span><b>+ 30-day returns, label on us</b><span>FREE</span></span>' +
-		'</span>';
+	// --- the two choices ----------------------------------------------------------
 	c.designs.forEach(function (d) {
-		var bar = document.createElement('div');
-		bar.className = 'bar';
-		bar.setAttribute('data-design', d.code);
-		bar.innerHTML =
-			'<span class="tab">' + d.tag + '</span>' +
-			'<label class="main"><input type="radio" name="design" value="' + d.code + '">' +
-			'<span class="radio" aria-hidden="true"></span>' +
-			'<span class="what"><span class="name">' + d.name + '</span><span class="blurb">' + d.blurb + '</span></span>' +
-			'<span class="cost"><b>' + money + '</b><span>Free shipping</span></span></label>' +
-			'<div class="variant">' +
-			'<p class="label"><label for="size-' + d.code + '">Your size, not your pet’s</label>·<a href="#size-guide">Size guide</a></p>' +
-			'<div class="row"><img src="' + d.thumb + '" alt="" width="40" height="40">' +
-			'<select id="size-' + d.code + '" name="size"><option value="" disabled selected>Size</option>' +
-			c.sizes.map(function (s) { return '<option>' + s + '</option>'; }).join('') +
-			'</select></div>' +
-			'<p class="error" role="alert"></p>' +
-			'</div>' + extras;
-		bar.querySelector('input').onchange = function () { pick(d.code); };
-		// The whole card picks its design, except the controls inside it.
-		bar.onclick = function (e) { if (!e.target.closest('select, a, label.main')) pick(d.code); };
-		bar.querySelector('select').onchange = function () {
-			state.size = this.value;
-			all('.error').forEach(function (el) { el.textContent = ''; });
+		var b = document.createElement('button');
+		b.type = 'button';
+		b.className = 'tile';
+		b.setAttribute('role', 'radio');
+		b.setAttribute('data-design', d.code);
+		b.innerHTML =
+			'<img src="' + d.thumb + '" alt="" width="58" height="58">' +
+			'<span><span class="name">' + d.name + '</span><span class="sub">' + d.blurb + '</span></span>' +
+			'<span class="tick" aria-hidden="true"><svg><use href="#i-check"/></svg></span>';
+		b.onclick = function () { pick(d.code); };
+		$('designs').appendChild(b);
+	});
+	c.sizes.forEach(function (s) {
+		var b = document.createElement('button');
+		b.type = 'button';
+		b.className = 'size';
+		b.setAttribute('role', 'radio');
+		b.setAttribute('data-size', s);
+		b.textContent = s;
+		b.onclick = function () {
+			state.size = s;
+			$('size-error').textContent = '';
 			render();
+			// On a short phone the button is just under the fold: bring it in,
+			// and only as far as needed.
+			$('buy').scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'nearest' });
 		};
-		bar.querySelector('a').onclick = function () { $('size-guide').open = true; };
-		$('designs').appendChild(bar);
+		$('sizes').appendChild(b);
 	});
 
 	function pick(code) {
-		if (state.design === code) return;
+		if (state.design === code && !state.video) return;
 		state.design = code;
+		state.video = false;
 		state.view = views.map(function (v) { return v.design; }).indexOf(code);
 		render();
 	}
+
+	// --- the size guide: the supplier's table when there is one -----------------
+	(function () {
+		var box = $('size-chart');
+		var rows = Array.isArray(c.sizeChart) ? c.sizeChart : [];
+		if (rows.length) {
+			var cm = function (n) { return n == null ? '–' : n + ' cm / ' + (n / 2.54).toFixed(1) + '"'; };
+			var hasSleeve = rows.some(function (r) { return r.sleeveCm != null; });
+			box.innerHTML =
+				'<table class="chart"><caption>Garment laid flat, from our maker. Compare with a hoodie you already own.</caption>' +
+				'<thead><tr><th scope="col">Size</th><th scope="col">Chest (across)</th><th scope="col">Length</th>' + (hasSleeve ? '<th scope="col">Sleeve</th>' : '') + '</tr></thead><tbody>' +
+				rows.map(function (r) {
+					return '<tr><th scope="row">' + r.size + '</th><td>' + cm(r.chestCm) + '</td><td>' + cm(r.lengthCm) + '</td>' + (hasSleeve ? '<td>' + cm(r.sleeveCm) + '</td>' : '') + '</tr>';
+				}).join('') +
+				'</tbody></table>';
+		} else {
+			box.innerHTML = '<p class="pending">We’ve asked our maker for the exact chest and length measurements and will add them here the moment we have them. Not sure which size? Email <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a> with your height and the hoodie size you usually wear, and we’ll help you choose.</p>';
+		}
+		if (c.modelWears) {
+			var p = document.createElement('p');
+			p.className = 'model';
+			p.textContent = c.modelWears;
+			box.appendChild(p);
+		}
+	})();
 
 	function render() {
 		var d = design();
 		var v = views[state.view];
 		if (v.design !== state.design) v = views[state.view = views.map(function (x) { return x.design; }).indexOf(state.design)];
-		var photo = $('photo');
 		photo.src = v.src;
 		photo.alt = v.alt;
 		zoom(photo, v);
+		photo.hidden = state.video;
+		if (video) {
+			video.hidden = !state.video;
+			if (!state.video) video.pause();
+			$('expand').hidden = !state.video;
+		}
+		all('#thumbs button:not(#thumb-video)').forEach(function (b, i) {
+			var on = !state.video && i === state.view;
+			b.classList.toggle('on', on);
+			b.setAttribute('aria-pressed', String(on));
+		});
+		var vt = $('thumb-video');
+		if (vt) {
+			vt.classList.toggle('on', state.video);
+			vt.setAttribute('aria-pressed', String(state.video));
+		}
+		$('design-name').textContent = d.name;
+		all('.tile').forEach(function (b) {
+			b.setAttribute('aria-checked', String(b.getAttribute('data-design') === state.design));
+		});
+		all('.size').forEach(function (b) {
+			b.setAttribute('aria-checked', String(b.getAttribute('data-size') === state.size));
+		});
+		$('sizes').classList.remove('missing');
 		$('dock-photo').src = d.thumb;
-		all('#thumbs button').forEach(function (b, i) {
-			b.classList.toggle('on', i === state.view);
-			b.setAttribute('aria-pressed', String(i === state.view));
-		});
-		all('.bar').forEach(function (bar) {
-			var on = bar.getAttribute('data-design') === state.design;
-			bar.classList.toggle('on', on);
-			bar.querySelector('input').checked = on;
-			var sel = bar.querySelector('select');
-			sel.value = state.size;
-			sel.classList.remove('missing');
-			sel.tabIndex = on ? 0 : -1;
-		});
+		$('dock-title').textContent = d.name + (state.size ? ' · Size ' + state.size : '');
+		$('dock-sub').textContent = (state.size ? money + ' · Free shipping' : 'Pick a size · ' + money);
+		$('dock-buy').textContent = state.size ? 'Buy now' : 'Pick a size';
 	}
 
 	// --- tracking ------------------------------------------------------------
@@ -168,12 +257,11 @@
 		e.preventDefault();
 		var target = link();
 		if (!state.size || !target) {
-			var bar = document.querySelector('.bar.on');
-			var sel = bar.querySelector('select');
-			bar.querySelector('.error').textContent = 'Pick your size first, then we’re good to go. 🎅';
-			sel.classList.add('missing');
-			bar.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
-			sel.focus({ preventScroll: true });
+			$('size-error').textContent = 'Please tap your size first: S, M, L or XL.';
+			$('sizes').classList.add('missing');
+			$('size-picker').scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
+			var first = document.querySelector('.size');
+			if (first) first.focus({ preventScroll: true });
 			return;
 		}
 		var data = {
@@ -200,28 +288,25 @@
 	}
 	all('.buy').forEach(function (a) { a.addEventListener('click', buy); });
 
-	// --- dock: appears once the main button has scrolled away ---------------
+	// --- dock: a Buy in reach whenever the main one is off the screen ----------
+	// Off the screen either way: scrolled past it, or, on a short phone, not yet
+	// down to it. It stays away while the size buttons are on the screen, which
+	// it would otherwise cover on that short phone's first screen. It names
+	// what is chosen so far, so a visitor who scrolled down to the size help
+	// can see what she is about to buy.
 	var dock = $('dock');
 	if ('IntersectionObserver' in window) {
-		new IntersectionObserver(function (entries) {
-			var away = !entries[0].isIntersecting && entries[0].boundingClientRect.top < 0;
+		var seen = {};
+		var watch = new IntersectionObserver(function (entries) {
+			entries.forEach(function (e) { seen[e.target.id] = e.isIntersecting; });
+			var away = !seen.buy && !seen['size-picker'];
 			dock.classList.toggle('show', away);
 			dock.setAttribute('aria-hidden', String(!away));
 			dock.querySelector('a').tabIndex = away ? 0 : -1;
-		}).observe($('buy'));
+		});
+		watch.observe($('buy'));
+		watch.observe($('size-picker'));
 	}
-
-	// --- why-they-love-it cards: one card per click ----------------------------
-	var cards = $('cards');
-	var step = function () { var li = cards.querySelector('li'); return li ? li.getBoundingClientRect().width + 20 : 300; };
-	$('cards-prev').onclick = function () { cards.scrollBy({ left: -step(), behavior: still ? 'auto' : 'smooth' }); };
-	$('cards-next').onclick = function () { cards.scrollBy({ left: step(), behavior: still ? 'auto' : 'smooth' }); };
-
-	// --- marquees: enough copies that half the belt outruns a wide screen ------
-	all('.belt').forEach(function (belt) {
-		var once = belt.innerHTML;
-		belt.innerHTML = once + once + once + once;
-	});
 
 	render();
 })();

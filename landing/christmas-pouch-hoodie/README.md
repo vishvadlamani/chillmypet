@@ -14,25 +14,160 @@ chillmypet.com and shares no code or database with it.
 | Payment Links | 8, listed in `config.js`; each one's metadata carries `slug` and `sku` |
 | Webhook | `we_1UOEbvJOsB1nguzlbjDffhrK` → `/api/stripe-webhook`, `checkout.session.completed` and `checkout.session.async_payment_succeeded` |
 
+## Who the page is for, and what it does about it
+
+The ad "!Christmas Hoodie Ad!" (10–12 Oct 2026: 2,635 impressions, 152 link
+clicks at 5% CTR, 123 landing page views, 0 AddToCart, 0 purchases, no real
+checkout opened in Stripe) brings women of 55 and over, on an iPhone or
+Android phone, inside the Facebook app. The page was walked as that visitor
+on 2026-10-12, at 390×664 (iPhone 13) and 375×568 (iPhone SE) with the
+Facebook in-app user agent, and this is what stopped her, worst first:
+
+1. **The ad shows a different hoodie.** Its video is a woman on a plane in a
+   red fleece hoodie with a big zipped front pouch and a puppy, captioned
+   "Small dog owners this one's for you", and the running variant is cut
+   from the same clip. The page sells an embroidered Santa or stocking
+   hoodie with a cat looking out of a ring. A visitor who tapped for the
+   puppy hoodie lands on something she does not recognise, and leaves. The
+   page cannot fix this; the ad or the product has to. (The video's source
+   and licence are unknown; see Content provenance.)
+2. **Nothing to buy on the first screen.** Two bars, a header and a square
+   photo filled it; the name, the price and Buy were 1.7 screens down.
+3. **Buying was three steps across two controls she had to discover**: a
+   design card, then a 31px-tall dropdown labelled "Size" in 12px grey, then
+   Buy, which answered with a red error if the dropdown was missed.
+4. **Text too small to read at 60.** Benefits 12px, labels 12px, the
+   guarantee line 11px, the accordion 13px, a pill at 8px, body copy at 75%
+   black.
+5. **No reason to trust a pages.dev address with $54.99**: no "who we are",
+   contact only as a footer email, "secure checkout" in the legal line, card
+   logos drawn as coloured boxes, and a Discover logo the account cannot
+   honour (below).
+6. **Written to the wearer only.** The audience is as likely to be buying
+   for a daughter or a grandchild as for herself, and nothing said so.
+7. **Size anxiety with no help**: "measurements are on their way" and no
+   table, for a garment she cannot try on.
+8. **The sticky Buy only appeared after scrolling past Buy**, and tapping it
+   just scrolled back up.
+
+So the page now opens with: a 16:9 crop of the product photo with the
+photo strip over its foot, the name and price, the two designs as photo
+tiles, the four sizes as 50px buttons, and Buy, which on an iPhone 13 ends
+at 646px of a 664px screen. The ad's own first line ("Cat & small dog
+owners, this one's for you") sits straight under the button, with free
+shipping and 30-day returns beside the price, as the ad promises them. A
+sticky bar names the design and size chosen so far and offers Buy, or
+"Pick a size", whenever both the button and the size buttons are off the
+screen (it stays away while the size buttons are visible, which it would
+otherwise cover on a short phone). Then, in order: what you get (the same
+two photos zoomed with CSS), a gift section, the size help, "Who you're
+buying from", questions, the guarantee. Base type is 17px, nothing that
+matters is under 15px, text is near-black on cream, and every tap target is
+44px or more.
+
+Still true, on purpose: no countdown seconds (the bar says "Order by DEC 7
+for Christmas · 57 days left"), no "was" price, no star rating, no reviews,
+no sales count, no "selling fast". There are none to show, and an invented
+one is a fake testimonial under 16 CFR 465. The test file asserts the page
+carries no such claim.
+
+The product photos were measured, not the ad's video: the video is of
+another garment. `config.js: video` is there for the day a clip of this
+hoodie exists (below).
+
+### Payment methods, as Stripe really offers them
+
+Read from the ChillMP account on 2026-10-12. The Payment Links set no
+`payment_method_types`, so Checkout draws its list from the account's
+default payment method configuration (`pmc_1U3NfSJOsB1nguzljz7ADcR4`) and
+the visitor's country:
+
+- A Checkout Session opened from a US visit offered **card and Link**.
+- Sessions opened from Czech visits offered card, Link and **Klarna**. Klarna
+  does not appear for the US visitor the ads bring, so the page does not
+  mention it or any pay-later option.
+- **Apple Pay** is on in the configuration; **Google Pay is off**, so Android
+  visitors (part of the audience) get no wallet. Turning it on is a Stripe
+  Dashboard setting (Settings → Payment methods), not a page change.
+- Cards: Visa, Mastercard and American Express are accepted from every
+  Stripe account country. **Discover** is not accepted by accounts in
+  Czechia (Stripe's card brand table), so its logo came off the page. If
+  the account's country is not Czechia, check and put it back.
+
+The page therefore says: Visa, Mastercard, Amex, Apple Pay, Link. The test
+file asserts that Google Pay, Klarna, Afterpay, Affirm, PayPal, Discover and
+"pay later" are absent; when one is turned on in Stripe, update the page and
+that test together.
+
+### What to ask the supplier for (size chart)
+
+There are still no measurements, so the size guide says so and offers an
+email instead. `config.js: sizeChart` renders the table the moment it is
+filled in. Ask the supplier for, per size S, M, L, XL:
+
+1. **Chest width**, garment laid flat, armpit to armpit, in cm (the page
+   converts to inches).
+2. **Body length**, highest point of the shoulder to the hem, in cm.
+3. **Sleeve length**, shoulder seam to cuff, in cm (optional column).
+4. Whether the sizing is **unisex, women's or men's**, and the fit
+   (relaxed, oversized or regular).
+5. **The pouch**: opening width and depth, and the ring's inside diameter,
+   so the page can say which pets fit instead of "cats and small dogs".
+6. **A pet weight limit** for the pouch, if they state one.
+7. **Fabric and weight** (for example "polyester fleece, 300 gsm").
+8. **The model's height and the size worn** in the two photos, for
+   `config.js: modelWears`.
+9. **Care instructions** as printed on the label.
+10. A **product photo of the back and the inside of the pouch**, if they
+    have one, for the "What you get" section.
+
+Enter 1–3 as `[{ size: 'S', chestCm: 56, lengthCm: 68, sleeveCm: 60 }, …]`.
+Do not round or "fix" what they send: on chillmypet.com the life jacket's
+supplier table has overlapping ranges, and they are the ones a garment was
+cut to.
+
+### The ad's video on the page
+
+`config.js: video` names a file in this folder (`hero.mp4`); `deploy.sh`
+stages any `.mp4` and `.png` found here. When the file is present the page
+plays it muted, looping and inline at the top (what iOS and the Facebook
+in-app browser require before they autoplay anything), with a "Watch with
+sound" button that opens it full screen, and the strip gets a ▶ thumbnail.
+When `video` is `''` nothing is requested. Keep the vertical cut the ad
+runs; a phone shows its middle. Before putting the current ad's clip here,
+settle whether it shows this product and whether its licence allows it.
+
+### What number should change, and when to look
+
+The ad set "!Christmas Hoodie Ad Set!" optimises for **AddToCart**, which
+this page sends when Buy is tapped with a size chosen, 150 ms before the
+visitor leaves for Stripe (plus InitiateCheckout under a second id). So the
+first number to move is **AddToCart in Ads Manager** (and, with it,
+InitiateCheckout): the old page produced 0 from 123 landing page views.
+After a day or two of the new page at the same spend, 123 landing page views
+should produce some AddToCarts; if it is still 0 the visitors are not
+reaching Buy at all, and finding 1 above is the reason. The second number is
+**Checkout Sessions in the Stripe Dashboard** (Payments → Checkout
+sessions): every Buy tap creates one, paid or not, so it is the page's own
+count of Buy taps and the cross-check for AddToCart. The third is
+**Purchase**, in Ads Manager and as paid sessions in Stripe. Give the page
+two to three days before judging it; at $10/day it sees roughly 60 clicks a
+day.
+
 ## Design
 
-Laid out on the MerryPaws product page at merryechoco.com, section by section,
-with its type scale, colours and spacing measured at 1440 and 390 wide. The
-Figma file holds both frames, the colour tokens and the components:
-https://www.figma.com/design/y7HKSgoD144ytJIwmU1sva
+The look is the one the previous page measured off a reference product page
+(cream, deep green, Inter, Fredoka for the wordmark). The layout is not: it
+was rebuilt from the audit above. The Figma file still holds the earlier
+frames and tokens: https://www.figma.com/design/y7HKSgoD144ytJIwmU1sva
 
-What was **not** carried over, on purpose: a countdown to a sale that resets
-(ours counts to the real Christmas cut-off), a struck-through "was" price, a
-star rating, reviews and a "knock-off" comparison. There are no reviews to
-show, and invented ones are fake testimonials. Their places hold benefit
-cards, a safety note and a comparison with carrying your pet in your arms.
 Every photo on the page is one of the two product shots; the close-ups zoom
 them with CSS rather than adding images nobody has the rights to.
 
 ## How a sale flows
 
-1. The shopper picks a design and a size on the page. There is no default size,
-   and Buy asks for one.
+1. The shopper taps a design and a size on the page. There is no default
+   size, and Buy asks for one.
 2. Buy fires **AddToCart** and **InitiateCheckout** (browser pixel plus a
    `/api/event` server copy under the same event id; content id is the SKU,
    e.g. `CMP-XH-STOCKING-GREEN-L`), then opens that combination's Payment Link.
@@ -127,15 +262,29 @@ with its own SKU. Paying is the one step never run live. Proving it takes a
 real purchase and a refund, which costs Stripe's fee and puts a fabricated
 Purchase in front of the ad set, so it needs the owner's say-so.
 
+### Checked in a browser, 2026-10-12 (this layout)
+
+Served locally and driven with Playwright at iPhone 13, iPhone SE and
+1280px widths under the Facebook in-app user agent, with every outside
+request refused: no script errors; design, size and Buy on the first screen
+of the iPhone 13; Buy without a size shows the error and marks the size
+buttons; Buy with Stocking Green and M leaves for
+`buy.stripe.com/3cIeVe8Nk8HUfEa10X1wY07` (that combination's link) with
+`client_reference_id` set; the sticky bar shows and names the choice once
+the button is scrolled away; a video file present in the folder plays at the
+top and gets its thumbnail, and one absent changes nothing.
+
 ## Ads that land here
 
-As of 2026-10-11: "Christmas Hoodie Campaign - Copy" (Meta ad account Vish
-Kanada, $10/day, 10–20 Oct), optimising for **Purchase** on
-`1341978141149107`. The original "Christmas Hoodie Campaign" is paused and
-still set to AddPaymentInfo, which this page can never send: the card is typed
-on Stripe's page, which reports nothing to the pixel. Before restarting it,
-switch its conversion event to Purchase, or to AddToCart or InitiateCheckout
-for more signal at a small budget.
+As of 2026-10-12: "!Christmas Hoodie Campaign!" (Meta ad account Vish
+Kanada, $10/day, from 10 Oct), ad set "!Christmas Hoodie Ad Set!"
+optimising for **AddToCart** on `1341978141149107`, Facebook placements, US,
+ending 20 Oct. Its ad "!Christmas Hoodie Ad!" is the vertical video
+described above. The original "Christmas Hoodie Campaign" is paused and
+still set to AddPaymentInfo, which this page can never send: the card is
+typed on Stripe's page, which reports nothing to the pixel. Before restarting
+it, switch its conversion event to Purchase, or to AddToCart or
+InitiateCheckout for more signal at a small budget.
 
 `chillmypet-hoodie.pages.dev` redirects here since 2026-10-11, query string
 kept, so "link in bio" visitors from the hoodie Reels arrive here too.
@@ -155,10 +304,10 @@ Stripe are the record of what happens here.
 
 ## Changing things
 
-- Prices, links, the Christmas cut-off date and the pixel list live in
-  `config.js`. The cut-off is a value, worked out from the promise (4 business
-  days + 12 days in transit, worst case): Mon 7 Dec 2026. The strip hides itself
-  once that day is over in Los Angeles.
+- Prices, links, the Christmas cut-off date, the pixel list, the video file
+  name and the size chart live in `config.js`. The cut-off is a value, worked
+  out from the promise (4 business days + 12 days in transit, worst case):
+  Mon 7 Dec 2026. The bar hides itself once that day is over in Los Angeles.
 - A new size or design needs a Stripe product, a Payment Link with the same
   `slug`/`sku` metadata and the redirect pattern above, and an entry in `config.js`.
 - Publish: merging a change to this folder publishes it, through
@@ -168,7 +317,7 @@ Stripe are the record of what happens here.
   reach this project). By hand: `CLOUDFLARE_API_TOKEN=… ./deploy.sh`. Either
   way only the page's files are staged. Before that, each pull request gets a
   preview (see above).
-- Test the worker: `node landing/christmas-pouch-hoodie.test.mjs`.
+- Test the worker and the page's claims: `node landing/christmas-pouch-hoodie.test.mjs`.
 
 ## Content provenance
 
@@ -176,3 +325,16 @@ The two photos were supplied by the owner in chat as screenshots. Their original
 source and licence were not stated; confirm before using them in ads. Copy is
 original. There are no supplier measurements yet, so the size guide says so
 rather than showing a chart.
+
+The ad's video (a woman on a plane in a red fleece pouch hoodie with a
+puppy, "Small dog owners this one's for you") is not in this repo and its
+source is not recorded anywhere here. It is not of the hoodie on sale.
+Before it, or a clip like it, goes on this page, both the rights and the
+product have to be settled with the owner.
+
+"Who you're buying from" states only what the storefront's own contact and
+policy pages already promise: the email, a reply within 1–2 business days,
+free standard shipping, 2–4 business days to pack, 30 days from delivery to
+return with a prepaid label, refunds within 10 business days of the return
+arriving, and Stripe handling the card. Add a founder's name, a photo or a
+city only once the owner has given them.
