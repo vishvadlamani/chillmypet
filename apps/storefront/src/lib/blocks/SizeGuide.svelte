@@ -12,18 +12,21 @@
 	 */
 	let { block }: { block: Block; ctx: FlowContext } = $props();
 
-	type Row = { size: string; chest: string; length: string };
+	type Row = { size: string; cells: string[] };
 
 	const p = $derived(
 		(block.props ?? {}) as {
 			title?: string;
 			tips?: string[];
+			/** Column headings after "Size". From the loader, so they match the rows. */
+			columns?: string[];
 			rows?: Row[];
 			pending?: string;
 			contact?: string;
 		}
 	);
 	const rows = $derived(p.rows ?? []);
+	const columns = $derived(p.columns ?? []);
 </script>
 
 <section class="guide" id="size-guide" aria-labelledby="size-guide-title">
@@ -45,11 +48,17 @@
 		<div class="table-wrap">
 			<table>
 				<thead>
-					<tr><th scope="col">Size</th><th scope="col">Chest</th><th scope="col">Length</th></tr>
+					<tr>
+						<th scope="col">Size</th>
+						{#each columns as column (column)}<th scope="col">{column}</th>{/each}
+					</tr>
 				</thead>
 				<tbody>
 					{#each rows as row (row.size)}
-						<tr><th scope="row">{row.size}</th><td>{row.chest}</td><td>{row.length}</td></tr>
+						<tr>
+							<th scope="row">{row.size}</th>
+							{#each row.cells as cell, i (i)}<td>{cell}</td>{/each}
+						</tr>
 					{/each}
 				</tbody>
 			</table>

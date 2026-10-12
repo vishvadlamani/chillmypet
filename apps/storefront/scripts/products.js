@@ -17,8 +17,9 @@
  * touch `process`, the filesystem or the network.
  */
 import { CHRISTMAS_HOODIE } from './christmas-hoodie.js';
+import { DOG_CHRISTMAS_COSTUME } from './dog-christmas-costume.js';
 
 /** The store these products belong to. The seed's default; one tenant today. */
 export const STORE_ID = 'chillmypet';
 
-export const PRODUCTS = [CHRISTMAS_HOODIE];
+export const PRODUCTS = [CHRISTMAS_HOODIE, DOG_CHRISTMAS_COSTUME];

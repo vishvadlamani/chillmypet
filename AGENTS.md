@@ -509,6 +509,15 @@ packs**: titles and descriptions live in `product_translations` and the FAQ in a
 `content.faq` metafield, both per locale, so add a row in the seed for the new
 locale too.
 
+**A product:** a definition in `apps/storefront/scripts/<slug>.js` (the
+`ProductDefinition` shape in `catalog.js`: translations, options, media,
+variants, metafields), listed in `scripts/products.js`; a manifest in
+`$lib/store`, mapped in `pages.ts`; photos under `static/products/<slug>/`;
+and a browser test like `tests/christmas-hoodie.mjs`. The seed writes it on a
+fresh database, the Worker adds it to a live one, and `check-live.js` fails the
+deploy if its page does not answer. Nothing else to register: the header reads
+the catalogue.
+
 **A store:** `SEED_STORE_ID=x SEED_STORE_DOMAIN=x.com npm run db:seed`, then add
 the domain to `apps/storefront/wrangler.toml`. One Worker serves all tenants;
 the `Host` header picks which. No code change.
@@ -592,6 +601,32 @@ never sits on a request's path. It reads `sqlite_master` once and runs
 in `products.js` the store lacks, and never rewrites one it has.
 `npm run db:products` is the same list, run by hand. A new product goes on
 that list in the same change as its manifest in `pages.ts`.
+
+`/products/dog-christmas-costume` is the third product page: a hooded tree
+cape for small dogs and cats, red or green, S–L **by the pet's weight**. It is
+the hoodie's page with the hoodie's rules (`pickSize: true`, `theme:
+'christmas'`, the real delivery cut-off, no countdown chips, no stock bar, no
+was-price, no reviews), defined in `scripts/dog-christmas-costume.js` and
+listed in `products.js`, so the Worker adds it to the live store on the first
+request after the deploy and `check-live.js` proves the page answers.
+`tests/dog-christmas-costume.mjs` drives it to a placed order. Three things to
+know:
+
+- **The size guide's columns follow the product.** `sizeGuideTable()` in
+  `$lib/store/garment-sizes.ts` reads `specs.size_chart` and emits a table
+  whose columns are what the rows carry: chest and length for a person's
+  garment, weight bands for a pet's costume, plus neck and back length the
+  moment a costume row carries `neckCm` or `backLengthCm`. The costume ships
+  the supplier's weight bands and nothing else — never fill in another
+  seller's measurements.
+- **The price is a placeholder.** $28.50 is the reference store's figure
+  (pawlidaypets.com, whose page has no copy and gave none). It has no
+  compare-at on purpose. Change it in the script and the live store needs a
+  catalogue migration — `products.js` is additive and never rewrites a row.
+- **Colour fills the design slot.** The picker's `designLabel` reads "Colour",
+  its codes are `red` and `green`, which both language packs already name,
+  and `item_variant` reaches GA4 as `green / M`. SKUs are `CMP-XT-<COLOUR>-<SIZE>`
+  (XT: Xmas tree), beside the hoodie's `CMP-XH-`.
 
 That was chillmypet.com's state on 2026-10-12: the live Worker answered `No
 product at "christmas-pouch-hoodie"` — the manifest's own 404 reads `No page
@@ -1057,9 +1092,9 @@ export TURSO_AUTH_TOKEN=...
 npm run db:migrate     # idempotent, create-if-not-exists
 ```
 
-`npm run db:seed` deletes and recreates the product. It is safe on an empty
-catalogue, and **refuses to run** once an order line references one of those
-variants — `order_items.variant_id` has no ON DELETE action, so order history
+`npm run db:seed` deletes and recreates the life jacket and every product in
+`products.js`. It is safe on an empty catalogue, and **refuses to run** once an
+order line references one of those variants — `order_items.variant_id` has no ON DELETE action, so order history
 wins. On a throwaway database (after an e2e run, say) delete the file and reseed;
 against a real one, migrate the catalogue instead.
 
@@ -1140,6 +1175,14 @@ them. Their original source and licence were not stated, and they look like
 generated lifestyle shots from a supplier listing. Ask before treating them as
 cleared for ads. Both designs have a photo; a design added without one renders
 a box labelled "Placeholder", never another design's picture.
+
+The Dog Christmas Tree Costume's five photos
+(`static/products/dog-christmas-costume/`) were supplied by the owner in chat on
+2026-10-12 as screenshots of a supplier listing, with the instruction to use
+them; the same caveat as the hoodie's applies — ask before treating them as
+cleared for ads. They carry no third-party branding; EXIF was stripped, and the
+two gallery shots were padded (never cropped) to the gallery's frame so the
+star stays in. Its copy was written here.
 
 Don't add further third-party branding, photography, or marketing text without
 the owner confirming rights for that specific source.

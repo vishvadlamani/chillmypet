@@ -18,7 +18,7 @@
 		"test:e2e": "node tests/e2e.mjs",
 		"deploy": "npm run build && wrangler deploy",
 		"test:payments": "node tests/payment-flow.mjs",
-		"test:store": "node tests/store-flow.mjs && node tests/christmas-hoodie.mjs",
+		"test:store": "node tests/store-flow.mjs && node tests/christmas-hoodie.mjs && node tests/dog-christmas-costume.mjs",
 		"test:admin": "node tests/admin-flow.mjs",
 		"db:content": "node --env-file-if-exists=.env scripts/sync-content.js",
 		"db:products": "node --env-file-if-exists=.env scripts/add-products.js"
