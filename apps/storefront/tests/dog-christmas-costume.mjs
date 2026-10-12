@@ -36,6 +36,9 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
+	check('SSR opens on the campaign hero', /<h1[^>]*>[\s\S]{0,200}?The cutest[\s\S]{0,200}?tree in the house/.test(html));
+	check('and the hero is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
+	check('the hero image is the cut-out, not the padded photo', /hero-red\.webp/.test(html));
 	check('SSR says the size is the dog’s', /Your dog’s size/.test(html));
 	check('SSR quotes the price', html.includes(`$${PRICE}`));
 	check('SSR offers both colours', html.includes('>Red<') && html.includes('>Green<'));

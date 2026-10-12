@@ -39,6 +39,25 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			}
 		},
 		{
+			id: 'campaign-hero',
+			component: 'campaign_hero',
+			version: 1,
+			props: {
+				eyebrow: 'Dog Christmas Tree Costume · Red or Green · S–L',
+				headline: 'The cutest **tree in the house**',
+				sub: 'A soft hooded cape with pom-pom baubles and a glitter star. On in ten seconds, off just as fast — made for the family photo.',
+				cta: 'Pick a colour & size',
+				// An in-page anchor to the picker, not a route.
+				ctaHref: '#variant-picker',
+				image: {
+					src: '/products/dog-christmas-costume/hero-red.webp',
+					alt: 'A small white dog wearing the red Christmas tree costume, hood up, gold star on top'
+				},
+				notes: ['Free standard shipping', '30-day free returns', 'Fits cats and small dogs'],
+				sticker: 'Red or green 🎄'
+			}
+		},
+		{
 			id: 'gallery',
 			component: 'design_gallery',
 			version: 1,
@@ -54,7 +73,8 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			component: 'heading',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
-			props: { text: { $ref: 'product.title' }, level: 1, size: 'lg', weight: 'bold' }
+			// Level 2: the campaign hero above carries the page's one h1.
+			props: { text: { $ref: 'product.title' }, level: 2, size: 'lg', weight: 'bold' }
 		},
 		{
 			id: 'hero-points',
@@ -156,26 +176,52 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			props: { width: 'shell', spacing: 'loose' }
 		},
 		{
-			id: 'closer-look-heading',
-			component: 'heading',
+			id: 'how-it-goes-on',
+			component: 'step_list',
 			version: 1,
-			props: { text: 'A closer look', level: 2, size: 'lg', width: 'shell' }
+			// The question a costume page has to answer before the price: will I
+			// get it on my dog. Three steps beside the hood close-up.
+			props: {
+				title: 'On in ten seconds',
+				lead: 'No legs to thread, no zips. **Hood, cord, button — done.**',
+				image: {
+					src: '/products/dog-christmas-costume/hood-detail.jpg',
+					alt: 'Close-up of the hood opening, the tie cord and the button'
+				},
+				steps: [
+					{ title: 'Pop the hood on', body: 'Or leave it back on the neck like a collar. The tree still reads from behind.' },
+					{ title: 'Tie the cord', body: 'A soft bow at the neck sets the fit. Snug, never tight.' },
+					{ title: 'Close the button', body: 'One button at the chest and the cape sits flat over the back.' }
+				],
+				note: 'Nothing goes around the legs or the belly, which is why most dogs forget they have it on.'
+			}
 		},
 		{
-			id: 'closer-look',
+			id: 'rule-after-steps',
+			component: 'divider',
+			version: 1,
+			props: { width: 'shell', spacing: 'loose' }
+		},
+		{
+			id: 'angles-heading',
+			component: 'heading',
+			version: 1,
+			props: { text: 'Both colours, every angle', level: 2, size: 'lg', width: 'shell' }
+		},
+		{
+			id: 'angles',
 			component: 'media',
 			version: 1,
-			// The three shots that are not tied to a colour: the red flat, the
-			// tree shape from behind, the hood and its button up close.
+			// The two shots not tied to a colour, on the same backdrop as the
+			// gallery so the page reads as one shoot: the red front, the green back.
 			props: {
 				variant: 'grid',
-				columns: 3,
+				columns: 2,
 				aspect: 'square',
 				width: 'shell',
 				items: [
-					{ src: '/products/dog-christmas-costume/red.jpg', alt: 'The red Christmas tree costume laid flat' },
-					{ src: '/products/dog-christmas-costume/green-back.jpg', alt: 'The green costume from behind: three ruffled tiers shaped like a tree, star on top' },
-					{ src: '/products/dog-christmas-costume/hood-detail.jpg', alt: 'Close-up of the hood opening, the tie cord and the button' }
+					{ src: '/products/dog-christmas-costume/red.jpg', alt: 'The red Christmas tree costume, front, with the hood, star and pom-poms' },
+					{ src: '/products/dog-christmas-costume/green-back.jpg', alt: 'The green costume from behind: three ruffled tiers shaped like a tree, star on top' }
 				]
 			}
 		},
