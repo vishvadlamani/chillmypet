@@ -166,7 +166,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// has, so the Worker brings the database up to date itself: schema, then any
 	// product the code defines and the store lacks. Once per isolate, in the
 	// background, never on this request's path. See $lib/server/catalogue.
-	ensureCatalogue(db, event.platform?.context);
+	// Guarded here as well as inside: housekeeping must never cost a visitor
+	// the page, whatever the runtime does with it.
+	try {
+		ensureCatalogue(db, event.platform?.context);
+	} catch (error) {
+		console.error('catalogue sync could not start', error);
+	}
 
 	// Tenant comes from the Host header; localhost and preview URLs fall back to
 	// a configured default so development needs no hosts-file entry.

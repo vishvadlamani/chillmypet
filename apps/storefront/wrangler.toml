@@ -62,6 +62,13 @@ GTM_GATEWAY_PATH = "/qndl"
 # deliberately has no Stripe keys, so wrangler.staging.toml must not copy this.
 STRIPE_PUBLISHABLE_KEY = "pk_live_51U3NewJOsB1nguzlBy7u3DWXQguFi0g6lk1qwLtjuJKJtTqQdae4sRfa1tJRrCieXDWuhMFu4Td4MhksaKUY5h3k00aEEtoBx4"
 
+# Workers Logs: every console line and every uncaught exception, kept for a
+# while and searchable in the dashboard (Workers & Pages → chillmypet → Logs).
+# Without this a "Worker threw exception" page is gone the moment it is shown:
+# one was seen on 2026-10-12 at 16:03 UTC and nothing recorded what threw.
+[observability]
+enabled = true
+
 [assets]
 directory = ".svelte-kit/cloudflare"
 binding = "ASSETS"
