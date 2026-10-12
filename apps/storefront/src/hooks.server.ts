@@ -3,6 +3,7 @@ import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
 import { buildFbc, buildFbp, fbclidOf, newEventId } from 'ecomwithai/marketing';
 import { ADMIN_HEADERS, adminGate, isAdminPath } from '$lib/server/admin';
+import { ensureCatalogue } from '$lib/server/catalogue';
 import { rememberedContact } from '$lib/server/identity';
 import { attributionFrom, ensureVisitorId } from '$lib/server/purchase';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
@@ -160,6 +161,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	const { db, stores } = getDirectory();
+
+	// The Worker holds the database's credentials and the deploy pipeline never
+	// has, so the Worker brings the database up to date itself: schema, then any
+	// product the code defines and the store lacks. Once per isolate, in the
+	// background, never on this request's path. See $lib/server/catalogue.
+	ensureCatalogue(db, event.platform?.context);
 
 	// Tenant comes from the Host header; localhost and preview URLs fall back to
 	// a configured default so development needs no hosts-file entry.

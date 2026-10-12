@@ -583,23 +583,34 @@ way with three differences worth knowing:
   setting overrides without a deploy. Once the date has passed the strip drops
   out through `requires`.
 
-The product itself is `scripts/christmas-hoodie.js`. `db:seed` writes it on a
-fresh database; a live one gets it from `npm run db:products`, which only adds
-products that are missing and never rewrites one. Until that has run against
-Turso, the page 404s in production even though the manifest is deployed.
+The product itself is `scripts/christmas-hoodie.js`, listed in
+`scripts/products.js`. `db:seed` writes it on a fresh database. A live one
+gets it from **the Worker itself**: `$lib/server/catalogue.ts` runs once per
+isolate, on the first request after a deploy, handed to `waitUntil` so it
+never sits on a request's path. It reads `sqlite_master` once and runs
+`applySchema` only when a table or index is missing, then adds every product
+in `products.js` the store lacks, and never rewrites one it has.
+`npm run db:products` is the same list, run by hand. A new product goes on
+that list in the same change as its manifest in `pages.ts`.
 
 That was chillmypet.com's state on 2026-10-12: the live Worker answered `No
 product at "christmas-pouch-hoodie"` — the manifest's own 404 reads `No page
 manifest` — so the code had shipped and the row had not, and the ads kept
-landing on the Payment Link page instead. Two things now keep code and rows
-together. `deploy.yml` runs `db:migrate` and `db:products` before every
-deploy when `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are repository
-secrets, and writes a warning with the by-hand command on the run's summary
-when they are not. And the site header is built from the catalogue
-(`+layout.server.ts`): it links to every product that has both a row and a
-manifest, so a product missing from the live database is a missing link,
-never a dead one — and a product reachable only by typing its URL, which is
-what the hoodie was, cannot happen again.
+landing on the Payment Link page instead. `deploy.yml` was meant to run
+`db:migrate` and `db:products` first, but that needs the database's token as
+a repository secret, and the repository's owner does not hold it: the Turso
+account is Vish's. So the step skipped, and once a token for another database
+was saved under that name it failed with a 401 and blocked the release
+instead. The Worker holds the right token because it serves every page from
+that database, which is why the sync lives there now. Three things keep code
+and rows together. The Worker's sync. `deploy.yml`, which after the deploy
+runs `scripts/check-live.js` to fetch every product page on chillmypet.com
+and fails the run if one is not a 200 within four minutes, so code without a
+row is a red run rather than a quiet 404. And the site header, built from
+the catalogue (`+layout.server.ts`): it links to every product that has both
+a row and a manifest, so a product missing from the live database is a
+missing link, never a dead one — and a product reachable only by typing its
+URL, which is what the hoodie was, cannot happen again.
 
 **Where the Christmas ads should land, decided 2026-10-12:**
 `/products/christmas-pouch-hoodie` on chillmypet.com, once its row is in the
@@ -1035,7 +1046,10 @@ no pixel and no container instead of inheriting production's from the shared
 store row. Leave them empty; set `META_PIXEL_ID` for one run when you want to
 watch it in Test Events.
 
-Migrations run from a machine with the credentials, not from the Worker:
+The Worker applies the schema itself on its first request after a deploy
+(`$lib/server/catalogue.ts`: one read of `sqlite_master`, and `applySchema`
+only when something is missing), so a merge is enough. By hand, from a machine
+with the credentials:
 
 ```sh
 export TURSO_DATABASE_URL=libsql://chillmypet-vish.aws-us-west-2.turso.io
@@ -1067,9 +1081,10 @@ and `CLOUDFLARE_ACCOUNT_ID` are repository secrets since 2026-10-11: run
 and www, which is where the paragraph that used to stand here — the secrets were
 missing and production shipped by hand — stopped being true. Two consequences.
 A merge is a release, so review a pull request as one. And the database has to
-keep up with the code: the same workflow now runs `db:migrate` and
-`db:products` before the deploy when the Turso secrets are repository secrets
-(see the Christmas hoodie under State of play for why). The fallback stays: if
+keep up with the code: the Worker does that itself on its first request after
+the deploy (`$lib/server/catalogue.ts`; see the Christmas hoodie under State of
+play for why it is not a CI step), and the workflow then fetches every product
+page on the live site and fails if one does not answer 200. The fallback stays: if
 the Cloudflare secret ever goes missing the run posts a "chillmypet.com was NOT
 deployed" warning on its summary page instead of failing, and a green run with
 that warning means production did not change. `/_app/version.json` on the live
