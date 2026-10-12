@@ -6,7 +6,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import worker from './christmas-pouch-hoodie/_worker.js';
@@ -301,15 +301,19 @@ const session = (metadata, extra = {}) => ({
 }
 
 // --- deploy.sh: a preview never lands on the live page -------------------------------
-// Runs the real script against a stand-in npx that only records its arguments.
+// Runs the real script against a stand-in npx that only records its arguments
+// and what was staged for upload.
 {
 	const bin = mkdtempSync(join(tmpdir(), 'xmas-deploy-'));
 	const log = join(bin, 'args');
-	writeFileSync(join(bin, 'npx'), `#!/bin/sh\necho "$@" > "${log}"\n`);
+	const staged = join(bin, 'staged');
+	writeFileSync(join(bin, 'npx'), `#!/bin/sh\necho "$@" > "${log}"\nls "$4" > "${staged}"\n`);
 	chmodSync(join(bin, 'npx'), 0o755);
-	const script = new URL('./christmas-pouch-hoodie/deploy.sh', import.meta.url).pathname;
+	const folder = new URL('./christmas-pouch-hoodie/', import.meta.url);
+	const script = new URL('deploy.sh', folder).pathname;
 	const deploy = (extra) => {
 		rmSync(log, { force: true });
+		rmSync(staged, { force: true });
 		const { PREVIEW, ...rest } = process.env;
 		try {
 			execFileSync('sh', [script], { env: { ...rest, ...extra, PATH: `${bin}:${process.env.PATH}` }, stdio: 'pipe' });
@@ -318,11 +322,59 @@ const session = (metadata, extra = {}) => ({
 			return null;
 		}
 	};
+	const files = () => (existsSync(staged) ? readFileSync(staged, 'utf8').split('\n') : []);
 	check('without PREVIEW it publishes the live page', / --branch main /.test(deploy({}) ?? ''));
+	check('and stages the page, its worker and its photos', ['index.html', 'thank-you.html', '_worker.js', '_routes.json', 'app.js', 'config.js', 'pixel.js', 'style.css', 'red_santa.jpg'].every((f) => files().includes(f)), files().join());
+	check('the README and this script are never uploaded', !files().includes('README.md') && !files().includes('deploy.sh'));
+	// The ad's video is optional (config.js: video). Staged when a file is
+	// there, and no error when none is; tried with a stand-in only while the
+	// folder holds no real one, which this must never delete.
+	const anyVideo = readdirSync(folder).some((f) => f.endsWith('.mp4'));
+	check('with no video in the folder, none is staged and nothing fails', !files().some((f) => f.endsWith('.mp4')) || anyVideo);
+	if (!anyVideo) {
+		const sample = new URL('hero.mp4', folder);
+		writeFileSync(sample, '');
+		try {
+			deploy({});
+			check('a video in the folder is staged with the page', files().includes('hero.mp4'), files().join());
+		} finally {
+			rmSync(sample, { force: true });
+		}
+	}
 	const pr = deploy({ PREVIEW: 'pr-35' }) ?? '';
 	check('PREVIEW=pr-35 publishes a preview under that name', / --branch pr-35 /.test(pr) && !/--branch main/.test(pr), pr);
 	check('PREVIEW=main is refused before anything is published', deploy({ PREVIEW: 'main' }) === null && !existsSync(log));
 	rmSync(bin, { recursive: true, force: true });
+}
+
+// --- the page itself: what it says, and what it must not ------------------------------
+// The page is static, so these read the files. A browser pass (phone widths,
+// the first screen, Buy reaching the right Payment Link) is in the README.
+{
+	const folder = new URL('./christmas-pouch-hoodie/', import.meta.url);
+	const html = readFileSync(new URL('index.html', folder), 'utf8');
+	const js = readFileSync(new URL('app.js', folder), 'utf8');
+	const text = html.replace(/<[^>]+>/g, ' ');
+	// There are no reviews, ratings or sales counts to show, and an invented one
+	// is a fake testimonial under the FTC's rule on consumer reviews (16 CFR 465).
+	check('no star rating, review or sales count', !/★|⭐|\b\d[\d,.]*\+?\s*(reviews?|ratings?|customers|sold|happy|five.star)\b|\brated\b|trustpilot|verified buyer|bestseller/i.test(text));
+	// What the ChillMP Payment Links offer, read from Stripe on 2026-10-12: card,
+	// Link and Apple Pay for a US visitor, Klarna only for one in Europe; Google
+	// Pay is off in the account's payment method configuration. Nothing else
+	// may be promised until it is on in Stripe (see the README).
+	check('only payment methods the Payment Links really offer', !/google pay|klarna|afterpay|affirm|paypal|discover|pay later|instal?lments|interest.free/i.test(text));
+	check('the choices, the button and the dock are there', ['id="designs"', 'id="sizes"', 'id="buy"', 'id="dock"', 'id="dock-buy"', 'id="size-chart"', 'id="size-error"', 'id="size-guide"'].every((id) => html.includes(id)), 'an id is missing');
+	check('a real way to reach a person, and the policies', html.includes('mailto:contact@chillmypet.com') && html.includes('chillmypet.com/policies/refunds') && html.includes('chillmypet.com/privacy'));
+	check('ViewContent on load, AddToCart and InitiateCheckout on Buy', /xmasTrack\('ViewContent'/.test(js) && /xmasTrack\('AddToCart'/.test(js) && /xmasTrack\('InitiateCheckout'/.test(js));
+	check('Buy still carries the visitor id to Stripe, test_ in quiet mode', /client_reference_id=/.test(js) && /'test_'/.test(js));
+	check('no size is chosen for the visitor', /size: ''/.test(js));
+
+	const window = {};
+	new Function('window', readFileSync(new URL('config.js', folder), 'utf8'))(window);
+	const c = window.XMAS;
+	check('every design and size has a Payment Link', c.designs.every((d) => c.sizes.every((s) => (c.links[`${d.code}:${s}`]?.url ?? '').startsWith('https://buy.stripe.com/'))));
+	check('the size chart is absent, or the supplier’s rows', c.sizeChart === null || (Array.isArray(c.sizeChart) && c.sizeChart.length > 0 && c.sizeChart.every((r) => c.sizes.includes(r.size) && typeof r.chestCm === 'number' && typeof r.lengthCm === 'number')), JSON.stringify(c.sizeChart));
+	check('no video is asked for until its file is in the folder', c.video === '' || existsSync(new URL(c.video, folder)), c.video);
 }
 
 // --- the pixels config.js initialises -------------------------------------------

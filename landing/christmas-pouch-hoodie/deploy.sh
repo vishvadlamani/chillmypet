@@ -26,4 +26,9 @@ fi
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
 cp index.html thank-you.html config.js pixel.js app.js style.css _worker.js _routes.json ./*.jpg ./*.webp "$out"/
+# The ad's video (config.js: video) and any PNG are optional: the page works
+# without them, so their absence is not an error.
+for f in ./*.mp4 ./*.png; do
+	if [ -e "$f" ]; then cp "$f" "$out"/; fi
+done
 npx wrangler pages deploy "$out" --project-name chillmypet-christmas --branch "$branch" --commit-dirty=true "$@"
