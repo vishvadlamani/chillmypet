@@ -14,6 +14,19 @@
  * pixelIds   the same pixels chillmypet.com initialises. One fbq('track')
  *            reports to each of them once. Only add a pixel whose owner you
  *            can name: every visitor's browsing goes to each one listed.
+ * video      the ad's own video, continued at the top of the page: put the
+ *            file in this folder and name it here ('hero.mp4'), and the page
+ *            plays it muted, looping and inline, with a button for sound.
+ *            '' until then, so no visitor asks for a file that is not there;
+ *            the hero is the product photo and nothing is missing. Keep the
+ *            vertical cut the ad runs: a phone shows its middle, and the
+ *            sound button opens the whole frame.
+ * sizeChart  the supplier's measurements, one row per size, in centimetres,
+ *            garment laid flat. null until they arrive, and the size guide
+ *            says so instead of guessing. The README lists what to ask for.
+ *            Example: [{ size: 'S', chestCm: 56, lengthCm: 68, sleeveCm: 60 }]
+ * modelWears who is in the photo and what they wear, when the supplier says:
+ *            "The model is 5'7\" (170 cm) and wears a size M". '' until then.
  */
 window.XMAS = {
 	slug: 'christmas-pouch-hoodie',
@@ -30,6 +43,9 @@ window.XMAS = {
 		{ code: 'green_stocking', name: 'Stocking Green', image: 'green_stocking.jpg', thumb: 'green_stocking-thumb.jpg', blurb: 'Stocking and bow, cat-ear ring', tag: 'Cat-ear ring', detail: 'Stocking and bow' }
 	],
 	sizes: ['S', 'M', 'L', 'XL'],
+	video: '',
+	sizeChart: null,
+	modelWears: '',
 	// design:size → { sku, url }. Payment Links plink_1UOEWYJOsB1nguzlJXtjB3lf
 	// (Santa Red S) through plink_1UOEYtJOsB1nguzlezFxeKMv (Stocking Green XL).
 	links: {

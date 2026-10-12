@@ -915,7 +915,7 @@ since the 11th):
 
 | Campaign | Ad set | Lands on | Optimises for | State |
 |---|---|---|---|---|
-| !Christmas Hoodie Campaign! | !Christmas Hoodie Ad Set! | Christmas page | **AddToCart** on `1341978141149107` | **Live**, $10/day, 11–20 Oct, US 18+, Facebook placements only, Advantage audience |
+| !Christmas Hoodie Campaign! (the "- Copy" campaign, renamed) | !Christmas Hoodie Ad Set!, ad "!Christmas Hoodie Ad!" | Christmas page | **AddToCart** on `1341978141149107` since 11 Oct (Purchase before) | **Live**, $10/day, 11–20 Oct, US 18+, Facebook placements only, Advantage audience |
 | !Christmas Hoodie Campaign! | Chritmas Hoodie Ad Set | Christmas page | Purchase | Paused |
 | Christmas Hoodie Campaign | Chritmas Hoodie Ad Set | Christmas page | ⚠️ AddPaymentInfo (as recorded 2026-10-11) | Paused |
 | Hoodie Campaign - Copy | Hoodie Ad | hoodie page | Purchase | Ended 8 Oct |
@@ -937,6 +937,14 @@ Earlier, the old ad account `act_1431226177195979` (CZK) ran four "Dog Vest"
 ads to `/products/dog-life-jacket`, optimising for Purchase or
 InitiateCheckout on `1363695699271757`. That pixel is no longer on any page,
 so don't restart those ads there.
+
+**The live Christmas ad does not show the Christmas hoodie.** Its video
+(checked 2026-10-12 through the Supermetrics connector) is a woman on a plane
+in a red fleece pouch hoodie with a puppy, captioned "Small dog owners this
+one's for you"; the page sells an embroidered Santa or stocking hoodie with a
+cat in a ring. That is the first thing to look at when the page's clicks
+produce no AddToCart, before the page itself. Details in the Christmas page's
+README.
 
 **Never optimise a Payment Link page for AddPaymentInfo.** The card is typed on
 Stripe's page, which reports nothing to the pixel, so the event can never fire
