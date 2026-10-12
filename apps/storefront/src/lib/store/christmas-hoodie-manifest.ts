@@ -137,6 +137,7 @@ export const CHRISTMAS_HOODIE_PAGE: FunnelDefinition = {
 					'Pick your **usual hoodie size**. It’s a relaxed pullover with room in front for the pouch.',
 					'Between two sizes? **Go up.** Your passenger will thank you.'
 				],
+				columns: { $ref: 'sizes.columns' },
 				rows: { $ref: 'sizes.rows' },
 				pending:
 					'Exact chest and length measurements are on their way from our maker. We’ll add them here as soon as we have them.',

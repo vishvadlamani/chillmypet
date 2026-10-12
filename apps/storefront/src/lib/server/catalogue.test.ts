@@ -26,6 +26,10 @@ function check(label: string, actual: unknown, expected: unknown) {
 }
 
 const HOODIE = 'christmas-pouch-hoodie';
+const COSTUME = 'dog-christmas-costume';
+/** Every product the list carries, in order: what one sync adds and the next one skips. */
+const LISTED = [HOODIE, COSTUME];
+const VARIANTS = PRODUCTS.reduce((n, p) => n + p.variants.length, 0);
 
 // A file, not `:memory:`: the libSQL client reopens its connection around a
 // transaction, and an in-memory database does not survive that.
@@ -58,9 +62,11 @@ check(
 	SCHEMA_OBJECTS.length,
 	schemaStatements(SCHEMA).length
 );
-check('the hoodie is on the list of products every deployment must have', PRODUCTS.map((p) => p.slug), [
-	HOODIE
-]);
+check(
+	'the hoodie and the costume are the products every deployment must have',
+	PRODUCTS.map((p) => p.slug),
+	LISTED
+);
 
 // --- a store without the product gets it, once -----------------------------
 {
@@ -69,27 +75,27 @@ check('the hoodie is on the list of products every deployment must have', PRODUC
 	await addStore(db);
 
 	const first = await syncCatalogue(db);
-	check('first sync adds the hoodie', first, {
+	check('first sync adds every listed product', first, {
 		schemaCreated: [],
-		added: [HOODIE],
+		added: LISTED,
 		skipped: [],
 		storeMissing: false
 	});
-	check('one product row', await count(db, 'select count(*) as n from products'), 1);
+	check('one row per product', await count(db, 'select count(*) as n from products'), LISTED.length);
 	check(
-		'all its variants',
+		'all their variants',
 		await count(db, 'select count(*) as n from product_variants'),
-		PRODUCTS[0].variants.length
+		VARIANTS
 	);
 
 	const second = await syncCatalogue(db);
 	check('second sync adds nothing', second, {
 		schemaCreated: [],
 		added: [],
-		skipped: [HOODIE],
+		skipped: LISTED,
 		storeMissing: false
 	});
-	check('still one product row', await count(db, 'select count(*) as n from products'), 1);
+	check('still one row per product', await count(db, 'select count(*) as n from products'), LISTED.length);
 	close();
 }
 
@@ -106,7 +112,7 @@ check('the hoodie is on the list of products every deployment must have', PRODUC
 		'fulfillments',
 		'idx_fulfillments_store'
 	]);
-	check('and the product is still added in the same run', result.added, [HOODIE]);
+	check('and the products are still added in the same run', result.added, LISTED);
 	check(
 		'fulfillments exists afterwards',
 		await count(db, "select count(*) as n from sqlite_master where name = 'fulfillments'"),
@@ -123,7 +129,7 @@ check('the hoodie is on the list of products every deployment must have', PRODUC
 	check('a database with no store row gets no products', result, {
 		schemaCreated: [],
 		added: [],
-		skipped: [HOODIE],
+		skipped: LISTED,
 		storeMissing: true
 	});
 	check('nothing was written', await count(db, 'select count(*) as n from products'), 0);
@@ -143,7 +149,7 @@ check('the hoodie is on the list of products every deployment must have', PRODUC
 	ensureCatalogue(db, context);
 	check('one sync is handed to waitUntil, not one per request', kept.length, 1);
 	await Promise.all(kept);
-	check('the product is there afterwards', await count(db, 'select count(*) as n from products'), 1);
+	check('the products are there afterwards', await count(db, 'select count(*) as n from products'), LISTED.length);
 	ensureCatalogue(db, context);
 	check('a synced isolate does not sync again', kept.length, 1);
 	close();

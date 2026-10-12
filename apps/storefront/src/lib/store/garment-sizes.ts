@@ -1,31 +1,71 @@
 /**
- * A garment's size chart, for the wearer.
+ * The size guide's table, for a product the buyer sizes themselves.
  *
- * Read from the `specs.size_chart` metafield and nothing else. The Christmas
- * hoodie has none yet: there are no supplier measurements, and a chart made up
- * to fill the section would be the one people order from. Empty means the
- * size guide shows its "measurements on the way" note instead of a table.
+ * Read from the `specs.size_chart` metafield and nothing else. Two shapes of
+ * row are understood, and the columns follow the rows rather than being fixed
+ * here, because the two products that pick a size are measured differently:
+ *
+ *   - a garment for a person: `{ size, chestCm, lengthCm }`
+ *   - a costume for a pet:    `{ size, weightMinKg, weightMaxKg, neckCm?, backLengthCm? }`
+ *
+ * The Christmas hoodie has no rows yet: there are no supplier measurements,
+ * and a chart made up to fill the section would be the one people order from.
+ * Empty means the size guide shows its "measurements on the way" note instead
+ * of a table. The costume has the supplier's weight bands and nothing else;
+ * neck and back length appear the moment its rows carry them.
  */
 import type { Product } from 'ecomwithai';
 
-interface GarmentRow {
+interface SizeRow {
 	size: string;
-	chestCm: number;
-	lengthCm: number;
+	chestCm?: number;
+	lengthCm?: number;
+	weightMinKg?: number;
+	weightMaxKg?: number;
+	neckCm?: number;
+	backLengthCm?: number;
 }
 
-const inches = (cm: number) => Math.round(cm / 2.54);
+export interface SizeGuideTable {
+	columns: string[];
+	rows: { size: string; cells: string[] }[];
+}
 
-export function garmentSizeRows(
-	product: Product
-): { size: string; chest: string; length: string }[] | undefined {
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const inches = (cm: number) => Math.round(cm / 2.54);
+const pounds = (kg: number) => Math.round(kg * 2.20462);
+const cm = (v: number) => `${v} cm (${inches(v)} in)`;
+const kg = (min: number, max: number) => `${min}–${max} kg (${pounds(min)}–${pounds(max)} lb)`;
+
+export function sizeGuideTable(product: Product): SizeGuideTable | undefined {
 	const chart = product.metafields['specs.size_chart'];
 	if (!Array.isArray(chart) || chart.length === 0) return undefined;
-	return (chart as GarmentRow[])
-		.filter((r) => r && r.size && Number.isFinite(r.chestCm) && Number.isFinite(r.lengthCm))
-		.map((r) => ({
+	const rows = (chart as SizeRow[]).filter((r) => r && r.size);
+
+	// A person's garment: chest and length, both required on every row.
+	if (rows.some((r) => isNum(r.chestCm))) {
+		const fitted = rows.filter((r) => isNum(r.chestCm) && isNum(r.lengthCm));
+		if (fitted.length === 0) return undefined;
+		return {
+			columns: ['Chest', 'Length'],
+			rows: fitted.map((r) => ({ size: r.size, cells: [cm(r.chestCm!), cm(r.lengthCm!)] }))
+		};
+	}
+
+	// A pet's costume: weight bands, plus whichever measures the rows carry.
+	const weighed = rows.filter((r) => isNum(r.weightMinKg) && isNum(r.weightMaxKg));
+	if (weighed.length === 0) return undefined;
+	const hasNeck = weighed.some((r) => isNum(r.neckCm));
+	const hasBack = weighed.some((r) => isNum(r.backLengthCm));
+	return {
+		columns: ['Weight', ...(hasNeck ? ['Neck'] : []), ...(hasBack ? ['Back length'] : [])],
+		rows: weighed.map((r) => ({
 			size: r.size,
-			chest: `${r.chestCm} cm (${inches(r.chestCm)} in)`,
-			length: `${r.lengthCm} cm (${inches(r.lengthCm)} in)`
-		}));
+			cells: [
+				kg(r.weightMinKg!, r.weightMaxKg!),
+				...(hasNeck ? [isNum(r.neckCm) ? cm(r.neckCm) : '—'] : []),
+				...(hasBack ? [isNum(r.backLengthCm) ? cm(r.backLengthCm) : '—'] : [])
+			]
+		}))
+	};
 }

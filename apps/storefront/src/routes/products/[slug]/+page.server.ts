@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { bindDefinition, createRefResolver } from '@funnel/core';
 import { loadBundles } from '$lib/store/bundles';
 import { loadChristmasDelivery } from '$lib/store/christmas';
-import { garmentSizeRows } from '$lib/store/garment-sizes';
+import { sizeGuideTable } from '$lib/store/garment-sizes';
 import { loadOffer } from '$lib/store/offer';
 import { loadProduct } from '$lib/store/product';
 import { loadReviews } from '$lib/store/reviews';
@@ -48,9 +48,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			// The photos without the words, for as long as the words aren't real.
 			photos: loadPhotoWall()
 		},
-		// A garment's chart is the wearer's measurements, a different shape from
-		// the life jacket's chest-and-weight rows.
-		sizes: page.pickSize ? { rows: garmentSizeRows(catalogue) } : sizeChart,
+		// A sized product's guide is a table whose columns follow the product
+		// (chest and length for a person, weight bands for a pet), a different
+		// shape from the life jacket's chest-and-weight bullet rows. Empty when
+		// the supplier's figures are not in yet, which shows the guide's note.
+		sizes: page.pickSize ? (sizeGuideTable(catalogue) ?? {}) : sizeChart,
 		// The design and size pickers. Only a manifest that names them reads them.
 		variants: page.pickSize ? loadVariantPicker(catalogue, locale) : {},
 		// Config, not computation: see `$lib/store/christmas.ts`. Empty once the

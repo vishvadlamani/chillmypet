@@ -7,7 +7,7 @@
  */
 import { createDb, createStoreService } from 'ecomwithai';
 import { insertProduct, orderLines } from './catalog.js';
-import { CHRISTMAS_HOODIE } from './christmas-hoodie.js';
+import { PRODUCTS } from './products.js';
 import { BENEFITS, EMAIL, FAQ, SIZE_CHART, SLUG, STORE, TRANSLATIONS } from './content.js';
 
 const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
@@ -230,11 +230,11 @@ for (const [locale, entries] of Object.entries(FAQ)) {
 	});
 }
 
-// --- the Christmas hoodie, through the shared writer ---
-// Same refusal as above: recreating it would orphan order lines. A live store
-// gets it from `npm run db:products` instead, which only ever adds.
-{
-	const def = CHRISTMAS_HOODIE;
+// --- the listed products, through the shared writer ---
+// Same refusal as above: recreating one would orphan order lines. A live store
+// gets them from `npm run db:products` (or the Worker's own sync) instead,
+// which only ever adds.
+for (const def of PRODUCTS) {
 	const lines = await orderLines(db, STORE.id, def.slug);
 	if (lines > 0) {
 		console.error(
