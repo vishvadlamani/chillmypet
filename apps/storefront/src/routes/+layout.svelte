@@ -59,11 +59,22 @@
 				{t('common.brand')}
 			</a>
 
-			<ul class="flex items-center gap-5 text-sm text-ink-600">
+			<ul class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-ink-600">
 				<li><a class="hover:text-ink-900" href="/">{t('nav.home')}</a></li>
-				<li>
-					<a class="hover:text-ink-900" href="/products/dog-life-jacket">{t('nav.shop')}</a>
-				</li>
+				<!-- One link per product that can actually be bought here, from the
+				     layout's load: the catalogue decides, so a second product is
+				     reachable the day its row lands and never before. -->
+				{#each page.data.nav ?? [] as item (item.slug)}
+					<li>
+						<a
+							class="hover:text-ink-900"
+							href="/products/{item.slug}"
+							aria-current={page.url.pathname === `/products/${item.slug}` ? 'page' : undefined}
+						>
+							{item.title}
+						</a>
+					</li>
+				{/each}
 			</ul>
 
 			<div class="ms-auto flex items-center gap-4">

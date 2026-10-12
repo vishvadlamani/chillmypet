@@ -28,6 +28,12 @@ const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } }
 // fbq.queue where we can assert on it without touching Meta.
 await ctx.route('**/connect.facebook.net/**', (route) => route.abort());
 await ctx.route('**/facebook.com/tr*', (route) => route.abort());
+// Same for GA4's hits: with GTM_CONTAINER_ID set, the live container fires real
+// page views for 127.0.0.1 into property G-YCFPQ38SXP, and on a network that
+// never answers google.com the open beacon also keeps `networkidle` from ever
+// arriving. gtm.js itself still loads, which is what the GTM checks below read.
+await ctx.route('**/google.com/g/collect*', (route) => route.abort());
+await ctx.route('**/google-analytics.com/**', (route) => route.abort());
 const pageErrors = [];
 const page = await ctx.newPage();
 page.on('pageerror', (e) => pageErrors.push(String(e)));
@@ -124,6 +130,20 @@ function check(label, cond, detail) {
 	check('SSR renders the checkout forms', /Contact/.test(html) && /Shipping address/.test(html));
 	check('SSR renders the pay button', /Place order|Pay \$/.test(html));
 	check('checkout stays out of search results', /noindex/.test(html));
+}
+
+{
+	// The header is built from the catalogue: one link per product that has
+	// both a row and a page manifest. Asserted on the raw HTML, because a nav a
+	// crawler cannot see is a nav nobody arriving cold can see either.
+	const html = await fetch(BASE).then((r) => r.text());
+	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
+	check(
+		'the header links to every product page',
+		header.includes('href="/products/dog-life-jacket"') &&
+			header.includes('href="/products/christmas-pouch-hoodie"'),
+		header.slice(0, 400)
+	);
 }
 
 {

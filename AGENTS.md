@@ -588,6 +588,32 @@ fresh database; a live one gets it from `npm run db:products`, which only adds
 products that are missing and never rewrites one. Until that has run against
 Turso, the page 404s in production even though the manifest is deployed.
 
+That was chillmypet.com's state on 2026-10-12: the live Worker answered `No
+product at "christmas-pouch-hoodie"` — the manifest's own 404 reads `No page
+manifest` — so the code had shipped and the row had not, and the ads kept
+landing on the Payment Link page instead. Two things now keep code and rows
+together. `deploy.yml` runs `db:migrate` and `db:products` before every
+deploy when `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are repository
+secrets, and writes a warning with the by-hand command on the run's summary
+when they are not. And the site header is built from the catalogue
+(`+layout.server.ts`): it links to every product that has both a row and a
+manifest, so a product missing from the live database is a missing link,
+never a dead one — and a product reachable only by typing its URL, which is
+what the hoodie was, cannot happen again.
+
+**Where the Christmas ads should land, decided 2026-10-12:**
+`/products/christmas-pouch-hoodie` on chillmypet.com, once its row is in the
+live database. The reasons, in order of weight for an audience that is mostly
+women 55+ on the Facebook app: the brand's own domain in the address bar
+instead of `pages.dev`; a real cart, so AddToCart, InitiateCheckout,
+AddPaymentInfo and Purchase are four separate signals instead of two fired in
+the same tap; Apple Pay, Link and Klarna inline on the one checkout page; an
+order row, the admin queue and the confirmation email; and every fbc, dedupe
+and webhook guarantee in this file. The Payment Link page keeps selling until
+the owner changes the ad's destination in Ads Manager, and that change waits
+on three checks: the page answers 200 on chillmypet.com, `/api/meta-status`
+reads `accepted`, and one real order has been placed and refunded.
+
 **The Pouch Pet Hoodie has no product page here yet.** It sells from the
 landing page in `landing/pouch-pet-hoodie/` (chillmypet-hoodie.pages.dev,
 on the Cloudflare account its README names), through a Stripe Payment Link on
@@ -664,6 +690,15 @@ show in their own currencies) and **Google Pay off** — it was on under the old
 account, so Android shoppers lost it in the move. Redirect methods such as
 Klarna work because `CardFields` confirms with a `return_url` and
 `redirect: 'if_required'`.
+
+A wallet needs the domain as well as the configuration. Read through the
+Stripe API on 2026-10-12: `chillmypet.com` and `www.chillmypet.com` are
+registered payment method domains on ChillMP with Apple Pay, Google Pay, Klarna
+and Link active, so Apple Pay really does render in the Payment Element on an
+iPhone, and Google Pay is off only because the configuration says so. The
+`payment_badges` row on both product pages shows Apple Pay beside the cards for
+that reason, and `tests/christmas-hoodie.mjs` asserts Google Pay's badge stays
+absent — add it to both manifests only after turning the method on in Stripe.
 
 Do **not** use `pmc_1UGKEnJOsB1nguzl8TDgEoLT`, even though the dashboard API
 lists it as a "Default". It belongs to a connected application
@@ -874,16 +909,29 @@ answers it in seconds.
 ### Ads, and the pages they land on
 
 All current advertising is in the Meta ad account **Vish Kanada**
-(`act_1550461850095009`, USD). Campaigns and ads as of 2026-10-11:
+(`act_1550461850095009`, USD). Campaigns and ad sets as read through the
+Supermetrics connector on 2026-10-12 (the "- Copy" campaign has been renamed
+since the 11th):
 
-| Campaign | Ads | Lands on | Optimises for | State |
+| Campaign | Ad set | Lands on | Optimises for | State |
 |---|---|---|---|---|
-| !Christmas Hoodie Campaign! (the "- Copy" campaign, renamed) | "!Christmas Hoodie Ad!" (active) in ad set "!Christmas Hoodie Ad Set!" | Christmas page | AddToCart since 11 Oct (Purchase before) | **Live**, $10/day, 10–20 Oct |
-| Christmas Hoodie Campaign | Christmas Hoodie Ad | Christmas page | ⚠️ AddPaymentInfo | Paused |
+| !Christmas Hoodie Campaign! (the "- Copy" campaign, renamed) | !Christmas Hoodie Ad Set!, ad "!Christmas Hoodie Ad!" | Christmas page | **AddToCart** on `1341978141149107` since 11 Oct (Purchase before) | **Live**, $10/day, 11–20 Oct, US 18+, Facebook placements only, Advantage audience |
+| !Christmas Hoodie Campaign! | Chritmas Hoodie Ad Set | Christmas page | Purchase | Paused |
+| Christmas Hoodie Campaign | Chritmas Hoodie Ad Set | Christmas page | ⚠️ AddPaymentInfo (as recorded 2026-10-11) | Paused |
 | Hoodie Campaign - Copy | Hoodie Ad | hoodie page | Purchase | Ended 8 Oct |
 | Hoodie Campaign | Hoodie Ad | hoodie page | ⚠️ AddPaymentInfo | Paused, ended 8 Oct |
 | New Traffic Campaign | New Traffic Ad | `/products/dog-life-jacket` | Landing page views | Ended 20 Sep |
 | Purchase Campaign, New Sales Campaign | none delivered | — | — | Ended 23 Sep, never served |
+
+What the live campaign did on 10–12 Oct, from the same read: $34.98 spent,
+2,635 impressions, 152 link clicks, 123 landing page views, 143 ViewContent,
+and no AddToCart, InitiateCheckout or Purchase. 91 of the 152 clicks were
+women 55+ (65+: 59, 55–64: 32), and 90 came from the Facebook app, 40 from
+Instagram, 18 from Audience Network — all on phones. So the ad set has been
+optimising for an event the page produced zero times, which leaves Meta
+nothing to learn from; and on a Payment Link page AddToCart and
+InitiateCheckout are the same tap, so even one sale would teach it two
+things at once. The storefront page separates them (see State of play).
 
 Earlier, the old ad account `act_1431226177195979` (CZK) ran four "Dog Vest"
 ads to `/products/dog-life-jacket`, optimising for Purchase or
@@ -1012,17 +1060,20 @@ cd apps/storefront
 npm run build && npx wrangler deploy -c wrangler.staging.toml
 ```
 
-**Merging to `main` does not deploy.** `.github/workflows/deploy.yml` checks,
-tests and builds on every push, but `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID` have never been added as repository secrets. Without
-them the run skips `wrangler deploy` and posts a "chillmypet.com was NOT
-deployed" warning on its summary page. It used to fail at that step instead,
-which emailed the owner a failure on every merge even though the code was fine.
-Once both secrets exist the same workflow deploys production on every merge,
-with no code change. Until then, deploy by hand as below, and check the live page
-before assuming a merged fix is running. On 2026-10-10 chillmypet.com still
-served a build from before 2026-10-08: the `/qndl` GTM gateway was absent from
-its HTML.
+**Merging to `main` deploys.** `.github/workflows/deploy.yml` checks, tests,
+builds and runs `wrangler deploy` on every push to `main`. `CLOUDFLARE_API_TOKEN`
+and `CLOUDFLARE_ACCOUNT_ID` are repository secrets since 2026-10-11: run
+38184138598 (the merge of PR #40) deployed version `7780424a…` to chillmypet.com
+and www, which is where the paragraph that used to stand here — the secrets were
+missing and production shipped by hand — stopped being true. Two consequences.
+A merge is a release, so review a pull request as one. And the database has to
+keep up with the code: the same workflow now runs `db:migrate` and
+`db:products` before the deploy when the Turso secrets are repository secrets
+(see the Christmas hoodie under State of play for why). The fallback stays: if
+the Cloudflare secret ever goes missing the run posts a "chillmypet.com was NOT
+deployed" warning on its summary page instead of failing, and a green run with
+that warning means production did not change. `/_app/version.json` on the live
+site gives a deploy's build time when you need to know what is running.
 
 The production config (`wrangler.toml`) declares chillmypet.com and www as
 custom domains. Deploying it points the live domain at whatever you just built,

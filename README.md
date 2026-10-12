@@ -303,13 +303,22 @@ npm run build
 npm run deploy
 ```
 
-Or push to `main` and let `.github/workflows/deploy.yml` run it, once
-`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are repository secrets. Give
-the token the "Edit Cloudflare Workers" template plus **Zone → DNS → Edit** on
-each store domain. Until they are set, the workflow still checks, tests and
-builds, then skips the deploy and says so with a warning on the run's summary
-page. A green run without that warning is a deploy. A green run with it means
-production did not change.
+Or push to `main` and let `.github/workflows/deploy.yml` run it, which it does:
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are repository secrets, so
+every merge to `main` is a release. The token needs the "Edit Cloudflare
+Workers" template plus **Zone → DNS → Edit** on each store domain. If the secret
+is ever missing, the workflow still checks, tests and builds, then skips the
+deploy and says so with a warning on the run's summary page. A green run without
+that warning is a deploy. A green run with it means production did not change.
+
+The same workflow brings the live database up to date before it deploys —
+`npm run db:migrate`, then `npm run db:products`, which adds any product the
+catalogue scripts define and the store lacks and never rewrites one that is
+selling — when `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are also repository
+secrets. Without them the Worker still ships and the run's summary says the
+database step was skipped, with the command to run by hand. A product page is
+code *and* a row: the manifest deploys with the Worker, but the page is a 404
+until the row exists.
 
 Worker secrets:
 

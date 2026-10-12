@@ -45,6 +45,16 @@ function check(label, cond, detail) {
 	check('no ratings or reviews', !/★|Pet Parents|What owners are saying/.test(html));
 	check('og:image is absolute', /property="og:image" content="https?:\/\//.test(html));
 	check('the Meta pixel is the dataset 1341978141149107', html.includes("fbq('init', '1341978141149107'"));
+	// The badge row promises what the next page offers. Apple Pay is on in
+	// Stripe and chillmypet.com is a registered Apple Pay domain; Google Pay is
+	// off, so its badge must stay off too until someone turns it on in Stripe.
+	check('SSR shows Apple Pay among the accepted payment methods', /aria-label="Apple Pay"/.test(html));
+	check('and not Google Pay, which is off in Stripe', !/aria-label="Google Pay"/.test(html));
+	// The site header, not the page: a shopper who taps the logo and comes back
+	// through the menu has to be able to find this page again.
+	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
+	check('the site header links to this page', header.includes('href="/products/christmas-pouch-hoodie"'), header.slice(0, 400));
+	check('and to the life jacket', header.includes('href="/products/dog-life-jacket"'));
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
@@ -57,6 +67,10 @@ const ctx = await browser.newContext({
 // fbq.queue where it can be read back without touching Meta.
 await ctx.route('**/connect.facebook.net/**', (route) => route.abort());
 await ctx.route('**/facebook.com/tr*', (route) => route.abort());
+// And GA4's hits, for the same reason: a test run is not a visit, and the live
+// container would otherwise report one for 127.0.0.1. See tests/e2e.mjs.
+await ctx.route('**/google.com/g/collect*', (route) => route.abort());
+await ctx.route('**/google-analytics.com/**', (route) => route.abort());
 
 const page = await ctx.newPage();
 const pageErrors = [];
