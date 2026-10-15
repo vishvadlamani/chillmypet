@@ -623,6 +623,11 @@ know:
   (pawlidaypets.com, whose page has no copy and gave none). It has no
   compare-at on purpose. Change it in the script and the live store needs a
   catalogue migration — `products.js` is additive and never rewrites a row.
+- **It opens on a campaign hero, not a product frame.** `campaign_hero` and
+  `step_list` are host blocks in `$lib/blocks`, registered in `blocks.ts`
+  beside the hoodie's. The hero carries the page's one h1 and an in-page
+  anchor to the picker (`#variant-picker`), never a route, and quotes no price
+  and no date, so it cannot contradict the picker or the delivery strip.
 - **Colour fills the design slot.** The picker's `designLabel` reads "Colour",
   its codes are `red` and `green`, which both language packs already name,
   and `item_variant` reaches GA4 as `green / M`. SKUs are `CMP-XT-<COLOUR>-<SIZE>`
@@ -1180,9 +1185,15 @@ The Dog Christmas Tree Costume's five photos
 (`static/products/dog-christmas-costume/`) were supplied by the owner in chat on
 2026-10-12 as screenshots of a supplier listing, with the instruction to use
 them; the same caveat as the hoodie's applies — ask before treating them as
-cleared for ads. They carry no third-party branding; EXIF was stripped, and the
-two gallery shots were padded (never cropped) to the gallery's frame so the
-star stays in. Its copy was written here.
+cleared for ads. They carry no third-party branding and EXIF was stripped. What
+the page serves is a treatment of them, not the originals: the product was cut
+out with a local background-removal model (rembg, u2net/u2netp, run in a
+sandbox so no photo left the machine; the paid Adobe and Canva removers were
+not available) and set on a generated cream studio backdrop with a soft shadow,
+so all four shots read as one shoot. `hero-red.webp` is the same cut-out on a
+transparent background. The originals, as supplied, are in the history of this
+directory. Nothing about the product was generated or altered: it is the real
+costume on a plain background. Its copy was written here.
 
 Don't add further third-party branding, photography, or marketing text without
 the owner confirming rights for that specific source.

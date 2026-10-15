@@ -2,9 +2,11 @@ import { DR_BLOCKS } from '@funnel/blocks-dr';
 import type { PageComponentMap } from '@funnel/core/svelte';
 import PaymentIcons from '$lib/components/PaymentIcons.svelte';
 import BenefitCards from '$lib/blocks/BenefitCards.svelte';
+import CampaignHero from '$lib/blocks/CampaignHero.svelte';
 import DesignGallery from '$lib/blocks/DesignGallery.svelte';
 import DesignSizePicker from '$lib/blocks/DesignSizePicker.svelte';
 import SizeGuide from '$lib/blocks/SizeGuide.svelte';
+import StepList from '$lib/blocks/StepList.svelte';
 
 /**
  * The block registry the product pages render with: the library, plus the
@@ -21,6 +23,8 @@ export const STORE_BLOCKS: PageComponentMap = {
 	...DR_BLOCKS,
 	payment_badges: { render: PaymentIcons },
 	benefit_cards: { render: BenefitCards },
+	campaign_hero: { render: CampaignHero },
+	step_list: { render: StepList },
 	design_gallery: { render: DesignGallery },
 	design_size_picker: { render: DesignSizePicker },
 	size_guide: { render: SizeGuide }

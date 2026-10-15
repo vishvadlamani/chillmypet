@@ -59,7 +59,13 @@
 				{t('common.brand')}
 			</a>
 
-			<ul class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-ink-600">
+			<!-- On a phone the product names no longer fit beside the brand, and
+			     three of them wrapped the header onto three lines. Below `sm` the
+			     list takes its own line and scrolls sideways instead of wrapping;
+			     the negative margin lets the first link start at the gutter. -->
+			<ul
+				class="flex items-center gap-x-5 overflow-x-auto whitespace-nowrap text-sm text-ink-600 [scrollbar-width:none] max-sm:order-last max-sm:-mx-4 max-sm:w-[calc(100%+2rem)] max-sm:px-4 [&::-webkit-scrollbar]:hidden"
+			>
 				<li><a class="hover:text-ink-900" href="/">{t('nav.home')}</a></li>
 				<!-- One link per product that can actually be bought here, from the
 				     layout's load: the catalogue decides, so a second product is
