@@ -34,7 +34,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	// Sources compose — each one is a namespace a `$ref` path can start with.
 	const resolve = createRefResolver({
-		bundles,
+		bundles: {
+			...bundles,
+			// The same tiers without the undiscounted total, for a page that
+			// shows its saving as words rather than a struck-through price.
+			plain: bundles.tiers.map(({ compareAt: _, ...tier }) => tier)
+		},
 		offer,
 		product,
 		// Summary and wall live in one namespace but two files: the average moves
@@ -57,7 +62,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		variants: page.pickSize ? loadVariantPicker(catalogue, locale) : {},
 		// Config, not computation: see `$lib/store/christmas.ts`. Empty once the
 		// cut-off has passed, which drops the strip through `requires`.
-		christmas: page.theme === 'christmas' ? loadChristmasDelivery(settings) : {},
+		christmas: page.theme ? loadChristmasDelivery(settings) : {},
 		// Not a query: the scarcity bar is a marketing number from store
 		// settings, and inventory is maintained outside this system.
 		stock: loadStock(settings)

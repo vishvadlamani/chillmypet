@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Block, FlowContext } from '@funnel/core';
+	import { emphasize } from '@funnel/blocks-dr/tokens';
 
 	/**
 	 * Design, then size, then one button.
@@ -11,11 +12,19 @@
 	 *
 	 * The size starts empty on purpose. It is the wearer's size, and only the
 	 * wearer knows it; a default would quietly ship every order in S.
+	 *
+	 * `look: 'pills'` is the quieter storefront layout (the costume page): colour
+	 * and size as pills side by side, then optional bundle cards, then one
+	 * full-width button. `tiers` are the host's quantity breaks, priced by the
+	 * server; the chosen tier's id goes into `tierField` so the sticky bar can
+	 * show and buy the same thing, and its unit count goes out with the add.
 	 */
 	let { block, ctx }: { block: Block; ctx: FlowContext } = $props();
 
 	type Design = { code: string; label: string; swatch?: string; image?: string };
 	type Size = { code: string; label: string };
+	type Tier = { id: string; title?: string; subtitle?: string; price?: string; image?: string; units?: number };
+	type TierCopy = { units: number; title?: string; tag?: string; sub?: string; ribbon?: string };
 
 	const p = $derived(
 		(block.props ?? {}) as {
@@ -25,6 +34,8 @@
 			available?: string[];
 			price?: string;
 			priceNote?: string;
+			/** One line under the price, saying what this is for. `**bold**` is honoured. */
+			tagline?: string;
 			designLabel?: string;
 			sizeLabel?: string;
 			sizeNote?: string;
@@ -32,8 +43,22 @@
 			sizeGuideLabel?: string;
 			sizeMissing?: string;
 			cta?: string;
+			look?: 'cards' | 'pills';
+			tiers?: Tier[];
+			tierField?: string;
+			/** Words for each tier, matched on `units`. Prices always come from `tiers`. */
+			tierCopy?: TierCopy[];
+			tiersTitle?: string;
+			/** Small print under the button. */
+			ctaNote?: string;
 		}
 	);
+	const pills = $derived(p.look === 'pills');
+	const tiers = $derived((p.tiers ?? []).filter((t) => t.id));
+	const tierField = $derived(p.tierField ?? 'bundle');
+	const tier = $derived(tiers.find((t) => t.id === ctx.state.get(tierField)) ?? tiers[0] ?? null);
+	const units = $derived(Math.max(1, tier?.units ?? 1));
+	const copyFor = (t: Tier) => p.tierCopy?.find((c) => c.units === (t.units ?? 1));
 
 	const designs = $derived(p.designs ?? []);
 	const sizes = $derived(p.sizes ?? []);
@@ -84,19 +109,137 @@
 		ctx.track('size_selected', { size: code });
 	}
 
+	function pickTier(id: string) {
+		ctx.state.set(tierField, id);
+		ctx.track('bundle_selected', { bundle: id });
+	}
+
 	function add() {
-		ctx.submit('add_to_cart', { design, size, units: 1, source: 'picker' });
-		ctx.track('add_to_cart_click', { source: 'picker', design, size });
+		ctx.submit('add_to_cart', { design, size, units, bundle: tier?.id, source: 'picker' });
+		ctx.track('add_to_cart_click', { source: 'picker', design, size, units });
 	}
 
 	const designName = $derived(designs.find((d) => d.code === design)?.label ?? '');
 </script>
 
+{#snippet rich(text: string)}
+	{#each emphasize(text) as span, i (i)}
+		{#if span.strong}<strong>{span.text}</strong>{:else}{span.text}{/if}
+	{/each}
+{/snippet}
+
+{#if pills}
+<div class="picker pills" id="variant-picker">
+	{#if p.price}
+		<p class="price">
+			<span class="amount">{p.price}</span>
+			{#if p.priceNote}<span class="chip">{p.priceNote}</span>{/if}
+		</p>
+	{/if}
+	{#if p.tagline}<p class="tagline">{@render rich(p.tagline)}</p>{/if}
+
+	<div class="options">
+		<fieldset>
+			<legend>{p.designLabel ?? 'Design'}</legend>
+			<div class="pill-row">
+				{#each designs as d (d.code)}
+					<label class="pill" class:checked={d.code === design}>
+						<input
+							type="radio"
+							name="design"
+							value={d.code}
+							checked={d.code === design}
+							onchange={() => pickDesign(d.code)}
+						/>
+						<i class="dot" style:background={d.swatch ?? '#ccc'}></i>
+						<span>{d.label}</span>
+					</label>
+				{/each}
+			</div>
+		</fieldset>
+
+		<fieldset
+			id="size-picker"
+			bind:this={sizeFieldset}
+			aria-describedby="size-note{prompted ? ' size-error' : ''}"
+		>
+			<legend class="split">
+				<span>{p.sizeLabel ?? 'Size'}{#if size}: <strong>{size}</strong>{/if}</span>
+				{#if p.sizeGuideHref}
+					<a class="guide-link" href={p.sizeGuideHref}>{p.sizeGuideLabel ?? 'Size guide'} ↗</a>
+				{/if}
+			</legend>
+			<div class="pill-row">
+				{#each sizes as s (s.code)}
+					{@const ok = buyable(design, s.code)}
+					<label class="pill" class:checked={s.code === size} class:off={!ok}>
+						<input
+							type="radio"
+							name="size"
+							value={s.code}
+							checked={s.code === size}
+							disabled={!ok}
+							onchange={() => pickSize(s.code)}
+						/>
+						<span>{s.label}</span>
+					</label>
+				{/each}
+			</div>
+		</fieldset>
+	</div>
+	<p class="fine" id="size-note">{p.sizeNote ?? ''}</p>
+	<p class="error" id="size-error" role="alert">
+		{#if prompted}{p.sizeMissing ?? 'Pick your size first.'}{/if}
+	</p>
+
+	{#if tiers.length > 1}
+		<fieldset class="tiers">
+			<legend class="tiers-title"><span>{p.tiersTitle ?? 'Choose your bundle'}</span></legend>
+			{#each tiers as t (t.id)}
+				{@const words = copyFor(t)}
+				<label class="tier" class:checked={t.id === tier?.id}>
+					<input
+						type="radio"
+						name="tier"
+						value={t.id}
+						checked={t.id === tier?.id}
+						onchange={() => pickTier(t.id)}
+					/>
+					{#if words?.ribbon}<span class="ribbon">{words.ribbon}</span>{/if}
+					<span class="tier-main">
+						{#if t.image}<img src={t.image} alt="" width="40" height="48" loading="lazy" />{/if}
+						<span class="tier-text">
+							<strong>{words?.title ?? t.title}</strong>
+							{#if words?.tag}<em>{words.tag}</em>{/if}
+							{#if words?.sub}<small>{words.sub}</small>{/if}
+						</span>
+						<b class="tier-price">{t.price}</b>
+					</span>
+					{#if t.subtitle}<span class="saving">♥ {t.subtitle} with {t.units} costumes</span>{/if}
+				</label>
+			{/each}
+		</fieldset>
+	{/if}
+
+	<button type="button" class="cta" onclick={add}>
+		<span>{p.cta ?? 'Add to cart'}</span>
+		{#if tier?.price ?? p.price}<span>{tier?.price ?? p.price}</span>{/if}
+	</button>
+	{#if p.ctaNote}<p class="fine center">{p.ctaNote}</p>{/if}
+</div>
+{:else}
 <div class="picker" id="variant-picker">
 	{#if p.price}
 		<p class="price">
 			<span class="amount">{p.price}</span>
 			{#if p.priceNote}<span class="note">{p.priceNote}</span>{/if}
+		</p>
+	{/if}
+	{#if p.tagline}
+		<p class="tagline">
+			{#each emphasize(p.tagline) as span, i (i)}
+				{#if span.strong}<strong>{span.text}</strong>{:else}{span.text}{/if}
+			{/each}
 		</p>
 	{/if}
 
@@ -160,6 +303,7 @@
 		{p.cta ?? 'Add to cart'}{#if p.price}&nbsp;· {p.price}{/if}
 	</button>
 </div>
+{/if}
 
 <style>
 	.picker {
@@ -184,6 +328,13 @@
 		font-size: 15px;
 		color: var(--xmas-pine, #1f5f3f);
 		font-weight: 600;
+	}
+	/* Tucked under the price: the two read as one statement. */
+	.tagline {
+		margin: -12px 0 0;
+		font-size: 17px;
+		line-height: 1.4;
+		color: var(--brand-navy, #0b3c49);
 	}
 	fieldset {
 		border: 0;
@@ -318,5 +469,258 @@
 		.cta {
 			transition: none;
 		}
+	}
+	/* ---- look: 'pills' ------------------------------------------------- */
+	.pills {
+		gap: 16px;
+		--g: var(--tree-green, #285b43);
+		--ink: var(--tree-ink, #243b31);
+		color: var(--ink);
+	}
+	.pills .amount {
+		font-size: 28px;
+		line-height: 28px;
+		letter-spacing: 1px;
+		color: var(--g);
+	}
+	.pills .chip {
+		align-self: center;
+		border-radius: 4px;
+		background: var(--g);
+		color: #fff;
+		padding: 4px 8px;
+		font-size: 11px;
+		line-height: 1.6;
+		font-weight: 700;
+		letter-spacing: 0.9px;
+		text-transform: uppercase;
+	}
+	.pills .tagline {
+		margin: -4px 0 0;
+		font-size: 16px;
+		line-height: 25.6px;
+		color: var(--ink);
+	}
+	.pills .options {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 16px;
+	}
+	.pills fieldset {
+		position: relative;
+	}
+	.pills legend {
+		margin-bottom: 8px;
+		padding: 0 2px;
+		font-size: 13px;
+		line-height: 20.8px;
+		font-weight: 700;
+		color: var(--ink);
+	}
+	.pills legend.split {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 8px;
+		width: 100%;
+	}
+	.pills .guide-link {
+		font-weight: 400;
+		white-space: nowrap;
+		font-size: 12px;
+		line-height: 20.8px;
+		color: var(--ink);
+		text-decoration: none;
+	}
+	.pills .guide-link:hover {
+		text-decoration: underline;
+	}
+	.pill-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.pill {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 40px;
+		padding: 8px 18px;
+		border: 1px solid var(--tree-line, #c7cec2);
+		border-radius: 24px;
+		background: var(--tree-card, #fffdf9);
+		font-size: 13px;
+		line-height: 20.8px;
+		cursor: pointer;
+		color: var(--ink);
+	}
+	.pill.checked {
+		border-color: var(--g);
+		background: var(--g);
+		color: #fff;
+	}
+	.pill.off {
+		opacity: 0.4;
+		text-decoration: line-through;
+		cursor: not-allowed;
+	}
+	.pill:has(input:focus-visible) {
+		outline: 2px solid var(--g);
+		outline-offset: 2px;
+	}
+	.dot {
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+		box-shadow: 0 0 0 1px rgb(255 255 255 / 0.7);
+	}
+	.pills .fine {
+		margin: -4px 0 0;
+		font-size: 11px;
+		line-height: 16.5px;
+		color: var(--tree-muted, #637168);
+	}
+	.pills .fine.center {
+		margin: 0;
+		text-align: center;
+	}
+	.pills .error {
+		margin: -10px 0 0;
+		min-height: 0;
+	}
+	.pills .error:empty {
+		display: none;
+	}
+	.tiers {
+		display: grid;
+		gap: 16px;
+		margin-top: 4px;
+	}
+	.tiers-title {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		width: 100%;
+		margin: 0 0 6px;
+		font-size: 14px;
+		line-height: 17.5px;
+		font-weight: 800;
+		letter-spacing: 0.6px;
+		text-transform: uppercase;
+		color: var(--tree-green-deep, #194b36);
+	}
+	.tiers-title::before,
+	.tiers-title::after {
+		content: '';
+		flex: 1;
+		border-top: 1px solid var(--ink);
+	}
+	.tier {
+		position: relative;
+		display: block;
+		border: 2px solid #c9d0c8;
+		border-radius: 10px;
+		background: var(--tree-card, #fffdf9);
+		cursor: pointer;
+	}
+	.tier.checked {
+		border-color: var(--g);
+		background: var(--tree-tint, #edf2eb);
+	}
+	.tier:has(input:focus-visible) {
+		outline: 2px solid var(--g);
+		outline-offset: 2px;
+	}
+	.tier .ribbon {
+		position: absolute;
+		top: -12px;
+		right: 12px;
+		border-radius: 4px;
+		background: var(--tree-ribbon, #a32938);
+		color: #fff;
+		padding: 5px 10px;
+		font-size: 11px;
+		line-height: 14.3px;
+		font-weight: 700;
+		letter-spacing: 0;
+	}
+	.tier-main {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 22px 14px 16px;
+	}
+	.tier-main img {
+		width: 40px;
+		height: 48px;
+		border-radius: 6px;
+		object-fit: cover;
+		flex: none;
+	}
+	.tier-text {
+		display: flex;
+		flex: 1;
+		min-width: 0;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 4px;
+	}
+	.tier-text strong {
+		font-size: 15px;
+		line-height: 17.25px;
+		letter-spacing: 0;
+		color: #20221e;
+	}
+	.tier-text em {
+		border-radius: 4px;
+		background: var(--tree-chip, #f0e3c4);
+		color: var(--tree-chip-ink, #54401c);
+		padding: 4px 7px;
+		font-size: 10px;
+		line-height: 12px;
+		font-style: normal;
+	}
+	.tier-text small {
+		font-size: 10px;
+		line-height: 14.5px;
+		color: #55554e;
+	}
+	.tier-price {
+		font-size: 20px;
+		line-height: 22px;
+		letter-spacing: 0;
+		color: var(--g);
+	}
+	.saving {
+		display: block;
+		border-radius: 0 0 8px 8px;
+		background: var(--tree-saving, #f3ead6);
+		color: var(--g);
+		padding: 8px 16px;
+		font-size: 12px;
+		line-height: 14.4px;
+		font-weight: 600;
+	}
+	.pills .cta {
+		display: flex;
+		justify-content: center;
+		gap: 22px;
+		width: 100%;
+		margin-top: 4px;
+		border: 0;
+		border-radius: 28px;
+		background: var(--g);
+		color: #fff;
+		padding: 17px 24px;
+		font-size: 17px;
+		line-height: 27.2px;
+		font-weight: 700;
+		letter-spacing: 1px;
+		text-transform: uppercase;
+		box-shadow: none;
+	}
+	.pills .cta:hover {
+		background: var(--tree-green-deep, #194b36);
 	}
 </style>

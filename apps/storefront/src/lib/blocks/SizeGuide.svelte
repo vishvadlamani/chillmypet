@@ -23,14 +23,22 @@
 			rows?: Row[];
 			pending?: string;
 			contact?: string;
+			eyebrow?: string;
+			/** A sentence under the title. */
+			lead?: string;
+			/** `band`: the tree storefront's sage band, text beside the table on wide screens. */
+			look?: 'plain' | 'band';
 		}
 	);
 	const rows = $derived(p.rows ?? []);
 	const columns = $derived(p.columns ?? []);
 </script>
 
-<section class="guide" id="size-guide" aria-labelledby="size-guide-title">
+<section class="guide" class:band={p.look === 'band'} id="size-guide" aria-labelledby="size-guide-title">
+	<div class="intro">
+	{#if p.eyebrow}<p class="eyebrow">{p.eyebrow}</p>{/if}
 	<h2 id="size-guide-title">{p.title ?? 'Size guide'}</h2>
+	{#if p.lead}<p class="lead">{p.lead}</p>{/if}
 
 	{#if p.tips?.length}
 		<ul class="tips">
@@ -43,6 +51,8 @@
 			{/each}
 		</ul>
 	{/if}
+	{#if p.look === 'band' && p.contact}<p class="contact">{p.contact}</p>{/if}
+	</div>
 
 	{#if rows.length}
 		<div class="table-wrap">
@@ -67,7 +77,7 @@
 		<p class="pending">{p.pending}</p>
 	{/if}
 
-	{#if p.contact}<p class="contact">{p.contact}</p>{/if}
+	{#if p.contact && p.look !== 'band'}<p class="contact">{p.contact}</p>{/if}
 </section>
 
 <style>
@@ -131,5 +141,87 @@
 		padding: 8px 12px;
 		border-bottom: 1px solid #d6dfe2;
 		text-align: left;
+	}
+
+	/* ---- look: 'band' ------------------------------------------------- */
+	.band {
+		max-width: none;
+		width: 100vw;
+		margin-left: calc(50% - 50vw);
+		padding: 28px 18px;
+		background: var(--tree-sage, #eeeede);
+		color: var(--tree-ink, #243b31);
+		display: grid;
+		gap: 24px;
+	}
+	@media (min-width: 768px) {
+		.band {
+			width: auto;
+			max-width: 1176px;
+			margin: 0 auto;
+			border-radius: 12px;
+			padding: 48px 72px;
+			grid-template-columns: 1fr 1fr;
+			gap: 56px;
+			align-items: start;
+		}
+	}
+	.band .eyebrow {
+		margin: 0 0 14px;
+		font-size: 11px;
+		line-height: 17.6px;
+		font-weight: 700;
+		letter-spacing: 1.8px;
+		text-transform: uppercase;
+	}
+	.band h2 {
+		margin: 0 0 14px;
+		font-size: 27px;
+		line-height: 33.75px;
+		letter-spacing: -0.5px;
+		color: var(--tree-green, #285b43);
+	}
+	@media (min-width: 768px) {
+		.band h2 {
+			font-size: 36px;
+			line-height: 45px;
+		}
+	}
+	.band .lead {
+		margin: 0 0 14px;
+		font-size: 15px;
+		line-height: 24px;
+	}
+	.band .tips {
+		gap: 6px;
+		font-size: 11px;
+		line-height: 16.5px;
+		color: var(--tree-muted, #637168);
+	}
+	.band .tips li {
+		padding-left: 0;
+	}
+	.band .tips li::before {
+		content: none;
+	}
+	.band .contact {
+		font-size: 11px;
+		line-height: 16.5px;
+		color: var(--tree-muted, #637168);
+	}
+	.band table {
+		max-width: none;
+		background: transparent;
+		font-size: 12px;
+		line-height: 19.2px;
+	}
+	.band th,
+	.band td {
+		padding: 15px 8px;
+		border: 1px solid var(--tree-line, #c7cec2);
+		border-width: 1px 0;
+	}
+	.band thead th {
+		font-weight: 700;
 	}
 </style>

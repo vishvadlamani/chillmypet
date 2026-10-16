@@ -32,6 +32,23 @@
 	 */
 	let ownsAnnouncement = $derived(Boolean(page.data.definition));
 
+	/**
+	 * The tree storefront (the costume page) sets its strip ABOVE the header,
+	 * the way a shop's own bar sits, so the layout lifts the page's announcement
+	 * up here and the theme hides the in-page copy. Still one strip, still the
+	 * page's words.
+	 */
+	let treeChrome = $derived(page.data.theme === 'tree');
+	let liftedStrip = $derived.by(() => {
+		if (!treeChrome) return '';
+		const blocks = (page.data.definition?.blocks ?? []) as {
+			component: string;
+			props?: { message?: unknown };
+		}[];
+		const message = blocks.find((b) => b.component === 'announcement_bar')?.props?.message;
+		return typeof message === 'string' ? message : '';
+	});
+
 	/** The admin renders bare: no shop header, cart or footer around an order list. */
 	let isAdmin = $derived(page.url.pathname === '/admin' || page.url.pathname.startsWith('/admin/'));
 
@@ -43,7 +60,10 @@
 {#if isAdmin}
 	{@render children()}
 {:else}
-<div class="flex min-h-screen flex-col">
+<div class="flex min-h-screen flex-col" class:tree-chrome={treeChrome}>
+	{#if liftedStrip}
+		<p class="tree-strip">{liftedStrip}</p>
+	{/if}
 	{#if !ownsAnnouncement}
 		<p class="bg-tide-700 px-4 py-2 text-center text-sm text-white">
 			{t('announcement.banner', { discount: 30 })}
