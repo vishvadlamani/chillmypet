@@ -39,7 +39,7 @@ function check(label, cond, detail) {
 	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Dog Christmas Tree Costume/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('the gallery comes before the h1', html.indexOf('class="gallery') > -1 && html.indexOf('class="gallery') < html.search(/<h1[\s>]/));
-	check('the gallery carries every angle, not only the colours', /aria-label="Show photo 5: Close-up of the hood/.test(html));
+	check('the gallery carries every angle, not only the colours', /aria-label="Show photo 5: A tabby cat wearing the green/.test(html));
 	check('and counts them under the photo', /Swipe to explore[\s\S]{0,200}?1 \/ 5/.test(html));
 	check('the story section follows the buy box', /<h2[^>]*>[\s\S]{0,120}?steals the Christmas card/.test(html));
 	check('the closing band points back at the picker, under an h2', /<h2[^>]*>[\s\S]{0,120}?Every tree needs a little one/.test(html) && /href="#variant-picker"/.test(html));
@@ -162,7 +162,7 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.getByRole('button', { name: /^Show photo 3:/ }).click();
 check(
 	'the gallery shows a photo of the whole product',
-	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/green-back.jpg') &&
+	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/details.jpg') &&
 		/3 \/ 5/.test(await page.locator('.gallery .hint').innerText())
 );
 check(
@@ -179,7 +179,7 @@ check('and one costume puts it back', (await page.locator('#variant-picker butto
 await page.locator('#variant-picker label', { hasText: 'Green' }).click();
 check(
 	'the gallery follows the colour',
-	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/green.jpg')
+	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/green-studio.jpg')
 );
 await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();
 check('the error clears once a size is chosen', (await page.locator('#size-error').innerText()).trim() === '');

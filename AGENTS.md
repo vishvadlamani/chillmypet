@@ -1214,7 +1214,21 @@ pixels are the supplier's, with levels, +7% saturation and light sharpening
 only. Gallery shots are 1540x1379 (the gallery's 1100:985 frame at retina
 size), the grid shots 1400 square. `hero-both.webp` is the red dog and the
 green costume from the same cut-outs, side by side on a transparent
-background; it is no longer on the page but is kept for ads. Nothing about the product was generated or altered: it
+background; it is no longer on the page but is kept for ads.
+
+On 2026-10-16 the owner replaced the costume page's photos with
+littletreepups.com's (same dropshipped product; the owner's call). Taken from
+that page and re-encoded as plain JPEGs with no metadata: `worn-red.jpg` (now
+their red studio shot, so the catalogue's listing image, the sticky bar, the
+bundle cards and og:image all show it), `green-studio.jpg` (the gallery's
+green, via the gallery's `photos` override, since the catalogue's green row is
+still the flat-lay), `details.jpg`, `duo.jpg`, `cat.jpg`, `living-room.jpg`,
+`shih-tzu.jpg`, `schnauzer.jpg`. Not taken: their size-guide graphic (their
+wordmark and their measurements) and their colour graphic (it promises a
+colour per pet inside a bundle, which ours does not do). Their lifestyle shots
+are AI-styled, and the page says so under the photo pair, as theirs does. The
+older supplier treatments (`red.jpg`, `green.jpg`, `green-back.jpg`,
+`hood-detail.jpg`) stay on disk because catalogue media rows point at them. Nothing about the product was generated or altered: it
 is the real costume on a plain background. Its copy was written here.
 
 Don't add further third-party branding, photography, or marketing text without

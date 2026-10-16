@@ -30,10 +30,21 @@
 			stateField?: string;
 			title?: string;
 			hint?: string;
+			/**
+			 * A page's own photo for a design, by code, in place of the
+			 * catalogue's. Lets a page reshoot a colour without a catalogue
+			 * migration; the design itself still comes from the catalogue.
+			 */
+			photos?: Record<string, { src: string; alt?: string }>;
 		}
 	);
 
-	const designs = $derived(p.designs ?? []);
+	const designs = $derived(
+		(p.designs ?? []).map((d) => {
+			const own = p.photos?.[d.code];
+			return own?.src ? { ...d, image: own.src, alt: own.alt ?? d.alt } : d;
+		})
+	);
 	const extras = $derived((p.extras ?? []).filter((e) => e.src));
 	const field = $derived(p.stateField ?? 'design');
 	const current = $derived(

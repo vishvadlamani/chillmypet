@@ -55,12 +55,21 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			requires: ['variants.designs'],
 			props: {
 				designs: { $ref: 'variants.designs' },
+				// Red is the catalogue's own photo (worn-red.jpg, the listing image
+				// everywhere else too). Green's catalogue photo is a flat-lay, so the
+				// page shows the green costume worn instead.
+				photos: {
+					green: {
+						src: '/products/dog-christmas-costume/green-studio.jpg',
+						alt: 'A small curly-haired dog wearing the green Christmas tree costume, hood up, gold star on top'
+					}
+				},
 				// The shots not tied to a colour, after the colours' own photos, so
 				// every angle is one swipe away on the first screen.
 				extras: [
-					{ src: '/products/dog-christmas-costume/green-back.jpg', alt: 'The green costume from behind: three ruffled tiers shaped like a tree, star on top' },
-					{ src: '/products/dog-christmas-costume/red.jpg', alt: 'The red Christmas tree costume, front, with the hood, star and pom-poms' },
-					{ src: '/products/dog-christmas-costume/hood-detail.jpg', alt: 'Close-up of the hood opening, the tie cord and the button' }
+					{ src: '/products/dog-christmas-costume/details.jpg', alt: 'The green costume worn, with close-ups of the gold star topper, the pom-poms and the layered cape' },
+					{ src: '/products/dog-christmas-costume/duo.jpg', alt: 'Two small dogs by a Christmas tree, one in the green costume and one in the red' },
+					{ src: '/products/dog-christmas-costume/cat.jpg', alt: 'A tabby cat wearing the green Christmas tree costume on a rug' }
 				],
 				hint: 'Swipe to explore',
 				title: 'Dog Christmas Tree Costume photos'
@@ -174,8 +183,8 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					{ title: 'Off as fast as it goes on', body: 'One cord and one button. Dress them for the photo, the party or the visit, then let them be a dog again.' }
 				],
 				image: {
-					src: '/products/dog-christmas-costume/green-back.jpg',
-					alt: 'The green costume from behind: three ruffled tiers shaped like a tree, star on top'
+					src: '/products/dog-christmas-costume/cat.jpg',
+					alt: 'A tabby cat wearing the green Christmas tree costume on a rug'
 				}
 			}
 		},
@@ -186,14 +195,14 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			// The costume itself, in both colours: the photos are the ones we ship
 			// from, so the captions describe the costume, not a customer.
 			props: {
-				eyebrow: 'Red or green. Same little tree.',
-				title: 'Pick their colour.',
-				sub: 'Both colours have the same cut, the same glitter star and the same pom-pom baubles. Choose by your dog’s weight, not their breed.',
+				eyebrow: 'Every breed, one little tree.',
+				title: 'Small dogs, big Christmas.',
+				sub: 'Fluffy, scruffy or sleek: it sits the same on every small dog. Choose by your dog’s weight, not their breed.',
 				photos: [
-					{ src: '/products/dog-christmas-costume/worn-red.jpg', alt: 'A small white dog wearing the red Christmas tree costume, hood up, gold star on top', caption: 'Classic Christmas red' },
-					{ src: '/products/dog-christmas-costume/green.jpg', alt: 'The green Christmas tree costume laid flat: hood, tie cord, pom-poms and the glitter star', caption: 'Pine-tree green' }
+					{ src: '/products/dog-christmas-costume/shih-tzu.jpg', alt: 'A shih tzu in the green Christmas tree costume in front of a decorated tree', caption: 'Ready by the tree' },
+					{ src: '/products/dog-christmas-costume/schnauzer.jpg', alt: 'A miniature schnauzer in the green Christmas tree costume', caption: 'Ready for the photo' }
 				],
-				note: 'For small dogs and cats up to 17 lb (7.5 kg). See the size guide below.'
+				note: 'AI-styled images. For small dogs and cats up to 17 lb (7.5 kg); see the size guide below.'
 			}
 		},
 		{
@@ -206,8 +215,8 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				title: 'On in ten seconds.',
 				lead: 'No legs to thread, no zips. Hood, cord, button — done.',
 				image: {
-					src: '/products/dog-christmas-costume/hood-detail.jpg',
-					alt: 'Close-up of the hood opening, the tie cord and the button'
+					src: '/products/dog-christmas-costume/living-room.jpg',
+					alt: 'A small dog in the green Christmas tree costume sitting on a rug by the Christmas tree'
 				},
 				steps: [
 					{ title: 'Pop the hood on', body: 'Or leave it back on the neck like a collar. The tree still reads from behind.' },
