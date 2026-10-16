@@ -500,6 +500,24 @@ browser. Without `GOOGLE_PLACES_API_KEY` it degrades to manual entry, and in dev
 serves a small Canadian fixture — deliberately, because a missing env var must
 not take checkout down.
 
+**Production has no Places key, so the checkout shows the plain address form.**
+The manifest's `lookup` is a ref (`address.lookup`) that the checkout loader
+only provides with a key or in dev. It used to be unconditional: with no key
+the page offered one "Start typing your address" box that could never suggest
+anything, and the country select stayed hidden behind an "Enter address
+manually" link that only appeared after three characters. The country now
+starts on United States and can be changed; e2e and store tests run in dev, so
+they still drive the lookup path against the fixture.
+
+**Never touch `sessionStorage` or `localStorage` outside a try.** Where a
+browser blocks site data (Safari's "Block All Cookies", some in-app browsers)
+even `typeof sessionStorage` throws a SecurityError. Both block pages read
+their state bag at component init, and until 2026-10-16 the `typeof` sat
+outside the try: the product page crashed on hydration (no size, no Add to
+cart) and the checkout lost its form fields. The cart already caught its own
+errors; with storage blocked it lives in memory, which survives the client-side
+navigation from product page to checkout.
+
 ## Adding things
 
 **A language:** drop `apps/storefront/src/lib/i18n/locales/<code>.json` next to

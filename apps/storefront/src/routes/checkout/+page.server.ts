@@ -1,3 +1,5 @@
+import { dev } from '$app/environment';
+import { env } from '$env/dynamic/private';
 import { bindDefinition, createRefResolver } from '@funnel/core';
 import { CHECKOUT_PAGE } from '$lib/store/checkout-manifest';
 import { loadMarkets } from '$lib/store/markets';
@@ -13,8 +15,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	// reads in one language rather than switching to English below the title.
 	const t = createTranslator(locale);
 
+	const markets = loadMarkets(locale);
+	// The same rule `/api/address` answers by: a Places key, or the dev fixture.
+	// Anywhere else the search could only ever come back empty.
+	const lookup = Boolean(env.GOOGLE_PLACES_API_KEY) || dev;
 	const resolve = createRefResolver({
-		markets: loadMarkets(locale),
+		markets,
+		address: lookup ? { lookup: { countries: markets.codes } } : {},
 		shipping: { rates: loadShippingRates(locale, store.currency) },
 		copy: {
 			title: t('checkout.title'),

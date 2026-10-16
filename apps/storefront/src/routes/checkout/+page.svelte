@@ -58,15 +58,34 @@
 	// reason.
 	const bag: Record<string, string> = $state(
 		(() => {
-			if (typeof sessionStorage === 'undefined') return {};
+			// The `typeof` sits inside the try because merely touching the global
+			// throws a SecurityError where the browser blocks site data (Safari's
+			// "Block All Cookies", some in-app browsers). Outside it, that crashed
+			// this component on hydration and took the form fields with it.
 			try {
+				if (typeof sessionStorage === 'undefined') return {};
 				return JSON.parse(sessionStorage.getItem(KEY) ?? '{}');
 			} catch {
 				return {};
 			}
 		})()
 	);
-	const persist = () => sessionStorage.setItem(KEY, JSON.stringify(bag));
+	const persist = () => {
+		try {
+			sessionStorage.setItem(KEY, JSON.stringify(bag));
+		} catch {
+			// Blocked or full: the state still lives in `bag` for this page view.
+		}
+	};
+
+	// The store sells to the US, and a blank country select is a scroll through
+	// two hundred names on a phone. Set before the blocks mount, because the
+	// field group seeds from state once; anyone elsewhere picks their own, and an
+	// autocompleted address overwrites it.
+	if (!bag.country) {
+		bag.country =
+			countryOptions(page.data.locale ?? defaultLocale).find((c) => c.code === 'US')?.name ?? '';
+	}
 
 	const funnelState: FunnelStateAdapter = {
 		begin: () => {},

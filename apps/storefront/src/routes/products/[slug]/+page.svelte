@@ -221,15 +221,25 @@
 	// plain object leaves them frozen on whatever they saw first.
 	const bag: Record<string, string> = $state(
 		(() => {
-			if (typeof sessionStorage === 'undefined') return {};
+			// The `typeof` sits inside the try because merely touching the global
+			// throws a SecurityError where the browser blocks site data (Safari's
+			// "Block All Cookies", some in-app browsers). Outside it, that crashed
+			// this page on hydration and took the picker and Add to cart with it.
 			try {
+				if (typeof sessionStorage === 'undefined') return {};
 				return JSON.parse(sessionStorage.getItem(KEY) ?? '{}');
 			} catch {
 				return {};
 			}
 		})()
 	);
-	const persist = () => sessionStorage.setItem(KEY, JSON.stringify(bag));
+	const persist = () => {
+		try {
+			sessionStorage.setItem(KEY, JSON.stringify(bag));
+		} catch {
+			// Blocked or full: the state still lives in `bag` for this page view.
+		}
+	};
 
 	const funnelState: FunnelStateAdapter = {
 		begin: () => {},
