@@ -169,8 +169,11 @@ if (sessionCall) {
 	);
 	check(
 		'meta click identifiers ride along for the webhook',
-		p.get('metadata[fbp]') === 'fb.1.1700000000000.1234567890' &&
-			p.get('metadata[fbc]') === 'fb.1.1700000000000.testclickid'
+		// The Parameter Builder appends a tag naming itself, and must leave the
+		// click id itself untouched.
+		/^fb\.1\.1700000000000\.1234567890\.[A-Za-z0-9_-]{8}$/.test(p.get('metadata[fbp]') ?? '') &&
+			/^fb\.1\.1700000000000\.testclickid\.[A-Za-z0-9_-]{8}$/.test(p.get('metadata[fbc]') ?? ''),
+		JSON.stringify({ fbp: p.get('metadata[fbp]'), fbc: p.get('metadata[fbc]') })
 	);
 	check('the secret key is sent as a bearer token', sessionCall.auth.startsWith('Bearer sk_'));
 	check(

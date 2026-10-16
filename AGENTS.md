@@ -135,6 +135,19 @@ goes missing to iOS and ad blockers is the one worth having. `/api/track`
 refuses `Purchase` and ignores any `user_data` in its body: a sale is reported
 from the order, and a public endpoint must not be able to claim identity.
 
+**`fbc` and `fbp` come from Meta's Parameter Builder, once per request.**
+`$lib/server/meta-browser-ids.ts` runs `capi-param-builder-nodejs` in
+`hooks.server.ts` before `resolve`, writes `_fbc`/`_fbp` back as first-party
+cookies, and puts the values on `locals.metaBrowserIds`; every CAPI call reads
+them through `attributionFrom`. Two diagnostics drove this. Click ID coverage
+sat at 10%, because `_fbc` only existed if `fbevents.js` ran on the landing URL,
+so an ad blocker, ITP or a beacon that beat the script lost the click for the
+whole visit. And Meta flagged our `fbc` as a "modified fbclid". The builder
+appends a tag naming itself, and that is how Meta knows the click id arrived
+intact. Send its values verbatim: no re-minting from `fbclid`, no
+percent-encoding (the cookie is written with an identity `encode`), and keep
+`url.search` on any redirect a landing URL can hit.
+
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires
 from the Stripe webhook and the browser event from the success page, two requests
