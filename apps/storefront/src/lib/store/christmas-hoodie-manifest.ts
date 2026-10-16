@@ -100,7 +100,8 @@ export const CHRISTMAS_HOODIE_PAGE: FunnelDefinition = {
 			// which is most of this page's traffic. Link and Klarna have no
 			// artwork in payment-icons.ts; the checkout shows them itself. Add
 			// Google Pay here only once it is on in Stripe, never before.
-			props: { methods: ['visa', 'mastercard', 'amex', 'discover', 'applepay'], width: 'full' }
+			// No Discover: Stripe does not offer it to accounts in Czechia (ChillMP).
+			props: { methods: ['visa', 'mastercard', 'amex', 'applepay'], width: 'full' }
 		},
 		{
 			id: 'hero-info',

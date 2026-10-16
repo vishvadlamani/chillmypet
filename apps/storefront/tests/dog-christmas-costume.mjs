@@ -38,7 +38,7 @@ function check(label, cond, detail) {
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
 	check('SSR opens on the campaign hero', /<h1[^>]*>[\s\S]{0,200}?The cutest[\s\S]{0,200}?tree in the house/.test(html));
 	check('and the hero is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
-	check('the hero image is the cut-out, not the padded photo', /hero-red\.webp/.test(html));
+	check('the hero shows both colours as cut-outs, not the padded photo', /hero-both\.webp/.test(html));
 	check('SSR says the size is the dog’s', /Your dog’s size/.test(html));
 	check('SSR quotes the price', html.includes(`$${PRICE}`));
 	check('SSR offers both colours', html.includes('>Red<') && html.includes('>Green<'));
@@ -57,6 +57,8 @@ function check(label, cond, detail) {
 	check('the Meta pixel is the dataset 1341978141149107', html.includes("fbq('init', '1341978141149107'"));
 	check('SSR shows Apple Pay among the accepted payment methods', /aria-label="Apple Pay"/.test(html));
 	check('and not Google Pay, which is off in Stripe', !/aria-label="Google Pay"/.test(html));
+	check('and not Discover, which Stripe does not offer a Czech account', !/aria-label="Discover"/.test(html));
+	check('SSR says who the shop is, in place of reviews', html.includes('Who you’re buying from') && html.includes('1–2 business days'));
 	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
 	check('the site header links to this page', header.includes('href="/products/dog-christmas-costume"'), header.slice(0, 400));
 	check('and still to the hoodie and the life jacket', header.includes('href="/products/christmas-pouch-hoodie"') && header.includes('href="/products/dog-life-jacket"'));
