@@ -9,7 +9,7 @@
 	// string leaves.
 	let { which }: { which: 'shipping' | 'refunds' | 'privacy' | 'terms' } = $props();
 
-	const SUPPORT_EMAIL = 'contact@chillmypet.com';
+	const SUPPORT_EMAIL = 'contact.chillmypet@gmail.com';
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let t = $derived(createTranslator(locale));
