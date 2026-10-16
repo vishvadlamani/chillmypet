@@ -66,7 +66,7 @@ function cleanCustomData(input: unknown): MetaCustomData | undefined {
 	return Object.keys(out).length ? (out as MetaCustomData) : undefined;
 }
 
-export const POST: RequestHandler = async ({ request, locals, url, cookies, platform, getClientAddress }) => {
+export const POST: RequestHandler = async ({ request, locals, url, platform, getClientAddress }) => {
 	// 204 in every branch below: this is a tracking beacon, and a page must never
 	// see an error from one. Failures are logged, not surfaced.
 	const done = new Response(null, { status: 204 });
@@ -92,7 +92,7 @@ export const POST: RequestHandler = async ({ request, locals, url, cookies, plat
 			eventSourceUrl: str(body.eventSourceUrl) ?? url.href,
 			// Never taken from the body. Cookies, IP and user agent are what this
 			// request actually carries, and a page cannot claim to be someone else.
-			user: attributionFrom(cookies, url, request.headers, getClientAddress()),
+			user: attributionFrom(locals.metaBrowserIds, request.headers, getClientAddress()),
 			customData: cleanCustomData(body.customData)
 		})
 		.then((result) => {

@@ -3,6 +3,7 @@ import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
 import { newEventId } from 'ecomwithai/marketing';
 import { attributionFrom } from '$lib/server/purchase';
+import { metaBrowserIds } from '$lib/server/meta-browser-ids';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
 export const LOCALE_COOKIE = 'locale';
@@ -177,6 +178,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	event.locals.locale = locale;
 
+	// Before resolve: cookies can only be written while the response is still
+	// being built, and the document response is where `_fbc` has to land to
+	// exist before the pixel or any tracking beacon runs.
+	event.locals.metaBrowserIds = metaBrowserIds(event);
+
 	// This snippet's PageView is the only event the browser fires that never
 	// reaches the `track()` wrapper, so it is the only one that cannot mint its
 	// own id and post its own server copy. Both halves are issued here instead:
@@ -209,7 +215,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 				eventName: 'PageView',
 				eventId: pageViewEventId,
 				eventSourceUrl: event.url.href,
-				user: attributionFrom(event.cookies, event.url, event.request.headers, event.getClientAddress())
+				user: attributionFrom(
+					event.locals.metaBrowserIds,
+					event.request.headers,
+					event.getClientAddress()
+				)
 			})
 			.then((result) => {
 				if (!result.sent) console.error('Meta CAPI PageView not sent', result.reason);

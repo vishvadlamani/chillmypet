@@ -1,5 +1,6 @@
 import type { Commerce, Store } from 'ecomwithai';
 import type { Locale } from '$lib/i18n';
+import type { MetaBrowserIds } from '$lib/server/meta-browser-ids';
 
 declare global {
 	namespace App {
@@ -13,6 +14,8 @@ declare global {
 			commerce: Commerce;
 			stripePublishableKey: string;
 			stripePaymentMethodConfiguration: string;
+			/** `fbc`/`fbp` from Meta's Parameter Builder, already written back as cookies. */
+			metaBrowserIds: MetaBrowserIds;
 		}
 
 		interface PageData {

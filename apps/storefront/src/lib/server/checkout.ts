@@ -35,7 +35,7 @@ function splitName(fullName: string): { firstName: string; lastName: string } {
 }
 
 export async function placeOrder(event: RequestEvent, options: { cancelPath: string }) {
-	const { request, locals, url, cookies, platform } = event;
+	const { request, locals, url, platform } = event;
 	const { commerce } = locals;
 
 	const form = await request.formData();
@@ -134,7 +134,7 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 	// conversion. `_fbp`/`_fbc` ride along in metadata because the webhook is
 	// a request from Stripe and has none of this customer's cookies.
 	if (commerce.payments) {
-		const attribution = attributionFrom(cookies, url, request.headers);
+		const attribution = attributionFrom(locals.metaBrowserIds, request.headers);
 		const metadata = {
 			...(attribution.fbp ? { fbp: attribution.fbp } : {}),
 			...(attribution.fbc ? { fbc: attribution.fbc } : {})
@@ -196,7 +196,7 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 	const eventId = purchaseEventId(order.orderNumber);
 	const purchase = sendPurchase(commerce, order, {
 		eventSourceUrl: url.href,
-		attribution: attributionFrom(cookies, url, request.headers, event.getClientAddress())
+		attribution: attributionFrom(locals.metaBrowserIds, request.headers, event.getClientAddress())
 	});
 
 	// Don't make the customer wait on Meta. Called as a method —

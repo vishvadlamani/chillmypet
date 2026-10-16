@@ -1,5 +1,5 @@
 import { toAmount, type Commerce, type Order } from 'ecomwithai';
-import { buildFbc } from 'ecomwithai/marketing';
+import type { MetaBrowserIds } from '$lib/server/meta-browser-ids';
 
 /**
  * One Purchase conversion, shared by every path that can report one.
@@ -23,20 +23,18 @@ export type PurchaseAttribution = {
 };
 
 /**
- * Reads `_fbc`, falling back to minting one from a `fbclid` on the landing URL —
- * Meta matches far better with a click id than without, and the cookie is only
- * set if their script ran.
+ * What a Conversions API event knows about the browser behind a request.
+ * `ids` is `locals.metaBrowserIds`, built once per request in hooks.server.ts,
+ * so every event from one request carries the same click id.
  */
 export function attributionFrom(
-	cookies: { get(name: string): string | undefined },
-	url: URL,
+	ids: MetaBrowserIds,
 	headers: Headers,
 	clientIpAddress?: string
 ): PurchaseAttribution {
-	const fbclid = url.searchParams.get('fbclid');
 	return {
-		fbp: cookies.get('_fbp'),
-		fbc: cookies.get('_fbc') ?? (fbclid ? buildFbc(fbclid, Date.now()) : undefined),
+		fbp: ids.fbp,
+		fbc: ids.fbc,
 		clientIpAddress,
 		clientUserAgent: headers.get('user-agent') ?? undefined
 	};
