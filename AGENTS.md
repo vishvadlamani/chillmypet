@@ -1186,17 +1186,21 @@ The Dog Christmas Tree Costume's five photos
 2026-10-12 as screenshots of a supplier listing, with the instruction to use
 them; the same caveat as the hoodie's applies — ask before treating them as
 cleared for ads. They carry no third-party branding and EXIF was stripped. What
-the page serves is a treatment of them, not the originals: the product was cut
-out with a local background-removal model (rembg, u2net/u2netp, run in a
-sandbox so no photo left the machine; the paid Adobe and Canva removers were
-not available) and set on a generated cream studio backdrop with a soft shadow,
-so all four shots read as one shoot. `hero-both.webp` is the red cut-out and
-the green costume (cut out with rembg's BiRefNet-lite, which keeps the white
-pom-poms that u2net punched through) side by side on a transparent background,
-so the hero shows the colour choice rather than repeating the gallery's first
-photo. The originals, as supplied, are in the history of this
-directory. Nothing about the product was generated or altered: it is the real
-costume on a plain background. Its copy was written here.
+the page serves is a treatment of them, not the originals. On 2026-10-16 all
+five were redone from the originals in one pass (ca96a07 has them as supplied):
+cut out locally with rembg's BiRefNet-lite (run in the sandbox, so no photo
+left the machine; it keeps the white pom-poms that u2net punched holes in),
+the loose pom-pom props the supplier scattered round the product dropped, and
+each set on the same generated warm studio backdrop. The dog shot stands on a
+floor sweep with a contact shadow; the three flat-lays lie on a surface with a
+top-light shadow; the hood close-up keeps the supplier's framing. The product
+pixels are the supplier's, with levels, +7% saturation and light sharpening
+only. Gallery shots are 1540x1379 (the gallery's 1100:985 frame at retina
+size), the grid shots 1400 square. `hero-both.webp` is the red dog and the
+green costume from the same cut-outs, side by side on a transparent
+background, so the hero shows the colour choice rather than repeating the
+gallery's first photo. Nothing about the product was generated or altered: it
+is the real costume on a plain background. Its copy was written here.
 
 Don't add further third-party branding, photography, or marketing text without
 the owner confirming rights for that specific source.
