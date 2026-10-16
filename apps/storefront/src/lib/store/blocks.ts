@@ -2,9 +2,10 @@ import { DR_BLOCKS } from '@funnel/blocks-dr';
 import type { PageComponentMap } from '@funnel/core/svelte';
 import PaymentIcons from '$lib/components/PaymentIcons.svelte';
 import BenefitCards from '$lib/blocks/BenefitCards.svelte';
-import CampaignHero from '$lib/blocks/CampaignHero.svelte';
+import ClosingCta from '$lib/blocks/ClosingCta.svelte';
 import DesignGallery from '$lib/blocks/DesignGallery.svelte';
 import DesignSizePicker from '$lib/blocks/DesignSizePicker.svelte';
+import PhotoPair from '$lib/blocks/PhotoPair.svelte';
 import SizeGuide from '$lib/blocks/SizeGuide.svelte';
 import StepList from '$lib/blocks/StepList.svelte';
 import StorySplit from '$lib/blocks/StorySplit.svelte';
@@ -24,7 +25,8 @@ export const STORE_BLOCKS: PageComponentMap = {
 	...DR_BLOCKS,
 	payment_badges: { render: PaymentIcons },
 	benefit_cards: { render: BenefitCards },
-	campaign_hero: { render: CampaignHero },
+	closing_cta: { render: ClosingCta },
+	photo_pair: { render: PhotoPair },
 	step_list: { render: StepList },
 	story: { render: StorySplit },
 	design_gallery: { render: DesignGallery },

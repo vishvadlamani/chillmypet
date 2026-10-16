@@ -623,19 +623,27 @@ know:
   (pawlidaypets.com, whose page has no copy and gave none). It has no
   compare-at on purpose. Change it in the script and the live store needs a
   catalogue migration — `products.js` is additive and never rewrites a row.
-- **It opens on the product, and the campaign band closes it.** Reworked on
-  2026-10-16 on the pattern of littletreepups.com (layout only; none of its
-  copy, ratings, was-prices, pre-ticked add-ons or AI photos came across):
-  gallery, title as the page's one h1, price and picker on the first phone
-  screen; then `story`, `step_list`, the size guide, who we are, FAQ,
-  guarantee, and `campaign_hero` with `level: 2` as the closing band. The
-  gallery's `extras` put the three shots not tied to a colour behind arrows,
-  a swipe and thumbnails; browsing them never changes the colour, and a
-  colour picked anywhere brings its photo back. `campaign_hero`, `story` and
-  `step_list` are host blocks in `$lib/blocks`, registered in `blocks.ts`.
-  The band's button is an in-page anchor to the picker (`#variant-picker`),
-  never a route, and it quotes no price and no date, so it cannot contradict
-  the picker or the delivery strip.
+- **It looks like littletreepups.com, on the owner's instruction.** Done on
+  2026-10-16 from that page's measured styles: the `tree` theme in
+  `pages.ts` (not `christmas`), `$lib/styles/tree-theme.css` for the cream
+  and pine palette, Poppins, the hairline accordions and the site chrome
+  (`+layout.svelte` adds `tree-chrome` and lifts the page's delivery strip
+  above the header, hiding the in-page copy, so it stays one strip), plus
+  opt-in looks on the shared blocks: `design_gallery` `hint` (plain frame,
+  "Swipe to explore 1 / 5"), `design_size_picker` `look: 'pills'` (pills,
+  bundle cards, full-width pine button), `size_guide` `look: 'band'`. The
+  hoodie sets none of these and renders as before. `story`, `photo_pair` and
+  `closing_cta` are host blocks used only here. Only the look came across:
+  none of that shop's words, photos, ratings, struck prices or pre-ticked
+  add-ons.
+- **The bundle cards are the store's real quantity breaks.** They read
+  `bundles.plain` (the tiers without the undiscounted "was" total) and say
+  their saving in words. Every unit in a bundle is the colour and size
+  picked; the host adds `units` of that variant, and the server applies the
+  break at `/api/cart` and on the order, as for any cart. The chosen tier
+  lives in funnel state as `costume_bundle`, not `bundle`, so a 3-pack chosen
+  on the life jacket cannot carry over, and the sticky bar reads the same
+  field so it shows and buys what the cards show.
 - **Colour fills the design slot.** The picker's `designLabel` reads "Colour",
   its codes are `red` and `green`, which both language packs already name,
   and `item_variant` reaches GA4 as `green / M`. SKUs are `CMP-XT-<COLOUR>-<SIZE>`
@@ -1206,8 +1214,7 @@ pixels are the supplier's, with levels, +7% saturation and light sharpening
 only. Gallery shots are 1540x1379 (the gallery's 1100:985 frame at retina
 size), the grid shots 1400 square. `hero-both.webp` is the red dog and the
 green costume from the same cut-outs, side by side on a transparent
-background, so the hero shows the colour choice rather than repeating the
-gallery's first photo. Nothing about the product was generated or altered: it
+background; it is no longer on the page but is kept for ads. Nothing about the product was generated or altered: it
 is the real costume on a plain background. Its copy was written here.
 
 Don't add further third-party branding, photography, or marketing text without

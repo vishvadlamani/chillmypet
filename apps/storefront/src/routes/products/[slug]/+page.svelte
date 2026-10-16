@@ -10,11 +10,13 @@
 	import { createTranslator, defaultLocale } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
 	import type { PageData } from './$types';
+	import '$lib/styles/tree-theme.css';
 
 	let { data }: { data: PageData } = $props();
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let christmas = $derived(data.theme === 'christmas');
+	let tree = $derived(data.theme === 'tree');
 
 	// Fixed positions rather than Math.random(): the server and the browser have
 	// to render the same flakes, or hydration repaints them.
@@ -164,6 +166,9 @@
 			funnelState.set('size_prompt', String(Date.now()));
 			return;
 		}
+		// The picker states the count; the sticky bar sends the id of the tier it
+		// is showing. Either way it is the tier the buyer can see, or one.
+		const units = unitsFrom(payload);
 
 		cart.add(
 			{
@@ -173,7 +178,7 @@
 				size: entry.size,
 				unitPriceCents: entry.unitPriceCents
 			},
-			1
+			units
 		);
 
 		// The same event_id scheme as every other event: `pixel()` mints one id
@@ -183,21 +188,21 @@
 		pixel('AddToCart', {
 			content_type: 'product',
 			content_ids: [entry.sku],
-			contents: [{ id: entry.sku, quantity: 1, item_price: entry.unitPriceCents / 100 }],
-			num_items: 1,
+			contents: [{ id: entry.sku, quantity: units, item_price: entry.unitPriceCents / 100 }],
+			num_items: units,
 			currency: data.currency,
-			value: toAmount(entry.unitPriceCents)
+			value: toAmount(entry.unitPriceCents * units)
 		});
 		pushEcommerce('add_to_cart', {
 			currency: data.currency,
-			value: amount(entry.unitPriceCents),
+			value: amount(entry.unitPriceCents * units),
 			items: [
 				{
 					item_id: entry.sku,
 					item_name: data.seo.title,
 					item_variant: `${entry.colourCode} / ${entry.size}`,
 					price: amount(entry.unitPriceCents),
-					quantity: 1
+					quantity: units
 				}
 			]
 		});
@@ -245,7 +250,15 @@
 <svelte:head>
 	<title>{data.seo.title} · {t('common.brand')}</title>
 	<meta name="description" content={data.seo.description} />
-	{#if christmas}
+	{#if tree}
+		<!-- The tree storefront sets everything in Poppins, like the storefront
+		     below, plus an absolute og:image for the same reason as the hoodie. -->
+		<link
+			href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
+			rel="stylesheet"
+		/>
+		<meta property="og:image" content={new URL(data.seo.image, page.url).href} />
+	{:else if christmas}
 		<!-- Fredoka for the Christmas page, scoped like Poppins below: only this
 		     page pays for it. -->
 		<link
@@ -288,11 +301,15 @@
 	{track}
 	{submit}
 	state={funnelState}
-	rootClass={christmas
-		? 'xmas-theme relative z-[1] min-h-svh'
-		: 'storefront-type bg-fx-bg min-h-svh'}
-	rowClass="mx-auto grid w-full max-w-shell gap-8 px-gutter py-6 md:grid-cols-[715fr_537fr] md:gap-12"
-	colClass="flex flex-col gap-6"
+	rootClass={tree
+		? 'tree-theme min-h-svh'
+		: christmas
+			? 'xmas-theme relative z-[1] min-h-svh'
+			: 'storefront-type bg-fx-bg min-h-svh'}
+	rowClass={tree
+		? 'tree-row mx-auto grid w-full max-w-[1320px] gap-6 px-[18px] py-6 md:grid-cols-2 md:gap-14 md:px-[72px] md:py-12'
+		: 'mx-auto grid w-full max-w-shell gap-8 px-gutter py-6 md:grid-cols-[715fr_537fr] md:gap-12'}
+	colClass={tree ? 'flex min-w-0 flex-col gap-5' : 'flex flex-col gap-6'}
 />
 
 <style>

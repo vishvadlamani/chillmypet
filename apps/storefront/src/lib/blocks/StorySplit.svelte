@@ -68,20 +68,24 @@
 {/if}
 
 <style>
+	/* The editorial look of the tree storefront: a softly rounded photo, a
+	   small tracked eyebrow, a pine headline, Georgia numerals on hairlines. */
 	.story {
 		width: 100%;
-		max-width: 1300px;
+		max-width: 1320px;
 		margin: 0 auto;
-		padding: 0 var(--spacing-gutter, 1.5rem);
+		padding: 28px var(--spacing-gutter, 18px);
 		display: grid;
 		gap: 24px;
 		align-items: center;
-		color: var(--brand-navy, #0b3c49);
+		color: var(--tree-ink, #243b31);
 	}
 	@media (min-width: 768px) {
 		.story {
 			grid-template-columns: 1fr 1fr;
-			gap: 56px;
+			gap: 82px;
+			padding-top: 48px;
+			padding-bottom: 48px;
 		}
 		/* Beside a block with its photo on the left, the page zig-zags. */
 		.story.flip .photo {
@@ -90,10 +94,9 @@
 	}
 	.photo {
 		margin: 0;
-		border-radius: 24px;
+		border-radius: 12px;
 		overflow: hidden;
-		box-shadow: 0 12px 32px rgb(11 60 73 / 0.16);
-		background: #fff;
+		background: #f4f0e7;
 	}
 	.photo img {
 		display: block;
@@ -103,59 +106,66 @@
 		object-fit: cover;
 	}
 	.eyebrow {
-		margin: 0 0 10px;
-		font-size: 13px;
+		margin: 0 0 16px;
+		font-size: 11px;
+		line-height: 17.6px;
 		font-weight: 700;
-		letter-spacing: 0.12em;
+		letter-spacing: 1.8px;
 		text-transform: uppercase;
-		color: var(--xmas-red, #b3202a);
 	}
 	h2 {
-		margin: 0 0 14px;
-		font-size: clamp(30px, 4.4vw, 42px);
-		line-height: 1.08;
+		margin: 0 0 18px;
+		font-size: 27px;
+		line-height: 33.75px;
 		font-weight: 700;
+		letter-spacing: -0.5px;
+		color: var(--tree-green, #285b43);
+	}
+	@media (min-width: 768px) {
+		h2 {
+			font-size: 36px;
+			line-height: 45px;
+		}
 	}
 	h2 :global(strong) {
-		color: var(--xmas-pine, #1f5f3f);
+		font-weight: 700;
 	}
 	.para {
-		margin: 0 0 12px;
-		font-size: 17px;
-		line-height: 1.5;
-		max-width: 46ch;
+		margin: 0 0 20px;
+		font-size: 15px;
+		line-height: 24px;
 	}
 	ol {
-		margin: 20px 0 0;
+		margin: 8px 0 0;
 		padding: 0;
 		list-style: none;
-		border-top: 1px solid rgb(11 60 73 / 0.14);
+		border-top: 1px solid var(--tree-rule, rgb(36 59 49 / 0.14));
 	}
 	li {
-		display: flex;
-		gap: 16px;
-		align-items: baseline;
-		padding: 14px 0;
-		border-bottom: 1px solid rgb(11 60 73 / 0.14);
+		position: relative;
+		padding: 16px 0 16px 38px;
+		border-bottom: 1px solid var(--tree-rule, rgb(36 59 49 / 0.14));
 	}
 	.n {
-		flex: 0 0 auto;
-		min-width: 2ch;
+		position: absolute;
+		left: 0;
+		top: 15px;
+		font-family: Georgia, 'Times New Roman', serif;
 		font-size: 20px;
-		font-weight: 600;
-		font-variant-numeric: tabular-nums;
-		color: var(--xmas-red, #b3202a);
+		color: var(--tree-red, #a24442);
 	}
 	h3 {
-		margin: 0 0 2px;
-		font-size: 18px;
-		line-height: 1.25;
+		margin: 0 0 4px;
+		font-size: 14px;
+		line-height: 22.4px;
 		font-weight: 700;
+		letter-spacing: 0.9px;
+		color: var(--tree-ink, #243b31);
 	}
 	li p {
 		margin: 0;
-		font-size: 15px;
-		line-height: 1.45;
-		color: #24525e;
+		font-size: 12px;
+		line-height: 19.2px;
+		color: var(--tree-muted, #637168);
 	}
 </style>

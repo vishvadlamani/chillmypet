@@ -10,10 +10,13 @@
 	 * of another design would show a customer something they are not buying.
 	 *
 	 * `extras` are photos of the product as a whole (a flat-lay, the back, a
-	 * detail), browsed after the chosen design's photo with arrows, a swipe or
-	 * their own thumbnails. Looking at one never changes the design: only a
-	 * design thumbnail or the picker does that, and either brings that design's
-	 * photo back to the front.
+	 * detail), shown after the designs' own photos. Arrows and a swipe walk the
+	 * thumbnails in order. Landing on a design's photo chooses that design,
+	 * exactly as tapping its thumbnail does, so the photo in the frame and the
+	 * choice in the picker never disagree; an extra never changes the design.
+	 *
+	 * `hint` swaps the counter chip and arrows for one quiet line under the
+	 * photo ("Swipe to explore … 2 / 5"), for a page styled that way.
 	 */
 	let { block, ctx }: { block: Block; ctx: FlowContext } = $props();
 
@@ -26,6 +29,7 @@
 			extras?: Extra[];
 			stateField?: string;
 			title?: string;
+			hint?: string;
 		}
 	);
 
@@ -38,8 +42,11 @@
 
 	/** Which extra is in the frame, or null for the chosen design's photo. */
 	let extra = $state<number | null>(null);
-	const total = $derived(1 + extras.length);
-	const position = $derived(extra === null ? 0 : extra + 1);
+	// Positions follow the thumbnails: the designs first, then the extras.
+	const total = $derived(designs.length + extras.length);
+	const position = $derived(
+		extra === null ? Math.max(0, designs.findIndex((d) => d.code === current?.code)) : designs.length + extra
+	);
 	const shown = $derived(extra === null ? null : (extras[extra] ?? null));
 
 	// A design chosen anywhere (the picker included) is what the buyer wants
@@ -65,7 +72,8 @@
 
 	function step(by: number) {
 		const next = (position + by + total) % total;
-		view(next === 0 ? null : next - 1);
+		if (next < designs.length) show(designs[next].code);
+		else view(next - designs.length);
 	}
 
 	// A horizontal swipe on the frame steps through the photos. Vertical
@@ -84,7 +92,7 @@
 </script>
 
 {#if current}
-	<section class="gallery" aria-label={p.title ?? 'Product photos'}>
+	<section class="gallery" class:plain={Boolean(p.hint)} aria-label={p.title ?? 'Product photos'}>
 		<!-- Swipe is a touch shortcut only: the arrows and the thumbnails are
 		     the keyboard and screen-reader way through the same photos. -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -109,8 +117,8 @@
 					<span>Photo of {current.label} coming soon</span>
 				</div>
 			{/if}
-			{#if !shown}<span class="ribbon" aria-hidden="true">{current.label}</span>{/if}
-			{#if extras.length}
+			{#if !shown && !p.hint}<span class="ribbon" aria-hidden="true">{current.label}</span>{/if}
+			{#if extras.length && !p.hint}
 				<span class="count" aria-hidden="true">{position + 1} / {total}</span>
 				<button type="button" class="arrow prev" aria-label="Previous photo" onclick={() => step(-1)}
 					>‹</button
@@ -121,6 +129,13 @@
 			{/if}
 		</div>
 
+		{#if p.hint && total > 1}
+			<p class="hint">
+				<span>{p.hint}</span>
+				<span aria-live="polite">{position + 1} / {total}</span>
+			</p>
+		{/if}
+
 		{#if designs.length > 1 || extras.length}
 			<ul class="thumbs" class:scroll={extras.length > 0}>
 				{#each designs as d (d.code)}
@@ -128,6 +143,7 @@
 						<button
 							type="button"
 							class:active={d.code === current.code && !shown}
+							aria-current={d.code === current.code && !shown ? 'true' : undefined}
 							aria-pressed={d.code === current.code}
 							aria-label="Show {d.label}"
 							onclick={() => show(d.code)}
@@ -145,7 +161,7 @@
 						<button
 							type="button"
 							class:active={extra === i}
-							aria-label="Show photo {i + 2}{e.alt ? `: ${e.alt}` : ''}"
+							aria-label="Show photo {designs.length + i + 1}{e.alt ? `: ${e.alt}` : ''}"
 							onclick={() => view(i)}
 						>
 							<img src={e.src} alt="" width="120" height="108" loading="lazy" />
@@ -237,6 +253,47 @@
 	}
 	.thumbs.scroll li {
 		flex: none;
+	}
+	/* The plain frame: square, softly rounded, no ring, small square thumbs
+	   with a pine outline on the one in the frame. */
+	.plain .frame {
+		margin: 0;
+		border-radius: 12px;
+		box-shadow: none;
+		background: #f4f0e7;
+	}
+	.plain .frame img {
+		aspect-ratio: 1;
+	}
+	.plain .thumbs {
+		padding: 0;
+		gap: 10px;
+	}
+	.plain .thumbs button {
+		width: 58px;
+		border: 2px solid transparent;
+		border-radius: 10px;
+		background: transparent;
+		padding: 2px;
+	}
+	.plain .thumbs button img {
+		border-radius: 7px;
+	}
+	.plain .thumbs button.active {
+		border-color: var(--tree-green, #285b43);
+	}
+	@media (min-width: 768px) {
+		.plain .thumbs button {
+			width: 70px;
+		}
+	}
+	.hint {
+		display: flex;
+		justify-content: space-between;
+		margin: -4px 8px 0;
+		font-size: 11px;
+		line-height: 17.6px;
+		color: #637168;
 	}
 	.count {
 		position: absolute;

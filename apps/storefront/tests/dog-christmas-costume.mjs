@@ -39,10 +39,14 @@ function check(label, cond, detail) {
 	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Dog Christmas Tree Costume/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('the gallery comes before the h1', html.indexOf('class="gallery') > -1 && html.indexOf('class="gallery') < html.search(/<h1[\s>]/));
-	check('the gallery carries every angle, not only the colours', /aria-label="Show photo 4: Close-up of the hood/.test(html));
+	check('the gallery carries every angle, not only the colours', /aria-label="Show photo 5: Close-up of the hood/.test(html));
+	check('and counts them under the photo', /Swipe to explore[\s\S]{0,200}?1 \/ 5/.test(html));
 	check('the story section follows the buy box', /<h2[^>]*>[\s\S]{0,120}?steals the Christmas card/.test(html));
-	check('the closing band shows both colours as cut-outs, under an h2', /<h2[^>]*>[\s\S]{0,120}?in the Christmas photo/.test(html) && /hero-both\.webp/.test(html));
-	check('SSR says the size is the dog’s', /Your dog’s size/.test(html));
+	check('the closing band points back at the picker, under an h2', /<h2[^>]*>[\s\S]{0,120}?Every tree needs a little one/.test(html) && /href="#variant-picker"/.test(html));
+	check('SSR says the size goes by the dog’s weight', /Sized by weight: S 3–6 lb/.test(html));
+	// The store's own quantity breaks, priced by the server, said in words.
+	check('SSR offers the bundle cards at the server’s prices', html.includes('$53.01') && html.includes('$77.80') && /You save 7% with 2 costumes/.test(html));
+	check('the theme lifts the delivery strip above the header', /class="tree-strip"[^>]*>[^<]*Order by \w+day, Dec \d+/.test(html) && html.indexOf('tree-strip') < html.indexOf('<header'));
 	check('SSR quotes the price', html.includes(`$${PRICE}`));
 	check('SSR offers both colours', html.includes('>Red<') && html.includes('>Green<'));
 	check('SSR has a size guide section', html.includes('id="size-guide"'));
@@ -155,13 +159,23 @@ await page.reload({ waitUntil: 'networkidle' });
 // --- pick colour and size ----------------------------------------------------------
 // Browsing the extra photos must not change the colour, and picking a colour
 // must bring its photo back to the front.
-await page.locator('.gallery .arrow.next').click();
+await page.getByRole('button', { name: /^Show photo 3:/ }).click();
 check(
-	'the gallery steps to a photo of the whole product',
+	'the gallery shows a photo of the whole product',
 	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/green-back.jpg') &&
-		(await page.locator('.gallery .count').innerText()).trim() === '2 / 4'
+		/3 \/ 5/.test(await page.locator('.gallery .hint').innerText())
 );
-check('and browsing it leaves the colour alone', /Colour:\s*Red/.test(await page.locator('#variant-picker legend').first().innerText()));
+check(
+	'and browsing it leaves the colour alone',
+	(await page.locator('#variant-picker input[name="design"]:checked').getAttribute('value')) === 'red'
+);
+
+// The bundle cards: picking two re-prices the button and the sticky bar, and
+// one puts it back. The order below is for one costume.
+await page.locator('#variant-picker label.tier', { hasText: 'Two costumes' }).click();
+check('two costumes re-price the button', (await page.locator('#variant-picker button.cta').innerText()).includes('$53.01'));
+await page.locator('#variant-picker label.tier', { hasText: 'One costume' }).click();
+check('and one costume puts it back', (await page.locator('#variant-picker button.cta').innerText()).includes('$28.50'));
 await page.locator('#variant-picker label', { hasText: 'Green' }).click();
 check(
 	'the gallery follows the colour',

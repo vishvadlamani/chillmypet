@@ -12,8 +12,13 @@ export interface ProductPage {
 	 * sized for a wearer the host cannot guess — a person, or a particular dog.
 	 */
 	pickSize: boolean;
-	/** A seasonal skin layered over the brand, scoped to this page only. */
-	theme?: 'christmas';
+	/**
+	 * A skin scoped to this page only. `christmas` is the hoodie's festive
+	 * layer over the brand; `tree` is the costume's quiet cream-and-pine
+	 * storefront look (see `$lib/styles/tree-theme.css`). Both carry the
+	 * Christmas delivery strip.
+	 */
+	theme?: 'christmas' | 'tree';
 }
 
 /** Kept in step with `scripts/christmas-hoodie.js`. */
@@ -35,6 +40,6 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 	[DOG_CHRISTMAS_COSTUME_SLUG]: {
 		manifest: CHRISTMAS_COSTUME_PAGE,
 		pickSize: true,
-		theme: 'christmas'
+		theme: 'tree'
 	}
 };
