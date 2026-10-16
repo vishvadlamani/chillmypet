@@ -50,8 +50,10 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				// An in-page anchor to the picker, not a route.
 				ctaHref: '#variant-picker',
 				image: {
-					src: '/products/dog-christmas-costume/hero-red.webp',
-					alt: 'A small white dog wearing the red Christmas tree costume, hood up, gold star on top'
+					// Both colours, so the first screen shows the choice and does not
+					// repeat the gallery's opening photo straight underneath it.
+					src: '/products/dog-christmas-costume/hero-both.webp',
+					alt: 'A small white dog in the red Christmas tree costume, hood up, beside the green costume'
 				},
 				notes: ['Free standard shipping', '30-day free returns', 'Fits cats and small dogs'],
 				sticker: 'Red or green 🎄'
@@ -123,8 +125,9 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			layout: { row: 'hero', col: 'right' },
 			// The same list as the hoodie and the life jacket: only what the
 			// checkout offers. Change all three together. Google Pay stays off
-			// until it is on in Stripe, never before.
-			props: { methods: ['visa', 'mastercard', 'amex', 'discover', 'applepay'], width: 'full' }
+			// until it is on in Stripe, never before. No Discover: Stripe does not
+			// offer it to accounts in Czechia, which is where ChillMP is registered.
+			props: { methods: ['visa', 'mastercard', 'amex', 'applepay'], width: 'full' }
 		},
 		{
 			id: 'hero-info',
@@ -237,12 +240,9 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			version: 1,
 			props: {
 				title: 'Why dogs (and their people) love it',
+				// Two cards, not four: "on in ten seconds" and "the hood can sit
+				// back" are already the steps above and the first FAQ answer.
 				items: [
-					{
-						icon: '⏱️',
-						title: 'A tree in ten seconds',
-						body: 'Tie the cord, close the button, done. No legs to thread, no zips.'
-					},
 					{
 						icon: '🧸',
 						title: 'Soft enough to forget',
@@ -252,11 +252,40 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 						icon: '📸',
 						title: 'Built for the photo',
 						body: 'Glitter gold star, bright pom-poms, and a hood that frames the face.'
+					}
+				]
+			}
+		},
+		{
+			id: 'rule-after-benefits-copy',
+			component: 'divider',
+			version: 1,
+			props: { width: 'shell', spacing: 'loose' }
+		},
+		{
+			id: 'who-we-are',
+			component: 'benefit_cards',
+			version: 1,
+			// No reviews to show yet, so the page answers "can I trust this shop"
+			// with what it promises instead. Every line is one the contact and
+			// policy pages already make; change them together.
+			props: {
+				title: 'Who you’re buying from',
+				items: [
+					{
+						icon: '✉️',
+						title: 'A real person answers',
+						body: 'Email contact@chillmypet.com about a size, an order or a return. We reply within 1–2 business days.'
 					},
 					{
-						icon: '🎀',
-						title: 'Easy on, easy off',
-						body: 'The hood sits back on the neck if your dog prefers nothing on its head.'
+						icon: '📦',
+						title: 'Free shipping, with tracking',
+						body: 'Packed within 2–4 business days, and you get tracking when it ships. Lost on the way? We replace it or refund it.'
+					},
+					{
+						icon: '🔒',
+						title: 'Secure checkout',
+						body: 'Payments are handled by Stripe. Your card number never touches our site.'
 					}
 				]
 			}

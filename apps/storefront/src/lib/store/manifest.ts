@@ -174,8 +174,9 @@ export const STORE_PAGE: FunnelDefinition = {
 			// together, never one without the other, and keep it identical to the
 			// Christmas hoodie page's. Rendered with real artwork by
 			// $lib/components/PaymentIcons.svelte.
+			// No Discover: Stripe does not offer it to accounts in Czechia (ChillMP).
 			props: {
-				methods: ['visa', 'mastercard', 'amex', 'discover', 'applepay'],
+				methods: ['visa', 'mastercard', 'amex', 'applepay'],
 				width: 'full'
 			}
 		},

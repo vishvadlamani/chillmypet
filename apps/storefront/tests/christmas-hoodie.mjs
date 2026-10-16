@@ -50,6 +50,7 @@ function check(label, cond, detail) {
 	// off, so its badge must stay off too until someone turns it on in Stripe.
 	check('SSR shows Apple Pay among the accepted payment methods', /aria-label="Apple Pay"/.test(html));
 	check('and not Google Pay, which is off in Stripe', !/aria-label="Google Pay"/.test(html));
+	check('and not Discover, which Stripe does not offer a Czech account', !/aria-label="Discover"/.test(html));
 	// The site header, not the page: a shopper who taps the logo and comes back
 	// through the menu has to be able to find this page again.
 	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';

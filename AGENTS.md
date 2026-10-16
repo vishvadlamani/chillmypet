@@ -1190,8 +1190,11 @@ the page serves is a treatment of them, not the originals: the product was cut
 out with a local background-removal model (rembg, u2net/u2netp, run in a
 sandbox so no photo left the machine; the paid Adobe and Canva removers were
 not available) and set on a generated cream studio backdrop with a soft shadow,
-so all four shots read as one shoot. `hero-red.webp` is the same cut-out on a
-transparent background. The originals, as supplied, are in the history of this
+so all four shots read as one shoot. `hero-both.webp` is the red cut-out and
+the green costume (cut out with rembg's BiRefNet-lite, which keeps the white
+pom-poms that u2net punched through) side by side on a transparent background,
+so the hero shows the colour choice rather than repeating the gallery's first
+photo. The originals, as supplied, are in the history of this
 directory. Nothing about the product was generated or altered: it is the real
 costume on a plain background. Its copy was written here.
 
