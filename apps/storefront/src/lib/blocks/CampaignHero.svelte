@@ -14,6 +14,10 @@
 	 *
 	 * `ctaHref` is an in-page anchor, not a route: where a visitor goes next is
 	 * still the host's call, and the hero only scrolls them down the same page.
+	 *
+	 * `level: 2` makes it the closing band instead: the same pitch at the foot
+	 * of a page that opens on the product, under an h2 so the page keeps one h1,
+	 * with its photo loaded lazily because nobody starts there.
 	 */
 	let { block, ctx }: { block: Block; ctx: FlowContext } = $props();
 
@@ -31,8 +35,11 @@
 			notes?: string[];
 			/** A small sticker on the image — "Red or green". */
 			sticker?: string;
+			/** 1 opens the page (the default); 2 closes it. */
+			level?: 1 | 2;
 		}
 	);
+	const opening = $derived(p.level !== 2);
 
 	const headline = $derived(emphasize(p.headline ?? ''));
 
@@ -46,11 +53,16 @@
 		<div class="inner">
 			<div class="copy">
 				{#if p.eyebrow}<p class="eyebrow">{p.eyebrow}</p>{/if}
-				<h1 id="{block.id}-title">
+				{#snippet title()}
 					{#each headline as span, i (i)}
 						{#if span.strong}<strong>{span.text}</strong>{:else}{span.text}{/if}
 					{/each}
-				</h1>
+				{/snippet}
+				{#if opening}
+					<h1 id="{block.id}-title">{@render title()}</h1>
+				{:else}
+					<h2 id="{block.id}-title">{@render title()}</h2>
+				{/if}
 				{#if p.sub}<p class="sub">{p.sub}</p>{/if}
 				{#if p.cta && p.ctaHref}
 					<a class="cta" href={p.ctaHref} onclick={tapped}>{p.cta}</a>
@@ -65,7 +77,14 @@
 			{#if p.image?.src}
 				<div class="art">
 					<div class="glow" aria-hidden="true"></div>
-					<img src={p.image.src} alt={p.image.alt ?? ''} width="900" height="900" fetchpriority="high" />
+					<img
+						src={p.image.src}
+						alt={p.image.alt ?? ''}
+						width="900"
+						height="900"
+						fetchpriority={opening ? 'high' : 'auto'}
+						loading={opening ? 'eager' : 'lazy'}
+					/>
 					{#if p.sticker}<span class="sticker">{p.sticker}</span>{/if}
 				</div>
 			{/if}
@@ -128,7 +147,7 @@
 		text-transform: uppercase;
 		color: #f5c518;
 	}
-	.hero h1 {
+	.hero :is(h1, h2) {
 		margin: 0;
 		font-size: clamp(38px, 7.5vw, 64px);
 		line-height: 1.02;
@@ -136,7 +155,7 @@
 		letter-spacing: -0.01em;
 		color: var(--xmas-snow, #fffdf8);
 	}
-	.hero h1 strong {
+	.hero :is(h1, h2) strong {
 		color: #f5c518;
 		font-weight: 700;
 	}

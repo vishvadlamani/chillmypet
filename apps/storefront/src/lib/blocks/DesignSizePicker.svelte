@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Block, FlowContext } from '@funnel/core';
+	import { emphasize } from '@funnel/blocks-dr/tokens';
 
 	/**
 	 * Design, then size, then one button.
@@ -25,6 +26,8 @@
 			available?: string[];
 			price?: string;
 			priceNote?: string;
+			/** One line under the price, saying what this is for. `**bold**` is honoured. */
+			tagline?: string;
 			designLabel?: string;
 			sizeLabel?: string;
 			sizeNote?: string;
@@ -97,6 +100,13 @@
 		<p class="price">
 			<span class="amount">{p.price}</span>
 			{#if p.priceNote}<span class="note">{p.priceNote}</span>{/if}
+		</p>
+	{/if}
+	{#if p.tagline}
+		<p class="tagline">
+			{#each emphasize(p.tagline) as span, i (i)}
+				{#if span.strong}<strong>{span.text}</strong>{:else}{span.text}{/if}
+			{/each}
 		</p>
 	{/if}
 
@@ -184,6 +194,13 @@
 		font-size: 15px;
 		color: var(--xmas-pine, #1f5f3f);
 		font-weight: 600;
+	}
+	/* Tucked under the price: the two read as one statement. */
+	.tagline {
+		margin: -12px 0 0;
+		font-size: 17px;
+		line-height: 1.4;
+		color: var(--brand-navy, #0b3c49);
 	}
 	fieldset {
 		border: 0;

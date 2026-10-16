@@ -8,31 +8,94 @@
 	 * `design`, this reads it, and neither block knows the other exists. A design
 	 * with no photo gets a box that SAYS it is a placeholder. A stand-in photo
 	 * of another design would show a customer something they are not buying.
+	 *
+	 * `extras` are photos of the product as a whole (a flat-lay, the back, a
+	 * detail), browsed after the chosen design's photo with arrows, a swipe or
+	 * their own thumbnails. Looking at one never changes the design: only a
+	 * design thumbnail or the picker does that, and either brings that design's
+	 * photo back to the front.
 	 */
 	let { block, ctx }: { block: Block; ctx: FlowContext } = $props();
 
 	type Design = { code: string; label: string; image?: string; alt?: string };
+	type Extra = { src: string; alt?: string };
 
 	const p = $derived(
-		(block.props ?? {}) as { designs?: Design[]; stateField?: string; title?: string }
+		(block.props ?? {}) as {
+			designs?: Design[];
+			extras?: Extra[];
+			stateField?: string;
+			title?: string;
+		}
 	);
 
 	const designs = $derived(p.designs ?? []);
+	const extras = $derived((p.extras ?? []).filter((e) => e.src));
 	const field = $derived(p.stateField ?? 'design');
 	const current = $derived(
 		designs.find((d) => d.code === ctx.state.get(field)) ?? designs[0] ?? null
 	);
 
+	/** Which extra is in the frame, or null for the chosen design's photo. */
+	let extra = $state<number | null>(null);
+	const total = $derived(1 + extras.length);
+	const position = $derived(extra === null ? 0 : extra + 1);
+	const shown = $derived(extra === null ? null : (extras[extra] ?? null));
+
+	// A design chosen anywhere (the picker included) is what the buyer wants
+	// to see next, so it takes the frame back from whatever extra was in it.
+	let lastDesign = '';
+	$effect(() => {
+		const code = current?.code ?? '';
+		if (code === lastDesign) return;
+		lastDesign = code;
+		extra = null;
+	});
+
 	function show(code: string) {
+		extra = null;
 		ctx.state.set(field, code);
 		ctx.track('gallery_select', { design: code });
+	}
+
+	function view(i: number | null) {
+		extra = i;
+		ctx.track('gallery_view', { photo: i === null ? 0 : i + 1 });
+	}
+
+	function step(by: number) {
+		const next = (position + by + total) % total;
+		view(next === 0 ? null : next - 1);
+	}
+
+	// A horizontal swipe on the frame steps through the photos. Vertical
+	// movement is left alone, so the page still scrolls over the photo.
+	let touchX = 0;
+	let touchY = 0;
+	function touchStart(e: TouchEvent) {
+		touchX = e.touches[0].clientX;
+		touchY = e.touches[0].clientY;
+	}
+	function touchEnd(e: TouchEvent) {
+		const dx = e.changedTouches[0].clientX - touchX;
+		const dy = e.changedTouches[0].clientY - touchY;
+		if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) step(dx < 0 ? 1 : -1);
 	}
 </script>
 
 {#if current}
 	<section class="gallery" aria-label={p.title ?? 'Product photos'}>
-		<div class="frame">
-			{#if current.image}
+		<!-- Swipe is a touch shortcut only: the arrows and the thumbnails are
+		     the keyboard and screen-reader way through the same photos. -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="frame"
+			ontouchstart={extras.length ? touchStart : undefined}
+			ontouchend={extras.length ? touchEnd : undefined}
+		>
+			{#if shown}
+				<img src={shown.src} alt={shown.alt ?? ''} width="1100" height="985" />
+			{:else if current.image}
 				<img
 					src={current.image}
 					alt={current.alt ?? current.label}
@@ -46,16 +109,25 @@
 					<span>Photo of {current.label} coming soon</span>
 				</div>
 			{/if}
-			<span class="ribbon" aria-hidden="true">{current.label}</span>
+			{#if !shown}<span class="ribbon" aria-hidden="true">{current.label}</span>{/if}
+			{#if extras.length}
+				<span class="count" aria-hidden="true">{position + 1} / {total}</span>
+				<button type="button" class="arrow prev" aria-label="Previous photo" onclick={() => step(-1)}
+					>‹</button
+				>
+				<button type="button" class="arrow next" aria-label="Next photo" onclick={() => step(1)}
+					>›</button
+				>
+			{/if}
 		</div>
 
-		{#if designs.length > 1}
-			<ul class="thumbs">
+		{#if designs.length > 1 || extras.length}
+			<ul class="thumbs" class:scroll={extras.length > 0}>
 				{#each designs as d (d.code)}
 					<li>
 						<button
 							type="button"
-							class:active={d.code === current.code}
+							class:active={d.code === current.code && !shown}
 							aria-pressed={d.code === current.code}
 							aria-label="Show {d.label}"
 							onclick={() => show(d.code)}
@@ -65,6 +137,18 @@
 							{:else}
 								<span class="mini-placeholder">Placeholder</span>
 							{/if}
+						</button>
+					</li>
+				{/each}
+				{#each extras as e, i (e.src)}
+					<li>
+						<button
+							type="button"
+							class:active={extra === i}
+							aria-label="Show photo {i + 2}{e.alt ? `: ${e.alt}` : ''}"
+							onclick={() => view(i)}
+						>
+							<img src={e.src} alt="" width="120" height="108" loading="lazy" />
 						</button>
 					</li>
 				{/each}
@@ -144,6 +228,53 @@
 		background: var(--xmas-snow, #fffdf8);
 		padding: 0;
 		cursor: pointer;
+	}
+	/* Five or more thumbnails overrun a phone: they scroll rather than wrap. */
+	.thumbs.scroll {
+		overflow-x: auto;
+		scrollbar-width: none;
+		padding-bottom: 2px;
+	}
+	.thumbs.scroll li {
+		flex: none;
+	}
+	.count {
+		position: absolute;
+		top: 12px;
+		right: 12px;
+		border-radius: 9999px;
+		background: rgb(11 60 73 / 0.72);
+		color: #fff;
+		padding: 2px 10px;
+		font-size: 13px;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+	}
+	.arrow {
+		position: absolute;
+		top: 50%;
+		translate: 0 -50%;
+		width: 40px;
+		height: 40px;
+		border: 0;
+		border-radius: 50%;
+		background: rgb(255 253 248 / 0.92);
+		color: var(--brand-navy, #0b3c49);
+		font-size: 28px;
+		line-height: 1;
+		padding-bottom: 4px;
+		box-shadow: 0 4px 12px rgb(11 60 73 / 0.18);
+		cursor: pointer;
+	}
+	.arrow.prev {
+		left: 10px;
+	}
+	.arrow.next {
+		right: 10px;
+	}
+	.arrow:focus-visible {
+		outline: 3px solid var(--brand-orange, #ff6b2c);
+		outline-offset: 2px;
 	}
 	.thumbs button.active {
 		border-color: var(--brand-teal, #14a3b0);

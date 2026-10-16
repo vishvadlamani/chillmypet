@@ -3,8 +3,12 @@ import type { FunnelDefinition } from '@funnel/core';
 /**
  * The Dog Christmas Tree Costume page.
  *
- * Built on the Christmas hoodie's blocks and rules, not the life jacket's:
- * gallery, colour, size, size guide, a closer look, benefits, FAQ, guarantee.
+ * Built on the Christmas hoodie's blocks and rules, not the life jacket's.
+ * It opens on the product, not a campaign banner: the ad already showed the
+ * costume, so the first screen is the photos, the name, the price and the
+ * picker, with every photo one swipe away. The pitch comes after the buy
+ * box (story, how it goes on, size guide, who we are, FAQ, guarantee) and
+ * the campaign band closes the page with one more way back to the picker.
  * All copy is ours and written for this product.
  *
  * What is deliberately absent, and should stay absent:
@@ -39,27 +43,6 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			}
 		},
 		{
-			id: 'campaign-hero',
-			component: 'campaign_hero',
-			version: 1,
-			props: {
-				eyebrow: 'Dog Christmas Tree Costume · Red or Green · S–L',
-				headline: 'The cutest **tree in the house**',
-				sub: 'A soft hooded cape with pom-pom baubles and a glitter star. On in ten seconds, off just as fast — made for the family photo.',
-				cta: 'Pick a colour & size',
-				// An in-page anchor to the picker, not a route.
-				ctaHref: '#variant-picker',
-				image: {
-					// Both colours, so the first screen shows the choice and does not
-					// repeat the gallery's opening photo straight underneath it.
-					src: '/products/dog-christmas-costume/hero-both.webp',
-					alt: 'A small white dog in the red Christmas tree costume, hood up, beside the green costume'
-				},
-				notes: ['Free standard shipping', '30-day free returns', 'Fits cats and small dogs'],
-				sticker: 'Red or green 🎄'
-			}
-		},
-		{
 			id: 'gallery',
 			component: 'design_gallery',
 			version: 1,
@@ -67,6 +50,13 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			requires: ['variants.designs'],
 			props: {
 				designs: { $ref: 'variants.designs' },
+				// The shots not tied to a colour, browsed after the chosen colour's
+				// photo, so every angle is on the first screen.
+				extras: [
+					{ src: '/products/dog-christmas-costume/green-back.jpg', alt: 'The green costume from behind: three ruffled tiers shaped like a tree, star on top' },
+					{ src: '/products/dog-christmas-costume/red.jpg', alt: 'The red Christmas tree costume, front, with the hood, star and pom-poms' },
+					{ src: '/products/dog-christmas-costume/hood-detail.jpg', alt: 'Close-up of the hood opening, the tie cord and the button' }
+				],
 				title: 'Dog Christmas Tree Costume photos'
 			}
 		},
@@ -75,24 +65,13 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			component: 'heading',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
-			// Level 2: the campaign hero above carries the page's one h1.
-			props: { text: { $ref: 'product.title' }, level: 2, size: 'lg', weight: 'bold' }
-		},
-		{
-			id: 'hero-points',
-			component: 'bullet_list',
-			version: 1,
-			layout: { row: 'hero', col: 'right' },
+			// The page's one h1: it opens on the product. The closing band is an h2.
 			props: {
-				size: 'sm',
-				// Each line is answered below: the hood in the FAQ, the fit in the
-				// size guide, the photo in the closer look.
-				items: [
-					{ icon: '🎄', text: 'Turns your dog into a **tiny Christmas tree** in ten seconds' },
-					{ icon: '🌟', text: 'Soft fleece, ruffled tiers and a **glitter gold star**' },
-					{ icon: '🎀', text: 'Ties at the neck, one button — **nothing around the legs**' },
-					{ icon: '📸', text: 'Made for **the family photo**, the party and the gift pile' }
-				]
+				text: { $ref: 'product.title' },
+				eyebrow: 'Red or green · For small dogs & cats',
+				level: 1,
+				size: 'lg',
+				weight: 'bold'
 			}
 		},
 		{
@@ -108,10 +87,12 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				available: { $ref: 'variants.available' },
 				price: { $ref: 'variants.price' },
 				priceNote: 'Free standard shipping',
+				tagline: 'The cutest tree in the house — and **the only one that comes when called**.',
 				designLabel: 'Colour',
 				sizeLabel: 'Your dog’s size',
-				sizeNote:
-					'Go by weight: S for 1.5–2.5 kg (3–6 lb), M for 2.5–5 kg (6–11 lb), L for 5–7.5 kg (11–17 lb). Between two sizes? Pick the bigger one.',
+				// The same bands as the size guide's table, in pounds for a US buyer;
+				// the table carries kilograms too.
+				sizeNote: 'By weight: S 3–6 lb · M 6–11 lb · L 11–17 lb. Between two? Go up.',
 				sizeGuideHref: '#size-guide',
 				sizeGuideLabel: 'Size guide',
 				sizeMissing: 'Pick your dog’s size first, then we’re good to go. 🎄',
@@ -141,39 +122,55 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				bodyWidth: 'full',
 				items: [
 					{
+						label: 'Size & fit 📏',
+						body: 'Sizes go by your pet’s weight: S for 3–6 lb, M for 6–11 lb, L for 11–17 lb.\n\nIt’s a cape with a hood, so nothing goes around the legs or the belly and it forgives a stocky build. Between two sizes, go up: the cord at the neck takes up the slack.',
+						link: { label: 'See the size guide', href: '#size-guide' }
+					},
+					{
 						label: 'Will it arrive before Christmas? 🎄',
 						body: 'Order by the date at the top of the page and it will.\n\nWe take 2–4 business days to pack your order, then it’s 5–12 days on the road. After the cut-off we still ship right away, but we can’t promise it lands before the 25th.',
 						link: { label: 'Read our shipping policy', href: '/policies/shipping' }
 					},
 					{
-						label: 'What if the size is wrong? 📏',
+						label: 'Returns & exchanges ↩️',
 						body: 'You get 30 days. Exchanges and returns are free, and we send the label.\n\nJust email contact@chillmypet.com with your order number.',
 						link: { label: 'Read our return policy', href: '/policies/refunds' }
+					},
+					{
+						label: 'What’s in the box & care 🎁',
+						body: 'One hooded cape in the colour and size you pick, with the glitter star on the hood and the pom-poms stitched on.\n\nHand wash in cool water and lay flat to dry. Keep the star away from heat and the washing machine.'
 					}
 				]
 			}
 		},
 		{
-			id: 'size-guide',
-			component: 'size_guide',
+			id: 'story',
+			component: 'story',
 			version: 1,
+			// What the costume is for, after the buy box rather than in it. The
+			// green back is the shot that shows the tree shape best.
 			props: {
-				title: 'Size guide',
-				tips: [
-					'Sizes are **for your dog**, by weight. Weigh them, or check the vet’s last note.',
-					'It’s a cape with a hood: nothing goes around the legs or the belly, so it is **forgiving on shape**.',
-					'Between two sizes? **Go up.** A loose cape looks better than a tight one, and the cord at the neck takes up the slack.'
+				eyebrow: 'Christmas, with the dog in it',
+				title: 'The one who **steals the Christmas card**',
+				body: [
+					'Every year there’s one photo everybody keeps. This is how your dog ends up in the middle of it.',
+					'A soft hooded cape that turns a small dog, or a patient cat, into a little Christmas tree: three ruffled tiers, bright pom-pom baubles and a **glitter gold star** on top.'
 				],
-				// The supplier's weight table, from the catalogue. Neck and back
-				// length join it the moment the supplier's measured figures do.
-				columns: { $ref: 'sizes.columns' },
-				rows: { $ref: 'sizes.rows' },
-				contact:
-					'Not sure? Email contact@chillmypet.com with your dog’s weight and breed, and we’ll help you pick.'
+				points: [
+					{ title: 'A tree from every side', body: 'Ruffled tiers down the back, baubles all round, the star on the hood. It reads as a tree from the front, the back and the sofa.' },
+					{ title: 'Red or green', body: 'Classic pine green or a bold Christmas red. Same cut, same star, same pom-poms.' },
+					{ title: 'Off as fast as it goes on', body: 'One cord and one button. Dress them for the photo, the party or the visit, then let them be a dog again.' }
+				],
+				image: {
+					src: '/products/dog-christmas-costume/green-back.jpg',
+					alt: 'The green costume from behind: three ruffled tiers shaped like a tree, star on top'
+				},
+				// The steps below put their photo on the left.
+				imageSide: 'right'
 			}
 		},
 		{
-			id: 'rule-after-size',
+			id: 'rule-after-story',
 			component: 'divider',
 			version: 1,
 			props: { width: 'shell', spacing: 'loose' }
@@ -206,58 +203,26 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			props: { width: 'shell', spacing: 'loose' }
 		},
 		{
-			id: 'angles-heading',
-			component: 'heading',
+			id: 'size-guide',
+			component: 'size_guide',
 			version: 1,
-			props: { text: 'Both colours, every angle', level: 2, size: 'lg', width: 'shell' }
-		},
-		{
-			id: 'angles',
-			component: 'media',
-			version: 1,
-			// The two shots not tied to a colour, on the same backdrop as the
-			// gallery so the page reads as one shoot: the red front, the green back.
 			props: {
-				variant: 'grid',
-				columns: 2,
-				aspect: 'square',
-				width: 'shell',
-				items: [
-					{ src: '/products/dog-christmas-costume/red.jpg', alt: 'The red Christmas tree costume, front, with the hood, star and pom-poms' },
-					{ src: '/products/dog-christmas-costume/green-back.jpg', alt: 'The green costume from behind: three ruffled tiers shaped like a tree, star on top' }
-				]
+				title: 'Size guide',
+				tips: [
+					'Sizes are **for your dog**, by weight. Weigh them, or check the vet’s last note.',
+					'It’s a cape with a hood: nothing goes around the legs or the belly, so it is **forgiving on shape**.',
+					'Between two sizes? **Go up.** A loose cape looks better than a tight one, and the cord at the neck takes up the slack.'
+				],
+				// The supplier's weight table, from the catalogue. Neck and back
+				// length join it the moment the supplier's measured figures do.
+				columns: { $ref: 'sizes.columns' },
+				rows: { $ref: 'sizes.rows' },
+				contact:
+					'Not sure? Email contact@chillmypet.com with your dog’s weight and breed, and we’ll help you pick.'
 			}
 		},
 		{
-			id: 'rule-after-look',
-			component: 'divider',
-			version: 1,
-			props: { width: 'shell', spacing: 'loose' }
-		},
-		{
-			id: 'benefits',
-			component: 'benefit_cards',
-			version: 1,
-			props: {
-				title: 'Why dogs (and their people) love it',
-				// Two cards, not four: "on in ten seconds" and "the hood can sit
-				// back" are already the steps above and the first FAQ answer.
-				items: [
-					{
-						icon: '🧸',
-						title: 'Soft enough to forget',
-						body: 'Light fleece with ruffled tiers. Most dogs settle into it within a minute.'
-					},
-					{
-						icon: '📸',
-						title: 'Built for the photo',
-						body: 'Glitter gold star, bright pom-poms, and a hood that frames the face.'
-					}
-				]
-			}
-		},
-		{
-			id: 'rule-after-benefits-copy',
+			id: 'rule-after-guide',
 			component: 'divider',
 			version: 1,
 			props: { width: 'shell', spacing: 'loose' }
@@ -300,7 +265,13 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			id: 'faq-heading',
 			component: 'heading',
 			version: 1,
-			props: { text: 'Questions, answered', level: 2, size: 'lg', width: 'shell' }
+			props: {
+				text: 'Questions, answered',
+				eyebrow: 'Before you wrap it',
+				level: 2,
+				size: 'lg',
+				width: 'shell'
+			}
 		},
 		{
 			id: 'faq',
@@ -320,7 +291,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					},
 					{
 						label: 'How do I pick the size?',
-						body: 'Go by weight: S for 1.5–2.5 kg, M for 2.5–5 kg, L for 5–7.5 kg. The cord at the neck adjusts the fit.\n\nNot sure? Size up. A loose cape looks better than a tight one.'
+						body: 'Go by weight: S for 3–6 lb (1.5–2.5 kg), M for 6–11 lb (2.5–5 kg), L for 11–17 lb (5–7.5 kg). The cord at the neck adjusts the fit.\n\nNot sure? Size up. A loose cape looks better than a tight one.'
 					},
 					{
 						label: 'Will it arrive before Christmas?',
@@ -353,6 +324,29 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				body: 'Not quite right? Send it back unworn within **30 days** for a full refund, and we’ll cover the return label. Swapping sizes is free too. **Easy.**',
 				align: 'center',
 				width: 'article'
+			}
+		},
+		{
+			id: 'closing-band',
+			component: 'campaign_hero',
+			version: 1,
+			// The campaign band, at the foot of the page: one last look at both
+			// colours and the way back up to the picker.
+			props: {
+				level: 2,
+				eyebrow: 'Red or green · S–L · for small dogs & cats',
+				headline: 'Put the dog **in the Christmas photo**',
+				sub: 'A soft hooded cape with pom-pom baubles and a glitter star. On in ten seconds, off just as fast.',
+				cta: 'Pick a colour & size',
+				// An in-page anchor to the picker, not a route.
+				ctaHref: '#variant-picker',
+				image: {
+					// Both colours side by side: the choice the picker up top asks for.
+					src: '/products/dog-christmas-costume/hero-both.webp',
+					alt: 'A small white dog in the red Christmas tree costume, hood up, beside the green costume'
+				},
+				notes: ['Free standard shipping', '30-day free returns', 'Fits cats and small dogs'],
+				sticker: 'Red or green 🎄'
 			}
 		},
 		{

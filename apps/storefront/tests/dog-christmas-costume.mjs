@@ -36,9 +36,12 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
-	check('SSR opens on the campaign hero', /<h1[^>]*>[\s\S]{0,200}?The cutest[\s\S]{0,200}?tree in the house/.test(html));
-	check('and the hero is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
-	check('the hero shows both colours as cut-outs, not the padded photo', /hero-both\.webp/.test(html));
+	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Dog Christmas Tree Costume/.test(html));
+	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
+	check('the gallery comes before the h1', html.indexOf('class="gallery') > -1 && html.indexOf('class="gallery') < html.search(/<h1[\s>]/));
+	check('the gallery carries every angle, not only the colours', /aria-label="Show photo 4: Close-up of the hood/.test(html));
+	check('the story section follows the buy box', /<h2[^>]*>[\s\S]{0,120}?steals the Christmas card/.test(html));
+	check('the closing band shows both colours as cut-outs, under an h2', /<h2[^>]*>[\s\S]{0,120}?in the Christmas photo/.test(html) && /hero-both\.webp/.test(html));
 	check('SSR says the size is the dog’s', /Your dog’s size/.test(html));
 	check('SSR quotes the price', html.includes(`$${PRICE}`));
 	check('SSR offers both colours', html.includes('>Red<') && html.includes('>Green<'));
@@ -150,6 +153,15 @@ await page.reload({ waitUntil: 'networkidle' });
 }
 
 // --- pick colour and size ----------------------------------------------------------
+// Browsing the extra photos must not change the colour, and picking a colour
+// must bring its photo back to the front.
+await page.locator('.gallery .arrow.next').click();
+check(
+	'the gallery steps to a photo of the whole product',
+	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/green-back.jpg') &&
+		(await page.locator('.gallery .count').innerText()).trim() === '2 / 4'
+);
+check('and browsing it leaves the colour alone', /Colour:\s*Red/.test(await page.locator('#variant-picker legend').first().innerText()));
 await page.locator('#variant-picker label', { hasText: 'Green' }).click();
 check(
 	'the gallery follows the colour',

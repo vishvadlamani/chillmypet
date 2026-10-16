@@ -7,6 +7,7 @@ import DesignGallery from '$lib/blocks/DesignGallery.svelte';
 import DesignSizePicker from '$lib/blocks/DesignSizePicker.svelte';
 import SizeGuide from '$lib/blocks/SizeGuide.svelte';
 import StepList from '$lib/blocks/StepList.svelte';
+import StorySplit from '$lib/blocks/StorySplit.svelte';
 
 /**
  * The block registry the product pages render with: the library, plus the
@@ -25,6 +26,7 @@ export const STORE_BLOCKS: PageComponentMap = {
 	benefit_cards: { render: BenefitCards },
 	campaign_hero: { render: CampaignHero },
 	step_list: { render: StepList },
+	story: { render: StorySplit },
 	design_gallery: { render: DesignGallery },
 	design_size_picker: { render: DesignSizePicker },
 	size_guide: { render: SizeGuide }
