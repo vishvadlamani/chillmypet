@@ -1170,7 +1170,7 @@ Two things a future agent should know rather than rediscover:
 - Deliberately **not** copied: the `FloatPaw™` name (a trademark question, which
   "it's not copyrighted" does not answer) and `contact@floatpaw.store` (it would
   route this store's customers to theirs). Store branding stays ChillMyPet, and
-  the support address is `contact@chillmypet.com`.
+  the support address is `contact.chillmypet@gmail.com`.
 
 The block library arrived with a third asset set, and one of them shipped a
 competitor's mark: `static/size-chart.webp` carried the **FloatPaw** wordmark

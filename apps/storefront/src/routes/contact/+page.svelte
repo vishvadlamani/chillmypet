@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { createTranslator, defaultLocale, pack } from '$lib/i18n';
 
-	const SUPPORT_EMAIL = 'contact@chillmypet.com';
+	const SUPPORT_EMAIL = 'contact.chillmypet@gmail.com';
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let t = $derived(createTranslator(locale));

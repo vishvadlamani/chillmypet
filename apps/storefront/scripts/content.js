@@ -78,7 +78,7 @@ export const BENEFITS = {
 	]
 };
 
-export const EMAIL = 'contact@chillmypet.com';
+export const EMAIL = 'contact.chillmypet@gmail.com';
 
 export const FAQ = {
 	en: [
