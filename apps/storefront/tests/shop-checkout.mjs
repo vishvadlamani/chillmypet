@@ -63,7 +63,7 @@ function check(label, cond, detail) {
 	check('every field is labelled', ['contact-email', 'shipping-firstName', 'shipping-zip'].every((id) => html.includes(`for="${id}"`)));
 	check('the email note keeps the reminder promise', html.includes('we&#39;ll send one reminder') || html.includes("we'll send one reminder"));
 	check('no pre-ticked marketing box', !/type="checkbox"[^>]*checked/.test(html) && !/news and offers/i.test(html));
-	check('both shipping rates, from the rate table', html.includes('Standard') && html.includes('Express') && html.includes('$12.00'));
+	check('Standard shipping only, free (Express is off)', html.includes('Standard') && !html.includes('Express') && !html.includes('$12.00'));
 	check('the policy links sit under the button', ['/policies/refunds', '/policies/shipping', '/privacy', '/terms', '/contact'].every((href) => html.includes(`href="${href}"`)));
 	check('one h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('not indexed', /name="robots" content="noindex/.test(html));
@@ -259,11 +259,7 @@ await page.fill('#shipping-zip', '12207');
 check('every message has gone', (await page.locator('[aria-invalid="true"]').count()) === 0);
 check('still one InitiateCheckout', (await browserEvent('InitiateCheckout')).length === 1);
 
-await page.locator('.shop-choice', { hasText: 'Express' }).click();
-await settle();
-check('Express adds its rate to the total', /\$66\.99/.test(await page.locator('button.shop-pay').innerText()));
-await page.locator('.shop-choice', { hasText: 'Standard' }).click();
-await settle();
+check('one shipping choice, Standard, already chosen', (await page.locator('.shop-choice').count()) === 1 && (await page.locator('.shop-choice input').isChecked()));
 
 await page.locator('button.shop-pay').click();
 await page
@@ -300,6 +296,42 @@ check('the page stayed this one', new URL(page.url()).pathname === PATH, page.ur
 	check('still no AddToCart from this page, start to finish', (await browserEvent('AddToCart')).length === 0);
 }
 await ctx.close();
+
+// --- an address outside the US ------------------------------------------------------------------
+// A real one the owner tried on 2026-10-17: Czechia has no states, so the
+// state field must be optional there, and the order must take the address
+// as typed.
+{
+	const cz = await browser.newContext({ viewport: { width: 390, height: 664 }, isMobile: true, hasTouch: true });
+	await quiet(cz);
+	const p = await cz.newPage();
+	pageErrors.push(...watch(p));
+	await p.goto(`${BASE}${PATH}`, { waitUntil: 'networkidle' });
+	await p.evaluate(() => {
+		localStorage.clear();
+		sessionStorage.clear();
+	});
+	await p.goto(`${BASE}${FROM_LANDING}`, { waitUntil: 'networkidle' });
+	await p.selectOption('#shipping-country', { label: 'Czechia' });
+	check('Czechia: no state list, and the field says it is optional', (await p.locator('select#shipping-state').count()) === 0 && /optional/i.test(await p.locator('label[for="shipping-state"]').innerText()));
+	check('and the postcode is called a postal code', /Postal code/.test(await p.locator('label[for="shipping-zip"]').innerText()));
+	await p.fill('#contact-email', 'teplice@example.com');
+	await p.fill('#shipping-firstName', 'Jana');
+	await p.fill('#shipping-lastName', 'Nováková');
+	await p.fill('#shipping-address', 'Skupova 1255');
+	await p.fill('#shipping-city', 'Teplice');
+	await p.fill('#shipping-zip', '41501');
+	await p.waitForLoadState('networkidle');
+	await p.locator('button.shop-pay').click();
+	await p.getByRole('heading', { name: /order received/i }).waitFor({ timeout: 20000 }).catch(() => {});
+	const number = /CMP-[0-9A-F]{8}/.exec((await p.textContent('body')) ?? '')?.[0];
+	check('a Czech address with no state places the order', Boolean(number));
+	const db = createClient({ url: process.env.TURSO_DATABASE_URL ?? 'file:local.db', authToken: process.env.TURSO_AUTH_TOKEN });
+	const row = (await db.execute({ sql: 'select country, postal_code, city, address1, province, last_name, shipping_cents from orders where order_number = ?', args: [number ?? ''] })).rows[0] ?? {};
+	check('stored as typed, as CZ, with free Standard shipping', row.country === 'CZ' && row.postal_code === '41501' && row.city === 'Teplice' && row.address1 === 'Skupova 1255' && row.last_name === 'Nováková' && Number(row.shipping_cents) === 0, JSON.stringify(row));
+	db.close();
+	await cz.close();
+}
 
 // --- a desktop ---------------------------------------------------------------------------------
 {

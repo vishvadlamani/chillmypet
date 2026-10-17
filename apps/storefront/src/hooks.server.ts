@@ -8,6 +8,7 @@ import { sweepSoon } from '$lib/server/recovery';
 import { metaBrowserIds } from '$lib/server/meta-browser-ids';
 import { rememberedContact, type RememberedContact } from '$lib/server/identity';
 import { attributionFrom, ensureVisitorId } from '$lib/server/purchase';
+import { SHIPPING_RATES } from '$lib/store/shipping-rates';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
 export const LOCALE_COOKIE = 'locale';
@@ -217,6 +218,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 		db,
 		store,
 		orderNumberPrefix: 'CMP',
+		// The store's own table, so the order is priced against the rates the
+		// checkout offers and never against a framework default it doesn't.
+		shippingRates: SHIPPING_RATES,
 		// Buy-more-save-more. The storefront renders these; the server decides
 		// them, from the quantity it counts after merging duplicate lines.
 		quantityBreaks: [

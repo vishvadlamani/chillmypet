@@ -7,13 +7,13 @@
 	import { countryForm } from '@funnel/blocks-dr/subdivisions';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { FunnelStateAdapter, SubmitFn, TrackFn } from '@funnel/core';
-	import { DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 	import { toAmount } from 'ecomwithai/marketing';
 	import { track as pixel } from '$lib/analytics/pixel';
 	import { amount, pushEcommerce } from '$lib/analytics/datalayer';
 	import { countryOptions } from '$lib/countries';
 	import { createTranslator, defaultLocale, formatMoney } from '$lib/i18n';
 	import { PRODUCT_SLUG } from '$lib/store/product';
+	import { SHIPPING_RATES } from '$lib/store/shipping-rates';
 	import { cart } from '$lib/stores/cart.svelte';
 	import CardFields from '$lib/components/CardFields.svelte';
 	import QuantityStepper from '$lib/components/QuantityStepper.svelte';
@@ -231,7 +231,7 @@
 		};
 	});
 
-	const rate = (id: string) => DEFAULT_SHIPPING_RATES.find((r) => r.id === id)?.priceCents;
+	const rate = (id: string) => SHIPPING_RATES.find((r) => r.id === id)?.priceCents;
 
 	// The method block writes its own default back to state on mount, so this
 	// follows whatever it chose rather than restating a default of its own.

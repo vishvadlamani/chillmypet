@@ -101,26 +101,17 @@ check(
 );
 check('the country came through', (await page.inputValue('#shipping-country')) === 'Canada');
 
-// --- shipping method moves the total ---------------------------------------
-// The method block writes its choice into host state; nothing else connects it
-// to the money. If the summary and the button don't follow, the seam is dead.
+// --- shipping: Standard only ----------------------------------------------------
+// Express was taken off on 2026-10-17 (see SHIPPING_RATES): its 2–3 business
+// days is not a promise a dropshipped order can keep. The one rate left is
+// free, so the total is the goods and the button says the same.
 const totalNow = async () =>
 	money((await page.locator('form dl').innerText()).split('\n').at(-1));
 
-const beforeExpress = await totalNow();
-const beforeLabel = (await payButton.innerText()).trim();
-await page.check('input[name="method-method"][value="express"]');
-await page.waitForFunction(
-	(was) => document.querySelector('form button[type="submit"]')?.textContent?.trim() !== was,
-	beforeLabel
-);
-const afterExpress = await totalNow();
-check(
-	'choosing express repriced the order',
-	afterExpress === beforeExpress + 12,
-	`${beforeExpress} → ${afterExpress}`
-);
-check('and the button followed it', (await payButton.innerText()).includes(afterExpress.toFixed(2)));
+check('only Standard shipping is offered', (await page.locator('input[name="method-method"]').count()) === 1 && (await page.locator('input[name="method-method"][value="express"]').count()) === 0);
+const orderTotal = await totalNow();
+check('and it is free: the total is the goods', /Shipping\s*Free/.test(await page.locator('form dl').innerText()));
+check('and the button says the total', (await payButton.innerText()).includes(orderTotal.toFixed(2)));
 
 // --- place it --------------------------------------------------------------
 await payButton.click();
@@ -144,7 +135,7 @@ check('an order number came back', /CMP-[0-9A-F]{8}/.test(body ?? ''), /CMP-\S+/
 const calls = await fbqCalls();
 const purchase = tracked(calls, 'Purchase');
 check('Purchase fired', Boolean(purchase));
-check('Purchase is worth what was charged', purchase?.[2]?.value === afterExpress.toFixed(2),
+check('Purchase is worth what was charged', purchase?.[2]?.value === orderTotal.toFixed(2),
 	JSON.stringify(purchase?.[2]));
 check('Purchase carries an eventID for CAPI dedup', /^purchase-CMP-/.test(purchase?.[3]?.eventID ?? ''));
 check('the cart was emptied', (await page.evaluate(() =>
@@ -171,8 +162,8 @@ check('the cart was emptied', (await page.evaluate(() =>
 	);
 	check(
 		'purchase value matches what was charged',
-		buy?.ecommerce?.value === afterExpress,
-		`${buy?.ecommerce?.value} vs ${afterExpress}`
+		buy?.ecommerce?.value === orderTotal,
+		`${buy?.ecommerce?.value} vs ${orderTotal}`
 	);
 	check(
 		'purchase items carry ids, names and quantities',

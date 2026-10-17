@@ -774,7 +774,7 @@ turns it on for that product only. Things to know:
   236px from 440px wide, measured with `SHOP_APPEARANCE`), so the pay button
   does not move while Stripe.js loads. Change the appearance, measure again.
   `CardFields` now also calls `elements.update({ amount })` when the total
-  changes after mounting (Express shipping, a second unit), on every
+  changes after mounting (a second unit, a bundle), on every
   checkout.
 - **Text 16px and up, fields 60px, every target 44px.** The test walks every
   visible text node and fails on anything smaller.
@@ -805,6 +805,14 @@ back by accident:
   frame and picker never disagree.
 - **The `pills` picker puts its tagline below the sizes on a phone**, and the
   costume's columns sit 12px apart there.
+- **Shipping is Standard only, since 2026-10-17.** Express promised 2–3
+  business days that a dropshipped order cannot keep, so the owner took it
+  off. `SHIPPING_RATES` in `$lib/store/shipping-rates.ts` is the one table:
+  the checkout's options, its total, the method `placeOrder` accepts, and
+  `createCommerce({ shippingRates })` in hooks, so `orders.create()` prices
+  against it. A posted `method=express` is charged as Standard
+  (`test:payments` posts one). The framework's `DEFAULT_SHIPPING_RATES`
+  still lists Express; don't read rates from it in this app.
 - **`/checkout` opens on a "Your order" box** (photo, colour, size, total)
   — `/api/cart` lines carry `image`. Each line has its own − n + buttons
   (`QuantityStepper.svelte`), Remove, and Change back to *its* product. The

@@ -629,6 +629,8 @@ if (sessionCall) {
 		country: 'CA',
 		// Typed the way people type it — no calling code, which Meta needs.
 		phone: '(604) 555-0199',
+		// Not offered since 2026-10-17. Posted anyway, to prove a request the
+		// page would never send is charged as Standard, not $12 more.
 		method: 'express',
 		cardReady: '1',
 		submissionId,
@@ -694,14 +696,15 @@ if (sessionCall) {
 
 	if (intentCall) {
 		const p = new URLSearchParams(intentCall.body);
-		// 2 × $44.97 = $89.94, less the 7% two-pack break ($6.30), plus $12
-		// express. The intent is the order total outright, so unlike the hosted
+		// 2 × $44.97 = $89.94, less the 7% two-pack break ($6.30), and free
+		// Standard shipping: the posted `express` is not a rate this store
+		// offers. The intent is the order total outright, so unlike the hosted
 		// session there is no coupon to reconcile — which is exactly why the
 		// discount has to already be in this number.
 		check(
-			'the intent charges the discounted total, not the list price',
-			Number(p.get('amount')) === 8994 - 630 + 1200,
-			`charged ${p.get('amount')} for an order worth ${8994 - 630 + 1200}`
+			'the intent charges the discounted total, not the list price, and no Express',
+			Number(p.get('amount')) === 8994 - 630,
+			`charged ${p.get('amount')} for an order worth ${8994 - 630}`
 		);
 		check('the order number travels with the intent', /^CMP-/.test(p.get('metadata[order_number]') ?? ''));
 		check('store id is in metadata for tenant routing', p.get('metadata[store_id]') === 'chillmypet');
