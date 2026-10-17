@@ -133,17 +133,42 @@ function check(label, cond, detail) {
 }
 
 {
-	// The header is built from the catalogue: one link per product that has
-	// both a row and a page manifest. Asserted on the raw HTML, because a nav a
-	// crawler cannot see is a nav nobody arriving cold can see either.
+	// The header is Home, Catalog (All products, Christmas) and Contact, and the
+	// catalogue is built from the store: one card per product with both a row
+	// and a page manifest, not unlisted. Asserted on the raw HTML, because a nav
+	// a crawler cannot see is a nav nobody arriving cold can see either.
 	const html = await fetch(BASE).then((r) => r.text());
 	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
 	check(
-		'the header links to every product page',
-		header.includes('href="/products/dog-life-jacket"') &&
-			header.includes('href="/products/christmas-pouch-hoodie"'),
+		'the header reads Home, Catalog, Contact',
+		['href="/"', 'href="/catalog"', 'href="/christmas"', 'href="/contact"'].every((h) => header.includes(h)) &&
+			!header.includes('href="/products/'),
 		header.slice(0, 400)
 	);
+	const catalog = await fetch(`${BASE}/catalog`).then((r) => r.text());
+	check(
+		'the catalogue links to every listed product page',
+		['dog-life-jacket', 'dog-christmas-costume', 'reindeer-dog-hoodie'].every((s) => catalog.includes(`href="/products/${s}"`))
+	);
+	check('and the home page does too', html.includes('href="/products/dog-life-jacket"') && html.includes('href="/products/dog-christmas-costume"'));
+	const contact = await fetch(`${BASE}/contact`);
+	check('/contact answers', contact.status === 200);
+}
+{
+	// The Catalog menu is a disclosure: closed until tapped, shut by Escape.
+	const p = await browser.newPage();
+	await p.goto(BASE, { waitUntil: 'networkidle' });
+	const menu = p.locator('header .catalog-menu');
+	check('the Catalog menu starts closed', !(await p.locator('header a[href="/catalog"]').isVisible()));
+	await menu.locator('summary').click();
+	check('a tap opens it on All products', await p.locator('header a[href="/catalog"]').isVisible());
+	await p.keyboard.press('Escape');
+	check('and Escape shuts it', !(await p.locator('header a[href="/catalog"]').isVisible()));
+	await menu.locator('summary').click();
+	await p.locator('header a[href="/christmas"]').click();
+	await p.waitForURL('**/christmas');
+	check('following a link lands there with the menu shut', !(await menu.evaluate((d) => d.open)));
+	await p.close();
 }
 
 {
@@ -279,7 +304,7 @@ check(
 // Client-side navigation must also record a PageView. fbq.queue survives here
 // because SvelteKit navigates without a document reload. The checkout has no
 // product menu, so the way back is the order box's own "Change" link.
-check('the checkout has no product menu', !(await page.locator('header nav ul').isVisible()));
+check('the checkout has no product menu', !(await page.locator('header nav > ul').isVisible()));
 await page.click('section[aria-label="Your order"] a[href="/products/dog-life-jacket"]');
 await page.waitForURL('**/products/dog-life-jacket', { timeout: 10000 });
 {

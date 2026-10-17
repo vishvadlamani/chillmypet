@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import ProductImage from '$lib/components/ProductImage.svelte';
+	import Collection from '$lib/components/Collection.svelte';
 	import { createTranslator, defaultLocale } from '$lib/i18n';
 	import type { PageData } from './$types';
 
@@ -8,40 +8,53 @@
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let t = $derived(createTranslator(locale));
-	let firstImage = $derived(data.hero?.media[0]?.url ?? null);
+	let lead = $derived(data.products[0]);
 </script>
 
 <svelte:head>
-	<title>{t('common.brand')}</title>
-	<meta name="description" content={data.hero?.description ?? ''} />
+	<title>{t('common.brand')} · Clothes for small dogs</title>
+	<meta
+		name="description"
+		content="Christmas costumes, hoodies and life jackets for small dogs. Free US shipping and 30-day returns."
+	/>
+	{#if lead?.image}
+		<meta property="og:image" content={new URL(lead.image, page.url).href} />
+	{/if}
 </svelte:head>
 
-{#if data.hero}
-	<section class="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 lg:grid-cols-2 lg:gap-16">
-		<div>
-			<h1 class="text-4xl font-semibold tracking-tight sm:text-5xl">
-				{data.hero.subtitle ?? data.hero.title}
-			</h1>
-			<p class="mt-5 text-lg text-ink-600">{data.hero.description}</p>
-			<a
-				href="/products/{data.hero.slug}"
-				class="mt-8 inline-block rounded-xl bg-tide-600 px-7 py-3.5 font-medium text-white transition hover:bg-tide-700"
-			>
-				{data.hero.title}
-			</a>
-		</div>
-		<div class="overflow-hidden rounded-2xl border border-ink-200">
-			<ProductImage
-				src={firstImage}
-				hex="#1e4e8c"
-				loading="eager"
-				label={data.hero.title}
-				class="aspect-square w-full"
-			/>
-		</div>
-	</section>
-{:else}
-	<section class="mx-auto max-w-6xl px-4 py-24 text-center text-ink-600">
-		<p>{t('cart.empty')}</p>
-	</section>
-{/if}
+<Collection
+	eyebrow={t('common.brand')}
+	title="Little outfits for small dogs."
+	lead="Christmas costumes, hoodies and life jackets. Free US shipping, 30-day returns."
+	products={data.products}
+	empty="New products are on their way."
+>
+	<p class="more">
+		<a href="/christmas">{t('nav.christmas')}</a>
+		<a href="/catalog">{t('nav.allProducts')}</a>
+	</p>
+</Collection>
+
+<style>
+	.more {
+		margin: 24px 0 0;
+		display: flex;
+		justify-content: center;
+		gap: 12px;
+		flex-wrap: wrap;
+	}
+	.more a {
+		display: inline-block;
+		padding: 11px 22px;
+		border: 1px solid var(--tree-green);
+		border-radius: 999px;
+		color: var(--tree-green);
+		font-weight: 600;
+		font-size: 15px;
+		text-decoration: none;
+	}
+	.more a:hover {
+		background: var(--tree-green);
+		color: #fff;
+	}
+</style>

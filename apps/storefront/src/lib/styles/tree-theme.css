@@ -80,7 +80,7 @@
 	color: var(--tree-green);
 }
 /* Wide screens: the name centred, language and cart right, the links on
-   their own centred row beneath (four product names do not fit beside it). */
+   their own centred row beneath. */
 @media (min-width: 768px) {
 	.tree-chrome > header nav {
 		display: grid;

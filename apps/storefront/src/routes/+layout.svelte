@@ -5,6 +5,10 @@
 	import { track } from '$lib/analytics/pixel';
 	import { createTranslator, defaultLocale, locales, localeName } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
+	// Scoped to `.tree-chrome`/`.tree-theme`, so loading it everywhere changes
+	// nothing elsewhere, and a page with no styles of its own (contact) still
+	// gets the shop's chrome.
+	import '$lib/styles/tree-theme.css';
 
 	let { children } = $props();
 
@@ -81,7 +85,39 @@
 	$effect(() => {
 		cart.hydrate();
 	});
+
+	/** The Catalog menu: shut after a navigation, a tap elsewhere or Escape. */
+	let catalogMenu = $state<HTMLDetailsElement>();
+	let inCatalog = $derived(
+		page.url.pathname === '/catalog' ||
+			page.url.pathname === '/christmas' ||
+			page.url.pathname.startsWith('/products/')
+	);
+	afterNavigate(() => {
+		if (catalogMenu) catalogMenu.open = false;
+	});
+	function closeCatalogMenu(event: Event) {
+		if (!catalogMenu?.open) return;
+		if (event instanceof KeyboardEvent) {
+			if (event.key !== 'Escape') return;
+			catalogMenu.open = false;
+			catalogMenu.querySelector('summary')?.focus();
+		} else if (!catalogMenu.contains(event.target as Node)) {
+			catalogMenu.open = false;
+		}
+	}
 </script>
+
+<svelte:window onclick={closeCatalogMenu} onkeydown={closeCatalogMenu} />
+
+<svelte:head>
+	{#if treeChrome}
+		<link
+			href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
+			rel="stylesheet"
+		/>
+	{/if}
+</svelte:head>
 
 {#if isAdmin}
 	{@render children()}
@@ -122,39 +158,64 @@
 				{t('common.brand')}
 			</a>
 
-			<!-- On a phone the product names no longer fit beside the brand, and
-			     three of them wrapped the header onto three lines. Below `sm` the
-			     list takes its own line and scrolls sideways instead of wrapping;
-			     the negative margin lets the first link start at the gutter. -->
+			<!-- Home, Catalog, Contact, the way a shop's menu reads. The products
+			     live under Catalog rather than in the bar: four product names
+			     were too long for one row, and wrapped or scrolled on a phone.
+			     Below `sm` the menu takes its own line under the brand. -->
 			<ul
-				class="{onCheckout ? 'hidden' : onProduct ? 'flex max-sm:hidden' : 'flex'} items-center gap-x-5 overflow-x-auto whitespace-nowrap text-sm text-ink-600 [scrollbar-width:none] max-sm:order-last max-sm:-mx-4 max-sm:w-[calc(100%+2rem)] max-sm:px-4 [&::-webkit-scrollbar]:hidden"
+				class="{onCheckout ? 'hidden' : onProduct ? 'flex max-sm:hidden' : 'flex'} site-menu items-center gap-x-6 whitespace-nowrap text-sm text-ink-600 max-sm:order-last max-sm:w-full max-sm:justify-center"
 			>
-				<li><a class="hover:text-ink-900" href="/">{t('nav.home')}</a></li>
-				{#if page.data.christmasShop}
-					<li>
-						<a
-							class="hover:text-ink-900"
-							href="/christmas"
-							aria-current={page.url.pathname === '/christmas' ? 'page' : undefined}
-						>
-							{t('nav.christmas')}
-						</a>
-					</li>
-				{/if}
-				<!-- One link per product that can actually be bought here, from the
-				     layout's load: the catalogue decides, so a second product is
-				     reachable the day its row lands and never before. -->
-				{#each page.data.nav ?? [] as item (item.slug)}
-					<li>
-						<a
-							class="hover:text-ink-900"
-							href="/products/{item.slug}"
-							aria-current={page.url.pathname === `/products/${item.slug}` ? 'page' : undefined}
-						>
-							{item.title}
-						</a>
-					</li>
-				{/each}
+				<li>
+					<a
+						class="hover:text-ink-900"
+						href="/"
+						aria-current={page.url.pathname === '/' ? 'page' : undefined}
+					>
+						{t('nav.home')}
+					</a>
+				</li>
+				<li>
+					<!-- A disclosure, not a hover menu: a tap opens it on a phone,
+					     it works before hydration, and Escape or a tap elsewhere
+					     closes it. -->
+					<details class="catalog-menu" bind:this={catalogMenu}>
+						<summary class="hover:text-ink-900" class:active={inCatalog}>
+							{t('nav.catalog')}
+							<svg viewBox="0 0 12 12" aria-hidden="true">
+								<path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" />
+							</svg>
+						</summary>
+						<ul>
+							<li>
+								<a
+									href="/catalog"
+									aria-current={page.url.pathname === '/catalog' ? 'page' : undefined}
+								>
+									{t('nav.allProducts')}
+								</a>
+							</li>
+							{#if page.data.christmasShop}
+								<li>
+									<a
+										href="/christmas"
+										aria-current={page.url.pathname === '/christmas' ? 'page' : undefined}
+									>
+										{t('nav.christmas')}
+									</a>
+								</li>
+							{/if}
+						</ul>
+					</details>
+				</li>
+				<li>
+					<a
+						class="hover:text-ink-900"
+						href="/contact"
+						aria-current={page.url.pathname === '/contact' ? 'page' : undefined}
+					>
+						{t('nav.contact')}
+					</a>
+				</li>
 			</ul>
 
 			<div class="ms-auto flex items-center gap-4">
@@ -215,3 +276,4 @@
 	</footer>
 </div>
 {/if}
+

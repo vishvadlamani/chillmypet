@@ -57,7 +57,7 @@ function check(label, cond, detail) {
 	check('no was-price or strikethrough price', !/compare|<s>|<del>/i.test(html.replace(/<style[\s\S]*?<\/style>/g, '')));
 	check('no countdown chips, stock bar or viewers', !/sale ends|left in stock|viewing|people are|% sold/i.test(html));
 	check('no ratings or reviews', !/★|Pet Parents|What owners are saying/.test(html));
-	// The page body only: the header names every product, the life jacket included.
+	// The page body only: the header's menu leads to the catalogue.
 	const main = /<main[\s\S]*?<\/main>/.exec(html)?.[0] ?? html;
 	check('no life-jacket copy leaked in', !/chin rest|life jacket/i.test(main));
 	check('og:image is absolute', /property="og:image" content="https?:\/\//.test(html));
@@ -67,8 +67,11 @@ function check(label, cond, detail) {
 	check('and not Discover, which Stripe does not offer a Czech account', !/aria-label="Discover"/.test(html));
 	check('SSR says who the shop is, in place of reviews', html.includes('Who you’re buying from') && html.includes('1–2 business days'));
 	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
-	check('the site header links to this page', header.includes('href="/products/dog-christmas-costume"'), header.slice(0, 400));
-	check('and still to the hoodie and the life jacket', header.includes('href="/products/christmas-pouch-hoodie"') && header.includes('href="/products/dog-life-jacket"'));
+	check('the site header leads to the catalogue', header.includes('href="/catalog"') && header.includes('href="/christmas"'), header.slice(0, 400));
+}
+{
+	const html = await fetch(`${BASE}/catalog`).then((r) => r.text());
+	check('and the catalogue links to this page', html.includes('href="/products/dog-christmas-costume"'));
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
@@ -215,7 +218,7 @@ check('add to cart lands on the checkout', new URL(page.url()).pathname === '/ch
 	check('the checkout opens on what is being bought', /Dog Christmas Tree Costume[\s\S]*Green · M/.test(text), text);
 	check('with a small photo of it', (await top.locator('img').getAttribute('src').catch(() => ''))?.startsWith('/resized/200/'));
 	check('and a way back to change it', (await top.locator('a', { hasText: 'Change' }).getAttribute('href')) === '/products/dog-christmas-costume');
-	check('and no product menu to leave by', !(await page.locator('header nav ul').isVisible()));
+	check('and no product menu to leave by', !(await page.locator('header nav > ul').isVisible()));
 }
 
 {

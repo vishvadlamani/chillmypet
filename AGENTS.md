@@ -550,8 +550,8 @@ variants, metafields), listed in `scripts/products.js`; a manifest in
 (`christmas: true` on its `PRODUCT_PAGES` entry also lists it on `/christmas`);
 and a browser test like `tests/christmas-hoodie.mjs`. The seed writes it on a
 fresh database, the Worker adds it to a live one, and `check-live.js` fails the
-deploy if its page does not answer. Nothing else to register: the header reads
-the catalogue.
+deploy if its page does not answer. Nothing else to register: `/catalog` and the home
+page read the catalogue.
 
 **A store:** `SEED_STORE_ID=x SEED_STORE_DOMAIN=x.com npm run db:seed`, then add
 the domain to `apps/storefront/wrangler.toml`. One Worker serves all tenants;
@@ -712,8 +712,33 @@ conversion path the tests pin is the only one. It wears the tree chrome (the
 layout reads `theme` and `announcement` off its data, since it has no
 manifest), hides the header links on a phone like a product page, and lays
 the cards out as rows on a phone so the first screen shows more than one
-product with its price. The header links to it once it has a product. The
+product with its price. The header's Catalog menu links to it once it has a product. The
 pouch hoodie (a person's garment, `christmas` theme) is not on it.
+
+**The header is Home, Catalog and Contact** (since 2026-10-17, on the owner's
+instruction, after littletreepups.com's menu). Catalog is a `<details>`
+disclosure opening onto All products (`/catalog`) and Christmas
+(`/christmas`, once it has a product); a tap opens it, and a tap elsewhere,
+Escape or a navigation closes it. The products are no longer links in the
+bar: four names did not fit on one row, and the catalogue's cards are where
+the menu leads instead. Things to know:
+
+- **`unlisted` hides a product from the shop, not from the web.** The
+  Christmas Pouch Hoodie carries it: it stays off the menu, `/`, `/catalog`
+  and `/christmas`, while its page, its `shop` checkout and the landing
+  page's Buy now keep working, and `check-live.js` still fetches it. Delete
+  the line in `pages.ts` to list it again. `tests/christmas-hoodie.mjs`
+  asserts it is absent from all three.
+- **The shop's pages wear the tree chrome.** Home, `/catalog`, `/christmas`
+  and `/contact` return `treeChrome(settings)` from their loads (the theme
+  and the delivery strip), and `Collection.svelte` / `ProductGrid.svelte`
+  are the cards for all three listing pages. Christmas products sort first.
+- **The menu's CSS is global, in `app.css`.** A `<style>` block in
+  `+layout.svelte` stamps a hash class on every element of the layout, and
+  the tests match chrome class names (`tree-strip`, `shop-header`) on the
+  raw HTML. Keep the layout free of scoped styles.
+- The phone rules above are unchanged: product pages and `/christmas` hide
+  the menu below `sm`, checkouts hide it everywhere.
 
 **Every sized product also has a one-page checkout** at
 `/products/<slug>/checkout` (`/products/dog-christmas-costume/checkout`):
@@ -847,11 +872,12 @@ that database, which is why the sync lives there now. Three things keep code
 and rows together. The Worker's sync. `deploy.yml`, which after the deploy
 runs `scripts/check-live.js` to fetch every product page on chillmypet.com
 and fails the run if one is not a 200 within four minutes, so code without a
-row is a red run rather than a quiet 404. And the site header, built from
-the catalogue (`+layout.server.ts`): it links to every product that has both
-a row and a manifest, so a product missing from the live database is a
-missing link, never a dead one — and a product reachable only by typing its
-URL, which is what the hoodie was, cannot happen again.
+row is a red run rather than a quiet 404. And the shop's own pages, built
+from the catalogue (`loadCollection` in `$lib/store/collection.ts`): `/`,
+`/catalog` and `/christmas` show a card for every product that has both a row
+and a manifest, so a product missing from the live database is a missing
+card, never a dead link. A product left out of them on purpose says so with
+`unlisted: true` in `pages.ts`; see "The header" below.
 
 **Where the Christmas ads should land, decided 2026-10-12:**
 `/products/christmas-pouch-hoodie` on chillmypet.com, once its row is in the
