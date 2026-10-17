@@ -73,7 +73,7 @@ export const load: PageServerLoad = async ({
 			const purchase = Promise.all([
 				sendPurchase(commerce, order, {
 					eventSourceUrl: url.href,
-					attribution: attributionFrom(cookies, url, request.headers, getClientAddress())
+					attribution: attributionFrom(cookies, locals.metaBrowserIds, request.headers, getClientAddress())
 				}),
 				sendOrderConfirmation(locals.email, order)
 			]);

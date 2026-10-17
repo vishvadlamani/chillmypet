@@ -160,7 +160,7 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 	// metadata because the webhook is a request from Stripe and has none of them.
 	if (commerce.payments) {
 		const metadata = attributionMetadata(
-			attributionFrom(cookies, url, request.headers, event.getClientAddress())
+			attributionFrom(cookies, locals.metaBrowserIds, request.headers, event.getClientAddress())
 		);
 		const successUrl = `${url.origin}/checkout/success?order=${encodeURIComponent(order.orderNumber)}`;
 
@@ -220,7 +220,7 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 	const purchase = Promise.all([
 		sendPurchase(commerce, order, {
 			eventSourceUrl: url.href,
-			attribution: attributionFrom(cookies, url, request.headers, event.getClientAddress())
+			attribution: attributionFrom(cookies, locals.metaBrowserIds, request.headers, event.getClientAddress())
 		}),
 		sendOrderConfirmation(locals.email, order)
 	]);

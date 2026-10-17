@@ -67,15 +67,6 @@ function cleanCustomData(input: unknown): MetaCustomData | undefined {
 	return Object.keys(out).length ? (out as MetaCustomData) : undefined;
 }
 
-/** The page the event happened on, or this request's URL if it won't parse. */
-function pageUrl(eventSourceUrl: string, fallback: URL): URL {
-	try {
-		return new URL(eventSourceUrl);
-	} catch {
-		return fallback;
-	}
-}
-
 export const POST: RequestHandler = async ({ request, locals, url, cookies, platform, getClientAddress }) => {
 	// 204 in every branch below: this is a tracking beacon, and a page must never
 	// see an error from one. Failures are logged, not surfaced.
@@ -112,7 +103,7 @@ export const POST: RequestHandler = async ({ request, locals, url, cookies, plat
 			// was told.
 			user: {
 				...rememberedContact(cookies),
-				...attributionFrom(cookies, pageUrl(eventSourceUrl, url), request.headers, getClientAddress())
+				...attributionFrom(cookies, locals.metaBrowserIds, request.headers, getClientAddress())
 			},
 			customData: cleanCustomData(body.customData)
 		})

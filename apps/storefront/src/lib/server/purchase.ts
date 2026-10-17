@@ -1,6 +1,6 @@
 import { toAmount, type Commerce, type Order } from 'ecomwithai';
-import { resolveFbc } from 'ecomwithai/marketing';
 import { withCallingCode } from '$lib/server/identity';
+import type { MetaBrowserIds } from '$lib/server/meta-browser-ids';
 
 /**
  * One Purchase conversion, shared by every path that can report one.
@@ -70,20 +70,19 @@ export function ensureVisitorId(cookies: CookieJar): string {
 }
 
 /**
- * Reads `_fbc`, or mints one from a `fbclid` on the page's URL — Meta matches
- * far better with a click id than without, and the cookie is only set if their
- * script ran. `pageUrl` is the page the event happened on, which for a beacon is
- * not the request's own URL.
+ * `ids` is `locals.metaBrowserIds`, built once per request in hooks.server.ts
+ * by Meta's Parameter Builder. Passed through untouched: the builder's tag is
+ * how Meta knows the click id was not modified on the way.
  */
 export function attributionFrom(
 	cookies: { get(name: string): string | undefined },
-	pageUrl: URL,
+	ids: MetaBrowserIds,
 	headers: Headers,
 	clientIpAddress?: string
 ): PurchaseAttribution {
 	return {
-		fbp: cookies.get('_fbp'),
-		fbc: resolveFbc(cookies.get('_fbc'), pageUrl.searchParams.get('fbclid'), Date.now()),
+		fbp: ids.fbp,
+		fbc: ids.fbc,
 		externalId: visitorId(cookies),
 		clientIpAddress,
 		clientUserAgent: headers.get('user-agent') ?? undefined

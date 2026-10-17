@@ -175,6 +175,13 @@ const capiPayloads = () =>
 		}
 	});
 
+/**
+ * `value` is `cookie` as Meta's Parameter Builder adopts it: the same bytes,
+ * plus the 8-character tag it appends to name itself.
+ */
+const tagged = (value, cookie) =>
+	typeof value === 'string' && value.startsWith(`${cookie}.`) && /^[A-Za-z0-9_-]{8}$/.test(value.slice(cookie.length + 1));
+
 // --- the server reports the click the browser saw -------------------------
 // A visitor carrying `_fbc` from an older ad click lands from a new one. The
 // pixel switches to the new click id, so the server copies must too, exactly
@@ -186,10 +193,18 @@ const landing = `${BASE}/products/dog-life-jacket?fbclid=${CLICK}&run=${RUN}`;
 
 // As a browser asks for a page: the server copy of PageView goes only to real
 // page loads, never to a bot or a script fetching the HTML.
-await fetch(landing, { headers: { ...staleClick, accept: 'text/html', 'user-agent': BUYER_UA } });
+const landed = await fetch(landing, { headers: { ...staleClick, accept: 'text/html', 'user-agent': BUYER_UA } });
+await landed.text();
+const landedFbc = landed.headers
+	.getSetCookie()
+	.map((c) => c.split(';')[0])
+	.find((pair) => pair.startsWith('_fbc='))
+	?.slice('_fbc='.length);
+// The beacon a browser sends next: the cookie the page just set, and the page
+// as its referrer, which is where a beacon's click id comes from.
 await fetch(`${BASE}/api/track`, {
 	method: 'POST',
-	headers: { ...staleClick, 'content-type': 'application/json' },
+	headers: { cookie: `_fbc=${landedFbc}`, referer: landing, 'content-type': 'application/json' },
 	body: JSON.stringify({ eventName: 'ViewContent', eventId: `vc-${RUN}`, eventSourceUrl: landing })
 });
 await settle();
@@ -198,15 +213,22 @@ const landingPageView = capiPayloads().find(
 	(e) => e.event_name === 'PageView' && e.event_source_url === landing
 );
 const landingViewContent = capiPayloads().find((e) => e.event_id === `vc-${RUN}`);
-const clickFbc = new RegExp(`^fb\\.1\\.\\d{13}\\.${CLICK}$`);
+// Meta's Parameter Builder appends a tag naming itself; the click id before it
+// must be exactly what the URL carried.
+const clickFbc = new RegExp(`^fb\\.\\d\\.\\d{13}\\.${CLICK}\\.[A-Za-z0-9_-]{8}$`);
+check(
+	'the landing page writes the new click id to _fbc, verbatim',
+	clickFbc.test(landedFbc ?? ''),
+	`_fbc ${landedFbc}`
+);
 check(
 	'the landing PageView carries the new click id, unaltered',
-	clickFbc.test(landingPageView?.user_data?.fbc ?? ''),
+	landingPageView?.user_data?.fbc === landedFbc,
 	`fbc ${landingPageView?.user_data?.fbc}`
 );
 check(
-	"a beacon takes the click id from the page's URL, not its own",
-	clickFbc.test(landingViewContent?.user_data?.fbc ?? ''),
+	'a beacon sends the same fbc the page set',
+	landingViewContent?.user_data?.fbc === landedFbc,
 	`fbc ${landingViewContent?.user_data?.fbc}`
 );
 
@@ -264,7 +286,7 @@ const setCookies = (response) =>
 	});
 	await landing.text();
 	const set = setCookies(landing);
-	check('a first navigation is given an _fbp', /^fb\.1\.\d{13}\.\d+$/.test(set._fbp ?? ''), set._fbp);
+	check('a first navigation is given an _fbp', /^fb\.\d\.\d{13}\.\d+\.[A-Za-z0-9_-]{8}$/.test(set._fbp ?? ''), set._fbp);
 	check('and a visitor id', /^[a-f0-9]{64}$/.test(set.cmp_vid ?? ''), set.cmp_vid);
 	check(
 		'which script cannot read',
@@ -352,8 +374,10 @@ if (sessionCall) {
 	);
 	check(
 		'meta click identifiers ride along for the webhook',
-		p.get('metadata[fbp]') === 'fb.1.1700000000000.1234567890' &&
-			p.get('metadata[fbc]') === 'fb.1.1700000000000.testclickid'
+		// The builder tags a cookie it adopts, and leaves the id itself alone.
+		tagged(p.get('metadata[fbp]'), 'fb.1.1700000000000.1234567890') &&
+			tagged(p.get('metadata[fbc]'), 'fb.1.1700000000000.testclickid'),
+		JSON.stringify({ fbp: p.get('metadata[fbp]'), fbc: p.get('metadata[fbc]') })
 	);
 	check(
 		'so do the buyer’s user agent, address and visitor id',
@@ -486,8 +510,8 @@ if (sessionCall) {
 		);
 		check(
 			'the click identifiers survived the round trip through Stripe',
-			purchase.user_data?.fbp === 'fb.1.1700000000000.1234567890' &&
-				purchase.user_data?.fbc === 'fb.1.1700000000000.testclickid',
+			purchase.user_data?.fbp === p.get('metadata[fbp]') &&
+				purchase.user_data?.fbc === p.get('metadata[fbc]'),
 			JSON.stringify({ fbp: purchase.user_data?.fbp, fbc: purchase.user_data?.fbc })
 		);
 		check(
@@ -683,7 +707,7 @@ if (sessionCall) {
 		check('store id is in metadata for tenant routing', p.get('metadata[store_id]') === 'chillmypet');
 		check(
 			'the click identifier rides along for the webhook',
-			p.get('metadata[fbp]') === 'fb.1.1700000000000.1234567890'
+			tagged(p.get('metadata[fbp]'), 'fb.1.1700000000000.1234567890')
 		);
 		check('so does the visitor id', p.get('metadata[external_id]') === VISITOR);
 		check(
@@ -832,7 +856,7 @@ if (sessionCall) {
 		const u = ev?.user_data ?? {};
 		check(
 			`a returning shopper's ${name} carries fbp, external_id, email, phone and last name`,
-			u.fbp === 'fb.1.1700000000000.1234567890' &&
+			tagged(u.fbp, 'fb.1.1700000000000.1234567890') &&
 				u.external_id?.[0] === VISITOR &&
 				u.em?.[0] === sha256('inline@example.com') &&
 				u.ph?.[0] === sha256('16045550199') &&
