@@ -14,6 +14,7 @@
 	import { PRODUCT_SLUG } from '$lib/store/product';
 	import { cart } from '$lib/stores/cart.svelte';
 	import CardFields from '$lib/components/CardFields.svelte';
+	import { resized } from '$lib/resized';
 	import type { ActionData, PageData } from '../../routes/checkout/$types';
 
 	/**
@@ -33,7 +34,10 @@
 		initiateAfterContact = false,
 		continueHref = `/products/${PRODUCT_SLUG}`,
 		emptyNote,
-		rowClass
+		rowClass,
+		colClass = 'flex flex-col gap-5',
+		topSummary = true,
+		mainClass = 'flex flex-col gap-6 py-8'
 	}: {
 		data: Pick<
 			PageData,
@@ -79,6 +83,15 @@
 		emptyNote?: string;
 		/** For a manifest that groups blocks into a row; the checkout's own don't. */
 		rowClass?: string;
+		colClass?: string;
+		mainClass?: string;
+		/**
+		 * What is being bought, above the form. On `/checkout` the only other
+		 * summary is under the card fields, so a buyer filled in everything
+		 * without seeing the colour and size they chose. Off where the product
+		 * is already at the top of the page.
+		 */
+		topSummary?: boolean;
 	} = $props();
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
@@ -105,6 +118,7 @@
 		colour: string;
 		size: string;
 		sku: string;
+		image: string | null;
 		unitPriceCents: number;
 		quantity: number;
 	};
@@ -497,6 +511,44 @@
 		     is host chrome. Payment deliberately is not a block: unknown block
 		     types are skipped by design, which on a checkout would render a page
 		     that looks complete and silently cannot take money. -->
+		{#if topSummary && priced && priced.lines.length > 0}
+			<section class="max-w-page px-gutter mx-auto w-full pt-6" aria-label={t('checkout.yourOrder')}>
+				<div class="rounded-field flex flex-col gap-3 border border-[#d8d5cf] bg-white p-3">
+					{#each priced.lines as line (line.variantId)}
+						<div class="flex items-center gap-3">
+							{#if line.image}
+								<img
+									src={resized(line.image, 200)}
+									alt=""
+									width="56"
+									height="56"
+									class="size-14 shrink-0 rounded-lg object-cover"
+								/>
+							{/if}
+							<div class="min-w-0 flex-1">
+								<p class="text-15 text-fx-ink truncate font-medium">{line.title}</p>
+								<p class="text-13 text-fx-muted">
+									{colourName(line.colour)} · {line.size} · {t('cart.quantity')}
+									{line.quantity}
+								</p>
+							</div>
+							<span class="text-15 text-fx-ink font-semibold whitespace-nowrap tabular-nums">
+								{formatMoney(line.unitPriceCents * line.quantity, locale, currency)}
+							</span>
+						</div>
+					{/each}
+					<div class="text-15 flex items-center justify-between border-t border-[#e2e0dc] pt-2">
+						<a href="/products/{priced.lines[0].slug}" class="text-fx-sub underline">
+							{t('checkout.changeOrder')}
+						</a>
+						<span class="text-fx-ink font-semibold tabular-nums">
+							{t('checkout.total')}: {formatMoney(totalCents, locale, currency)}
+						</span>
+					</div>
+				</div>
+			</section>
+		{/if}
+
 		<PageLayout
 			definition={data.definition}
 			version={data.version}
@@ -504,9 +556,9 @@
 			{track}
 			{submit}
 			state={funnelState}
-			mainClass="flex flex-col gap-6 py-8"
+			{mainClass}
 			{rowClass}
-			colClass="flex flex-col gap-5"
+			{colClass}
 		/>
 
 		<form

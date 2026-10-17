@@ -171,4 +171,7 @@
 	continueHref="/products/{data.slug}"
 	emptyNote={t('checkout.pickAbove')}
 	rowClass="max-w-page px-gutter mx-auto w-full"
+	colClass="flex flex-col gap-3 md:gap-5"
+	topSummary={false}
+	mainClass="flex flex-col gap-6 pb-8"
 />

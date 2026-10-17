@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { Block, FlowContext } from '@funnel/core';
 	import { emphasize } from '@funnel/blocks-dr/tokens';
+	import { resized } from '$lib/resized';
 
 	/**
 	 * Design, then size, then one button.
@@ -213,7 +214,7 @@
 					/>
 					{#if words?.ribbon}<span class="ribbon">{words.ribbon}</span>{/if}
 					<span class="tier-main">
-						{#if t.image}<img src={t.image} alt="" width="40" height="48" loading="lazy" />{/if}
+						{#if t.image}<img src={resized(t.image, 200)} alt="" width="40" height="48" loading="lazy" />{/if}
 						<span class="tier-text">
 							<strong>{words?.title ?? t.title}</strong>
 							{#if words?.tag}<em>{words.tag}</em>{/if}
@@ -266,7 +267,7 @@
 						onchange={() => pickDesign(d.code)}
 					/>
 					{#if d.image}
-						<img src={d.image} alt="" width="64" height="58" loading="lazy" />
+						<img src={resized(d.image, 200)} alt="" width="64" height="58" loading="lazy" />
 					{:else}
 						<span class="swatch" style:background={d.swatch ?? '#ccc'}></span>
 					{/if}
@@ -320,6 +321,21 @@
 		display: flex;
 		flex-direction: column;
 		gap: 20px;
+	}
+	/*
+	 * On a phone the tagline waits below the sizes: it is the one line in the
+	 * buy box that isn't the price or a choice, and above them it was what
+	 * pushed the size buttons off the first screen.
+	 */
+	@media (max-width: 767px) {
+		.pills .tagline {
+			order: 1;
+		}
+		.pills .tiers,
+		.pills .cta,
+		.pills .fine.center {
+			order: 2;
+		}
 	}
 	.price {
 		display: flex;

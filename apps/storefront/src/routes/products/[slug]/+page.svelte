@@ -317,9 +317,9 @@
 			? 'xmas-theme relative z-[1] min-h-svh'
 			: 'storefront-type bg-fx-bg min-h-svh'}
 	rowClass={tree
-		? 'tree-row mx-auto grid w-full max-w-[1320px] gap-6 px-[18px] py-6 md:grid-cols-2 md:gap-14 md:px-[72px] md:py-12'
+		? 'tree-row mx-auto grid w-full max-w-[1320px] gap-4 px-[18px] py-6 md:grid-cols-2 md:gap-14 md:px-[72px] md:py-12'
 		: 'mx-auto grid w-full max-w-shell gap-8 px-gutter py-6 md:grid-cols-[715fr_537fr] md:gap-12'}
-	colClass={tree ? 'flex min-w-0 flex-col gap-5' : 'flex flex-col gap-6'}
+	colClass={tree ? 'flex min-w-0 flex-col gap-3 md:gap-5' : 'flex flex-col gap-6'}
 />
 
 <style>

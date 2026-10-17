@@ -146,6 +146,22 @@
 		--spacing-gutter: 72px;
 	}
 }
+/*
+ * A phone in the Facebook app shows about 660px before the first scroll, and
+ * the price and the size buttons have to be inside it: an ad that lands on a
+ * photo and nothing to tap loses the visitor before they choose. So on a
+ * phone the header is one slim row and the buy box starts closer under it.
+ */
+@media (max-width: 767px) {
+	.tree-chrome > header nav {
+		padding-top: 10px;
+		padding-bottom: 10px;
+	}
+	.tree-theme main > .tree-row:first-of-type {
+		padding-top: 12px;
+	}
+}
+
 /* Inside a two-column row the row already carries the gutter. */
 .tree-theme .tree-row {
 	--spacing-gutter: 0px;

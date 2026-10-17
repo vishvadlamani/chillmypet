@@ -277,8 +277,10 @@ check(
 );
 
 // Client-side navigation must also record a PageView. fbq.queue survives here
-// because SvelteKit navigates without a document reload.
-await page.click('header a[href="/products/dog-life-jacket"]');
+// because SvelteKit navigates without a document reload. The checkout has no
+// product menu, so the way back is the order box's own "Change" link.
+check('the checkout has no product menu', !(await page.locator('header nav ul').isVisible()));
+await page.click('section[aria-label="Your order"] a[href="/products/dog-life-jacket"]');
 await page.waitForURL('**/products/dog-life-jacket', { timeout: 10000 });
 {
 	const calls = await fbqCalls();

@@ -27,6 +27,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const priced = await locals.commerce.catalog.priceVariants(wanted.map((l) => l.variantId));
 
+	// A photo per line, for the summary at the top of the checkout: the photo
+	// of the colour bought where the catalogue has one, else the product's
+	// first. One read per product in the cart, which is one or two.
+	const slugs = [...new Set([...priced.values()].map((v) => v.productSlug))];
+	const products = new Map(
+		await Promise.all(
+			slugs.map(async (slug) => [slug, await locals.commerce.catalog.getProduct(slug, locals.locale)] as const)
+		)
+	);
+	const imageFor = (slug: string, colour: string | null) => {
+		const media = products.get(slug)?.media ?? [];
+		return (media.find((m) => m.optionValue === colour) ?? media[0])?.url ?? null;
+	};
+
 	const lines = wanted.flatMap((line) => {
 		const variant = priced.get(line.variantId);
 		if (!variant) return [];
@@ -39,6 +53,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				colour: variant.options[0] ?? '',
 				size: variant.options[1] ?? '',
 				sku: variant.sku,
+				image: imageFor(variant.productSlug, variant.options[0]),
 				unitPriceCents: variant.unitPriceCents,
 				quantity: line.quantity,
 				stock: variant.stock
