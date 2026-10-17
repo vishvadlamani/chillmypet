@@ -154,7 +154,30 @@
 		"yourOrder": "Your order",
 		"changeOrder": "Change",
 		"paymentHostedNote": "Card details are entered on Stripe's secure page. They never touch this site.",
-		"paymentFallback": "Opening our secure payment page…"
+		"paymentFallback": "Opening our secure payment page…",
+		"deliveryTitle": "Delivery",
+		"optionalField": "{field} (optional)",
+		"fieldErrors": {
+			"email": "Please enter your email address",
+			"emailInvalid": "Please check your email address, it should look like name@example.com",
+			"firstName": "Please enter your first name",
+			"lastName": "Please enter your last name",
+			"address": "Please enter your street address",
+			"city": "Please enter your city",
+			"state": "Please choose your {label}",
+			"zip": "Please enter your {label}",
+			"country": "Please choose a country"
+		},
+		"shop": {
+			"showSummary": "Show order summary",
+			"hideSummary": "Hide order summary",
+			"secure": "Secure checkout",
+			"paymentNote": "Your card goes straight to Stripe, our payment processor. We never see the number.",
+			"oneItem": "1 item",
+			"manyItems": "{count} items",
+			"fixFields": "Some details are missing. They are marked in red above.",
+			"pick": "Choose a design and size to see your total."
+		}
 	},
 	"footer": {
 		"shipping": "Shipping policy",

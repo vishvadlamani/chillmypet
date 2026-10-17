@@ -60,6 +60,16 @@
 			 * pays. Two buttons there would ask the buyer which one to press.
 			 */
 			button?: boolean;
+			/**
+			 * Shrink to one line ("Santa Red · Size M", Change) once both are
+			 * chosen. The shop checkout sets it: a buyer who chose on the landing
+			 * page arrives with both, and the full picker above the email field
+			 * pushed the form a screen down to restate a choice already made.
+			 * Change opens it again; a buyer who arrives without a size sees the
+			 * whole picker, since there is nothing to fold yet.
+			 */
+			fold?: boolean;
+			changeLabel?: string;
 		}
 	);
 	const pills = $derived(p.look === 'pills');
@@ -129,6 +139,20 @@
 	}
 
 	const designName = $derived(designs.find((d) => d.code === design)?.label ?? '');
+	const designImage = $derived(designs.find((d) => d.code === design)?.image);
+	// Opened by Change, and kept open for the rest of the visit: folding again
+	// the moment a size is tapped would move the page under the buyer's finger.
+	let unfolded = $state(false);
+	const folded = $derived(Boolean(p.fold) && !unfolded && Boolean(size) && buyable(design, size));
+
+	function unfold() {
+		unfolded = true;
+		// The button that had focus is gone; hand it to the chosen size, where
+		// the buyer most likely wants to be.
+		requestAnimationFrame(() =>
+			sizeFieldset?.querySelector<HTMLInputElement>('input:checked, input:not(:disabled)')?.focus()
+		);
+	}
 </script>
 
 {#snippet rich(text: string)}
@@ -238,6 +262,21 @@
 		{#if p.ctaNote}<p class="fine center">{p.ctaNote}</p>{/if}
 	{/if}
 </div>
+{:else if folded}
+<div class="picker folded" id="variant-picker">
+	<div class="chosen">
+		{#if designImage}
+			<img src={resized(designImage, 200)} alt="" width="48" height="48" />
+		{/if}
+		<p>
+			<strong>{designName}</strong>
+			<span>{p.sizeLabel ?? 'Size'}: {size}</span>
+		</p>
+		<button type="button" onclick={unfold}>
+			{p.changeLabel ?? 'Change'}
+		</button>
+	</div>
+</div>
 {:else}
 <div class="picker" id="variant-picker">
 	{#if p.price}
@@ -319,6 +358,44 @@
 {/if}
 
 <style>
+	.chosen {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		border: 1px solid var(--line, #d6dfe2);
+		border-radius: 12px;
+		padding: 10px 12px;
+		background: #fff;
+	}
+	.chosen img {
+		width: 48px;
+		height: 48px;
+		flex: none;
+		border-radius: 8px;
+		object-fit: cover;
+	}
+	.chosen p {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		min-width: 0;
+		margin: 0;
+		font-size: 16px;
+		line-height: 1.3;
+		color: var(--brand-navy, #0b3c49);
+	}
+	.chosen button {
+		min-height: 44px;
+		padding: 0 6px;
+		border: 0;
+		background: none;
+		font: inherit;
+		font-size: 16px;
+		color: var(--brand-teal, #14a3b0);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		cursor: pointer;
+	}
 	.picker {
 		display: flex;
 		flex-direction: column;

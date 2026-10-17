@@ -66,6 +66,15 @@
 		page.url.pathname === '/checkout' || /^\/products\/[^/]+\/checkout$/.test(page.url.pathname)
 	);
 
+	/**
+	 * The shop checkout (`look: 'shop'`) brings the chrome of a hosted shop
+	 * checkout: the name in the middle, a padlock where the cart would be, and
+	 * no footer, because its policy links sit under its own pay button. The
+	 * language switch stays off too: it is one more control above the email
+	 * field, and the page that sends buyers here is English only.
+	 */
+	let shopChrome = $derived(page.data.look === 'shop' && onCheckout);
+
 	/** The admin renders bare: no shop header, cart or footer around an order list. */
 	let isAdmin = $derived(page.url.pathname === '/admin' || page.url.pathname.startsWith('/admin/'));
 
@@ -76,6 +85,23 @@
 
 {#if isAdmin}
 	{@render children()}
+{:else if shopChrome}
+<div class="flex min-h-screen flex-col">
+	<header class="shop-header">
+		<span class="shop-header-side" aria-hidden="true"></span>
+		<a href="/" class="shop-wordmark">{t('common.brand')}</a>
+		<span class="shop-header-side shop-secure">
+			<svg viewBox="0 0 24 24" aria-hidden="true">
+				<rect x="5" y="10.5" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.8" />
+				<path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+			</svg>
+			<span class="max-sm:sr-only">{t('checkout.shop.secure')}</span>
+		</span>
+	</header>
+	<main class="flex-1">
+		{@render children()}
+	</main>
+</div>
 {:else}
 <div class="flex min-h-screen flex-col" class:tree-chrome={treeChrome}>
 	{#if liftedStrip}

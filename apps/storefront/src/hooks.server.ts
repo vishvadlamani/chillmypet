@@ -284,7 +284,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const pageViewEventId = newEventId();
 	// Before resolve(), so the cookie is on this response and every read of it
 	// later in this request, PageView's server copy included, sees the same id.
-	const visitorId = ensureVisitorId(event.cookies);
+	const visitorId = ensureVisitorId(event.cookies, event.url.searchParams.get('vid'));
 	const isDocument = pixelIds.length > 0 && isDocumentRequest(event.request);
 	// Same reason as the visitor id: SvelteKit puts cookies on the response
 	// inside resolve(), and the document is where `_fbc` has to land to exist

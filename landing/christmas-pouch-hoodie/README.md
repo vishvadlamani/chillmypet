@@ -1,18 +1,21 @@
 # Christmas Pouch Hoodie page
 
-Live at **https://chillmypet-christmas.pages.dev**: a standalone page that
-sells the Christmas Pouch Hoodie through Stripe Payment Links, the same shape
-as the Pouch Pet Hoodie page in `landing/pouch-pet-hoodie` on the
-`claude/eager-albattani-wgnbcn` branch. It is separate from the storefront on
-chillmypet.com and shares no code or database with it.
+Live at **https://chillmypet-christmas.pages.dev**: the page the Christmas
+ad lands on. The buyer chooses a design and a size here; **Buy now** takes
+them to **chillmypet.com's checkout for this hoodie**
+(`/products/christmas-pouch-hoodie/checkout`), with that choice made, where
+they pay on the page. Until 2026-10-17 Buy opened one of eight Stripe Payment
+Links instead. Why it changed and what the checkout looks like:
+`docs/christmas-checkout.md`. The page itself shares no code or database
+with the storefront; the sale happens there.
 
 | | |
 |---|---|
 | Cloudflare | Pages project `chillmypet-christmas`, account `5fef1d1dbb6eaee72fdfc2b26a61a386` (the owner's) |
 | Stripe | ChillMP, `acct_1U3NewJOsB1nguzl`, live |
-| Products | 8, one per design and size (`prod_VP2apRPGQEClji` … `prod_VP2bV3r43YVy6x`), $54.99 each |
-| Payment Links | 8, listed in `config.js`; each one's metadata carries `slug` and `sku` |
-| Webhook | `we_1UOEbvJOsB1nguzlbjDffhrK` → `/api/stripe-webhook`, `checkout.session.completed` and `checkout.session.async_payment_succeeded` |
+| Buy now | `https://chillmypet.com/products/christmas-pouch-hoodie/checkout?design=…&size=…&added=1&vid=…`, plus the visit's `fbclid` and `utm_*` (`config.js: checkout`) |
+| Payment Links | 8 (`plink_1UOEWYJOsB1nguzlJXtjB3lf` … `plink_1UOEYtJOsB1nguzlezFxeKMv`) on products `prod_VP2apRPGQEClji` … `prod_VP2bV3r43YVy6x`. **No longer linked from the page**, still active in Stripe; deactivating them is a Stripe change for the owner |
+| Webhook | `we_1UOEbvJOsB1nguzlbjDffhrK` → `/api/stripe-webhook`, `checkout.session.completed` and `checkout.session.async_payment_succeeded`. Only a sale through one of those links reaches it now |
 
 ## Who the page is for, and what it does about it
 
@@ -77,10 +80,12 @@ hoodie exists (below).
 
 ### Payment methods, as Stripe really offers them
 
-Read from the ChillMP account on 2026-10-12. The Payment Links set no
-`payment_method_types`, so Checkout draws its list from the account's
-default payment method configuration (`pmc_1U3NfSJOsB1nguzljz7ADcR4`) and
-the visitor's country:
+The buyer now pays in chillmypet.com's inline Payment Element, which draws
+from the same account configuration and hides Link in code (`wallets: {
+link: 'never' }`). Read from the ChillMP account on 2026-10-12, for the
+Payment Links this page used then. They set no `payment_method_types`, so
+Checkout drew its list from the account's default payment method
+configuration (`pmc_1U3NfSJOsB1nguzljz7ADcR4`) and the visitor's country:
 
 - A Checkout Session opened from a US visit offered **card and Link**.
 - Sessions opened from Czech visits offered card, Link and **Klarna**. Klarna
@@ -94,10 +99,10 @@ the visitor's country:
   Czechia (Stripe's card brand table), so its logo came off the page. If
   the account's country is not Czechia, check and put it back.
 
-The page therefore says: Visa, Mastercard, Amex, Apple Pay, Link. The test
-file asserts that Google Pay, Klarna, Afterpay, Affirm, PayPal, Discover and
-"pay later" are absent; when one is turned on in Stripe, update the page and
-that test together.
+The page therefore says: Visa, Mastercard, Amex, Apple Pay. Not Link, which
+the checkout hides. The test file asserts that Link, Google Pay, Klarna,
+Afterpay, Affirm, PayPal, Discover and "pay later" are absent; when one is
+turned on in Stripe, update the page and that test together.
 
 ### What to ask the supplier for (size chart)
 
@@ -141,16 +146,20 @@ settle whether it shows this product and whether its licence allows it.
 
 The ad set "!Christmas Hoodie Ad Set!" optimises for **AddToCart**, which
 this page sends when Buy is tapped with a size chosen, 150 ms before the
-visitor leaves for Stripe (plus InitiateCheckout under a second id). So the
-first number to move is **AddToCart in Ads Manager** (and, with it,
-InitiateCheckout): the old page produced 0 from 123 landing page views.
+visitor leaves for the checkout. InitiateCheckout now comes from the
+checkout, once the buyer types an email or name, and AddPaymentInfo when
+they press Pay: four separate signals where the Payment Link page sent two
+in one tap. So the first number to move is **AddToCart in Ads Manager**:
+the old page produced 0 from 123 landing page views.
 After a day or two of the new page at the same spend, 123 landing page views
 should produce some AddToCarts; if it is still 0 the visitors are not
 reaching Buy at all, and finding 1 above is the reason. The second number is
-**Checkout Sessions in the Stripe Dashboard** (Payments → Checkout
-sessions): every Buy tap creates one, paid or not, so it is the page's own
-count of Buy taps and the cross-check for AddToCart. The third is
-**Purchase**, in Ads Manager and as paid sessions in Stripe. Give the page
+**InitiateCheckout**, the buyers who started typing their details; the gap
+between it and AddToCart is the checkout's first screen. (Checkout Sessions
+in the Stripe Dashboard no longer count Buy taps: the inline checkout
+creates a PaymentIntent only when Pay is pressed.) The third is
+**Purchase**, in Ads Manager and as paid orders in Stripe and on
+chillmypet.com. Give the page
 two to three days before judging it; at $10/day it sees roughly 60 clicks a
 day.
 
@@ -168,22 +177,37 @@ them with CSS rather than adding images nobody has the rights to.
 
 1. The shopper taps a design and a size on the page. There is no default
    size, and Buy asks for one.
-2. Buy fires **AddToCart** and **InitiateCheckout** (browser pixel plus a
-   `/api/event` server copy under the same event id; content id is the SKU,
-   e.g. `CMP-XH-STOCKING-GREEN-L`), then opens that combination's Payment Link.
-3. Stripe collects payment and the shipping address, then redirects to
-   `thank-you.html?sku=…&session_id=…`, which fires the browser **Purchase**
-   with the session id as its event id.
-4. Stripe's webhook reaches `_worker.js`, which sends the server **Purchase**
-   under the same session id with the buyer's hashed details. Meta keeps one.
+2. Buy fires **AddToCart** (browser pixel plus a `/api/event` server copy
+   under the same event id; content id is the SKU, e.g.
+   `CMP-XH-STOCKING-GREEN-L`), then opens chillmypet.com's checkout:
+   `/products/christmas-pouch-hoodie/checkout?design=green_stocking&size=L&added=1&vid=<cmp_vid>`,
+   plus `fbclid` and `utm_*` from this page's address.
+3. The checkout shows the choice folded to one line, prices it on the
+   server, and asks for email, address and card on one page. `added=1` keeps
+   it from reporting a second AddToCart; it sends **InitiateCheckout** once
+   an email or name is typed and **AddPaymentInfo** when Pay is pressed. It
+   adopts `vid` as its own visitor id on a first visit, so one `external_id`
+   runs from the ad to the sale, and builds `_fbc` from the `fbclid`.
+4. Pay creates the order (re-priced, stock held), confirms the card inline,
+   and Stripe's webhook to chillmypet.com marks it paid and sends the
+   server **Purchase** with the order-derived event id; the receipt page
+   sends the browser half under the same id. If Stripe.js is blocked, the
+   same order goes to Stripe's hosted page instead.
+
+Everything after step 2 is chillmypet.com's, documented in AGENTS.md. What
+follows here is how this page names the visitor, and the Payment Link
+webhook, which only a sale through one of the old links still reaches.
 
 Every event names the visitor with one `external_id`: `pixel.js` mints a random
 64-hex id into the `cmp_vid` cookie, passes it to each `fbq('init')`, and the
-worker sends the same string with each `/api/event` copy. Buy appends it to the
-Payment Link as `client_reference_id`, the one value a link carries through to
-the session, and the webhook's Purchase sends it back as `external_id`. That is
-how the sale is tied to the visitor's earlier events. The webhook is Stripe's
-request, so it has no IP, user agent, `_fbp` or `_fbc` for the buyer.
+worker sends the same string with each `/api/event` copy. Buy hands it to
+chillmypet.com as `vid`, which that site adopts as its own `cmp_vid` on a
+first visit, so its events and the Purchase carry the same `external_id`.
+That is how the sale is tied to this page's events. (Through a Payment Link
+it rode as `client_reference_id`, and this page's webhook sent it back on
+the Purchase; that path still works for anyone holding an old link. The
+webhook is Stripe's request, so it has no IP, user agent, `_fbp` or `_fbc`
+for the buyer.)
 
 `fbc` and `fbp` come from Meta's Parameter Builder. `param-builder.js` is
 the bundle from Meta's `meta-capi-param-builder-clientjs` 1.3.2, unmodified
@@ -223,11 +247,12 @@ readable in the Stripe Dashboard's delivery log.
 
 Open **https://chillmypet-christmas.pages.dev/?test** and a yellow banner says
 test mode is on. For a day, or until **Turn test mode off** (`?test=off`), that
-browser sends nothing to Meta, from the page or the thank-you page, and Buy
-marks the Stripe checkout `client_reference_id=test_…`, so it is easy to tell
-apart in the Dashboard. If a test checkout is paid, the webhook sees `test_`
-and does not report it (`reason: test`). The Payment Links are live, so a
-payment is real money: refund it in Stripe.
+browser sends nothing to Meta from this page, AddToCart on Buy included.
+**chillmypet.com has no quiet mode**: Buy still goes to the live checkout,
+which counts its own PageView, ViewContent and (once an email is typed)
+InitiateCheckout, and a payment there is a real order and a real Purchase.
+Stop at the checkout, or refund in Stripe and expect the sale in Ads
+Manager.
 
 It is a `cmp_test` cookie set for the whole `chillmypet-christmas.pages.dev`
 family, because Stripe sends every buyer back to the live thank-you page.
@@ -325,8 +350,9 @@ Stripe are the record of what happens here.
   name and the size chart live in `config.js`. The cut-off is a value, worked
   out from the promise (4 business days + 12 days in transit, worst case):
   Mon 7 Dec 2026. The bar hides itself once that day is over in Los Angeles.
-- A new size or design needs a Stripe product, a Payment Link with the same
-  `slug`/`sku` metadata and the redirect pattern above, and an entry in `config.js`.
+- A new size or design needs a variant on chillmypet.com
+  (`apps/storefront/scripts/christmas-hoodie.js`, then a catalogue migration
+  on the live database) and an entry in `config.js: skus` with the same SKU.
 - Publish: merging a change to this folder publishes it, through
   `.github/workflows/deploy-christmas.yml`. That needs the
   `OWNER_CLOUDFLARE_API_TOKEN` repository secret, a token for account

@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import PageLayout from '@funnel/core/PageLayout.svelte';
 	import { STORE_BLOCKS } from '$lib/store/blocks';
 	import { countryForm } from '@funnel/blocks-dr/subdivisions';
+	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { FunnelStateAdapter, SubmitFn, TrackFn } from '@funnel/core';
 	import { DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 	import { toAmount } from 'ecomwithai/marketing';
@@ -15,6 +17,7 @@
 	import { cart } from '$lib/stores/cart.svelte';
 	import CardFields from '$lib/components/CardFields.svelte';
 	import { resized } from '$lib/resized';
+	import { fieldProblem } from '$lib/checkout-fields';
 	import type { ActionData, PageData } from '../../routes/checkout/$types';
 
 	/**
@@ -37,7 +40,8 @@
 		rowClass,
 		colClass = 'flex flex-col gap-5',
 		topSummary = true,
-		mainClass = 'flex flex-col gap-6 py-8'
+		mainClass = 'flex flex-col gap-6 py-8',
+		look = 'default'
 	}: {
 		data: Pick<
 			PageData,
@@ -92,7 +96,19 @@
 		 * is already at the top of the page.
 		 */
 		topSummary?: boolean;
+		/**
+		 * `shop` lays the same checkout out as a hosted shop checkout does:
+		 * one column of sections, the summary beside it (a folding bar on a
+		 * phone), errors under each field, policy links under the button. It
+		 * is markup only: what is priced, checked, tracked and posted is the
+		 * code above the markup, shared by both looks. Its fields are the shop
+		 * blocks, which ask for first and last name separately.
+		 */
+		look?: 'default' | 'shop';
 	} = $props();
+
+	let shop = $derived(look === 'shop');
+	let summaryOpen = $state(false);
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let t = $derived(createTranslator(locale));
@@ -257,6 +273,27 @@
 	 */
 	let issues = $derived.by(() => {
 		const list: string[] = [];
+		if (shop) {
+			// The shop blocks show these under each field; this list only
+			// decides whether the order can be posted.
+			// By ISO code: the select shows names in the page's language, and
+			// "Estados Unidos" is not a name countryForm knows.
+			const stateRequired = countryForm(countryCode || bag.country).stateRequired;
+			for (const [field, key] of [
+				['email', 'email'],
+				['firstName', 'firstName'],
+				['lastName', 'lastName'],
+				['address', 'address'],
+				['city', 'city'],
+				['state', 'state'],
+				['zip', 'zip']
+			] as const) {
+				const problem = fieldProblem(field, bag[key], { stateRequired });
+				if (problem) list.push(t(problem, { label: '' }));
+			}
+			if (!countryCode) list.push(t('checkout.fieldErrors.country'));
+			return list;
+		}
 		const required = (value: string | undefined, label: string) => {
 			if (!(value ?? '').trim()) list.push(t('checkout.errors.fieldRequired', { field: label }));
 		};
@@ -487,10 +524,246 @@
 	function variantName(colour: string, size: string): string {
 		return [colour, size].filter(Boolean).join(' / ');
 	}
+
+	/**
+	 * What pressing pay does, for both looks. The blocks each validate their
+	 * own fields and none of them has a button, so this is the only place the
+	 * whole form is checked.
+	 */
+	const submitOrder: SubmitFunction = ({ cancel }) => {
+		showIssues = true;
+		if (issues.length > 0) {
+			cancel();
+			if (shop) flagFields();
+			return;
+		}
+		submitting = true;
+		payError = null;
+		pixel('AddPaymentInfo', {
+			content_type: 'product',
+			content_ids: priced?.lines.map((l) => l.sku) ?? [],
+			currency,
+			value: toAmount(totalCents)
+		});
+		pushEcommerce('add_payment_info', {
+			currency,
+			value: amount(totalCents),
+			items: (priced?.lines ?? []).map((l) => ({
+				item_id: l.sku,
+				item_name: l.title,
+				item_variant: variantName(l.colour, l.size),
+				price: amount(l.unitPriceCents),
+				quantity: l.quantity
+			}))
+		});
+		return async ({ update }) => {
+			await update({ reset: false });
+			submitting = false;
+		};
+	};
+
+	/**
+	 * The shop look shows errors under the fields themselves, so pay with
+	 * something missing tells every field block to show its message (a new
+	 * token in state) and takes the buyer to the first one. On a phone that
+	 * field is a screen or two above the button they pressed.
+	 */
+	async function flagFields() {
+		funnelState.set('checkout_attempt', crypto.randomUUID());
+		await tick();
+		const first = document.querySelector<HTMLElement>('.shop [aria-invalid="true"]');
+		if (!first) return;
+		const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		first.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
+		first.focus({ preventScroll: true });
+	}
+
+	let itemCount = $derived((priced?.lines ?? []).reduce((sum, l) => sum + l.quantity, 0));
+	let firstImage = $derived(priced?.lines.find((l) => l.image)?.image ?? null);
+
+	/**
+	 * Stripe's fields in the shop look's type and colours, so the card box
+	 * reads as part of the page. Labels and inputs at 16px or more, as
+	 * everywhere else on it. Changing sizes or spacing here changes the
+	 * element's height, and `.shop-pay-box` reserves that height (in
+	 * shop-checkout.css) so nothing below it moves while it loads: measure
+	 * again and update both together.
+	 */
+	const SHOP_APPEARANCE = {
+		theme: 'stripe',
+		variables: {
+			colorPrimary: '#173d2b',
+			colorText: '#111111',
+			colorTextSecondary: '#555555',
+			colorDanger: '#b00020',
+			fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+			fontSizeBase: '16px',
+			borderRadius: '10px'
+		},
+		rules: {
+			'.Label': { fontSize: '16px' },
+			'.Input': { fontSize: '17px' },
+			'.Error': { fontSize: '16px' }
+		}
+	};
+	const SHOP_FONTS = [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap' }];
 </script>
 
-<div class="storefront-type bg-fx-bg min-h-svh pb-12">
-	{#if form && 'success' in form && form.success}
+<!-- What the blocks wrote into host state, in the names the order takes.
+     The mapping lives here because the block's job ends at "these are
+     the fields"; what an address is called downstream is the host's. -->
+{#snippet hiddenFields()}
+	<!-- The shop look asks for the two names separately, and posts them
+	     that way, so "Mary Ann" stays a first name instead of being split
+	     at its first space. -->
+	{#if shop}
+		<input type="hidden" name="firstName" value={bag.firstName ?? ''} />
+		<input type="hidden" name="lastName" value={bag.lastName ?? ''} />
+	{:else}
+		<input type="hidden" name="fullName" value={bag.fullName ?? ''} />
+	{/if}
+	<input type="hidden" name="email" value={bag.email ?? ''} />
+	<input type="hidden" name="phone" value={bag.phone ?? ''} />
+	<input type="hidden" name="address1" value={bag.address ?? ''} />
+	<input type="hidden" name="address2" value={bag.address2 ?? ''} />
+	<input type="hidden" name="city" value={bag.city ?? ''} />
+	<input type="hidden" name="province" value={bag.state ?? ''} />
+	<input type="hidden" name="postalCode" value={bag.zip ?? ''} />
+	<input type="hidden" name="country" value={countryCode} />
+	<input type="hidden" name="method" value={method} />
+	<input type="hidden" name="lines" value={linesPayload} />
+	<!-- Tells the server whether the card fields are actually usable. If
+	     Stripe.js was blocked, there is nothing on this page to confirm
+	     against, so the order has to go via the hosted page instead. -->
+	<input type="hidden" name="cardReady" value={cardApi ? '1' : '0'} />
+	<input type="hidden" name="submissionId" value={submissionId} />
+{/snippet}
+
+{#snippet alerts()}
+	{#if topLevelError}
+		<p
+			class="rounded-field text-15 border border-[#c8342f] bg-[#fdf3f2] px-4 py-3 text-[#c8342f]"
+			class:shop-alert={shop}
+			role="alert"
+		>
+			{topLevelError}
+		</p>
+	{:else if data.cancelled}
+		<!-- Backing out of Stripe is not an error, and saying "nothing was
+		     charged" up front stops the second attempt people make when they
+		     aren't sure. -->
+		<p
+			class="rounded-field text-15 text-fx-sub border border-[#d8d5cf] bg-white px-4 py-3"
+			class:shop-notice={shop}
+		>
+			{t('checkout.cancelled')}
+		</p>
+	{/if}
+
+	{#if payError}
+		<p
+			class="rounded-field text-15 border border-[#c8342f] bg-[#fdf3f2] px-4 py-3 text-[#c8342f]"
+			class:shop-alert={shop}
+			role="alert"
+		>
+			{payError}
+		</p>
+	{/if}
+
+	{#if shop}
+		<!-- The fields carry their own messages; this line is for whoever is
+		     looking at the button they just pressed. The server's verdict
+		     still lists itself, since it can name a field the page didn't ask. -->
+		{#if (showIssues && issues.length > 0) || serverIssues.length > 0}
+			<div class="shop-alert" role="alert">
+				{#if showIssues && issues.length > 0}<p>{t('checkout.shop.fixFields')}</p>{/if}
+				{#if serverIssues.length > 0}
+					<ul>
+						{#each serverIssues as issue (issue)}<li>{issue}</li>{/each}
+					</ul>
+				{/if}
+			</div>
+		{/if}
+	{:else if shownIssues.length > 0}
+		<ul
+			class="rounded-field text-15 flex flex-col gap-1 border border-[#c8342f] bg-[#fdf3f2] px-4 py-3 text-[#c8342f]"
+			role="alert"
+		>
+			{#each shownIssues as issue (issue)}
+				<li>{issue}</li>
+			{/each}
+		</ul>
+	{/if}
+{/snippet}
+
+{#snippet payButton()}
+	<button
+		type="submit"
+		disabled={submitting || isEmpty}
+		class={shop
+			? 'shop-pay'
+			: 'rounded-field bg-fx-ink text-17 w-full px-4 py-4 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50'}
+	>
+		{#if submitting}
+			{t('checkout.placing')}
+		{:else if totalCents > 0}
+			{t('checkout.payNow', { total: formatMoney(totalCents, locale, currency) })}
+		{:else}
+			{t('checkout.placeOrder')}
+		{/if}
+	</button>
+{/snippet}
+
+{#snippet shopSummary()}
+	{#if priced === null}
+		<p class="shop-muted">{t('common.loading')}</p>
+	{:else if isEmpty}
+		<p class="shop-muted">{t('checkout.shop.pick')}</p>
+	{:else}
+		<ul class="shop-lines">
+			{#each priced.lines as line (line.variantId)}
+				<li>
+					<span class="thumb">
+						{#if line.image}
+							<img src={resized(line.image, 200)} alt="" width="64" height="64" />
+						{/if}
+						<b class="qty" aria-label="{t('cart.quantity')} {line.quantity}">{line.quantity}</b>
+					</span>
+					<span class="name">
+						{line.title}
+						<small>{colourName(line.colour)} · {line.size}</small>
+					</span>
+					<span class="amount">
+						{formatMoney(line.unitPriceCents * line.quantity, locale, currency)}
+					</span>
+				</li>
+			{/each}
+		</ul>
+		<dl class="shop-totals">
+			<div>
+				<dt>{t('checkout.subtotal')}</dt>
+				<dd>{formatMoney(subtotalCents, locale, currency)}</dd>
+			</div>
+			{#if discountCents > 0}
+				<div class="saving">
+					<dt>{t('checkout.bundleDiscount')} ({bundlePercentOff}%)</dt>
+					<dd>−{formatMoney(discountCents, locale, currency)}</dd>
+				</div>
+			{/if}
+			<div>
+				<dt>{t('checkout.shipping')}</dt>
+				<dd>{shippingCents === 0 ? t('checkout.free') : formatMoney(shippingCents, locale, currency)}</dd>
+			</div>
+			<div class="total">
+				<dt>{t('checkout.total')}</dt>
+				<dd><small>{currency}</small> {formatMoney(totalCents, locale, currency)}</dd>
+			</div>
+		</dl>
+	{/if}
+{/snippet}
+
+{#if form && 'success' in form && form.success}
+	<div class="storefront-type bg-fx-bg min-h-svh pb-12" class:shop-type={shop}>
 		<section class="max-w-page px-gutter mx-auto flex flex-col gap-4 py-16 text-center">
 			<h1 class="text-33 tracking-display text-fx-ink font-bold">{t('checkout.successTitle')}</h1>
 			<p class="text-17 text-fx-sub">
@@ -506,7 +779,121 @@
 				{t('checkout.successContinue')}
 			</a>
 		</section>
-	{:else}
+	</div>
+{:else if shop}
+	<div class="shop">
+		<h1 class="sr-only">{t('checkout.title')}</h1>
+
+		<!-- On a phone the summary is a bar under the header that opens in
+		     place: the total is always in sight, the lines are one tap away,
+		     and the form starts on the first screen. -->
+		<div class="shop-bar">
+			<button
+				type="button"
+				aria-expanded={summaryOpen}
+				aria-controls="shop-summary-folded"
+				onclick={() => (summaryOpen = !summaryOpen)}
+			>
+				<span>{summaryOpen ? t('checkout.shop.hideSummary') : t('checkout.shop.showSummary')}</span>
+				<svg class:open={summaryOpen} viewBox="0 0 16 16" aria-hidden="true">
+					<path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" />
+				</svg>
+			</button>
+			{#if !isEmpty}
+				<strong>{formatMoney(totalCents, locale, currency)}</strong>
+			{/if}
+		</div>
+		{#if summaryOpen}
+			<div class="shop-folded" id="shop-summary-folded">{@render shopSummary()}</div>
+		{/if}
+
+		<div class="shop-grid">
+			<div class="shop-main">
+				<PageLayout
+					definition={data.definition}
+					version={data.version}
+					components={STORE_BLOCKS}
+					{track}
+					{submit}
+					state={funnelState}
+					mainClass="shop-blocks"
+					rowClass=""
+					colClass=""
+				/>
+
+				<form method="POST" class="shop-form" use:enhance={submitOrder}>
+					{@render hiddenFields()}
+
+					<section class="shop-section" aria-labelledby="shop-payment-title">
+						<h2 id="shop-payment-title">{t('checkout.paymentTitle')}</h2>
+						{#if data.paymentsEnabled && data.stripePublishableKey && !cardUnavailable}
+							<p class="shop-sub">{t('checkout.shop.paymentNote')}</p>
+							<!-- Holds the height the card fields will take, so the button
+							     and everything under it stay put while Stripe.js loads. -->
+							<div class="shop-pay-box" class:ready={Boolean(cardApi)}>
+								{#if !cardApi}
+									<p class="shop-pay-loading">{t('checkout.paymentLoading')}</p>
+								{/if}
+								<CardFields
+									publishableKey={data.stripePublishableKey}
+									paymentMethodConfiguration={data.stripePaymentMethodConfiguration}
+									amountCents={totalCents}
+									{currency}
+									appearance={SHOP_APPEARANCE}
+									fonts={SHOP_FONTS}
+									onready={onCardReady}
+								/>
+							</div>
+						{:else}
+							<p class="shop-notice">
+								{data.paymentsEnabled ? t('checkout.paymentHostedNote') : t('checkout.paymentPending')}
+							</p>
+						{/if}
+					</section>
+
+					<!-- The total once more, by the button, as the reference does on a
+					     phone: the summary bar is a long way up by now. -->
+					<!-- Always drawn, empty until /api/cart has priced the cart: the
+					     cart only exists in the browser, so a row that appeared once
+					     it was priced dropped the button by its own height a moment
+					     after the page did. -->
+					<div class="shop-due">
+						{#if firstImage}<img src={resized(firstImage, 200)} alt="" width="44" height="44" />{/if}
+						<p>
+							<strong>{t('checkout.total')}</strong>
+							{#if priced && !isEmpty}
+								<span>
+									{itemCount === 1
+										? t('checkout.shop.oneItem')
+										: t('checkout.shop.manyItems', { count: itemCount })}
+								</span>
+							{/if}
+						</p>
+						{#if priced && !isEmpty}
+							<b><small>{currency}</small> {formatMoney(totalCents, locale, currency)}</b>
+						{/if}
+					</div>
+
+					{@render alerts()}
+					{@render payButton()}
+
+					<nav class="shop-policies" aria-label={t('checkout.shop.secure')}>
+						<a href="/policies/refunds">{t('footer.refunds')}</a>
+						<a href="/policies/shipping">{t('footer.shipping')}</a>
+						<a href="/privacy">{t('footer.privacy')}</a>
+						<a href="/terms">{t('footer.terms')}</a>
+						<a href="/contact">{t('footer.contact')}</a>
+					</nav>
+				</form>
+			</div>
+
+			<aside class="shop-aside" aria-label={t('checkout.summaryTitle')}>
+				<div class="shop-aside-inner">{@render shopSummary()}</div>
+			</aside>
+		</div>
+	</div>
+{:else}
+	<div class="storefront-type bg-fx-bg min-h-svh pb-12">
 		<!-- Contact, address and shipping method are blocks; everything below them
 		     is host chrome. Payment deliberately is not a block: unknown block
 		     types are skipped by design, which on a checkout would render a page
@@ -564,58 +951,9 @@
 		<form
 			method="POST"
 			class="max-w-page px-gutter mx-auto flex flex-col gap-6"
-			use:enhance={({ cancel }) => {
-				showIssues = true;
-				// The blocks each validate their own fields and none of them has a
-				// button, so this is the only place the whole form is checked.
-				if (issues.length > 0) {
-					cancel();
-					return;
-				}
-				submitting = true;
-				payError = null;
-				pixel('AddPaymentInfo', {
-					content_type: 'product',
-					content_ids: priced?.lines.map((l) => l.sku) ?? [],
-					currency,
-					value: toAmount(totalCents)
-				});
-				pushEcommerce('add_payment_info', {
-					currency,
-					value: amount(totalCents),
-					items: (priced?.lines ?? []).map((l) => ({
-						item_id: l.sku,
-						item_name: l.title,
-						item_variant: variantName(l.colour, l.size),
-						price: amount(l.unitPriceCents),
-						quantity: l.quantity
-					}))
-				});
-				return async ({ update }) => {
-					await update({ reset: false });
-					submitting = false;
-				};
-			}}
+			use:enhance={submitOrder}
 		>
-			<!-- What the blocks wrote into host state, in the names the order takes.
-			     The mapping lives here because the block's job ends at "these are
-			     the fields"; what an address is called downstream is the host's. -->
-			<input type="hidden" name="fullName" value={bag.fullName ?? ''} />
-			<input type="hidden" name="email" value={bag.email ?? ''} />
-			<input type="hidden" name="phone" value={bag.phone ?? ''} />
-			<input type="hidden" name="address1" value={bag.address ?? ''} />
-			<input type="hidden" name="address2" value={bag.address2 ?? ''} />
-			<input type="hidden" name="city" value={bag.city ?? ''} />
-			<input type="hidden" name="province" value={bag.state ?? ''} />
-			<input type="hidden" name="postalCode" value={bag.zip ?? ''} />
-			<input type="hidden" name="country" value={countryCode} />
-			<input type="hidden" name="method" value={method} />
-			<input type="hidden" name="lines" value={linesPayload} />
-			<!-- Tells the server whether the card fields are actually usable. If
-			     Stripe.js was blocked, there is nothing on this page to confirm
-			     against, so the order has to go via the hosted page instead. -->
-			<input type="hidden" name="cardReady" value={cardApi ? '1' : '0'} />
-			<input type="hidden" name="submissionId" value={submissionId} />
+			{@render hiddenFields()}
 
 			<section class="flex flex-col gap-4">
 				<h2 class="text-21 tracking-headline text-fx-ink font-bold">
@@ -717,58 +1055,11 @@
 				</div>
 			</section>
 
-			{#if topLevelError}
-				<p
-					class="rounded-field text-15 border border-[#c8342f] bg-[#fdf3f2] px-4 py-3 text-[#c8342f]"
-					role="alert"
-				>
-					{topLevelError}
-				</p>
-			{:else if data.cancelled}
-				<!-- Backing out of Stripe is not an error, and saying "nothing was
-				     charged" up front stops the second attempt people make when they
-				     aren't sure. -->
-				<p class="rounded-field text-15 text-fx-sub border border-[#d8d5cf] bg-white px-4 py-3">
-					{t('checkout.cancelled')}
-				</p>
-			{/if}
-
-			{#if payError}
-				<p
-					class="rounded-field text-15 border border-[#c8342f] bg-[#fdf3f2] px-4 py-3 text-[#c8342f]"
-					role="alert"
-				>
-					{payError}
-				</p>
-			{/if}
-
-			{#if shownIssues.length > 0}
-				<ul
-					class="rounded-field text-15 flex flex-col gap-1 border border-[#c8342f] bg-[#fdf3f2] px-4 py-3 text-[#c8342f]"
-					role="alert"
-				>
-					{#each shownIssues as issue (issue)}
-						<li>{issue}</li>
-					{/each}
-				</ul>
-			{/if}
-
-			<button
-				type="submit"
-				disabled={submitting || isEmpty}
-				class="rounded-field bg-fx-ink text-17 w-full px-4 py-4 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-			>
-				{#if submitting}
-					{t('checkout.placing')}
-				{:else if totalCents > 0}
-					{t('checkout.payNow', { total: formatMoney(totalCents, locale, currency) })}
-				{:else}
-					{t('checkout.placeOrder')}
-				{/if}
-			</button>
+			{@render alerts()}
+			{@render payButton()}
 		</form>
-	{/if}
-</div>
+	</div>
+{/if}
 
 <style>
 	/*

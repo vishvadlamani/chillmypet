@@ -30,6 +30,7 @@ export function checkoutSources(locals: App.Locals) {
 			contact: t('checkout.contactTitle'),
 			contactNote: t('checkout.emailHint'),
 			shipping: t('checkout.shippingTitle'),
+			delivery: t('checkout.deliveryTitle'),
 			shippingNote: t('checkout.shippingNote'),
 			method: t('checkout.methodTitle')
 		}
