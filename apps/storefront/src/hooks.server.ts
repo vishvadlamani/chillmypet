@@ -1,9 +1,10 @@
-import { error, type Handle, type RequestEvent } from '@sveltejs/kit';
+import { error, type Handle } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createCommerce, createDirectory, type Store } from 'ecomwithai';
-import { buildFbc, buildFbp, fbclidOf, newEventId } from 'ecomwithai/marketing';
+import { newEventId } from 'ecomwithai/marketing';
 import { ADMIN_HEADERS, adminGate, isAdminPath } from '$lib/server/admin';
 import { ensureCatalogue } from '$lib/server/catalogue';
+import { metaBrowserIds } from '$lib/server/meta-browser-ids';
 import { rememberedContact, type RememberedContact } from '$lib/server/identity';
 import { attributionFrom, ensureVisitorId } from '$lib/server/purchase';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
@@ -116,37 +117,6 @@ load(p?p+'/gtm.js':g,p?g:'');
 		body: `<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${containerId}"
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`
 	};
-}
-
-/** Meta's own lifetime for both cookies. */
-const FB_COOKIE_MAX_AGE = 60 * 60 * 24 * 90;
-
-/**
- * Writes `_fbp`, and `_fbc` on an ad click, before the first page renders.
- *
- * The pixel sets these itself, but only once `fbevents.js` has run in the
- * browser, which is after this request's server PageView has already gone. So
- * the first view of every visit reached Meta with no browser id, and on an ad
- * click with an `fbc` minted at a different millisecond from the pixel's. The
- * pixel adopts a well-formed cookie it finds rather than writing its own, so
- * minting them here gives both copies of the event the same ids from the first
- * request. Not httpOnly: the pixel has to read them.
- */
-function seedMetaCookies(event: RequestEvent): void {
-	const options = {
-		path: '/',
-		maxAge: FB_COOKIE_MAX_AGE,
-		httpOnly: false,
-		sameSite: 'lax' as const
-	};
-	const now = Date.now();
-
-	if (!event.cookies.get('_fbp')) event.cookies.set('_fbp', buildFbp(now), options);
-
-	const fbclid = event.url.searchParams.get('fbclid');
-	if (fbclid && fbclidOf(event.cookies.get('_fbc')) !== fbclid) {
-		event.cookies.set('_fbc', buildFbc(fbclid, now), options);
-	}
 }
 
 /**
@@ -315,11 +285,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// later in this request, PageView's server copy included, sees the same id.
 	const visitorId = ensureVisitorId(event.cookies);
 	const isDocument = pixelIds.length > 0 && isDocumentRequest(event.request);
-	// A browser's first page is where its PageView most needs identifiers and
-	// has the fewest, so Meta's `_fbp` and `_fbc` are minted here too, for the
-	// same requests that get a server PageView. A beacon or a form post always
-	// follows a page that already set them.
-	if (isDocument) seedMetaCookies(event);
+	// Same reason as the visitor id: SvelteKit puts cookies on the response
+	// inside resolve(), and the document is where `_fbc` has to land to exist
+	// before the pixel or any beacon runs. Every request, not just documents: a
+	// beacon or form post gets its click id from the referrer this way.
+	event.locals.metaBrowserIds = metaBrowserIds(event);
 
 	const response = await resolve(event, {
 		transformPageChunk: ({ html }) =>
@@ -355,7 +325,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				eventSourceUrl: event.url.href,
 				user: {
 					...rememberedContact(event.cookies),
-					...attributionFrom(event.cookies, event.url, event.request.headers, event.getClientAddress())
+					...attributionFrom(event.cookies, event.locals.metaBrowserIds, event.request.headers, event.getClientAddress())
 				}
 			})
 			.then((result) => {

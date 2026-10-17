@@ -41,7 +41,7 @@ export const POST: RequestHandler = async ({ request, locals, url, cookies, getC
 			cancelUrl: `${url.origin}/checkout?cancelled=${encodeURIComponent(order.orderNumber)}`,
 			// A new session settles through its own webhook event, so it needs the
 			// same attribution the checkout gave the intent it replaces.
-			metadata: attributionMetadata(attributionFrom(cookies, url, request.headers, getClientAddress()))
+			metadata: attributionMetadata(attributionFrom(cookies, locals.metaBrowserIds, request.headers, getClientAddress()))
 		});
 		return json({ url: checkout.url });
 	} catch (error) {

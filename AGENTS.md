@@ -175,9 +175,9 @@ from the order, and a public endpoint must not be able to claim identity.
 **The SSR PageView's server copy needs the browser's ids before the browser has
 them.** It leaves before `fbevents.js` has run, so on a first visit there is no
 `_fbp` yet, and on an ad click the pixel mints `_fbc` at a different millisecond
-from the server. `seedMetaCookies()` in `hooks.server.ts` writes both on GET
-requests that accept `text/html`, before `resolve` (SvelteKit puts cookies on the
-response inside it). The pixel adopts a well-formed cookie it finds, so both
+from the server. `metaBrowserIds()` (below) writes both before `resolve`
+(SvelteKit puts cookies on the response inside it). The pixel adopts a
+well-formed cookie it finds, so both
 halves carry the same `fbp`/`fbc` from the first request. The same check keeps
 the server PageView to real page loads, and only on a 200. Crawlers (Meta's own
 fetches every ad's landing page), monitors, scripts and the scanners probing
@@ -227,17 +227,22 @@ PageView and ViewContent the pixel had fired. Waiting copies now go out on
 `pagehide`/`visibilitychange`, which gives 2 of 2 under the same event ids and
 still one copy each on a longer visit.
 
-**`fbc` follows the page's `fbclid`, not the cookie, when the two disagree.**
-A returning visitor lands from a new ad with the previous click still in
-`_fbc`, and Meta's script only rewrites it after the server copy has gone out.
-Sending the stale value next to an `event_source_url` that carries the new one
-is what Events Manager flags as "modified fbclid" — on PageView and ViewContent,
-the landing-page events. `resolveFbc()` mints from the URL in that case and
-otherwise passes the cookie through byte for byte; never lowercase, trim or
-re-encode either. A cookie not shaped `fb.N.<ms>.<id>` is dropped rather than
-sent. `/api/track` reads the click id off the body's `eventSourceUrl`, because
-the beacon's own URL never has one. `tests/payment-flow.mjs` replays a stale
-cookie against a new click through both paths.
+**`fbc` and `fbp` come from Meta's Parameter Builder, once per request.**
+`$lib/server/meta-browser-ids.ts` runs `capi-param-builder-nodejs` in
+`hooks.server.ts` before `resolve`, on every request, writes `_fbc`/`_fbp` back
+as first-party cookies and puts the values on `locals.metaBrowserIds`; every
+CAPI call reads them through `attributionFrom`. Events Manager kept flagging
+the hand-built `fb.1.<ms>.<fbclid>` as a "modified fbclid" on PageView,
+ViewContent and AddToCart. The builder appends a tag naming itself, which is
+how Meta knows the click id arrived intact, and it handles the cases the old
+code did by hand: a stale `_fbc` from an earlier click is replaced by the
+URL's, and a beacon with no `fbclid` of its own takes it from its referrer.
+Send its values verbatim: no minting from `fbclid`, no lowercasing or
+trimming, no percent-encoding (the cookie is written with an identity
+`encode`), and keep `url.search` on any redirect a landing URL can hit. PR #53
+once resolved a merge by deleting this file in favour of the hand-built
+version; don't. `tests/payment-flow.mjs` replays a stale cookie against a new
+click through the page and a beacon.
 
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires
