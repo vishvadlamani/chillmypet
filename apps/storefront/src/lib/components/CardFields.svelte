@@ -105,7 +105,15 @@
 						: {}),
 					appearance: { theme: 'stripe', variables: { borderRadius: '8px' } }
 				});
-				const element = elements.create('payment', { layout: 'tabs' });
+				// Link off, on the owner's instruction (2026-10-17): it greets a
+				// signed-in shopper with their own Link email above the card, which
+				// read as the store showing a private address. Stripe's method
+				// settings still list Link, and this wins over them here; the
+				// hosted fallback page follows the settings alone.
+				const element = elements.create('payment', {
+					layout: 'tabs',
+					wallets: { link: 'never' }
+				});
 				element.mount(container!);
 				mounted = true;
 
