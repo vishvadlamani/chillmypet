@@ -12,6 +12,8 @@
 	// navigations would otherwise go unrecorded.
 	afterNavigate((navigation) => {
 		if (navigation.type === 'enter') return;
+		// The admin loads no pixel, and its page views are not a shopper's.
+		if (isAdmin) return;
 		// Plain, not scoped: every pixel is initialised by the snippet in
 		// app.html, so one call gives each of them exactly one PageView.
 		track('PageView');
@@ -28,14 +30,83 @@
 	 * that matter most — so the site's strip stands down where a page brings its
 	 * own. A page is one of those if its data carries a definition.
 	 */
-	let ownsAnnouncement = $derived(Boolean(page.data.definition));
+	let ownsAnnouncement = $derived(Boolean(page.data.definition) || page.data.theme === 'tree');
+
+	/**
+	 * The tree storefront (the costume page) sets its strip ABOVE the header,
+	 * the way a shop's own bar sits, so the layout lifts the page's announcement
+	 * up here and the theme hides the in-page copy. Still one strip, still the
+	 * page's words. `/christmas` has no manifest and hands its message over as
+	 * `announcement` instead.
+	 */
+	let treeChrome = $derived(page.data.theme === 'tree');
+	let liftedStrip = $derived.by(() => {
+		if (!treeChrome) return '';
+		if (typeof page.data.announcement === 'string') return page.data.announcement;
+		const blocks = (page.data.definition?.blocks ?? []) as {
+			component: string;
+			props?: { message?: unknown };
+		}[];
+		const message = blocks.find((b) => b.component === 'announcement_bar')?.props?.message;
+		return typeof message === 'string' ? message : '';
+	});
+
+	/**
+	 * Where the header gets out of the way. An ad lands on a product page, and
+	 * on a phone in the Facebook app the header was three rows (name, language
+	 * and cart, then the product links) above a photo, so the first screen held
+	 * no price and nothing to tap. On a phone those pages keep the name, the
+	 * language and the cart on one row and drop the links; the checkouts drop
+	 * them everywhere, because a link out of a checkout is a way to not pay.
+	 */
+	let onProduct = $derived(
+		page.url.pathname.startsWith('/products/') || page.url.pathname === '/christmas'
+	);
+	let onCheckout = $derived(
+		page.url.pathname === '/checkout' || /^\/products\/[^/]+\/checkout$/.test(page.url.pathname)
+	);
+
+	/**
+	 * The shop checkout (`look: 'shop'`) brings the chrome of a hosted shop
+	 * checkout: the name in the middle, a padlock where the cart would be, and
+	 * no footer, because its policy links sit under its own pay button. The
+	 * language switch stays off too: it is one more control above the email
+	 * field, and the page that sends buyers here is English only.
+	 */
+	let shopChrome = $derived(page.data.look === 'shop' && onCheckout);
+
+	/** The admin renders bare: no shop header, cart or footer around an order list. */
+	let isAdmin = $derived(page.url.pathname === '/admin' || page.url.pathname.startsWith('/admin/'));
 
 	$effect(() => {
 		cart.hydrate();
 	});
 </script>
 
+{#if isAdmin}
+	{@render children()}
+{:else if shopChrome}
 <div class="flex min-h-screen flex-col">
+	<header class="shop-header">
+		<span class="shop-header-side" aria-hidden="true"></span>
+		<a href="/" class="shop-wordmark">{t('common.brand')}</a>
+		<span class="shop-header-side shop-secure">
+			<svg viewBox="0 0 24 24" aria-hidden="true">
+				<rect x="5" y="10.5" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.8" />
+				<path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+			</svg>
+			<span class="max-sm:sr-only">{t('checkout.shop.secure')}</span>
+		</span>
+	</header>
+	<main class="flex-1">
+		{@render children()}
+	</main>
+</div>
+{:else}
+<div class="flex min-h-screen flex-col" class:tree-chrome={treeChrome}>
+	{#if liftedStrip}
+		<p class="tree-strip">{liftedStrip}</p>
+	{/if}
 	{#if !ownsAnnouncement}
 		<p class="bg-tide-700 px-4 py-2 text-center text-sm text-white">
 			{t('announcement.banner', { discount: 30 })}
@@ -51,11 +122,39 @@
 				{t('common.brand')}
 			</a>
 
-			<ul class="flex items-center gap-5 text-sm text-ink-600">
+			<!-- On a phone the product names no longer fit beside the brand, and
+			     three of them wrapped the header onto three lines. Below `sm` the
+			     list takes its own line and scrolls sideways instead of wrapping;
+			     the negative margin lets the first link start at the gutter. -->
+			<ul
+				class="{onCheckout ? 'hidden' : onProduct ? 'flex max-sm:hidden' : 'flex'} items-center gap-x-5 overflow-x-auto whitespace-nowrap text-sm text-ink-600 [scrollbar-width:none] max-sm:order-last max-sm:-mx-4 max-sm:w-[calc(100%+2rem)] max-sm:px-4 [&::-webkit-scrollbar]:hidden"
+			>
 				<li><a class="hover:text-ink-900" href="/">{t('nav.home')}</a></li>
-				<li>
-					<a class="hover:text-ink-900" href="/products/dog-life-jacket">{t('nav.shop')}</a>
-				</li>
+				{#if page.data.christmasShop}
+					<li>
+						<a
+							class="hover:text-ink-900"
+							href="/christmas"
+							aria-current={page.url.pathname === '/christmas' ? 'page' : undefined}
+						>
+							{t('nav.christmas')}
+						</a>
+					</li>
+				{/if}
+				<!-- One link per product that can actually be bought here, from the
+				     layout's load: the catalogue decides, so a second product is
+				     reachable the day its row lands and never before. -->
+				{#each page.data.nav ?? [] as item (item.slug)}
+					<li>
+						<a
+							class="hover:text-ink-900"
+							href="/products/{item.slug}"
+							aria-current={page.url.pathname === `/products/${item.slug}` ? 'page' : undefined}
+						>
+							{item.title}
+						</a>
+					</li>
+				{/each}
 			</ul>
 
 			<div class="ms-auto flex items-center gap-4">
@@ -73,7 +172,10 @@
 								? 'bg-ink-100 font-semibold text-ink-900'
 								: 'text-ink-400 hover:text-ink-900'}"
 						>
-							{localeName(code)}
+							<!-- The two-letter code on a phone, so the language and the cart
+							     fit on the brand's row. -->
+							<span class="sm:hidden" aria-hidden="true">{code}</span>
+							<span class="max-sm:sr-only">{localeName(code)}</span>
 						</button>
 					{/each}
 				</form>
@@ -112,3 +214,4 @@
 		</div>
 	</footer>
 </div>
+{/if}

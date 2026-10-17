@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import PageLayout from '@funnel/core/PageLayout.svelte';
-	import { DR_BLOCKS } from '@funnel/blocks-dr';
+	import { STORE_BLOCKS } from '$lib/store/blocks';
 	import type { FunnelStateAdapter, SubmitFn, TrackFn } from '@funnel/core';
 	import { toAmount } from 'ecomwithai/marketing';
 	import { page } from '$app/state';
@@ -10,10 +10,23 @@
 	import { createTranslator, defaultLocale } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
 	import type { PageData } from './$types';
+	import '$lib/styles/tree-theme.css';
 
 	let { data }: { data: PageData } = $props();
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
+	let christmas = $derived(data.theme === 'christmas');
+	let tree = $derived(data.theme === 'tree');
+
+	// Fixed positions rather than Math.random(): the server and the browser have
+	// to render the same flakes, or hydration repaints them.
+	const FLAKES = Array.from({ length: 18 }, (_, i) => ({
+		x: (i * 37 + 11) % 100,
+		size: 10 + ((i * 7) % 12),
+		fall: 14 + ((i * 5) % 10),
+		delay: (i * 3.7) % 20,
+		y: (i * 23 + 5) % 95
+	}));
 	let t = $derived(createTranslator(locale));
 
 	/**
@@ -81,6 +94,7 @@
 	 */
 	const submit: SubmitFn = (action, _subject, payload = {}) => {
 		if (action !== 'add_to_cart') return;
+		if (data.pickSize) return addChosenVariant(payload);
 
 		const units = unitsFrom(payload);
 		// The bundle picker sends one colour per unit; the sticky bar sends none.
@@ -133,6 +147,69 @@
 		goto('/checkout');
 	};
 
+	/**
+	 * Add to cart where the buyer picks design AND size.
+	 *
+	 * The picker sends both codes; the sticky bar sends neither, so they are read
+	 * back out of the same state the picker writes. With no size there is nothing
+	 * safe to add: the picker is asked to prompt, and nothing is tracked, because
+	 * an AddToCart for a cart that didn't change is a number the campaign would
+	 * optimise against.
+	 */
+	function addChosenVariant(payload: Record<string, unknown>) {
+		const design =
+			String(payload.design ?? '') || bag.design || data.variantIndex[0]?.colourCode || '';
+		const size = String(payload.size ?? '') || bag.size || '';
+		const entry = data.variantIndex.find((v) => v.colourCode === design && v.size === size);
+		if (!entry) {
+			// A fresh token each time, so a second tap prompts again.
+			funnelState.set('size_prompt', String(Date.now()));
+			return;
+		}
+		// The picker states the count; the sticky bar sends the id of the tier it
+		// is showing. Either way it is the tier the buyer can see, or one.
+		const units = unitsFrom(payload);
+
+		cart.add(
+			{
+				variantId: entry.variantId,
+				slug: data.slug,
+				colour: entry.colourCode,
+				size: entry.size,
+				unitPriceCents: entry.unitPriceCents
+			},
+			units
+		);
+
+		// The same event_id scheme as every other event: `pixel()` mints one id
+		// and sends it with both the browser event and its /api/track copy. The
+		// SKU names the design and size (CMP-XH-SANTA-RED-M), so Events Manager
+		// and GA4 show what was chosen without a lookup table.
+		pixel('AddToCart', {
+			content_type: 'product',
+			content_ids: [entry.sku],
+			contents: [{ id: entry.sku, quantity: units, item_price: entry.unitPriceCents / 100 }],
+			num_items: units,
+			currency: data.currency,
+			value: toAmount(entry.unitPriceCents * units)
+		});
+		pushEcommerce('add_to_cart', {
+			currency: data.currency,
+			value: amount(entry.unitPriceCents * units),
+			items: [
+				{
+					item_id: entry.sku,
+					item_name: data.seo.title,
+					item_variant: `${entry.colourCode} / ${entry.size}`,
+					price: amount(entry.unitPriceCents),
+					quantity: units
+				}
+			]
+		});
+
+		goto('/checkout');
+	}
+
 	// Session-backed, because the top timer is evergreen: it writes its start on
 	// first view and reads it back on every later one. A stub adapter would hand
 	// each reload a fresh 15 minutes, which is the bug that makes evergreen
@@ -144,15 +221,25 @@
 	// plain object leaves them frozen on whatever they saw first.
 	const bag: Record<string, string> = $state(
 		(() => {
-			if (typeof sessionStorage === 'undefined') return {};
+			// The `typeof` sits inside the try because merely touching the global
+			// throws a SecurityError where the browser blocks site data (Safari's
+			// "Block All Cookies", some in-app browsers). Outside it, that crashed
+			// this page on hydration and took the picker and Add to cart with it.
 			try {
+				if (typeof sessionStorage === 'undefined') return {};
 				return JSON.parse(sessionStorage.getItem(KEY) ?? '{}');
 			} catch {
 				return {};
 			}
 		})()
 	);
-	const persist = () => sessionStorage.setItem(KEY, JSON.stringify(bag));
+	const persist = () => {
+		try {
+			sessionStorage.setItem(KEY, JSON.stringify(bag));
+		} catch {
+			// Blocked or full: the state still lives in `bag` for this page view.
+		}
+	};
 
 	const funnelState: FunnelStateAdapter = {
 		begin: () => {},
@@ -173,24 +260,66 @@
 <svelte:head>
 	<title>{data.seo.title} · {t('common.brand')}</title>
 	<meta name="description" content={data.seo.description} />
-	<!-- Poppins only on the storefront. Loaded here rather than in app.html so
-	     the rest of the site doesn't pay for a font it never renders. -->
-	<link
-		href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
-		rel="stylesheet"
-	/>
+	{#if tree}
+		<!-- The tree storefront sets everything in Poppins, like the storefront
+		     below, plus an absolute og:image for the same reason as the hoodie. -->
+		<link
+			href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
+			rel="stylesheet"
+		/>
+		<meta property="og:image" content={new URL(data.seo.image, page.url).href} />
+	{:else if christmas}
+		<!-- Fredoka for the Christmas page, scoped like Poppins below: only this
+		     page pays for it. -->
+		<link
+			href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+		<!-- Absolute: Instagram and Facebook resolve link previews from their own
+		     servers, not from this page. -->
+		<meta property="og:image" content={new URL(data.seo.image, page.url).href} />
+	{:else}
+		<!-- Poppins only on the storefront. Loaded here rather than in app.html so
+		     the rest of the site doesn't pay for a font it never renders. -->
+		<link
+			href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+	{/if}
 </svelte:head>
+
+{#if christmas}
+	<!-- Decoration only: behind the content, never in the accessibility tree,
+	     and still under prefers-reduced-motion. -->
+	<div class="snowfall" aria-hidden="true">
+		{#each FLAKES as flake, i (i)}
+			<span
+				style:left="{flake.x}%"
+				style:font-size="{flake.size}px"
+				style:animation-duration="{flake.fall}s"
+				style:animation-delay="-{flake.delay}s"
+				style:--y="{flake.y}%">❄</span
+			>
+		{/each}
+	</div>
+{/if}
 
 <PageLayout
 	definition={data.definition}
 	version={data.version}
-	components={DR_BLOCKS}
+	components={STORE_BLOCKS}
 	{track}
 	{submit}
 	state={funnelState}
-	rootClass="storefront-type bg-fx-bg min-h-svh"
-	rowClass="mx-auto grid w-full max-w-shell gap-8 px-gutter py-6 md:grid-cols-[715fr_537fr] md:gap-12"
-	colClass="flex flex-col gap-6"
+	rootClass={tree
+		? 'tree-theme min-h-svh'
+		: christmas
+			? 'xmas-theme relative z-[1] min-h-svh'
+			: 'storefront-type bg-fx-bg min-h-svh'}
+	rowClass={tree
+		? 'tree-row mx-auto grid w-full max-w-[1320px] gap-4 px-[18px] py-6 md:grid-cols-2 md:gap-14 md:px-[72px] md:py-12'
+		: 'mx-auto grid w-full max-w-shell gap-8 px-gutter py-6 md:grid-cols-[715fr_537fr] md:gap-12'}
+	colClass={tree ? 'flex min-w-0 flex-col gap-3 md:gap-5' : 'flex flex-col gap-6'}
 />
 
 <style>
@@ -209,5 +338,78 @@
 	:global(.storefront-type) {
 		--font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
 		font-family: var(--font-sans);
+	}
+
+	/*
+	 * The Christmas skin, layered on the brand rather than replacing it: navy,
+	 * teal and orange stay the working colours (text, selection, the buy
+	 * button), and red, pine and snow are accents. The `--color-fx-*` lines
+	 * re-point the library blocks' own tokens for this subtree only, the same
+	 * trick as `--font-sans` above.
+	 */
+	:global(.xmas-theme) {
+		--brand-navy: #0b3c49;
+		--brand-teal: #14a3b0;
+		--brand-orange: #ff6b2c;
+		--xmas-red: #b3202a;
+		--xmas-pine: #1f5f3f;
+		--xmas-snow: #fffdf8;
+		--color-fx-bg: transparent;
+		--color-fx-ink: #0b3c49;
+		--color-fx-sub: #24525e;
+		--color-fx-surface: #eaf5f6;
+		--color-fx-surface-hover: #dceff1;
+		--font-sans: 'Fredoka', ui-rounded, ui-sans-serif, system-ui, sans-serif;
+		font-family: var(--font-sans);
+		color: var(--brand-navy);
+		background:
+			radial-gradient(circle at 12% 8%, rgb(20 163 176 / 0.08), transparent 40%),
+			radial-gradient(circle at 88% 2%, rgb(179 32 42 / 0.07), transparent 35%),
+			var(--xmas-snow);
+	}
+	:global(.xmas-theme h1) {
+		color: var(--brand-navy);
+	}
+	/* A candy-cane rule under the delivery strip: the one loud festive line. */
+	:global(.xmas-theme aside[aria-label='Announcement']) {
+		border-bottom: 6px solid transparent;
+		border-image: repeating-linear-gradient(
+				-45deg,
+				var(--xmas-red) 0 10px,
+				var(--xmas-snow) 10px 20px
+			)
+			6;
+	}
+
+	.snowfall {
+		position: fixed;
+		inset: 0;
+		z-index: 0;
+		overflow: hidden;
+		pointer-events: none;
+	}
+	.snowfall span {
+		position: absolute;
+		top: -24px;
+		color: #9fd8de;
+		opacity: 0.55;
+		animation-name: fall;
+		animation-timing-function: linear;
+		animation-iteration-count: infinite;
+	}
+	@keyframes fall {
+		to {
+			transform: translate3d(24px, 110vh, 0) rotate(180deg);
+		}
+	}
+	/* Still flakes, not none: the page keeps its look without the motion. */
+	@media (prefers-reduced-motion: reduce) {
+		.snowfall span {
+			animation: none;
+			top: var(--y);
+		}
+		.snowfall span:nth-child(odd) {
+			display: none;
+		}
 	}
 </style>

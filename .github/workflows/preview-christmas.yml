@@ -1,0 +1,79 @@
+name: Preview Christmas page
+
+# Every pull request that changes the Christmas page gets its own copy of it, at
+# https://pr-<number>.chillmypet-christmas.pages.dev, and a comment on the pull
+# request with the link, so the owner can look at the change on a phone before
+# approving it. The page's tests run first, which also makes them a check on the
+# pull request: deploy-christmas.yml only runs them once a merge has landed on
+# main, which is too late to stop anything.
+#
+# A preview is a Cloudflare Pages preview deployment, never production: only
+# deploy.sh without PREVIEW publishes chillmypet-christmas.pages.dev. On a
+# preview host pixel.js sends nothing to Meta, so looking at a change never
+# counts as a visitor. Buy now leaves the preview for chillmypet.com's live
+# checkout, which has no quiet mode: events there count, and a payment there
+# is a real order.
+on:
+  pull_request:
+    paths:
+      - 'landing/christmas-pouch-hoodie/**'
+      - 'landing/christmas-pouch-hoodie.test.mjs'
+      - '.github/workflows/preview-christmas.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# A newer push replaces a preview still being built for the same pull request.
+concurrency:
+  group: preview-christmas-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    env:
+      # Step conditions cannot read secrets, so only whether it exists. A pull
+      # request from a fork never gets it, and is tested but not previewed.
+      HAS_TOKEN: ${{ secrets.OWNER_CLOUDFLARE_API_TOKEN != '' }}
+      URL: https://pr-${{ github.event.number }}.chillmypet-christmas.pages.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node landing/christmas-pouch-hoodie.test.mjs
+
+      - name: Report that no preview was made
+        if: env.HAS_TOKEN != 'true'
+        run: |
+          echo "::warning title=No preview::OWNER_CLOUDFLARE_API_TOKEN is not available to this run, so the tests ran but no preview was published."
+          echo "Tests passed. No preview: this run has no \`OWNER_CLOUDFLARE_API_TOKEN\`." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the preview
+        if: env.HAS_TOKEN == 'true'
+        run: sh landing/christmas-pouch-hoodie/deploy.sh
+        env:
+          PREVIEW: pr-${{ github.event.number }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.OWNER_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 5fef1d1dbb6eaee72fdfc2b26a61a386
+
+      # One comment per pull request: the address stays the same on every push,
+      # and each push updates what it shows.
+      - name: Put the link on the pull request
+        if: env.HAS_TOKEN == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.number }}
+        run: |
+          echo "Preview: $URL" >> "$GITHUB_STEP_SUMMARY"
+          marker='<!-- christmas-preview -->'
+          if gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate --jq '.[].body' | grep -qF "$marker"; then
+            exit 0
+          fi
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$marker
+          **Preview of this change:** $URL
+
+          This is a copy of the Christmas page with this change in it. The live page is not touched until the pull request is merged. Nothing on the preview itself is sent to Meta. **Buy now goes to chillmypet.com's live checkout**, which has no quiet mode: its page views and checkout events count, and a payment there is a real order. The link updates itself on every new push."

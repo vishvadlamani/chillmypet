@@ -210,6 +210,49 @@ create table if not exists payment_events (
 	unique (provider, event_id)
 );
 
+-- One row per shipped order. Kept off orders.status on purpose: the payment
+-- module reads status = 'paid' as "already settled", so a shipped order that
+-- moved to another status could be settled, and reported, a second time.
+create table if not exists fulfillments (
+	id integer primary key autoincrement,
+	store_id text not null references stores (id) on delete cascade,
+	order_id integer not null unique references orders (id) on delete cascade,
+	carrier text,
+	tracking_number text,
+	tracking_url text,
+	shipped_at text not null default (datetime('now'))
+);
+
+-- The email a shopper typed at checkout, kept with their cart so one reminder
+-- can follow if they leave without paying. One row per address: a new cart
+-- updates it, and keeps reminded_at, which is what limits reminders per
+-- address rather than per cart. Lines are [{variantId, quantity}] JSON; prices
+-- are read again when the reminder is built, never stored here.
+create table if not exists checkout_drafts (
+	id integer primary key autoincrement,
+	store_id text not null references stores (id) on delete cascade,
+	token text not null unique,
+	email text not null,
+	first_name text,
+	lines text not null,
+	locale text not null default 'en',
+	reminded_at text,
+	created_at text not null default (datetime('now')),
+	updated_at text not null default (datetime('now')),
+	unique (store_id, email)
+);
+
+-- Addresses that asked for no more reminders. Kept apart from checkout_drafts
+-- so the opt-out outlives the draft it came from.
+create table if not exists email_suppressions (
+	store_id text not null references stores (id) on delete cascade,
+	email text not null,
+	created_at text not null default (datetime('now')),
+	primary key (store_id, email)
+);
+
+create index if not exists idx_checkout_drafts_due on checkout_drafts (store_id, updated_at);
+create index if not exists idx_fulfillments_store on fulfillments (store_id, shipped_at);
 create index if not exists idx_payments_order on payments (order_id);
 create index if not exists idx_payments_store on payments (store_id, status);
 

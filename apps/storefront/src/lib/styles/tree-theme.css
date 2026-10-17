@@ -1,0 +1,359 @@
+/*
+ * The tree storefront: the Dog Christmas Tree Costume page's look.
+ *
+ * Measured off littletreepups.com on 2026-10-16 at 390 and 1440 wide, on the
+ * owner's instruction to make the page look the same: cream ground, pine
+ * green for every action, Poppins with a little positive tracking, pill
+ * controls, hairline accordions with a plus, sage bands for the size guide
+ * and the closing call. Only the look came across: none of that shop's words,
+ * photos, ratings, struck prices or pre-ticked add-ons.
+ *
+ * Scoped twice. `.tree-theme` is the PageLayout root on this page only, so no
+ * other product page changes; `.tree-chrome` is the site layout's wrapper on
+ * the same page, for the header, the strip lifted above it and the footer.
+ * Unlayered on purpose: it has to beat Tailwind's utility layer on the
+ * library blocks, which it does whatever the specificity.
+ */
+
+.tree-theme,
+.tree-chrome {
+	--tree-bg: #faf7f0;
+	--tree-ink: #243b31;
+	--tree-green: #285b43;
+	--tree-green-deep: #194b36;
+	--tree-muted: #637168;
+	--tree-line: #c7cec2;
+	--tree-rule: rgb(36 59 49 / 0.14);
+	--tree-card: #fffdf9;
+	--tree-tint: #edf2eb;
+	--tree-sage: #eeeede;
+	--tree-sage-cta: #e4e9d9;
+	--tree-red: #a24442;
+	--tree-ribbon: #a32938;
+	--tree-chip: #f0e3c4;
+	--tree-chip-ink: #54401c;
+	--tree-saving: #f3ead6;
+	--tree-cream: #fdfbf7;
+}
+
+/* ---- site chrome ------------------------------------------------------- */
+
+.tree-chrome {
+	background: var(--tree-bg);
+	color: var(--tree-ink);
+	font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+	letter-spacing: 0.9px;
+}
+.tree-strip {
+	margin: 0;
+	padding: 10px 16px;
+	background: var(--tree-green);
+	color: var(--tree-cream);
+	text-align: center;
+	font-size: 13px;
+	line-height: 1.35;
+	font-weight: 700;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+}
+@media (min-width: 768px) {
+	.tree-strip {
+		font-size: 15.6px;
+		padding: 11px 16px;
+	}
+}
+.tree-chrome > header {
+	background: var(--tree-bg);
+	border-bottom: 1px solid var(--tree-rule);
+}
+.tree-chrome > header nav > a:first-child {
+	font-size: 24px;
+	font-weight: 700;
+	letter-spacing: 0.78px;
+	color: var(--tree-ink);
+}
+.tree-chrome > header nav ul {
+	color: rgb(36 59 49 / 0.75);
+	font-size: 14px;
+}
+.tree-chrome > header nav a:hover {
+	color: var(--tree-green);
+}
+/* Wide screens: the name centred, language and cart right, the links on
+   their own centred row beneath (four product names do not fit beside it). */
+@media (min-width: 768px) {
+	.tree-chrome > header nav {
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
+		row-gap: 10px;
+		max-width: 1320px;
+		padding: 20px 72px 14px;
+	}
+	.tree-chrome > header nav > a:first-child {
+		grid-column: 2;
+		grid-row: 1;
+		font-size: 26px;
+	}
+	.tree-chrome > header nav > div {
+		grid-column: 3;
+		grid-row: 1;
+		justify-self: end;
+	}
+	.tree-chrome > header nav > ul {
+		grid-column: 1 / -1;
+		grid-row: 2;
+		justify-content: center;
+		column-gap: 28px;
+		font-size: 14px;
+	}
+}
+.tree-chrome > header .bg-ink-900 {
+	background: var(--tree-green);
+}
+.tree-chrome > footer {
+	margin-top: 0;
+	border: 0;
+	background: var(--tree-green);
+	color: rgb(253 251 247 / 0.9);
+}
+.tree-chrome > footer a,
+.tree-chrome > footer p {
+	color: rgb(253 251 247 / 0.9);
+}
+.tree-chrome > footer a:hover {
+	color: #fff;
+}
+
+/* ---- the page ------------------------------------------------------------ */
+
+.tree-theme {
+	--spacing-gutter: 18px;
+	--color-fx-bg: transparent;
+	--color-fx-ink: #243b31;
+	--color-fx-sub: #637168;
+	--color-fx-surface: #fffdf9;
+	--color-fx-surface-hover: #edf2eb;
+	--font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+	font-family: var(--font-sans);
+	background: var(--tree-bg);
+	color: var(--tree-ink);
+	font-size: 15px;
+	line-height: 24px;
+	letter-spacing: 0.9px;
+}
+@media (min-width: 768px) {
+	.tree-theme {
+		--spacing-gutter: 72px;
+	}
+}
+/*
+ * A phone in the Facebook app shows about 660px before the first scroll, and
+ * the price and the size buttons have to be inside it: an ad that lands on a
+ * photo and nothing to tap loses the visitor before they choose. So on a
+ * phone the header is one slim row and the buy box starts closer under it.
+ */
+@media (max-width: 767px) {
+	.tree-chrome > header nav {
+		padding-top: 10px;
+		padding-bottom: 10px;
+	}
+	.tree-theme main > .tree-row:first-of-type {
+		padding-top: 12px;
+	}
+}
+
+/* Inside a two-column row the row already carries the gutter. */
+.tree-theme .tree-row {
+	--spacing-gutter: 0px;
+}
+
+/* The lifted strip replaces this one. */
+.tree-theme aside[aria-label='Announcement'] {
+	display: none;
+}
+
+/* Headings: the product name, then every section's title in pine. */
+.tree-theme h1 {
+	font-size: 28px;
+	line-height: 35px;
+	font-weight: 700;
+	letter-spacing: -0.5px;
+	color: var(--tree-ink);
+}
+.tree-theme h2 {
+	font-size: 27px;
+	line-height: 33.75px;
+	font-weight: 700;
+	letter-spacing: -0.5px;
+	color: var(--tree-green);
+}
+@media (min-width: 768px) {
+	.tree-theme h1 {
+		font-size: 40px;
+		line-height: 50px;
+	}
+	.tree-theme h2 {
+		font-size: 36px;
+		line-height: 45px;
+	}
+}
+/* The library heading's eyebrow: small, bold, widely tracked. */
+.tree-theme section > p.tracking-eyebrow {
+	font-size: 11px;
+	line-height: 17.6px;
+	font-weight: 700;
+	letter-spacing: 1.8px;
+	color: var(--tree-ink);
+}
+
+/* Accordions: hairlines, bold 14px questions, a plus that turns to a minus. */
+.tree-theme details > summary {
+	position: relative;
+	padding: 18px 28px 18px 0;
+	font-size: 14px;
+	line-height: 22.4px;
+	font-weight: 700;
+	letter-spacing: 0.9px;
+	color: var(--tree-ink);
+}
+.tree-theme details > summary .chev {
+	display: none;
+}
+.tree-theme details > summary::after {
+	content: '+';
+	position: absolute;
+	right: 2px;
+	top: 50%;
+	translate: 0 -50%;
+	font-size: 20px;
+	font-weight: 500;
+}
+.tree-theme details[open] > summary::after {
+	content: '−';
+}
+.tree-theme details > summary + div {
+	padding-bottom: 18px;
+	font-size: 12px;
+	line-height: 19.2px;
+	color: var(--tree-muted);
+}
+.tree-theme details > summary + div a {
+	color: var(--tree-muted);
+}
+.tree-theme li.border-b,
+.tree-theme ul.border-t {
+	border-color: var(--tree-rule);
+}
+
+/* Payment marks: a small centred row. */
+.tree-theme [aria-label='Accepted payment methods'],
+.tree-theme .payment-icons {
+	justify-content: center;
+}
+
+/* "Who you're buying from": the shop's promises as bordered cream cards, in
+   the slot and shape of a reviews wall. Element-qualified selectors so they
+   outrank the block's own scoped rules. */
+.tree-theme section.benefits {
+	max-width: 1320px;
+	padding: 0 var(--spacing-gutter) 28px;
+	color: var(--tree-ink);
+}
+.tree-theme section.benefits ul {
+	gap: 16px;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.tree-theme section.benefits ul li {
+	border: 1px solid var(--tree-line);
+	border-radius: 10px;
+	background: var(--tree-card);
+	box-shadow: none;
+	padding: 22px;
+}
+.tree-theme section.benefits ul li span.icon {
+	font-size: 22px;
+}
+.tree-theme section.benefits ul li h3 {
+	margin: 10px 0 6px;
+	font-size: 14px;
+	line-height: 22.4px;
+	letter-spacing: 0.9px;
+	color: var(--tree-ink);
+}
+.tree-theme section.benefits ul li p {
+	font-size: 13px;
+	line-height: 20.8px;
+	color: rgb(36 59 49 / 0.9);
+}
+
+/* "On in ten seconds": the story's editorial look, numerals on hairlines. */
+.tree-theme section.steps {
+	max-width: 1320px;
+	padding: 28px var(--spacing-gutter);
+	gap: 24px;
+	color: var(--tree-ink);
+}
+@media (min-width: 768px) {
+	.tree-theme section.steps {
+		grid-template-columns: 1fr 1fr;
+		gap: 82px;
+		padding-top: 48px;
+		padding-bottom: 48px;
+	}
+}
+.tree-theme section.steps figure.photo {
+	border-radius: 12px;
+	box-shadow: none;
+	background: #f4f0e7;
+}
+.tree-theme section.steps div h2 {
+	margin: 0 0 12px;
+}
+.tree-theme section.steps div p.lead {
+	font-size: 15px;
+	line-height: 24px;
+}
+.tree-theme section.steps ol {
+	gap: 0;
+	border-top: 1px solid var(--tree-rule);
+}
+.tree-theme section.steps ol li {
+	border-radius: 0;
+	background: none;
+	box-shadow: none;
+	padding: 16px 0;
+	border-bottom: 1px solid var(--tree-rule);
+	align-items: baseline;
+}
+.tree-theme section.steps ol li span.n,
+.tree-theme section.steps ol li:nth-child(n) span.n {
+	width: auto;
+	height: auto;
+	background: none;
+	color: var(--tree-red);
+	font-family: Georgia, 'Times New Roman', serif;
+	font-size: 20px;
+	font-weight: 400;
+}
+.tree-theme section.steps ol li h3 {
+	font-size: 14px;
+	line-height: 22.4px;
+	letter-spacing: 0.9px;
+}
+.tree-theme section.steps ol li p {
+	font-size: 12px;
+	line-height: 19.2px;
+	color: var(--tree-muted);
+}
+.tree-theme section.steps div p.note {
+	font-size: 11px;
+	line-height: 16.5px;
+	color: var(--tree-muted);
+}
+
+/* Section headings outside a row sit on the same 1320 frame as the blocks. */
+.tree-theme > section > section.max-w-page,
+.tree-theme section.max-w-page {
+	max-width: 1320px;
+	padding-top: 28px;
+}

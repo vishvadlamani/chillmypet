@@ -6,6 +6,7 @@
 	},
 	"nav": {
 		"home": "Inicio",
+		"christmas": "Navidad",
 		"shop": "Tienda",
 		"contact": "Contacto",
 		"trackOrder": "Seguir pedido",
@@ -59,7 +60,9 @@
 			"blue": "Azul",
 			"pink": "Rosa",
 			"purple": "Morado",
-			"red": "Rojo"
+			"red": "Rojo",
+			"red_santa": "Rojo Papá Noel",
+			"green_stocking": "Verde Calcetín"
 		},
 		"benefitsTitle": "Por qué nadan mejor con él",
 		"trustShipping": "Envío gratis",
@@ -94,7 +97,7 @@
 		"title": "Finalizar compra",
 		"contactTitle": "Contacto",
 		"email": "Correo electrónico",
-		"emailHint": "Aquí enviaremos la confirmación y el seguimiento.",
+		"emailHint": "Aquí enviaremos la confirmación y el seguimiento. Si no terminas, te enviaremos un recordatorio.",
 		"phone": "Teléfono",
 		"shippingTitle": "Dirección de envío",
 		"shippingNote": "Envío gratuito y asegurado en todos los pedidos.",
@@ -108,7 +111,7 @@
 		"country": "País",
 		"methodTitle": "Método de envío",
 		"methodStandard": "Estándar",
-		"methodStandardEta": "5–8 días laborables",
+		"methodStandardEta": "5–12 días tras la salida",
 		"methodExpress": "Exprés",
 		"methodExpressEta": "2–3 días laborables",
 		"free": "Gratis",
@@ -147,8 +150,34 @@
 		"paymentStepTitle": "Pago",
 		"paymentBack": "Editar datos",
 		"paymentLoading": "Cargando el pago seguro…",
+		"pickAbove": "Elige un color y una talla arriba para ver tu total.",
+		"yourOrder": "Tu pedido",
+		"changeOrder": "Cambiar",
 		"paymentHostedNote": "Los datos de la tarjeta se introducen en la página segura de Stripe. Nunca pasan por este sitio.",
-		"paymentFallback": "Abriendo nuestra página de pago segura…"
+		"paymentFallback": "Abriendo nuestra página de pago segura…",
+		"deliveryTitle": "Entrega",
+		"optionalField": "{field} (opcional)",
+		"fieldErrors": {
+			"email": "Introduce tu correo electrónico",
+			"emailInvalid": "Revisa tu correo electrónico, debería ser como nombre@ejemplo.com",
+			"firstName": "Introduce tu nombre",
+			"lastName": "Introduce tus apellidos",
+			"address": "Introduce tu dirección",
+			"city": "Introduce tu ciudad",
+			"state": "Elige tu {label}",
+			"zip": "Introduce tu {label}",
+			"country": "Elige un país"
+		},
+		"shop": {
+			"showSummary": "Ver resumen del pedido",
+			"hideSummary": "Ocultar resumen del pedido",
+			"secure": "Pago seguro",
+			"paymentNote": "Tu tarjeta va directamente a Stripe, nuestro procesador de pagos. Nunca vemos el número.",
+			"oneItem": "1 artículo",
+			"manyItems": "{count} artículos",
+			"fixFields": "Faltan algunos datos. Están marcados en rojo arriba.",
+			"pick": "Elige un diseño y una talla para ver el total."
+		}
 	},
 	"footer": {
 		"shipping": "Política de envíos",
@@ -175,7 +204,7 @@
 				{
 					"heading": "Opciones y coste",
 					"body": [
-						"El envío estándar es gratuito y tarda 5–8 días laborables tras la salida.",
+						"El envío estándar es gratuito y tarda 5–12 días tras la salida.",
 						"El envío exprés cuesta 12,00 $ y tarda 2–3 días laborables tras la salida.",
 						"Los plazos son de tránsito y no incluyen el tiempo de preparación."
 					]
@@ -260,6 +289,13 @@
 					]
 				},
 				{
+					"heading": "Recordatorios de compra",
+					"body": [
+						"Si escribes tu correo al pagar y te vas sin terminar, lo guardamos junto con lo que había en tu carrito y tu nombre si lo diste, para enviarte un único correo de recordatorio con un enlace a tu pedido.",
+						"Enviamos como máximo un recordatorio por dirección cada 30 días, nunca después de que compres y nunca si te das de baja: cada recordatorio incluye un enlace para darse de baja. Los pagos sin terminar se borran a los 30 días."
+					]
+				},
+				{
 					"heading": "Datos de pago",
 					"body": [
 						"Nunca vemos ni almacenamos tu número de tarjeta. Los pagos los procesa Stripe en su propia página; nosotros solo recibimos que el pago se completó, el importe y los últimos cuatro dígitos que Stripe nos muestra.",
@@ -297,7 +333,7 @@
 				{
 					"heading": "Con quién compartimos",
 					"body": [
-						"Solo con quien hace falta para operar la tienda: Stripe para el pago, el transportista para la entrega y Meta para la medición publicitaria descrita arriba. No vendemos tus datos."
+						"Solo con quien hace falta para operar la tienda: Stripe para el pago, el transportista para la entrega, Resend para enviar nuestros correos y Meta para la medición publicitaria descrita arriba. No vendemos tus datos."
 					]
 				}
 			]
@@ -356,5 +392,16 @@
 			"Para una duda de talla, el contorno de pecho y el peso de tu perro",
 			"Para un artículo dañado, una foto"
 		]
+	},
+	"recovery": {
+		"restoring": "Recuperando tu carrito…",
+		"restoreMissing": "Este enlace ha caducado.",
+		"backToShop": "Volver a la tienda",
+		"unsubscribeTitle": "Darse de baja de los recordatorios",
+		"unsubscribeBody": "Dejaremos de enviar recordatorios de compra a esta dirección. Las confirmaciones de pedido seguirán llegando cuando compres.",
+		"unsubscribeButton": "Darme de baja",
+		"unsubscribed": "Hecho: no recibirás más recordatorios.",
+		"unsubscribeInvalid": "Este enlace ha caducado o ya se usó. Si sigues recibiendo recordatorios, responde a uno y los detendremos a mano.",
+		"unsubscribeFailed": "Algo salió mal. Inténtalo de nuevo."
 	}
 }

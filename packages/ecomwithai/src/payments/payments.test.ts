@@ -259,11 +259,21 @@ const replay = await webhook(completed({}, 'evt_paid_ok'));
 check('redelivery of the same event is a no-op',
 	replay.handled === false && replay.reason, 'duplicate');
 
-const concurrent = await Promise.all(
-	Array.from({ length: 4 }, () => webhook(completed({}, 'evt_concurrent')))
+// Not a redelivery: a different event id, which processOnce has never seen and
+// would otherwise apply. The order is already settled, so the only thing
+// between this and a second reported conversion is the already-paid check in
+// settleOrder. Stripe produces these routinely — an async_payment_succeeded
+// behind a completed, a payment_intent.succeeded behind either, or a receipt
+// that reconciled the sale before the hook arrived.
+const afterPaid = await Promise.all(
+	Array.from({ length: 4 }, () => webhook(completed({}, 'evt_after_paid')))
 );
-check('concurrent redelivery applies exactly once',
-	concurrent.filter((r) => r.handled).length, 1);
+check('a new event on a settled order reports nothing',
+	afterPaid.filter((r) => r.handled).length, 0);
+check('and every one of them is refused as a duplicate',
+	afterPaid.every((r) => !r.handled && r.reason === 'duplicate'), true);
+check('the order is still paid, not disturbed',
+	(await commerce.orders.byNumber(order.orderNumber))?.status, 'paid');
 
 const ignored = await webhook({ id: 'evt_other', type: 'customer.created', data: { object: {} } });
 check('unrelated event types are ignored', ignored.handled === false && ignored.reason, 'ignored');
@@ -416,6 +426,48 @@ check('refunded stock returned', (await commerce.catalog.findVariant(seed.produc
 	);
 }
 
+
+// --- the settle race, on an order nobody has paid for yet -------------------
+// Stripe delivers, retries and redelivers in parallel, and a receipt
+// reconciling the same sale can land in the middle of it. Exactly one of them
+// may apply the change, because every one that does reports a conversion.
+// Placed last: it takes stock, and every assertion that counts stock is above.
+{
+	const raceOrder = await commerce.orders.create({
+		lines: [{ variantId: seed.variantIds['TEE-1'], quantity: 1 }],
+		method: 'standard',
+		shipping
+	});
+	const raceCheckout = await payments.startCheckout({
+		orderNumber: raceOrder.orderNumber,
+		successUrl: 'https://shop.test/thanks',
+		cancelUrl: 'https://shop.test/cart'
+	});
+
+	const race = await Promise.all(
+		Array.from({ length: 4 }, () =>
+			webhook({
+				id: 'evt_race',
+				type: 'checkout.session.completed',
+				data: {
+					object: {
+						id: raceCheckout.sessionId,
+						amount_total: raceOrder.totalCents,
+						currency: 'usd',
+						metadata: { order_number: raceOrder.orderNumber, store_id: 'shop' }
+					}
+				}
+			})
+		)
+	);
+
+	check('concurrent delivery applies exactly once', race.filter((r) => r.handled).length, 1);
+	check('the one that applied reports the sale',
+		race.find((r) => r.handled)?.handled === true &&
+			(race.find((r) => r.handled) as { action?: string }).action, 'order_paid');
+	check('and the order ends up paid',
+		(await commerce.orders.byNumber(raceOrder.orderNumber))?.status, 'paid');
+}
 
 db.close();
 await rm(dir, { recursive: true, force: true });

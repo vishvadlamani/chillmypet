@@ -10,6 +10,8 @@ declare global {
 export type GtmItem = {
 	item_id: string;
 	item_name?: string;
+	/** Option codes, e.g. "red_santa / M": the same in every locale. */
+	item_variant?: string;
 	price?: number;
 	quantity?: number;
 };

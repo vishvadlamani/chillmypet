@@ -12,11 +12,18 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"db:migrate": "node --env-file-if-exists=.env scripts/migrate.js",
 		"db:seed": "node --env-file-if-exists=.env scripts/seed.js",
+		"meta:check": "node --env-file-if-exists=.env scripts/meta-check.js",
+		"meta:dedupe": "node --env-file-if-exists=.env scripts/meta-dedupe.js",
+		"test": "node --experimental-strip-types src/lib/resized.test.ts && node --experimental-strip-types src/lib/store/christmas.test.ts && node --experimental-strip-types src/lib/server/email.test.ts && node --experimental-strip-types src/lib/server/catalogue.test.ts && node tests/meta-dedupe.test.mjs",
 		"test:e2e": "node tests/e2e.mjs",
 		"deploy": "npm run build && wrangler deploy",
 		"test:payments": "node tests/payment-flow.mjs",
-		"test:store": "node tests/store-flow.mjs",
-		"db:content": "node --env-file-if-exists=.env scripts/sync-content.js"
+		"test:store": "node tests/store-flow.mjs && node tests/christmas-hoodie.mjs && node tests/dog-christmas-costume.mjs && node tests/reindeer-dog-hoodie.mjs && node tests/one-page-checkout.mjs && node tests/shop-checkout.mjs",
+		"test:admin": "node tests/admin-flow.mjs",
+		"test:recovery": "node tests/checkout-recovery.mjs",
+		"db:content": "node --env-file-if-exists=.env scripts/sync-content.js",
+		"images": "node scripts/resize-images.js",
+		"db:products": "node --env-file-if-exists=.env scripts/add-products.js"
 	},
 	"dependencies": {
 		"@libsql/client": "^0.15.15",
@@ -28,6 +35,7 @@
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tailwindcss/vite": "^4.1.14",
+		"sharp": "^0.35.2",
 		"svelte": "^5.56.1",
 		"svelte-check": "^4.6.0",
 		"tailwindcss": "^4.1.14",

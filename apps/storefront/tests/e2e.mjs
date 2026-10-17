@@ -28,6 +28,12 @@ const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } }
 // fbq.queue where we can assert on it without touching Meta.
 await ctx.route('**/connect.facebook.net/**', (route) => route.abort());
 await ctx.route('**/facebook.com/tr*', (route) => route.abort());
+// Same for GA4's hits: with GTM_CONTAINER_ID set, the live container fires real
+// page views for 127.0.0.1 into property G-YCFPQ38SXP, and on a network that
+// never answers google.com the open beacon also keeps `networkidle` from ever
+// arriving. gtm.js itself still loads, which is what the GTM checks below read.
+await ctx.route('**/google.com/g/collect*', (route) => route.abort());
+await ctx.route('**/google-analytics.com/**', (route) => route.abort());
 const pageErrors = [];
 const page = await ctx.newPage();
 page.on('pageerror', (e) => pageErrors.push(String(e)));
@@ -53,12 +59,24 @@ const tracked = (calls, event) => calls.find((c) => c[0] === 'track' && c[1] ===
  */
 const pageViews = (calls) => calls.filter((c) => c[0] === 'track' && c[1] === 'PageView').length;
 
-const STORE_PIXEL = '1363695699271757';
-const EXTRA_PIXEL = '28272021345717397';
+// The dataset the live ad account (1550461850095009) optimises against, so the
+// only one that also gets the Conversions API copy.
+const STORE_PIXEL = '1341978141149107';
+const ALL_PIXELS = [STORE_PIXEL];
+// Initialised until 2026-10-11: one nobody could say whose it was, and the
+// retired CZK ad account's, which nothing running used. Asserted absent,
+// because every pixel on the page receives every visitor's browsing.
+const REMOVED_PIXELS = ['28272021345717397', '1363695699271757'];
 
-function check(label, cond) {
+// `detail` is printed only on failure. Several assertions already passed one
+// and it was being dropped, so a failing pixel or eventID check reported the
+// label and nothing about what it actually saw.
+function check(label, cond, detail) {
 	console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}`);
-	if (!cond) process.exitCode = 1;
+	if (!cond) {
+		if (detail !== undefined) console.log(`      got: ${detail}`);
+		process.exitCode = 1;
+	}
 }
 
 // --- server-rendered HTML, before any JavaScript runs ---
@@ -85,8 +103,26 @@ function check(label, cond) {
 	// Both tags ship server-rendered, on every page, before any JavaScript runs.
 	check('SSR carries the GTM container', /googletagmanager\.com\/gtm\.js/.test(html));
 	check('and its noscript iframe', /ns\.html\?id=GTM-T446VNH9/.test(html));
-	check('SSR initialises the store pixel', html.includes("fbq('init', '1363695699271757')"));
-	check('SSR initialises the second pixel', html.includes("fbq('init', '28272021345717397')"));
+	// One container, and only one. The site shipped GTM-N3Q25P9X for a while and
+	// the id moved on without the deploy following, so every tag anyone built was
+	// being published into a container the pages no longer loaded.
+	const containers = [...new Set(html.match(/GTM-[A-Z0-9]{4,12}/g) ?? [])].join(',');
+	check('and no other container is loaded alongside it', containers === 'GTM-T446VNH9', containers || 'no container at all');
+	// Asserted through the constants, so adding a pixel to the roster is one
+	// edit rather than one here and one silently-stale literal.
+	for (const id of ALL_PIXELS) {
+		check(`SSR initialises pixel ${id}`, html.includes(`fbq('init', '${id}'`));
+	}
+	for (const id of REMOVED_PIXELS) {
+		check(`SSR no longer mentions the removed pixel ${id}`, !html.includes(id));
+	}
+
+	// One visitor id on every init, the same one each Conversions API copy
+	// sends as external_id. Shaped like a SHA-256 digest so the pixel passes it
+	// through rather than hashing it, which is what makes the halves agree.
+	const ids = [...html.matchAll(/fbq\('init', '\d+', \{external_id: '([a-f0-9]{64})'\}\)/g)].map((m) => m[1]);
+	check('every init carries the external_id', ids.length === ALL_PIXELS.length, `${ids.length} of ${ALL_PIXELS.length}`);
+	check('and it is one id, not one per pixel', new Set(ids).size === 1, JSON.stringify(ids));
 }
 
 {
@@ -94,6 +130,20 @@ function check(label, cond) {
 	check('SSR renders the checkout forms', /Contact/.test(html) && /Shipping address/.test(html));
 	check('SSR renders the pay button', /Place order|Pay \$/.test(html));
 	check('checkout stays out of search results', /noindex/.test(html));
+}
+
+{
+	// The header is built from the catalogue: one link per product that has
+	// both a row and a page manifest. Asserted on the raw HTML, because a nav a
+	// crawler cannot see is a nav nobody arriving cold can see either.
+	const html = await fetch(BASE).then((r) => r.text());
+	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
+	check(
+		'the header links to every product page',
+		header.includes('href="/products/dog-life-jacket"') &&
+			header.includes('href="/products/christmas-pouch-hoodie"'),
+		header.slice(0, 400)
+	);
 }
 
 {
@@ -120,6 +170,16 @@ check('gallery image actually loaded', heroOk);
 {
 	const calls = await fbqCalls();
 	check('pixel init fired', calls.some((c) => c[0] === 'init' && c[1] === STORE_PIXEL));
+	// The browser keeps its id across pages: a new one per page view would tie
+	// nothing together.
+	const vid = (await ctx.cookies()).find((c) => c.name === 'cmp_vid');
+	check('the visitor id is a first-party cookie', /^[a-f0-9]{64}$/.test(vid?.value ?? ''), JSON.stringify(vid));
+	check('that page script cannot read', vid?.httpOnly === true);
+	check(
+		'and the pixel was initialised with it',
+		calls.find((c) => c[0] === 'init' && c[1] === STORE_PIXEL)?.[2]?.external_id === vid?.value,
+		JSON.stringify(calls.find((c) => c[0] === 'init'))
+	);
 	check('PageView fired', Boolean(tracked(calls, 'PageView')));
 	check('ViewContent fired', Boolean(tracked(calls, 'ViewContent')));
 	check('ViewContent carries the product', tracked(calls, 'ViewContent')?.[2]?.content_ids?.[0] === 'dog-life-jacket');
@@ -163,14 +223,16 @@ check('the 3-pack discount is applied', summary?.includes('$12.14'));
 {
 	const calls = await fbqCalls();
 
-	// A second ad account measures the same pages. Both pixels are initialised
-	// by the snippet, so every event above reaches both — and each is
+	// Other ad accounts measure the same pages. Every pixel is initialised by
+	// the one snippet, so each event above reaches all of them — and each is
 	// initialised exactly once, since a repeat init resets that pixel's state.
-	check('the second pixel initialises', calls.some((c) => c[0] === 'init' && c[1] === EXTRA_PIXEL));
-	check('the store pixel is still there', calls.some((c) => c[0] === 'init' && c[1] === STORE_PIXEL));
+	for (const id of ALL_PIXELS) {
+		check(`pixel ${id} initialises`, calls.some((c) => c[0] === 'init' && c[1] === id));
+	}
 	check(
-		'neither pixel is initialised twice',
-		calls.filter((c) => c[0] === 'init').length === 2
+		'no pixel is initialised twice',
+		calls.filter((c) => c[0] === 'init').length === ALL_PIXELS.length,
+		JSON.stringify(calls.filter((c) => c[0] === 'init').map((c) => c[1]))
 	);
 
 	// Every event has a server copy carrying this same id — the SSR snippet's
@@ -204,9 +266,21 @@ check(
 	pageViews(await fbqCalls()) === 1
 );
 
+// The same cart, reached again. A reload, a back-navigation and the bounce back
+// from Stripe's cancel url are all one checkout start, and the guard that says
+// so is keyed on the cart and kept in sessionStorage — the cart itself is in
+// localStorage and outlives the page, which is what made a plain per-mount flag
+// report several starts for every real one.
+check(
+	'a reload does not report a second checkout start',
+	!tracked(await fbqCalls(), 'InitiateCheckout')
+);
+
 // Client-side navigation must also record a PageView. fbq.queue survives here
-// because SvelteKit navigates without a document reload.
-await page.click('header a[href="/products/dog-life-jacket"]');
+// because SvelteKit navigates without a document reload. The checkout has no
+// product menu, so the way back is the order box's own "Change" link.
+check('the checkout has no product menu', !(await page.locator('header nav ul').isVisible()));
+await page.click('section[aria-label="Your order"] a[href="/products/dog-life-jacket"]');
 await page.waitForURL('**/products/dog-life-jacket', { timeout: 10000 });
 {
 	const calls = await fbqCalls();

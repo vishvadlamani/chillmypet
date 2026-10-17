@@ -14,6 +14,8 @@
 		paymentMethodConfiguration,
 		amountCents,
 		currency,
+		appearance,
+		fonts,
 		onready
 	}: {
 		publishableKey: string;
@@ -23,6 +25,13 @@
 		paymentMethodConfiguration: string;
 		amountCents: number;
 		currency: string;
+		/**
+		 * Stripe's appearance object, for a page with its own look. Omitted, the
+		 * fields keep the look every other checkout has.
+		 */
+		appearance?: Record<string, unknown>;
+		/** Web fonts the appearance names; Stripe loads them inside its frame. */
+		fonts?: { cssSrc: string }[];
 		/** Hands the parent a confirm function, or reports that Stripe is unusable. */
 		onready: (api: { confirm: ConfirmFn } | null) => void;
 	} = $props();
@@ -103,9 +112,18 @@
 					...(paymentMethodConfiguration
 						? { paymentMethodConfiguration }
 						: {}),
-					appearance: { theme: 'stripe', variables: { borderRadius: '8px' } }
+					appearance: appearance ?? { theme: 'stripe', variables: { borderRadius: '8px' } },
+					...(fonts ? { fonts } : {})
 				});
-				const element = elements.create('payment', { layout: 'tabs' });
+				// Link off, on the owner's instruction (2026-10-17): it greets a
+				// signed-in shopper with their own Link email above the card, which
+				// read as the store showing a private address. Stripe's method
+				// settings still list Link, and this wins over them here; the
+				// hosted fallback page follows the settings alone.
+				const element = elements.create('payment', {
+					layout: 'tabs',
+					wallets: { link: 'never' }
+				});
 				element.mount(container!);
 				mounted = true;
 
@@ -136,6 +154,18 @@
 		return () => {
 			cancelled = true;
 		};
+	});
+
+	/**
+	 * In deferred mode the element was created with the total at that moment.
+	 * When the buyer then picks Express shipping or a second unit, the element
+	 * has to be told: a wallet's payment sheet shows the element's amount, not
+	 * the intent's, and the two must agree when the intent is confirmed.
+	 */
+	$effect(() => {
+		const next = amountCents;
+		if (!mounted || !elements || next <= 0) return;
+		elements.update({ amount: next });
 	});
 
 	onDestroy(() => {

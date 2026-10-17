@@ -6,6 +6,7 @@
 	},
 	"nav": {
 		"home": "Home",
+		"christmas": "Christmas",
 		"shop": "Shop",
 		"contact": "Contact",
 		"trackOrder": "Track order",
@@ -59,7 +60,9 @@
 			"blue": "Blue",
 			"pink": "Pink",
 			"purple": "Purple",
-			"red": "Red"
+			"red": "Red",
+			"red_santa": "Santa Red",
+			"green_stocking": "Stocking Green"
 		},
 		"benefitsTitle": "Why dogs swim better in it",
 		"trustShipping": "Free shipping",
@@ -94,7 +97,7 @@
 		"title": "Checkout",
 		"contactTitle": "Contact",
 		"email": "Email",
-		"emailHint": "Order confirmation and tracking go here.",
+		"emailHint": "Order confirmation and tracking go here. If you don't finish, we'll send one reminder.",
 		"phone": "Phone",
 		"shippingTitle": "Shipping address",
 		"shippingNote": "Free and insured delivery on every order.",
@@ -108,7 +111,7 @@
 		"country": "Country",
 		"methodTitle": "Shipping method",
 		"methodStandard": "Standard",
-		"methodStandardEta": "5–8 business days",
+		"methodStandardEta": "5–12 days after it ships",
 		"methodExpress": "Express",
 		"methodExpressEta": "2–3 business days",
 		"free": "Free",
@@ -147,8 +150,34 @@
 		"paymentStepTitle": "Payment",
 		"paymentBack": "Edit details",
 		"paymentLoading": "Loading secure payment…",
+		"pickAbove": "Pick a colour and size above to see your total.",
+		"yourOrder": "Your order",
+		"changeOrder": "Change",
 		"paymentHostedNote": "Card details are entered on Stripe's secure page. They never touch this site.",
-		"paymentFallback": "Opening our secure payment page…"
+		"paymentFallback": "Opening our secure payment page…",
+		"deliveryTitle": "Delivery",
+		"optionalField": "{field} (optional)",
+		"fieldErrors": {
+			"email": "Please enter your email address",
+			"emailInvalid": "Please check your email address, it should look like name@example.com",
+			"firstName": "Please enter your first name",
+			"lastName": "Please enter your last name",
+			"address": "Please enter your street address",
+			"city": "Please enter your city",
+			"state": "Please choose your {label}",
+			"zip": "Please enter your {label}",
+			"country": "Please choose a country"
+		},
+		"shop": {
+			"showSummary": "Show order summary",
+			"hideSummary": "Hide order summary",
+			"secure": "Secure checkout",
+			"paymentNote": "Your card goes straight to Stripe, our payment processor. We never see the number.",
+			"oneItem": "1 item",
+			"manyItems": "{count} items",
+			"fixFields": "Some details are missing. They are marked in red above.",
+			"pick": "Choose a design and size to see your total."
+		}
 	},
 	"footer": {
 		"shipping": "Shipping policy",
@@ -175,7 +204,7 @@
 				{
 					"heading": "Delivery options and cost",
 					"body": [
-						"Standard shipping is free and takes 5–8 business days after dispatch.",
+						"Standard shipping is free and takes 5–12 days after dispatch.",
 						"Express shipping costs $12.00 and takes 2–3 business days after dispatch.",
 						"Delivery estimates are for transit time after dispatch and don't include the processing time above."
 					]
@@ -260,6 +289,13 @@
 					]
 				},
 				{
+					"heading": "Checkout reminders",
+					"body": [
+						"If you type your email address at checkout and leave without finishing, we keep it, with what was in your basket and your first name if you gave it, so we can send you one reminder email with a link back to your order.",
+						"We send at most one reminder per address in 30 days, never after you've bought, and never after you unsubscribe — every reminder has an unsubscribe link. Unfinished checkouts are deleted after 30 days."
+					]
+				},
+				{
 					"heading": "Payment details",
 					"body": [
 						"We never see or store your card number. Payments are processed by Stripe on their own hosted page; we receive only the fact that a payment succeeded, the amount, and the last-four digits Stripe shows us.",
@@ -297,7 +333,7 @@
 				{
 					"heading": "Who we share with",
 					"body": [
-						"Only the parties needed to run the shop: Stripe for payment, our shipping carrier for delivery, and Meta for advertising measurement as described above. We don't sell your data."
+						"Only the parties needed to run the shop: Stripe for payment, our shipping carrier for delivery, Resend to send our emails, and Meta for advertising measurement as described above. We don't sell your data."
 					]
 				}
 			]
@@ -356,5 +392,16 @@
 			"For a sizing question, your dog's chest measurement and weight",
 			"For a damaged item, a photo"
 		]
+	},
+	"recovery": {
+		"restoring": "Bringing back your cart…",
+		"restoreMissing": "This link has expired.",
+		"backToShop": "Back to the shop",
+		"unsubscribeTitle": "Unsubscribe from reminders",
+		"unsubscribeBody": "We'll stop sending checkout reminders to this address. Order confirmations still arrive when you buy.",
+		"unsubscribeButton": "Unsubscribe",
+		"unsubscribed": "Done — you won't get any more reminders from us.",
+		"unsubscribeInvalid": "This link has expired or was already used. If you still get reminders, reply to one and we'll stop them by hand.",
+		"unsubscribeFailed": "Something went wrong. Please try again."
 	}
 }

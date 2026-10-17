@@ -1,4 +1,5 @@
 import { toAmount, type Commerce, type Order } from 'ecomwithai';
+import { withCallingCode } from '$lib/server/identity';
 import type { MetaBrowserIds } from '$lib/server/meta-browser-ids';
 
 /**
@@ -18,16 +19,73 @@ export type PurchaseAttribution = {
 	/** Meta's browser cookies. Absent when the customer blocks them. */
 	fbp?: string;
 	fbc?: string;
+	/** Our own visitor id, sent as `external_id`. See `ensureVisitorId`. */
+	externalId?: string;
 	clientIpAddress?: string;
 	clientUserAgent?: string;
 };
 
+type CookieJar = {
+	get(name: string): string | undefined;
+	set(name: string, value: string, opts: { path: string; httpOnly?: boolean; sameSite?: 'lax'; maxAge?: number }): void;
+};
+
+const VISITOR_COOKIE = 'cmp_vid';
+const VISITOR_ID = /^[a-f0-9]{64}$/;
+
+export function visitorId(cookies: { get(name: string): string | undefined }): string | undefined {
+	const value = cookies.get(VISITOR_COOKIE);
+	return value && VISITOR_ID.test(value) ? value : undefined;
+}
+
 /**
- * What a Conversions API event knows about the browser behind a request.
- * `ids` is `locals.metaBrowserIds`, built once per request in hooks.server.ts,
- * so every event from one request carries the same click id.
+ * The visitor's `external_id`: one id, on the pixel's init and on every
+ * Conversions API copy, so Meta can tie a ViewContent, an InitiateCheckout and
+ * the Purchase to the same person even where no email has been typed yet —
+ * which, on a landing page, is everywhere.
+ *
+ * 64 hex characters on purpose. The pixel sends a value shaped like a SHA-256
+ * digest as it is and hashes anything else, and `buildUserData` follows the
+ * same rule, so this exact string is what both halves carry. Any other shape
+ * and one of them hashes it while the other does not, and the two copies never
+ * match. Random, never derived from anything about the person.
+ *
+ * httpOnly because only the server reads it: it is written into the init call
+ * in the page itself. Call before `resolve()`, so the cookie rides on this
+ * response and later reads in the same request see it.
+ */
+export function ensureVisitorId(cookies: CookieJar, carried?: string | null): string {
+	const existing = visitorId(cookies);
+	if (existing) return existing;
+
+	// A visitor arriving from the Christmas landing page brings that page's id
+	// (`?vid=`), the external_id on every event it sent: the ad click, the
+	// ViewContent, the AddToCart. Taking it keeps the Purchase reported here on
+	// the same person. Only on a first visit, never over an id this site gave,
+	// and only in the shape this site would have minted: a random string, so
+	// a link that carries someone else's id joins two browsing histories,
+	// never a name to an identity.
+	const bytes = crypto.getRandomValues(new Uint8Array(32));
+	const id =
+		carried && VISITOR_ID.test(carried)
+			? carried
+			: [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+	cookies.set(VISITOR_COOKIE, id, {
+		path: '/',
+		httpOnly: true,
+		sameSite: 'lax',
+		maxAge: 60 * 60 * 24 * 365
+	});
+	return id;
+}
+
+/**
+ * `ids` is `locals.metaBrowserIds`, built once per request in hooks.server.ts
+ * by Meta's Parameter Builder. Passed through untouched: the builder's tag is
+ * how Meta knows the click id was not modified on the way.
  */
 export function attributionFrom(
+	cookies: { get(name: string): string | undefined },
 	ids: MetaBrowserIds,
 	headers: Headers,
 	clientIpAddress?: string
@@ -35,9 +93,50 @@ export function attributionFrom(
 	return {
 		fbp: ids.fbp,
 		fbc: ids.fbc,
+		externalId: visitorId(cookies),
 		clientIpAddress,
 		clientUserAgent: headers.get('user-agent') ?? undefined
 	};
+}
+
+// Stripe metadata keys, and Stripe's own cap on a value. A request carrying a
+// longer one is refused whole, so an oversized value is left out instead.
+const METADATA_KEYS = {
+	fbp: 'fbp',
+	fbc: 'fbc',
+	externalId: 'external_id',
+	clientIpAddress: 'client_ip',
+	clientUserAgent: 'client_ua'
+} as const satisfies Record<keyof PurchaseAttribution, string>;
+const STRIPE_METADATA_MAX = 500;
+
+/**
+ * The customer's attribution, packed into Stripe metadata for the webhook.
+ *
+ * The webhook that reports the sale is a request from Stripe: none of this
+ * customer's cookies, address or user agent are on it. Without these the
+ * Purchase reached Meta with no `client_user_agent`, which Meta lists as
+ * required for a website event — such an event is accepted but may not be
+ * used for optimisation or measurement, and Events Manager scored Purchase's
+ * match quality at 0. Taken from the checkout request, the customer's own.
+ */
+export function attributionMetadata(attribution: PurchaseAttribution): Record<string, string> {
+	const out: Record<string, string> = {};
+	for (const [field, key] of Object.entries(METADATA_KEYS)) {
+		const value = attribution[field as keyof PurchaseAttribution];
+		if (value && value.length <= STRIPE_METADATA_MAX) out[key] = value;
+	}
+	return out;
+}
+
+/** The other end of `attributionMetadata`, from a verified Stripe object. */
+export function attributionFromMetadata(metadata: Record<string, unknown>): PurchaseAttribution {
+	const out: PurchaseAttribution = {};
+	for (const [field, key] of Object.entries(METADATA_KEYS)) {
+		const value = metadata[key];
+		if (typeof value === 'string' && value) out[field as keyof PurchaseAttribution] = value;
+	}
+	return out;
 }
 
 /**
@@ -60,7 +159,9 @@ export function sendPurchase(
 			eventSourceUrl: options.eventSourceUrl,
 			user: {
 				email: order.email,
-				phone: shipping.phone ?? undefined,
+				// With its calling code, so it hashes the same as the copy the
+				// earlier PageView and ViewContent events sent from the cookie.
+				phone: shipping.phone ? withCallingCode(shipping.phone, shipping.country) : undefined,
 				firstName: shipping.firstName,
 				lastName: shipping.lastName,
 				city: shipping.city,

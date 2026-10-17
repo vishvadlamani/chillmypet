@@ -1,5 +1,6 @@
 import type { Commerce, Store } from 'ecomwithai';
 import type { Locale } from '$lib/i18n';
+import type { EmailConfig } from '$lib/server/email';
 import type { MetaBrowserIds } from '$lib/server/meta-browser-ids';
 
 declare global {
@@ -14,6 +15,8 @@ declare global {
 			commerce: Commerce;
 			stripePublishableKey: string;
 			stripePaymentMethodConfiguration: string;
+			/** Order confirmation email settings, built in hooks.server.ts. */
+			email: EmailConfig;
 			/** `fbc`/`fbp` from Meta's Parameter Builder, already written back as cookies. */
 			metaBrowserIds: MetaBrowserIds;
 		}

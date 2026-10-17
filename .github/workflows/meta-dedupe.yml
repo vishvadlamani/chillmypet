@@ -1,0 +1,27 @@
+name: Meta deduplication report
+
+# Meta's own deduplication figures for the dataset, per event, on the run's
+# summary page: the share of server events carrying event_id (goal 95%) and
+# of browser events covered by a server copy (goal 75%). The same numbers as
+# Events Manager → dataset → Deduplication, for anyone who can open Actions.
+#
+# On demand only. Coverage is a 7-day average, so a fix takes a week to show
+# in full, and a red run while that settles says nothing new. Whether each
+# site's server events can land at all is answered at once by
+# https://chillmypet.com/api/meta-status and
+# https://chillmypet-christmas.pages.dev/api/meta-status.
+on:
+  workflow_dispatch:
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # No npm ci: the script needs nothing but Node and the token.
+      - run: node apps/storefront/scripts/meta-dedupe.js
+        env:
+          META_CAPI_ACCESS_TOKEN: ${{ secrets.META_CAPI_ACCESS_TOKEN }}
