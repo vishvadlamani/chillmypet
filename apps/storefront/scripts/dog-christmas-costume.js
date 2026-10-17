@@ -8,8 +8,9 @@
  * media row is the listing image the header and the home page pick up, and it
  * is the red colour's gallery photo, which is where the page opens.
  *
- * ⚠️ THE PRICE IS A PLACEHOLDER. $28.50 is the reference store's figure, not a
- * decision anyone here has made. There is no compare-at price on purpose: a
+ * The price is $27.99, the reindeer hoodie's, on the owner's instruction of
+ * 2026-10-17 (one price for the Christmas dog outfits; it was $28.50, the
+ * first reference store's figure). There is no compare-at price on purpose: a
  * struck-through "was" price has to be one the product was actually offered
  * at, and this one has never been offered at all.
  *
@@ -25,7 +26,8 @@
 
 export const DOG_CHRISTMAS_COSTUME_SLUG = 'dog-christmas-costume';
 
-const PRICE_CENTS = 2850;
+// Kept in step with `price-changes.js`, which moves a live store here.
+const PRICE_CENTS = 2799;
 
 /**
  * Per-variant units. Stock is kept outside this system, so this is a ceiling

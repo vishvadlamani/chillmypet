@@ -44,6 +44,10 @@ compatibility_flags = ["nodejs_compat"]
 # second, then confirm in Events Manager that the dataset shows both a browser
 # and a server copy of the same event.
 [vars]
+# Where replies to order emails land: the shop's support inbox, the address
+# every page shows. Without it hooks.server.ts falls back to contact@<domain>,
+# which nobody reads.
+EMAIL_REPLY_TO = "contact.chillmypet@gmail.com"
 META_PIXEL_ID = "1341978141149107"
 # Empty, not absent: unset, hooks.server.ts falls back to the database setting,
 # which may still list the pixels removed above.

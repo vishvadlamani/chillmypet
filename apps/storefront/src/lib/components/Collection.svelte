@@ -13,6 +13,7 @@
 		eyebrow,
 		title,
 		lead,
+		level = 'h1',
 		products,
 		empty,
 		children
@@ -20,6 +21,8 @@
 		eyebrow: string;
 		title: string;
 		lead: string;
+		/** `h2` when the page has its own h1 above (the home page's hero). */
+		level?: 'h1' | 'h2';
 		products: ProductCard[];
 		empty: string;
 		/** Anything under the cards, before the promises. */
@@ -30,7 +33,7 @@
 <div class="tree-theme collection">
 	<header class="intro">
 		<p class="eyebrow">{eyebrow}</p>
-		<h1>{title}</h1>
+		<svelte:element this={level} class="title">{title}</svelte:element>
 		<p class="lead">{lead}</p>
 	</header>
 
@@ -53,7 +56,7 @@
 	.collection {
 		max-width: 1100px;
 		margin: 0 auto;
-		padding: 20px 16px 8px;
+		padding: 20px 16px 48px;
 		color: var(--tree-ink);
 	}
 	.intro {
@@ -69,8 +72,9 @@
 		text-transform: uppercase;
 		color: var(--tree-red);
 	}
-	h1 {
+	.intro .title {
 		margin: 0;
+		color: var(--tree-ink);
 		font-size: 26px;
 		line-height: 1.2;
 		font-weight: 700;
@@ -85,7 +89,7 @@
 		.collection {
 			padding-top: 40px;
 		}
-		h1 {
+		.intro .title {
 			font-size: 36px;
 		}
 		.lead {

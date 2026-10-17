@@ -57,7 +57,7 @@ export async function loadCollection(
 			slug: p.slug,
 			title: p.title,
 			subtitle: p.subtitle ?? '',
-			image: lead?.url ?? null,
+			image: PRODUCT_PAGES[p.slug].cardImage ?? lead?.url ?? null,
 			alt: lead?.alt ?? p.title,
 			// Lowest variant price. Every listed product today has one price
 			// across its variants; if that changes, the card should say "from".

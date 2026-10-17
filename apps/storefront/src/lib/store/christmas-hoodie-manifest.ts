@@ -121,7 +121,7 @@ export const CHRISTMAS_HOODIE_PAGE: FunnelDefinition = {
 					},
 					{
 						label: 'What if it doesn’t fit? 📏',
-						body: 'You get 30 days. Exchanges and returns are free, and we send the label.\n\nJust email contact@chillmypet.com with your order number.',
+						body: 'You get 30 days. Exchanges and returns are free, and we send the label.\n\nJust email contact.chillmypet@gmail.com with your order number.',
 						link: { label: 'Read our return policy', href: '/policies/refunds' }
 					}
 				]
@@ -143,7 +143,7 @@ export const CHRISTMAS_HOODIE_PAGE: FunnelDefinition = {
 				pending:
 					'Exact chest and length measurements are on their way from our maker. We’ll add them here as soon as we have them.',
 				contact:
-					'Not sure? Email contact@chillmypet.com with your height and usual size, and we’ll help you pick.'
+					'Not sure? Email contact.chillmypet@gmail.com with your height and usual size, and we’ll help you pick.'
 			}
 		},
 		{

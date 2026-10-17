@@ -62,66 +62,79 @@
 		padding: 11px 16px;
 	}
 }
+/* The header's layout is the site's (`app.css`); the tree look recolours it. */
 .tree-chrome > header {
-	background: var(--tree-bg);
-	border-bottom: 1px solid var(--tree-rule);
-}
-.tree-chrome > header nav > a:first-child {
-	font-size: 24px;
-	font-weight: 700;
-	letter-spacing: 0.78px;
-	color: var(--tree-ink);
-}
-.tree-chrome > header nav ul {
-	color: rgb(36 59 49 / 0.75);
-	font-size: 14px;
-}
-.tree-chrome > header nav a:hover {
-	color: var(--tree-green);
-}
-/* Wide screens: the name centred, language and cart right, the links on
-   their own centred row beneath. */
-@media (min-width: 768px) {
-	.tree-chrome > header nav {
-		display: grid;
-		grid-template-columns: 1fr auto 1fr;
-		row-gap: 10px;
-		max-width: 1320px;
-		padding: 20px 72px 14px;
-	}
-	.tree-chrome > header nav > a:first-child {
-		grid-column: 2;
-		grid-row: 1;
-		font-size: 26px;
-	}
-	.tree-chrome > header nav > div {
-		grid-column: 3;
-		grid-row: 1;
-		justify-self: end;
-	}
-	.tree-chrome > header nav > ul {
-		grid-column: 1 / -1;
-		grid-row: 2;
-		justify-content: center;
-		column-gap: 28px;
-		font-size: 14px;
-	}
-}
-.tree-chrome > header .bg-ink-900 {
-	background: var(--tree-green);
+	--site-bg: var(--tree-bg);
+	--site-ink: var(--tree-ink);
+	--site-accent: var(--tree-green);
+	--site-muted: rgb(36 59 49 / 0.75);
+	--site-rule: var(--tree-rule);
+	--site-card: var(--tree-card);
+	--site-tint: var(--tree-tint);
 }
 .tree-chrome > footer {
+	--footer-bg: var(--tree-green);
+	--footer-ink: #fff;
+	--footer-muted: rgb(253 251 247 / 0.86);
+	--footer-rule: rgb(253 251 247 / 0.18);
 	margin-top: 0;
 	border: 0;
+}
+
+/* The checkout (`Checkout.svelte`, default look) in the shop's colours: the
+   library's forms draw with the fx tokens, so swapping the tokens is enough
+   to take them from grey and black to cream and pine, and nothing about how
+   the checkout behaves changes. */
+.tree-checkout {
+	--color-fx-bg: var(--tree-bg);
+	--color-fx-ink: #243b31;
+	--color-fx-sub: #4b5a51;
+	--color-fx-muted: #6b776f;
+	--color-fx-surface: #fffdf9;
+	--color-fx-surface-hover: #edf2eb;
+	background: var(--tree-bg);
+	color: var(--tree-ink);
+	accent-color: var(--tree-green);
+}
+.tree-checkout h1,
+.tree-checkout h2 {
+	color: var(--tree-green);
+	letter-spacing: -0.3px;
+}
+.tree-checkout .bg-white {
+	background: var(--tree-card);
+}
+.tree-checkout button[type='submit'].bg-fx-ink {
 	background: var(--tree-green);
-	color: rgb(253 251 247 / 0.9);
+	border-radius: 999px;
+	letter-spacing: 0.6px;
 }
-.tree-chrome > footer a,
-.tree-chrome > footer p {
-	color: rgb(253 251 247 / 0.9);
+.tree-checkout button[type='submit'].bg-fx-ink:hover {
+	background: var(--tree-green-deep);
+	opacity: 1;
 }
-.tree-chrome > footer a:hover {
-	color: #fff;
+
+/* Contact and the policies: plain documents, in the shop's type colours. */
+.tree-chrome .doc-page h1 {
+	font-weight: 700;
+	letter-spacing: -0.3px;
+	color: var(--tree-green);
+}
+.tree-chrome .doc-page h2 {
+	font-weight: 600;
+	color: var(--tree-ink);
+}
+.tree-chrome .doc-page p,
+.tree-chrome .doc-page li {
+	color: var(--tree-muted);
+}
+.tree-chrome .doc-page dl {
+	background: var(--tree-card);
+	border-color: var(--tree-line);
+}
+.tree-chrome .doc-page dd,
+.tree-chrome .doc-page a {
+	color: var(--tree-ink);
 }
 
 /* ---- the page ------------------------------------------------------------ */
@@ -153,10 +166,6 @@
  * phone the header is one slim row and the buy box starts closer under it.
  */
 @media (max-width: 767px) {
-	.tree-chrome > header nav {
-		padding-top: 10px;
-		padding-bottom: 10px;
-	}
 	.tree-theme main > .tree-row:first-of-type {
 		padding-top: 12px;
 	}
@@ -197,6 +206,19 @@
 		line-height: 45px;
 	}
 }
+/* The library bundle picker's label ("Choose your bundle") is an h2 drawn as
+   a small caps label; the section-title size above would make it a headline. */
+.tree-theme section h2[id$='-label'] {
+	font-size: 13px;
+	line-height: 20px;
+	letter-spacing: 1.2px;
+	color: var(--tree-ink);
+}
+/* A photo in the masonry wall never splits across two columns. */
+.tree-theme article {
+	break-inside: avoid;
+}
+
 /* The library heading's eyebrow: small, bold, widely tracked. */
 .tree-theme section > p.tracking-eyebrow {
 	font-size: 11px;
@@ -251,6 +273,12 @@
 	justify-content: center;
 }
 
+/* The size guide's "measurements on their way" note, in the shop's pine. */
+.tree-theme p.pending {
+	border-left-color: var(--tree-green);
+	background: var(--tree-card);
+}
+
 /* "Who you're buying from": the shop's promises as bordered cream cards, in
    the slot and shape of a reviews wall. Element-qualified selectors so they
    outrank the block's own scoped rules. */
@@ -272,6 +300,9 @@
 }
 .tree-theme section.benefits ul li span.icon {
 	font-size: 22px;
+}
+.tree-theme section.benefits ul li svg.icon {
+	color: var(--tree-green);
 }
 .tree-theme section.benefits ul li h3 {
 	margin: 10px 0 6px;
@@ -299,6 +330,30 @@
 		gap: 82px;
 		padding-top: 48px;
 		padding-bottom: 48px;
+	}
+}
+/* Steps with no photo beside them: centred, the steps side by side, rather
+   than a column of text with an empty half of the page next to it. */
+@media (min-width: 768px) {
+	.tree-theme section.steps.solo {
+		grid-template-columns: 1fr;
+		max-width: 1176px;
+		text-align: center;
+	}
+	.tree-theme section.steps.solo ol {
+		grid-template-columns: repeat(3, 1fr);
+		gap: 24px;
+		border-top: 0;
+		text-align: left;
+	}
+	.tree-theme section.steps.solo ol li {
+		border: 1px solid var(--tree-line);
+		border-radius: 10px;
+		background: var(--tree-card);
+		padding: 20px 22px;
+	}
+	.tree-theme section.steps.solo div p.lead {
+		margin-bottom: 24px;
 	}
 }
 .tree-theme section.steps figure.photo {

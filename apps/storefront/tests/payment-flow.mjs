@@ -696,15 +696,15 @@ if (sessionCall) {
 
 	if (intentCall) {
 		const p = new URLSearchParams(intentCall.body);
-		// 2 × $44.97 = $89.94, less the 7% two-pack break ($6.30), and free
+		// 2 × $44.99 = $89.98, less the 7% two-pack break ($6.30), and free
 		// Standard shipping: the posted `express` is not a rate this store
 		// offers. The intent is the order total outright, so unlike the hosted
 		// session there is no coupon to reconcile — which is exactly why the
 		// discount has to already be in this number.
 		check(
 			'the intent charges the discounted total, not the list price, and no Express',
-			Number(p.get('amount')) === 8994 - 630,
-			`charged ${p.get('amount')} for an order worth ${8994 - 630}`
+			Number(p.get('amount')) === 8998 - 630,
+			`charged ${p.get('amount')} for an order worth ${8998 - 630}`
 		);
 		check('the order number travels with the intent', /^CMP-/.test(p.get('metadata[order_number]') ?? ''));
 		check('store id is in metadata for tenant routing', p.get('metadata[store_id]') === 'chillmypet');
@@ -831,10 +831,10 @@ if (sessionCall) {
 	const added = {
 		content_type: 'product',
 		content_ids: ['CMP-LJ-TEST'],
-		contents: [{ id: 'CMP-LJ-TEST', quantity: 1, item_price: 44.97 }],
+		contents: [{ id: 'CMP-LJ-TEST', quantity: 1, item_price: 44.99 }],
 		num_items: 1,
 		currency: 'USD',
-		value: '44.97'
+		value: '44.99'
 	};
 	await fetch(`${BASE}/api/track`, {
 		method: 'POST',

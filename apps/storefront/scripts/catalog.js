@@ -151,3 +151,33 @@ export async function insertProduct(db, storeId, def) {
 		tx.close();
 	}
 }
+
+/**
+ * Moves a product's variants from one price to another, but only the variants
+ * still at `fromCents`. Returns how many moved: 0 once it has applied, and 0
+ * for a variant someone priced by hand since. With `compareAtCents` in the
+ * change, the compare-at is written too. See `price-changes.js`.
+ *
+ * @param {import('ecomwithai/db').Client} db
+ * @param {string} storeId
+ * @param {{ slug: string, fromCents: number, toCents: number, compareAtCents?: number | null }} change
+ * @returns {Promise<number>}
+ */
+export async function applyPriceChange(db, storeId, change) {
+	const { slug, fromCents, toCents } = change;
+	const withCompare = 'compareAtCents' in change;
+	const result = await db.execute({
+		sql: `update product_variants set price_cents = ?${withCompare ? ', compare_at_cents = ?' : ''}
+		      where store_id = ? and price_cents = ?
+		        and product_id = (select id from products where store_id = ? and slug = ?)`,
+		args: [
+			toCents,
+			...(withCompare ? [change.compareAtCents ?? null] : []),
+			storeId,
+			fromCents,
+			storeId,
+			slug
+		]
+	});
+	return result.rowsAffected;
+}

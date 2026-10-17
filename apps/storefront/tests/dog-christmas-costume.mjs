@@ -22,7 +22,7 @@ import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
 const URL_ = `${BASE}/products/dog-christmas-costume`;
-const PRICE = '28.50';
+const PRICE = '27.99';
 const SKU = 'CMP-XT-GREEN-M';
 
 function check(label, cond, detail) {
@@ -45,7 +45,7 @@ function check(label, cond, detail) {
 	check('the closing band points back at the picker, under an h2', /<h2[^>]*>[\s\S]{0,120}?Every tree needs a little one/.test(html) && /href="#variant-picker"/.test(html));
 	check('SSR says the size goes by the dog’s weight', /Sized by weight: S 3–6 lb/.test(html));
 	// The store's own quantity breaks, priced by the server, said in words.
-	check('SSR offers the bundle cards at the server’s prices', html.includes('$53.01') && html.includes('$77.80') && /You save 7% with 2 costumes/.test(html));
+	check('SSR offers the bundle cards at the server’s prices', html.includes('$52.06') && html.includes('$76.41') && /You save 7% with 2 costumes/.test(html));
 	check('the theme lifts the delivery strip above the header', /class="tree-strip"[^>]*>[^<]*Order by \w+day, Dec \d+/.test(html) && html.indexOf('tree-strip') < html.indexOf('<header'));
 	check('SSR quotes the price', html.includes(`$${PRICE}`));
 	check('SSR offers both colours', html.includes('>Red<') && html.includes('>Green<'));
@@ -197,9 +197,9 @@ check(
 // The bundle cards: picking two re-prices the button and the sticky bar, and
 // one puts it back. The order below is for one costume.
 await page.locator('#variant-picker label.tier', { hasText: 'Two costumes' }).click();
-check('two costumes re-price the button', (await page.locator('#variant-picker button.cta').innerText()).includes('$53.01'));
+check('two costumes re-price the button', (await page.locator('#variant-picker button.cta').innerText()).includes('$52.06'));
 await page.locator('#variant-picker label.tier', { hasText: 'One costume' }).click();
-check('and one costume puts it back', (await page.locator('#variant-picker button.cta').innerText()).includes('$28.50'));
+check('and one costume puts it back', (await page.locator('#variant-picker button.cta').innerText()).includes('$27.99'));
 await page.locator('#variant-picker label', { hasText: 'Green' }).click();
 check(
 	'the gallery follows the colour',
@@ -237,7 +237,7 @@ check('add to cart lands on the checkout', new URL(page.url()).pathname === '/ch
 	check('AddToCart is worth one costume', add.data.value === PRICE && add.data.num_items === 1, JSON.stringify(add.data));
 	check('AddToCart server copy matches', JSON.stringify(add.server.content_ids) === `["${SKU}"]` && add.server.value === PRICE, JSON.stringify(add.server));
 	const item = (await dataLayer()).find((e) => e.event === 'add_to_cart')?.ecommerce?.items?.[0];
-	check('add_to_cart names the variant for GA4', item?.item_id === SKU && item?.item_variant === 'green / M' && item?.price === 28.5, JSON.stringify(item));
+	check('add_to_cart names the variant for GA4', item?.item_id === SKU && item?.item_variant === 'green / M' && item?.price === 27.99, JSON.stringify(item));
 }
 
 // --- the checkout line, priced by the server ---------------------------------------
@@ -246,7 +246,7 @@ await page.waitForSelector('form dl');
 	const summary = await page.locator('form', { has: page.locator('dl') }).innerText();
 	check('checkout shows the product', summary.includes('Dog Christmas Tree Costume'), summary.slice(0, 300));
 	check('checkout shows colour and size', /Green · M/.test(summary), summary.slice(0, 300));
-	check('checkout charges $28.50', (await page.locator('form dl').innerText()).includes(`$${PRICE}`));
+	check('checkout charges $27.99', (await page.locator('form dl').innerText()).includes(`$${PRICE}`));
 }
 
 // --- place the order --------------------------------------------------------------------
@@ -284,7 +284,7 @@ check('the order was accepted', Boolean(orderNumber), body.slice(0, 300));
 			row.sku === SKU &&
 			row.option1 === 'green' &&
 			row.option2 === 'M' &&
-			Number(row.unit_price_cents) === 2850 &&
+			Number(row.unit_price_cents) === 2799 &&
 			Number(row.quantity) === 1 &&
 			row.product_slug === 'dog-christmas-costume',
 		JSON.stringify(row)

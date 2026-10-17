@@ -90,7 +90,15 @@ function check(label, cond, detail) {
 	check('SSR carries a description for search and social', /name="description" content=".{40}/.test(html));
 	check('SSR quotes a price', /\$\d+\.\d{2}/.test(html));
 	check('SSR offers a way to buy', /Buy now/i.test(html) && !/Sold out/i.test(html));
-	check('SSR renders the bundle picker', /Bundle &amp; Save|Bundle & Save/.test(html));
+	check('SSR renders the bundle picker', /Choose your bundle/.test(html));
+	// The sales-page furniture went with the redesign (2026-10-17): no
+	// per-visitor countdown, no "today only", no scarcity bar, and no
+	// struck-through price the jacket never sold at.
+	const body = html.replace(/<style[\s\S]*?<\/style>/g, '');
+	check('no countdown, "today only" or "% sold" on the page', !/sale ends|today only|% sold|left in stock/i.test(body));
+	check('no was-price or strikethrough price', !/<s>|<del>|line-through/i.test(body));
+	check('the price is $44.99', body.includes('$44.99'));
+	check('the page wears the shop’s look', /class="tree-strip/.test(html) && /tree-theme/.test(html));
 
 	// The words are invented and the rating was never counted. They must not
 	// reach a shopper — see $lib/store/reviews-wall.ts.
@@ -159,16 +167,32 @@ function check(label, cond, detail) {
 	const p = await browser.newPage();
 	await p.goto(BASE, { waitUntil: 'networkidle' });
 	const menu = p.locator('header .catalog-menu');
-	check('the Catalog menu starts closed', !(await p.locator('header a[href="/catalog"]').isVisible()));
+	const allProducts = menu.locator('a[href="/catalog"]');
+	check('the Catalog menu starts closed', !(await allProducts.isVisible()));
 	await menu.locator('summary').click();
-	check('a tap opens it on All products', await p.locator('header a[href="/catalog"]').isVisible());
+	check('a tap opens it on All products', await allProducts.isVisible());
 	await p.keyboard.press('Escape');
-	check('and Escape shuts it', !(await p.locator('header a[href="/catalog"]').isVisible()));
+	check('and Escape shuts it', !(await allProducts.isVisible()));
 	await menu.locator('summary').click();
-	await p.locator('header a[href="/christmas"]').click();
+	await menu.locator('a[href="/christmas"]').click();
 	await p.waitForURL('**/christmas');
 	check('following a link lands there with the menu shut', !(await menu.evaluate((d) => d.open)));
 	await p.close();
+}
+{
+	// On a phone the menu folds behind a button, and a checkout has none.
+	const ctxPhone = await browser.newContext({ viewport: { width: 390, height: 664 }, isMobile: true, hasTouch: true });
+	const p = await ctxPhone.newPage();
+	await p.goto(BASE, { waitUntil: 'networkidle' });
+	check('a phone gets the menu button, not the bar', (await p.locator('.phone-menu summary').isVisible()) && !(await p.locator('header nav > ul').isVisible()));
+	await p.locator('.phone-menu summary').tap();
+	check('which opens on the shop’s pages', await p.locator('.phone-menu a[href="/catalog"]').isVisible() && (await p.locator('.phone-menu a[href="/contact"]').isVisible()));
+	check('and on the language switch', await p.locator('.phone-menu button[value="es"]').isVisible());
+	check('the header keeps to one row on a phone', (await p.locator('header.site-header').evaluate((h) => h.getBoundingClientRect().height)) <= 64);
+	await p.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
+	check('a checkout has no menu button', (await p.locator('.phone-menu').count()) === 0);
+	check('but keeps the language switch', await p.locator('header button[value="es"]').isVisible());
+	await ctxPhone.close();
 }
 
 {
@@ -231,7 +255,7 @@ check('cart badge counts them', (await page.textContent('header a[href="/checkou
 	const calls = await fbqCalls();
 	const addToCart = tracked(calls, 'AddToCart');
 	check('AddToCart fired', Boolean(addToCart));
-	check('AddToCart is worth the whole bundle', addToCart?.[2]?.value === '134.91');
+	check('AddToCart is worth the whole bundle', addToCart?.[2]?.value === '134.97');
 	check('AddToCart carries variant skus', /^CMP-LJ-/.test(addToCart?.[2]?.content_ids?.[0] ?? ''));
 	check(
 		'one AddToCart per click, not one per unit',
@@ -242,8 +266,8 @@ check('cart badge counts them', (await page.textContent('header a[href="/checkou
 // --- checkout ---
 await page.waitForSelector('form dl');
 const summary = await page.textContent('form dl');
-check('subtotal is 3 x 44.97', summary?.includes('$134.91'));
-check('the 3-pack discount is applied', summary?.includes('$12.14'));
+check('subtotal is 3 x 44.99', summary?.includes('$134.97'));
+check('the 3-pack discount is applied', summary?.includes('$12.15'));
 
 {
 	const calls = await fbqCalls();
@@ -273,7 +297,7 @@ check('the 3-pack discount is applied', summary?.includes('$12.14'));
 
 	const initiate = tracked(calls, 'InitiateCheckout');
 	check('InitiateCheckout fired', Boolean(initiate));
-	check('InitiateCheckout value is subtotal', initiate?.[2]?.value === '134.91');
+	check('InitiateCheckout value is subtotal', initiate?.[2]?.value === '134.97');
 	check('InitiateCheckout counts the units', initiate?.[2]?.num_items === 3);
 }
 

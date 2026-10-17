@@ -28,11 +28,17 @@ const SETTINGS = {
 	// None. The retired CZK account's 1363695699271757 was removed on
 	// 2026-10-11; see wrangler.toml.
 	meta_extra_pixel_ids: '',
-	meta_domain_verification: '0d821f82wjdsr4q7owd17wo659qt6h'
+	meta_domain_verification: '0d821f82wjdsr4q7owd17wo659qt6h',
+	// The support inbox every page shows; production also pins it as
+	// EMAIL_REPLY_TO in wrangler.toml.
+	email_reply_to: 'contact.chillmypet@gmail.com'
 };
 
-const PRICE_CENTS = 4497;
-const COMPARE_AT_CENTS = 6397;
+// $44.99 and no compare-at since 2026-10-17 (owner's call): the $63.97 "was"
+// price was never one the jacket sold at, and it drove a "30% off" strip.
+// A live store moves through `price-changes.js`.
+const PRICE_CENTS = 4499;
+const COMPARE_AT_CENTS = null;
 
 const COLOURS = [
 	['sailboat', 'Sailboat', '#1e4e8c'],

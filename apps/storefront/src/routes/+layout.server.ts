@@ -1,3 +1,4 @@
+import { loadChristmasDelivery } from '$lib/store/christmas';
 import { PRODUCT_PAGES } from '$lib/store/pages';
 import type { LayoutServerLoad } from './$types';
 
@@ -14,6 +15,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
 	return {
 		locale: locals.locale,
+		// The strip the tree chrome lifts above the header on a page that
+		// brings none of its own; empty once the Christmas cut-off has passed.
+		siteAnnouncement: loadChristmasDelivery(locals.settings).message ?? '',
 		christmasShop: products.some((p) => {
 			const entry = PRODUCT_PAGES[p.slug];
 			return entry?.christmas && !entry.unlisted;

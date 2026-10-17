@@ -16,6 +16,10 @@ workers_dev = true
 # To watch a staging run in Events Manager > Test Events, set META_PIXEL_ID here
 # for that run only, and take it out again.
 [vars]
+# Where replies to order emails land: the shop's support inbox, the address
+# every page shows. Without it hooks.server.ts falls back to contact@<domain>,
+# which nobody reads.
+EMAIL_REPLY_TO = "contact.chillmypet@gmail.com"
 GTM_CONTAINER_ID = ""
 META_PIXEL_ID = ""
 META_EXTRA_PIXEL_IDS = ""

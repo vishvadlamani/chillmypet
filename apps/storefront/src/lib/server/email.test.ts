@@ -49,7 +49,7 @@ const order: Order = {
 const config: EmailConfig = {
 	apiKey: 're_test',
 	from: 'ChillMyPet <orders@chillmypet.com>',
-	replyTo: 'contact@chillmypet.com',
+	replyTo: 'contact.chillmypet@gmail.com',
 	endpoint: 'http://mock.invalid/emails',
 	origin: 'https://chillmypet.com'
 };
@@ -84,7 +84,7 @@ const headers = sent.init.headers as Record<string, string>;
 check('to the configured endpoint', sent.url === config.endpoint);
 check('to the customer', body.to?.[0] === 'buyer@example.com');
 check('from the store address', body.from === config.from);
-check('replies go to support', body.reply_to === 'contact@chillmypet.com');
+check('replies go to support', body.reply_to === 'contact.chillmypet@gmail.com');
 check('authorised with the key', headers.authorization === 'Bearer re_test');
 check('idempotency key is the order number', headers['idempotency-key'] === 'order-confirmation/CMP-TEST1');
 

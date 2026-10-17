@@ -156,13 +156,27 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					},
 					{
 						label: 'Returns & exchanges',
-						body: 'You get 30 days. Exchanges and returns are free, and we send the label.\n\nJust email contact@chillmypet.com with your order number.',
+						body: 'You get 30 days. Exchanges and returns are free, and we send the label.\n\nJust email contact.chillmypet@gmail.com with your order number.',
 						link: { label: 'Read our return policy', href: '/policies/refunds' }
 					},
 					{
 						label: 'What’s included & care',
 						body: 'One hooded cape in the colour and size you pick, with the glitter star on the hood and the pom-poms stitched on.\n\nHand wash in cool water and lay flat to dry. Keep the star away from heat and the washing machine.'
 					}
+				]
+			}
+		},
+		{
+			id: 'trust',
+			component: 'trust_strip',
+			version: 1,
+			// Promises the shipping and refund policies already make, nothing more.
+			props: {
+				items: [
+					{ icon: 'truck', text: 'Free US shipping' },
+					{ icon: 'return', text: '30-day returns' },
+					{ icon: 'lock', text: 'Secure checkout' },
+					{ icon: 'mail', text: 'Real people reply' }
 				]
 			}
 		},
@@ -249,22 +263,22 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			props: {
 				items: [
 					{
-						icon: '✉️',
+						icon: 'mail',
 						title: 'A real person answers',
-						body: 'Email contact@chillmypet.com about a size, an order or a return. We reply within 1–2 business days.'
+						body: 'Email contact.chillmypet@gmail.com about a size, an order or a return. We reply within 1–2 business days.'
 					},
 					{
-						icon: '📦',
+						icon: 'parcel',
 						title: 'Free shipping, with tracking',
 						body: 'Packed within 2–4 business days, and you get tracking when it ships. Lost on the way? We replace it or refund it.'
 					},
 					{
-						icon: '🔒',
+						icon: 'lock',
 						title: 'Secure checkout',
 						body: 'Payments are handled by Stripe. Your card number never touches our site.'
 					},
 					{
-						icon: '↩️',
+						icon: 'return',
 						title: '30 days to change your mind',
 						body: 'Send it back unworn within 30 days for a full refund. Swapping sizes is free, and the return label is on us.'
 					}
@@ -289,7 +303,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				columns: { $ref: 'sizes.columns' },
 				rows: { $ref: 'sizes.rows' },
 				contact:
-					'Not sure? Email contact@chillmypet.com with your dog’s weight and breed, and we’ll help you pick.'
+					'Not sure? Email contact.chillmypet@gmail.com with your dog’s weight and breed, and we’ll help you pick.'
 			}
 		},
 		{

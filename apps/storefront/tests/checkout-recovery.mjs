@@ -133,7 +133,7 @@ check('the reminder links to a restore page', Boolean(restoreUrl?.includes('/che
 	const summary = await page.locator('form', { has: page.locator('dl') }).innerText();
 	check('it lands on the checkout', new URL(page.url()).pathname === '/checkout');
 	check('with the costume back in the cart', summary.includes('Dog Christmas Tree Costume') && /Red · M/.test(summary), summary.slice(0, 200));
-	check('priced by the server', (await page.locator('form dl').innerText()).includes('$28.50'));
+	check('priced by the server', (await page.locator('form dl').innerText()).includes('$27.99'));
 	check('and their email already filled in', (await page.inputValue('#contact-email')) === ADDRESS, await page.inputValue('#contact-email'));
 	await ctx.close();
 }

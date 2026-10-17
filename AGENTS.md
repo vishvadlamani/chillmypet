@@ -439,7 +439,9 @@ are the host's business, not the block's. `pages.ts` maps a slug to the manifest
 that renders it: a manifest is per-product (its FAQ, gallery and size chart are
 one product's), so an unmapped slug is a 404 even when the product exists.
 
-**The scarcity bar is a marketing number, not inventory.** Stock is maintained
+**The scarcity bar is a marketing number, not inventory, and no page shows it
+any more** (the life jacket's went with its redesign on 2026-10-17; see
+below). If one ever comes back: stock is maintained
 outside this system, so `loadStock` reads `stock_sold_pct` from store settings
 (default 70) rather than counting the `stock` column — a bar computed from this
 database reported 0% sold on a store that had sold units elsewhere. It is
@@ -553,6 +555,16 @@ fresh database, the Worker adds it to a live one, and `check-live.js` fails the
 deploy if its page does not answer. Nothing else to register: `/catalog` and the home
 page read the catalogue.
 
+**Changing a price:** set `PRICE_CENTS` in the product's script and add
+`{ slug, fromCents, toCents }` to `scripts/price-changes.js` in the same
+commit. The Worker's catalogue sync applies it on the first request after
+the deploy, and `npm run db:products` applies it by hand. Each change moves
+only variants still at `fromCents`, so it runs once, and a price someone set
+by hand in the meantime is left alone. Placed orders keep their unit price;
+carts are re-priced by the server, so nobody is charged the old price.
+Bundle cards and their savings follow on their own (they are the quantity
+breaks applied to the unit price). `catalogue.test.ts` pins the guard.
+
 **A store:** `SEED_STORE_ID=x SEED_STORE_DOMAIN=x.com npm run db:seed`, then add
 the domain to `apps/storefront/wrangler.toml`. One Worker serves all tenants;
 the `Host` header picks which. No code change.
@@ -602,6 +614,22 @@ The block-rendered pages ARE the storefront: `/products/dog-life-jacket` is the
 page the campaign lands on and `/checkout` is where it pays. The bundle picker
 adds real cart lines, the checkout prices through `/api/cart`, the Payment
 Element mounts under the shipping method, and Place order runs `placeOrder`.
+
+**The life jacket page wears the shop's look since 2026-10-17** (`theme:
+'tree'`), on the owner's instruction, and lost its sales-page furniture on the
+same day: the per-visitor 15-minute countdown, the "Today only: 30% off"
+strip, the "% sold" bar, the "Ironclad guarantee" seal and every struck-through
+price. A countdown that restarts for each visitor and a discount off a price
+the jacket never sold at ($63.97) are exactly what the FTC treats as
+deceptive. It is $44.99 with no compare-at (`seed.js`, and `price-changes.js`
+for the live row), its bundle cards read `bundles.plain` and say their saving
+in words, and below the hero it has the Christmas pages' trust strip, FAQ row,
+"real inbox" cards, photo wall and closing band. Its purchase mechanics did
+not change: the `bundles` picker with its colour select, Buy now, the sticky
+bar, the first size in stock (`pickSize: false`). `tests/e2e.mjs` asserts the
+countdown, "today only", "% sold" and was-prices stay gone. The size chart
+(`static/size-chart.svg`) is recoloured to the shop's pine; its numbers are
+unchanged.
 
 `/products/christmas-pouch-hoodie` is the second product page, built the same
 way with three differences worth knowing:
@@ -654,10 +682,12 @@ know:
   moment a costume row carries `neckCm` or `backLengthCm`. The costume ships
   the supplier's weight bands and nothing else — never fill in another
   seller's measurements.
-- **The price is a placeholder.** $28.50 is the reference store's figure
-  (pawlidaypets.com, whose page has no copy and gave none). It has no
-  compare-at on purpose. Change it in the script and the live store needs a
-  catalogue migration — `products.js` is additive and never rewrites a row.
+- **The price is $27.99, the reindeer hoodie's** (owner's instruction,
+  2026-10-17: one price for the Christmas dog outfits). It was $28.50, the
+  first reference store's figure. It has no compare-at on purpose. A price
+  change is two edits in one commit: `PRICE_CENTS` in the product's script
+  (a fresh seed) and an entry in `scripts/price-changes.js` (a live store,
+  which `products.js` never rewrites). See "Changing a price" below.
 - **It looks like littletreepups.com, on the owner's instruction.** Done on
   2026-10-16 from that page's measured styles: the `tree` theme in
   `pages.ts` (not `christmas`), `$lib/styles/tree-theme.css` for the cream
@@ -694,8 +724,9 @@ Two things differ:
   on the owner's instruction, look only) sells S–L with its own figures; this
   listing is S–XL and the supplier's table has not arrived. The metafields are
   empty, so the size guide says how to measure and shows its `pending` note.
-  When the table arrives the live row needs a migration, like a price change:
-  `products.js` never rewrites a product it has.
+  When the table arrives the live row needs a migration: `products.js`
+  never rewrites a product it has. (A price change has its own path,
+  `scripts/price-changes.js`.)
 - **The price is a placeholder too**: $27.99, the reference store's figure, no
   compare-at.
 
@@ -729,16 +760,45 @@ the menu leads instead. Things to know:
   page's Buy now keep working, and `check-live.js` still fetches it. Delete
   the line in `pages.ts` to list it again. `tests/christmas-hoodie.mjs`
   asserts it is absent from all three.
-- **The shop's pages wear the tree chrome.** Home, `/catalog`, `/christmas`
-  and `/contact` return `treeChrome(settings)` from their loads (the theme
-  and the delivery strip), and `Collection.svelte` / `ProductGrid.svelte`
-  are the cards for all three listing pages. Christmas products sort first.
-- **The menu's CSS is global, in `app.css`.** A `<style>` block in
+- **One row, like a shop's.** The menu on the left, the name in the middle,
+  the language and the cart (a bag icon with the count) on the right. Below
+  768px the menu folds behind a ☰ button (`.phone-menu`, a `<details>` like
+  Catalog) that drops a panel with the pages and the language switch. A
+  checkout has neither: there the language switch takes the left slot so
+  the name stays centred. `tests/e2e.mjs` drives both menus.
+- **The whole site wears the tree chrome** (cream, pine, Poppins, the
+  delivery strip above the header, the green footer), except a product page
+  with a skin of its own (the life jacket's sales page, the pouch hoodie's
+  `christmas` page) and the one-page checkouts under `/products/`. The rule
+  is `treeChrome` in `+layout.svelte`; a page without its own strip gets
+  the layout load's `siteAnnouncement`, the Christmas delivery line.
+  `Collection.svelte` / `ProductGrid.svelte` are the cards for `/`,
+  `/catalog` and `/christmas`. Christmas products sort first.
+- **The footer** is the name and a line, then Shop, Help and Legal columns,
+  then the payment marks the checkout really offers (Visa, Mastercard, Amex,
+  Apple Pay; see Payments for why not Google Pay or Discover).
+- **The header and footer CSS is global, in `app.css`.** A `<style>` block in
   `+layout.svelte` stamps a hash class on every element of the layout, and
   the tests match chrome class names (`tree-strip`, `shop-header`) on the
-  raw HTML. Keep the layout free of scoped styles.
-- The phone rules above are unchanged: product pages and `/christmas` hide
-  the menu below `sm`, checkouts hide it everywhere.
+  raw HTML. Keep the layout free of scoped styles. `tree-theme.css` only
+  sets the `--site-*` and `--footer-*` colours for the tree look.
+- **`/checkout` is in the shop's colours too** (`.tree-checkout` in
+  `tree-theme.css`): the library's forms draw with the `fx` tokens, so the
+  class swaps the tokens and the pay button's colour. Nothing about how the
+  checkout behaves changed.
+- **The home page opens on a hero**: `duo.jpg` from the costume page, which
+  is AI-styled and captioned "AI-styled image" on the photo, as the costume
+  page captions its own. Keep the caption if the photo stays.
+- **Cards can show a treated photo** (`cardImage` in `pages.ts`). The life
+  jacket's is `card-sailboat.jpg`: its catalogue photo, a cut-out on pure
+  white, multiplied onto the warm backdrop of the Christmas studio shots so
+  it no longer sits as a white tile among cream ones. Same photo, same
+  product, only the backdrop changed.
+- **Product pages carry a `trust_strip`** under the buy box (free US
+  shipping, 30-day returns, secure checkout, real people reply), and the
+  "who you're buying from" cards use line icons by name from
+  `$lib/line-icons.ts` instead of emoji. Only promises the policy pages
+  already make go in either.
 
 **Every sized product also has a one-page checkout** at
 `/products/<slug>/checkout` (`/products/dog-christmas-costume/checkout`):
@@ -820,9 +880,10 @@ the size buttons inside 664px, and `tests/dog-christmas-costume.mjs` and
 `tests/one-page-checkout.mjs` measure it. What pays for it, so nobody puts it
 back by accident:
 
-- **The header is one row on a phone.** Product pages hide the product links
-  below `sm`; both checkouts hide them everywhere (a link out of a checkout
-  is a way to not pay). The language switch shows `en`/`es` on a phone.
+- **The header is one row on a phone**: ☰, the name, the cart, at most 64px
+  (`tests/e2e.mjs`). Both checkouts drop the menu everywhere (a link out of
+  a checkout is a way to not pay). The language switch is in the ☰ panel on
+  a phone, and in the bar on a checkout.
 - **The `hint` gallery swaps its thumbnail strip for arrows and a counter on a
   phone**, and trims the frame to 1:0.92 (the costume photos have 3% of
   backdrop above the star and 8% below the paws). Arrows walk the colours'
@@ -1163,7 +1224,10 @@ Not built, in rough priority order:
    checkout). Each runs once per sale, which is what keeps it to one email;
    `test:payments` counts them. It sends nothing until `RESEND_API_KEY` is a
    Worker secret, and the sending domain (`orders@chillmypet.com` by default)
-   must be verified in Resend first. The admin's "Mark shipped" sends a
+   must be verified in Resend first. Replies go to `EMAIL_REPLY_TO`
+   (`wrangler.toml`): contact.chillmypet@gmail.com, the support inbox every
+   page names (owner's confirmation, 2026-10-17). `contact@chillmypet.com`,
+   which the Christmas pages and landing pages used to show, is not read. The admin's "Mark shipped" sends a
    shipping notification the same way.
 5. ~~**Payments.**~~ Live, on ChillMyPet's own Stripe account since 2026-10-07
    — see above.

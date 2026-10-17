@@ -10,7 +10,9 @@ import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SCHEMA, applySchema, createDb, schemaStatements } from 'ecomwithai/db';
+import { PRICE_CHANGES } from '../../../scripts/price-changes.js';
 import { PRODUCTS, STORE_ID } from '../../../scripts/products.js';
+import { insertProduct } from '../../../scripts/catalog.js';
 import { SCHEMA_OBJECTS, ensureCatalogue, resetCatalogueSync, syncCatalogue } from './catalogue.ts';
 
 let failures = 0;
@@ -80,6 +82,7 @@ check(
 		schemaCreated: [],
 		added: LISTED,
 		skipped: [],
+		repriced: [],
 		storeMissing: false
 	});
 	check('one row per product', await count(db, 'select count(*) as n from products'), LISTED.length);
@@ -94,9 +97,74 @@ check(
 		schemaCreated: [],
 		added: [],
 		skipped: LISTED,
+		repriced: [],
 		storeMissing: false
 	});
 	check('still one row per product', await count(db, 'select count(*) as n from products'), LISTED.length);
+	close();
+}
+
+// --- a live store still at an old price is moved, once, and only there ------
+{
+	const { db, close } = openDb();
+	await applySchema(db);
+	await addStore(db);
+	await syncCatalogue(db);
+
+	const change = PRICE_CHANGES.find((c) => c.slug === COSTUME)!;
+	const prices = async (slug: string) =>
+		(
+			await db.execute({
+				sql: `select distinct v.price_cents as p from product_variants v
+				      join products p on p.id = v.product_id where p.slug = ? order by 1`,
+				args: [slug]
+			})
+		).rows.map((r) => Number(r.p));
+	check('a fresh store gets the costume at its new price already', await prices(COSTUME), [change.toCents]);
+	check('the reindeer hoodie is at the same price', await prices(REINDEER), [change.toCents]);
+
+	// The live store: added before the change, so still at the old price.
+	await db.execute({
+		sql: `update product_variants set price_cents = ? where product_id =
+		      (select id from products where slug = ?)`,
+		args: [change.fromCents, COSTUME]
+	});
+	// One variant someone priced by hand since: the guard must leave it.
+	await db.execute({
+		sql: `update product_variants set price_cents = 3100 where id =
+		      (select min(v.id) from product_variants v join products p on p.id = v.product_id where p.slug = ?)`,
+		args: [COSTUME]
+	});
+	const first = await syncCatalogue(db);
+	check('the sync moves the costume', first.repriced, [COSTUME]);
+	check('every variant at the old price, and not the one priced by hand', await prices(COSTUME), [change.toCents, 3100]);
+	const second = await syncCatalogue(db);
+	check('and a second sync moves nothing', second.repriced, []);
+	close();
+}
+
+// --- a change can take a "was" price off with it -----------------------------
+{
+	const { db, close } = openDb();
+	await applySchema(db);
+	await addStore(db);
+	const change = PRICE_CHANGES.find((c) => c.slug === 'dog-life-jacket')!;
+	// The life jacket is seeded, not listed, so stand one in at its old row:
+	// any listed product's shape, under its slug, at the old price and "was".
+	const shape = PRODUCTS[1];
+	await insertProduct(db, STORE_ID, {
+		...shape,
+		slug: change.slug,
+		variants: shape.variants.map((v) => ({ ...v, sku: `LJ-${v.sku}`, priceCents: change.fromCents, compareAtCents: 6397 }))
+	});
+	const result = await syncCatalogue(db);
+	check('the life jacket moves to its new price', result.repriced.includes(change.slug), true);
+	const rows = await db.execute({
+		sql: `select distinct v.price_cents as p, v.compare_at_cents as c from product_variants v
+		      join products p on p.id = v.product_id where p.slug = ?`,
+		args: [change.slug]
+	});
+	check('and its struck-through price is gone', rows.rows.map((r) => [Number(r.p), r.c]), [[change.toCents, null]]);
 	close();
 }
 
@@ -131,6 +199,7 @@ check(
 		schemaCreated: [],
 		added: [],
 		skipped: LISTED,
+		repriced: [],
 		storeMissing: true
 	});
 	check('nothing was written', await count(db, 'select count(*) as n from products'), 0);
