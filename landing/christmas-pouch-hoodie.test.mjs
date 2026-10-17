@@ -5,10 +5,11 @@
  *   node landing/christmas-pouch-hoodie.test.mjs
  */
 import { execFileSync } from 'node:child_process';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import vm from 'node:vm';
 import worker from './christmas-pouch-hoodie/_worker.js';
 
 let failures = 0;
@@ -37,6 +38,9 @@ const env = {
 const waits = [];
 const ctx = { waitUntil: (p) => waits.push(p) };
 const ORIGIN = 'https://chillmypet-christmas.pages.dev';
+// An _fbc as Meta's Parameter Builder writes it on this host: subdomain index 2,
+// the click id, and its 8-character appendix.
+const BUILT_FBC = 'fb.2.1760000000000.abc.AQQCAQMC';
 
 function signed(event) {
 	const raw = JSON.stringify(event);
@@ -115,7 +119,7 @@ const session = (metadata, extra = {}) => ({
 		worker.fetch(
 			new Request(`${ORIGIN}/api/event`, {
 				method: 'POST',
-				headers: { 'CF-Connecting-IP': '203.0.113.9', 'User-Agent': 'test', Cookie: '_fbp=fb.1.1.2' },
+				headers: { 'CF-Connecting-IP': '203.0.113.9', 'User-Agent': 'test', Cookie: `_fbp=fb.1.1.2; _fbc=${BUILT_FBC}` },
 				body: JSON.stringify({ name, id: `id-${name}-123`, url: `${ORIGIN}/?fbclid=abc`, data })
 			}),
 			env,
@@ -133,7 +137,7 @@ const session = (metadata, extra = {}) => ({
 	const add = sent.find((s) => s.body.data[0].event_name === 'AddToCart')?.body.data[0];
 	check('the server copy keeps the browser’s event id', add?.event_id === 'id-AddToCart-123');
 	check('unknown content ids are dropped', JSON.stringify(add?.custom_data.content_ids) === '["CMP-XH-SANTA-RED-M"]', JSON.stringify(add?.custom_data));
-	check('fbp and fbc ride along', add?.user_data.fbp === 'fb.1.1.2' && /^fb\.1\.\d+\.abc$/.test(add?.user_data.fbc ?? ''));
+	check('fbp and fbc ride along', add?.user_data.fbp === 'fb.1.1.2' && add?.user_data.fbc === BUILT_FBC, JSON.stringify(add?.user_data));
 	check('no visitor cookie, no external_id', !('external_id' in (add?.user_data ?? {})));
 }
 
@@ -161,7 +165,10 @@ const session = (metadata, extra = {}) => ({
 	check('a visitor cookie of any other shape is dropped', !('external_id' in (odd ?? {})), JSON.stringify(odd));
 }
 
-// --- fbc: the click id on the URL wins over a stale cookie ---------------------------
+// --- fbc: the browser's _fbc, byte for byte, and never one built here ---------------
+// Events Manager flagged the fb.1.<ms>.<fbclid> this worker used to mint as a
+// "modified fbclid". pixel.js runs Meta's Parameter Builder, which already
+// replaces an earlier click's cookie with the URL's, so the cookie is the answer.
 {
 	const fbcFor = async (cookie, url) => {
 		sent.length = 0;
@@ -178,14 +185,14 @@ const session = (metadata, extra = {}) => ({
 		await Promise.all(waits);
 		return sent[0]?.body.data[0].user_data.fbc;
 	};
-	const stale = await fbcFor('_fbp=fb.1.1.2; _fbc=fb.1.1554763741205.OldClick', `${ORIGIN}/?fbclid=NeW_Click-Id`);
-	check('a cookie from an earlier click gives way to the URL’s', /^fb\.1\.\d+\.NeW_Click-Id$/.test(stale ?? '') && !stale.startsWith('fb.1.1554763741205.'), stale);
-	const same = await fbcFor('_fbc=fb.1.1554763741205.NeW_Click-Id', `${ORIGIN}/?fbclid=NeW_Click-Id`);
-	check('a cookie carrying the same click keeps its timestamp', same === 'fb.1.1554763741205.NeW_Click-Id', same);
-	const noUrl = await fbcFor('_fbc=fb.1.1554763741205.OldClick', `${ORIGIN}/`);
-	check('with no click on the URL the cookie is sent as it is', noUrl === 'fb.1.1554763741205.OldClick', noUrl);
-	const caseOnly = await fbcFor('_fbc=fb.1.1554763741205.new_click-id', `${ORIGIN}/?fbclid=NeW_Click-Id`);
-	check('the click id is never lowercased', /\.NeW_Click-Id$/.test(caseOnly ?? ''), caseOnly);
+	const built = await fbcFor(`_fbp=fb.1.1.2; _fbc=${BUILT_FBC}`, `${ORIGIN}/?fbclid=abc`);
+	check('the builder’s _fbc is sent exactly, appendix and all', built === BUILT_FBC, built);
+	const noCookie = await fbcFor('_fbp=fb.1.1.2', `${ORIGIN}/?fbclid=NeW_Click-Id`);
+	check('no _fbc is minted from the URL’s fbclid', noCookie === undefined, noCookie);
+	const other = await fbcFor('_fbc=fb.1.1554763741205.OldClick', `${ORIGIN}/?fbclid=NeW_Click-Id`);
+	check('nor does the URL rewrite the cookie the browser holds', other === 'fb.1.1554763741205.OldClick', other);
+	const mixed = await fbcFor('_fbc=fb.2.1554763741205.IwZXh0bgNhZW0BMABhZGlk_aem_AbC-dEf.AQQCAQMC', `${ORIGIN}/`);
+	check('the click id is never lowercased or cut', mixed === 'fb.2.1554763741205.IwZXh0bgNhZW0BMABhZGlk_aem_AbC-dEf.AQQCAQMC', mixed);
 	const malformed = await fbcFor('_fbc=testclickid', `${ORIGIN}/`);
 	check('a cookie not in Meta’s format is not sent', malformed === undefined, malformed);
 }
@@ -324,7 +331,7 @@ const session = (metadata, extra = {}) => ({
 	};
 	const files = () => (existsSync(staged) ? readFileSync(staged, 'utf8').split('\n') : []);
 	check('without PREVIEW it publishes the live page', / --branch main /.test(deploy({}) ?? ''));
-	check('and stages the page, its worker and its photos', ['index.html', 'thank-you.html', '_worker.js', '_routes.json', 'app.js', 'config.js', 'pixel.js', 'style.css', 'red_santa.jpg'].every((f) => files().includes(f)), files().join());
+	check('and stages the page, its worker and its photos', ['index.html', 'thank-you.html', '_worker.js', '_routes.json', 'app.js', 'config.js', 'param-builder.js', 'pixel.js', 'style.css', 'red_santa.jpg'].every((f) => files().includes(f)), files().join());
 	check('the README and this script are never uploaded', !files().includes('README.md') && !files().includes('deploy.sh'));
 	// The ad's video is optional (config.js: video). Staged when a file is
 	// there, and no error when none is; tried with a stand-in only while the
@@ -375,6 +382,93 @@ const session = (metadata, extra = {}) => ({
 	check('every design and size has a Payment Link', c.designs.every((d) => c.sizes.every((s) => (c.links[`${d.code}:${s}`]?.url ?? '').startsWith('https://buy.stripe.com/'))));
 	check('the size chart is absent, or the supplier’s rows', c.sizeChart === null || (Array.isArray(c.sizeChart) && c.sizeChart.length > 0 && c.sizeChart.every((r) => c.sizes.includes(r.size) && typeof r.chestCm === 'number' && typeof r.lengthCm === 'number')), JSON.stringify(c.sizeChart));
 	check('no video is asked for until its file is in the folder', c.video === '' || existsSync(new URL(c.video, folder)), c.video);
+}
+
+// --- the page's own scripts: Meta's Parameter Builder writes the ids ----------------
+// Runs the real config.js, param-builder.js and pixel.js against a stand-in
+// browser: a cookie jar that refuses public suffixes the way a browser does,
+// and a sendBeacon that records what /api/event would get.
+{
+	const folder = new URL('./christmas-pouch-hoodie/', import.meta.url);
+	const source = (f) => readFileSync(new URL(f, folder), 'utf8');
+	const bundle = readFileSync(new URL('param-builder.js', folder));
+	// Meta's published meta-capi-param-builder-clientjs 1.3.2, byte for byte. To
+	// update: copy dist/clientParamBuilder.bundle.js from the new version's
+	// package over param-builder.js, then change this hash and the version in
+	// pixel.js and the README.
+	check('param-builder.js is Meta’s bundle, unmodified', createHash('sha256').update(bundle).digest('hex') === '8edc1086362f218e7021136190e50d4d3cdf0f9910d33c1bea7e7fad37b2c880');
+	for (const page of ['index.html', 'thank-you.html']) {
+		const html = source(page);
+		const at = (f) => html.indexOf(`<script src="${f}"></script>`);
+		check(`${page} loads the builder after config.js and before pixel.js`, at('config.js') >= 0 && at('config.js') < at('param-builder.js') && at('param-builder.js') < at('pixel.js'));
+	}
+
+	const visit = async (href, cookies = {}) => {
+		const url = new URL(href);
+		const jar = new Map(Object.entries(cookies));
+		const beacons = [];
+		const window = {
+			location: { href, hostname: url.hostname, search: url.search },
+			navigator: { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)', vendor: 'Apple Computer, Inc.', sendBeacon: (to, body) => beacons.push({ to, body: JSON.parse(body) }) },
+			document: {
+				referrer: '',
+				visibilityState: 'visible',
+				get cookie() {
+					return [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
+				},
+				set cookie(line) {
+					const [pair, ...attrs] = line.split(';').map((p) => p.trim());
+					const i = pair.indexOf('=');
+					const domain = (attrs.find((a) => /^domain=/i.test(a)) ?? '').slice(7).replace(/^\./, '');
+					if (domain && (['dev', 'pages.dev'].includes(domain) || !(url.hostname === domain || url.hostname.endsWith('.' + domain)))) return;
+					if (attrs.some((a) => /^max-age=0$/i.test(a))) jar.delete(pair.slice(0, i));
+					else jar.set(pair.slice(0, i), pair.slice(i + 1));
+				},
+				createElement: () => ({}),
+				getElementsByTagName: () => [{ parentNode: { insertBefore() {} } }],
+				addEventListener() {}
+			},
+			addEventListener() {},
+			setTimeout,
+			URL,
+			URLSearchParams,
+			btoa,
+			atob,
+			crypto: globalThis.crypto,
+			console: { ...console, warn() {} },
+			Promise
+		};
+		window.window = window.self = window;
+		const context = vm.createContext(window);
+		for (const f of ['config.js', 'param-builder.js', 'pixel.js']) vm.runInContext(source(f), context, { filename: f });
+		await new Promise((r) => setTimeout(r, 400));
+		return { fbc: jar.get('_fbc'), fbp: jar.get('_fbp'), beacons };
+	};
+
+	const CLICK = 'IwZXh0bgNhZW0BMABhZGlkAasYSq_aem_AbC-dEf';
+	const landed = await visit(`${ORIGIN}/?utm_source=facebook&fbclid=${CLICK}`);
+	check('an ad click lands as the builder’s _fbc, click id intact', new RegExp(`^fb\\.2\\.\\d{13}\\.${CLICK}\\.[A-Za-z0-9_-]{8}$`).test(landed.fbc ?? ''), landed.fbc);
+	check('and an _fbp beside it', /^fb\.2\.\d{13}\.\d+\.[A-Za-z0-9_-]{8}$/.test(landed.fbp ?? ''), landed.fbp);
+	check('PageView’s server copy goes once the ids exist', landed.beacons.length === 1 && landed.beacons[0].to === '/api/event' && landed.beacons[0].body.name === 'PageView', JSON.stringify(landed.beacons));
+
+	// What the worker sends for that beacon is the cookie, character for character.
+	sent.length = 0;
+	waits.length = 0;
+	await worker.fetch(
+		new Request(`${ORIGIN}/api/event`, { method: 'POST', headers: { Cookie: `_fbp=${landed.fbp}; _fbc=${landed.fbc}` }, body: JSON.stringify(landed.beacons[0]?.body ?? {}) }),
+		env,
+		ctx
+	);
+	await Promise.all(waits);
+	const user = sent[0]?.body.data[0].user_data ?? {};
+	check('and the server copy carries exactly the builder’s fbc and fbp', user.fbc === landed.fbc && user.fbp === landed.fbp, JSON.stringify(user));
+
+	const back = await visit(`${ORIGIN}/?fbclid=SecondClick`, { _fbc: 'fb.2.1554763741205.FirstClick' });
+	check('a second ad click replaces the first click’s cookie', /^fb\.2\.\d{13}\.SecondClick\.[A-Za-z0-9_-]{8}$/.test(back.fbc ?? '') && !back.fbc.includes('1554763741205'), back.fbc);
+	const later = await visit(`${ORIGIN}/`, { _fbc: 'fb.2.1554763741205.FirstClick' });
+	check('a later visit keeps the click and its timestamp, tagged as unchanged', /^fb\.2\.1554763741205\.FirstClick\.[A-Za-z0-9_-]{8}$/.test(later.fbc ?? ''), later.fbc);
+	const quiet = await visit(`${ORIGIN}/?test&fbclid=${CLICK}`);
+	check('quiet mode runs no builder and sends nothing', quiet.fbc === undefined && quiet.beacons.length === 0, JSON.stringify(quiet));
 }
 
 // --- the pixels config.js initialises -------------------------------------------

@@ -29,6 +29,29 @@ window.XMAS.quiet = (function () {
 // page's Purchase included, lands here and goes nowhere.
 if (window.XMAS.quiet) window.fbq = function () {};
 
+/*
+ * fbc and fbp come from Meta's Parameter Builder: param-builder.js is
+ * meta-capi-param-builder-clientjs 1.3.2's bundle, unmodified. Run before
+ * fbevents.js loads, it writes _fbc from the URL's fbclid (or the referrer's,
+ * or what a Facebook or Instagram in-app browser kept of the click) and _fbp,
+ * each tagged with an appendix naming the builder. That tag is how Meta tells
+ * a click id passed on intact. The pixel adopts the cookies it finds, and
+ * _worker.js sends them to the Conversions API exactly as written. Before
+ * this the worker built fb.1.<ms>.<fbclid> itself, which Events Manager kept
+ * flagging as a "modified fbclid" on PageView, ViewContent and AddToCart.
+ *
+ * Not in quiet mode. If the file is missing or throws, events go out with
+ * whatever cookies the pixel wrote.
+ */
+window.XMAS.params = (function () {
+	if (window.XMAS.quiet || !window.clientParamBuilder) return null;
+	try {
+		return clientParamBuilder.processAndCollectAllParams(location.href).catch(function () {});
+	} catch (e) {
+		return null;
+	}
+})();
+
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
 n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
@@ -63,8 +86,10 @@ window.XMAS.visitorId = (function () {
  * the server copy is the one an ad blocker or iOS can't stop.
  *
  * `leaving` is for an event fired on the way off the page: send now. Otherwise
- * wait briefly for the pixel's _fbp cookie, which only exists once
- * fbevents.js has loaded, so the server copy carries the same browser id.
+ * wait briefly for the browser ids, so the server copy carries the same ones:
+ * until the Parameter Builder has finished (it asks an in-app browser for a
+ * click the URL lost, which takes a moment), or without it, until the pixel's
+ * _fbp exists, which is only once fbevents.js has loaded.
  *
  * A visitor who leaves during that wait (an ad click that bounces, a browser
  * that blocks the cookie) must not take the server copy with them: the pixel
@@ -73,6 +98,12 @@ window.XMAS.visitorId = (function () {
  * waiting goes out as the page is hidden. Without fbp it still dedupes on the
  * event id and matches on external_id.
  */
+var paramsBuilt = false;
+if (window.XMAS.params) window.XMAS.params.then(function () { paramsBuilt = true; });
+function idsReady() {
+	return window.XMAS.params ? paramsBuilt : /(^|; )_fbp=/.test(document.cookie);
+}
+
 var waiting = [];
 function sendWaiting() {
 	while (waiting.length) waiting[0]();
@@ -101,7 +132,7 @@ window.xmasTrack = function (name, data, leaving) {
 	var waited = 0;
 	(function tick() {
 		if (sent) return;
-		if (/(^|; )_fbp=/.test(document.cookie) || waited >= 3000) return post();
+		if (idsReady() || waited >= 3000) return post();
 		waited += 100;
 		setTimeout(tick, 100);
 	})();

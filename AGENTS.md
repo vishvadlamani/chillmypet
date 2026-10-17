@@ -243,6 +243,12 @@ trimming, no percent-encoding (the cookie is written with an identity
 once resolved a merge by deleting this file in favour of the hand-built
 version; don't. `tests/payment-flow.mjs` replays a stale cookie against a new
 click through the page and a beacon.
+The Christmas page (`landing/christmas-pouch-hoodie`, dataset
+`1341978141149107`, where the 2026-10-04 diagnostic actually came from) has
+no server code on its documents, so it runs Meta's *client-side* builder
+instead: `param-builder.js`, loaded before `pixel.js`. Its worker sends the
+`_fbc`/`_fbp` cookies verbatim and never builds one from `fbclid`. Its README
+has the details.
 
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires

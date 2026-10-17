@@ -144,7 +144,7 @@ async function browserEvent(request, env, body) {
 		event_name: body.name,
 		event_id: body.id,
 		event_source_url: url,
-		user_data: await userData(request, url),
+		user_data: await userData(request),
 		custom_data: customData(body.data)
 	});
 }
@@ -325,7 +325,7 @@ function retryable(status, code) {
 }
 
 // What the buyer's own request says about them, which Meta takes unhashed.
-async function userData(request, url) {
+async function userData(request) {
 	const out = {};
 	const ip = request.headers.get('CF-Connecting-IP');
 	const ua = request.headers.get('User-Agent');
@@ -333,26 +333,20 @@ async function userData(request, url) {
 	if (ip) out.client_ip_address = ip;
 	if (ua) out.client_user_agent = ua;
 	if (cookies._fbp) out.fbp = cookies._fbp;
-	const fbc = resolveFbc(cookies._fbc, new URL(url).searchParams.get('fbclid'), Date.now());
-	if (fbc) out.fbc = fbc;
+	if (cookies._fbc && FBC_SHAPE.test(cookies._fbc)) out.fbc = cookies._fbc;
 	if (VISITOR_ID.test(cookies.cmp_vid || '')) out.external_id = [cookies.cmp_vid];
 	return out;
 }
 
-// A click id on the URL beats the _fbc cookie when the two disagree. A visitor
-// back from a second ad click still carries the first click's cookie until the
-// pixel rewrites it, and pixel.js posts as soon as _fbp exists, which for them
-// is at once. Sending that stale id beside the browser event's fresh one is what
-// Events Manager flags as a "modified fbclid". When they agree the cookie is
-// kept, so its original timestamp survives. A cookie not in Meta's format is
-// dropped rather than sent. As in packages/ecomwithai/src/marketing/hash.ts.
+// _fbc exactly as the browser holds it. pixel.js runs Meta's Parameter
+// Builder, which writes it from the click (replacing an earlier click's) and
+// tags it with an appendix naming itself; that tag is how Meta tells the click
+// id arrived intact. Nothing here builds one from fbclid, or changes a
+// character of the one it reads: this worker once minted fb.1.<ms>.<fbclid>
+// itself, and Events Manager flagged that as a "modified fbclid" on PageView,
+// ViewContent and AddToCart. A cookie not in Meta's format is dropped rather
+// than sent.
 const FBC_SHAPE = /^fb\.\d+\.\d+\.[^.]+(\.[A-Za-z0-9_-]+)?$/;
-function resolveFbc(cookie, fbclid, now) {
-	const stored = cookie && FBC_SHAPE.test(cookie) ? cookie : undefined;
-	if (!fbclid) return stored;
-	if (stored && stored.split('.')[3] === fbclid) return stored;
-	return `fb.1.${now}.${fbclid}`;
-}
 
 // Everything a buyer typed is hashed, and empty fields are omitted rather
 // than sent as hashes of nothing.

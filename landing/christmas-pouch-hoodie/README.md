@@ -185,6 +185,23 @@ the session, and the webhook's Purchase sends it back as `external_id`. That is
 how the sale is tied to the visitor's earlier events. The webhook is Stripe's
 request, so it has no IP, user agent, `_fbp` or `_fbc` for the buyer.
 
+`fbc` and `fbp` come from Meta's Parameter Builder. `param-builder.js` is
+the bundle from Meta's `meta-capi-param-builder-clientjs` 1.3.2, unmodified
+(the test pins its SHA-256). Both pages load it before `pixel.js`, which runs
+it before `fbevents.js`. It writes `_fbc` from the URL's `fbclid` (or the
+referrer's, or what a Facebook or Instagram in-app browser kept of the click)
+and `_fbp`, each ending in an appendix that names the builder, and a second
+ad click replaces the first one's cookie. The pixel adopts the cookies it
+finds. `pixel.js` holds each server copy until the builder has finished (at
+most 3 s), and the worker sends `_fbc` and `_fbp` byte for byte. Events
+Manager flagged dataset `1341978141149107` for a server "modified fbclid" on
+PageView, ViewContent and AddToCart (detected 2026-10-04): the worker
+used to build `fb.1.<ms>.<fbclid>` itself from the event's URL. Don't bring
+that back: no minting from `fbclid`, no lowercasing or trimming, and no
+re-encoding. To update the builder, copy the new version's
+`dist/clientParamBuilder.bundle.js` over `param-builder.js` and change the
+hash in the test.
+
 The webhook Purchase still lacks `client_user_agent`, which Meta lists as
 required for website events. The fix needs somewhere to keep the browser's
 details between InitiateCheckout and the webhook, such as a KV namespace bound
