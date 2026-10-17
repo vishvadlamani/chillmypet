@@ -112,6 +112,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				tiers: { $ref: 'bundles.plain' },
 				tierField: 'costume_bundle',
 				tiersTitle: '🎄 Choose your bundle',
+				unitsNoun: 'costumes',
 				tierCopy: [
 					{ units: 1, title: 'One costume • 1', tag: 'Free US shipping', sub: 'One festive costume', ribbon: 'Just one' },
 					{ units: 2, title: 'Two costumes • 2', tag: 'Free US shipping', sub: 'Two, in the colour and size you pick', ribbon: 'Pair up' },

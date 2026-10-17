@@ -3,6 +3,7 @@ import { CHRISTMAS_COSTUME_PAGE } from './christmas-costume-manifest';
 import { CHRISTMAS_HOODIE_PAGE } from './christmas-hoodie-manifest';
 import { STORE_PAGE } from './manifest';
 import { PRODUCT_SLUG } from './product';
+import { REINDEER_HOODIE_PAGE } from './reindeer-hoodie-manifest';
 
 export interface ProductPage {
 	manifest: FunnelDefinition;
@@ -19,12 +20,19 @@ export interface ProductPage {
 	 * Christmas delivery strip.
 	 */
 	theme?: 'christmas' | 'tree';
+	/**
+	 * Listed on `/christmas`, the page the Christmas ads can share. In this
+	 * map's order, so the first entry is the collection's lead product.
+	 */
+	christmas?: boolean;
 }
 
 /** Kept in step with `scripts/christmas-hoodie.js`. */
 export const CHRISTMAS_HOODIE_SLUG = 'christmas-pouch-hoodie';
 /** Kept in step with `scripts/dog-christmas-costume.js`. */
 export const DOG_CHRISTMAS_COSTUME_SLUG = 'dog-christmas-costume';
+/** Kept in step with `scripts/reindeer-dog-hoodie.js`. */
+export const REINDEER_DOG_HOODIE_SLUG = 'reindeer-dog-hoodie';
 
 /**
  * Which manifest renders which product.
@@ -40,6 +48,13 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 	[DOG_CHRISTMAS_COSTUME_SLUG]: {
 		manifest: CHRISTMAS_COSTUME_PAGE,
 		pickSize: true,
-		theme: 'tree'
+		theme: 'tree',
+		christmas: true
+	},
+	[REINDEER_DOG_HOODIE_SLUG]: {
+		manifest: REINDEER_HOODIE_PAGE,
+		pickSize: true,
+		theme: 'tree',
+		christmas: true
 	}
 };

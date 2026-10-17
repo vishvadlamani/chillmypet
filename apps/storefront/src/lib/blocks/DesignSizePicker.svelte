@@ -50,6 +50,8 @@
 			/** Words for each tier, matched on `units`. Prices always come from `tiers`. */
 			tierCopy?: TierCopy[];
 			tiersTitle?: string;
+			/** What a unit is called on a tier's saving line: "You save 7% with 2 hoodies". */
+			unitsNoun?: string;
 			/** Small print under the button. */
 			ctaNote?: string;
 			/**
@@ -145,7 +147,7 @@
 	{/if}
 	{#if p.tagline}<p class="tagline">{@render rich(p.tagline)}</p>{/if}
 
-	<div class="options">
+	<div class="options" class:single={designs.length === 1}>
 		<fieldset>
 			<legend>{p.designLabel ?? 'Design'}</legend>
 			<div class="pill-row">
@@ -222,7 +224,7 @@
 						</span>
 						<b class="tier-price">{t.price}</b>
 					</span>
-					{#if t.subtitle}<span class="saving">♥ {t.subtitle} with {t.units} costumes</span>{/if}
+					{#if t.subtitle}<span class="saving">♥ {t.subtitle} with {t.units} {p.unitsNoun ?? 'items'}</span>{/if}
 				</label>
 			{/each}
 		</fieldset>
@@ -531,6 +533,11 @@
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 16px;
+	}
+	/* One colour is one pill: give the sizes the rest of the row, or a fourth
+	   size (the reindeer hoodie's XL) wraps onto a line of its own. */
+	.pills .options.single {
+		grid-template-columns: auto minmax(0, 1fr);
 	}
 	.pills fieldset {
 		position: relative;

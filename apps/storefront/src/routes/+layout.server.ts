@@ -14,10 +14,11 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		limit: 10
 	});
 
+	const linked = products.filter((p) => Object.hasOwn(PRODUCT_PAGES, p.slug));
 	return {
 		locale: locals.locale,
-		nav: products
-			.filter((p) => Object.hasOwn(PRODUCT_PAGES, p.slug))
-			.map((p) => ({ slug: p.slug, title: p.title }))
+		nav: linked.map((p) => ({ slug: p.slug, title: p.title })),
+		// `/christmas` by the same rule: linked once it has a product to show.
+		christmasShop: linked.some((p) => PRODUCT_PAGES[p.slug].christmas)
 	};
 };
