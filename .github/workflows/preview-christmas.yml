@@ -9,9 +9,10 @@ name: Preview Christmas page
 #
 # A preview is a Cloudflare Pages preview deployment, never production: only
 # deploy.sh without PREVIEW publishes chillmypet-christmas.pages.dev. On a
-# preview host pixel.js sends nothing to Meta and marks a checkout test_ in
-# Stripe, so looking at a change never counts as a visitor or a sale. The
-# Payment Links are still live, so a payment there is a real one.
+# preview host pixel.js sends nothing to Meta, so looking at a change never
+# counts as a visitor. Buy now leaves the preview for chillmypet.com's live
+# checkout, which has no quiet mode: events there count, and a payment there
+# is a real order.
 on:
   pull_request:
     paths:
@@ -75,4 +76,4 @@ jobs:
           gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$marker
           **Preview of this change:** $URL
 
-          This is a copy of the Christmas page with this change in it. The live page is not touched until the pull request is merged. Nothing on the preview is sent to Meta, and a checkout started there is marked \`test_\` in Stripe. Payments are still real. The link updates itself on every new push."
+          This is a copy of the Christmas page with this change in it. The live page is not touched until the pull request is merged. Nothing on the preview itself is sent to Meta. **Buy now goes to chillmypet.com's live checkout**, which has no quiet mode: its page views and checkout events count, and a payment there is a real order. The link updates itself on every new push."
