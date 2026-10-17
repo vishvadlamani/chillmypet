@@ -13,8 +13,24 @@ import { normalize, sha256Hex } from 'ecomwithai/marketing';
  * account optimizes against whatever it can match.
  */
 
-const EMAIL_COOKIE = 'cmp_em';
-const PHONE_COOKIE = 'cmp_ph';
+/**
+ * One cookie per field Meta matches on, each holding a digest. Name and
+ * address are here as well as email and phone: without them only Purchase
+ * carried a last name, and Events Manager flagged Last Name coverage on
+ * PageView at 4.55%.
+ */
+const COOKIES = {
+	email: 'cmp_em',
+	phone: 'cmp_ph',
+	firstName: 'cmp_fn',
+	lastName: 'cmp_ln',
+	city: 'cmp_ct',
+	state: 'cmp_st',
+	zip: 'cmp_zp',
+	country: 'cmp_country'
+} as const;
+
+export type RememberedContact = Partial<Record<keyof typeof COOKIES, string>>;
 
 const DAY = 60 * 60 * 24;
 const SHA256_HEX = /^[a-f0-9]{64}$/;
@@ -41,11 +57,15 @@ export function withCallingCode(phone: string, country: string | undefined): str
 }
 
 /**
- * Keeps the email and phone a shopper gave at checkout, so every later event
+ * Keeps the contact details a shopper gave at checkout, so every later event
  * from this browser can carry them — the next visit's PageView and ViewContent
  * included. Only the SHA-256 digests are stored, in cookies script cannot read:
  * the plaintext lives in the order, and the cookie holds exactly what Meta
  * would be sent anyway.
+ *
+ * Each field is normalized exactly as `buildUserData` would normalize it, so a
+ * remembered digest equals the one Purchase sends for the same order. A field
+ * that normalizes to nothing (a state written out in full, say) is not stored.
  *
  * Written from the checkout action, never from `/api/track`: a public beacon
  * must not be able to claim an identity, but an order is where a shopper gives
@@ -53,30 +73,47 @@ export function withCallingCode(phone: string, country: string | undefined): str
  */
 export async function rememberContact(
 	cookies: Cookies,
-	contact: { email: string; phone?: string; country?: string }
+	contact: {
+		email: string;
+		phone?: string;
+		firstName?: string;
+		lastName?: string;
+		city?: string;
+		state?: string;
+		zip?: string;
+		country?: string;
+	}
 ): Promise<void> {
 	const options = { path: '/', maxAge: 90 * DAY, sameSite: 'lax', httpOnly: true } as const;
 
-	const email = normalize.email(contact.email);
-	if (email) cookies.set(EMAIL_COOKIE, await sha256Hex(email), options);
+	const normalized: RememberedContact = {
+		email: normalize.email(contact.email),
+		phone: contact.phone && normalize.phone(withCallingCode(contact.phone, contact.country)),
+		firstName: contact.firstName && normalize.name(contact.firstName),
+		lastName: contact.lastName && normalize.name(contact.lastName),
+		city: contact.city && normalize.city(contact.city),
+		state: contact.state && normalize.state(contact.state),
+		zip: contact.zip && normalize.zip(contact.zip),
+		country: contact.country && normalize.country(contact.country)
+	};
 
-	const phone = contact.phone && normalize.phone(withCallingCode(contact.phone, contact.country));
-	if (phone) cookies.set(PHONE_COOKIE, await sha256Hex(phone), options);
+	for (const [field, value] of Object.entries(normalized) as [keyof typeof COOKIES, string][]) {
+		if (value) cookies.set(COOKIES[field], await sha256Hex(value), options);
+	}
 }
 
 /**
- * The digests `rememberContact` stored, ready to pass as `email` and `phone` —
- * `buildUserData` sends a SHA-256 value as-is. A cookie that is not one is
- * ignored rather than hashed again.
+ * The digests `rememberContact` stored, ready to spread into a Conversions API
+ * `user` — `buildUserData` sends a SHA-256 value as-is. A cookie that is not
+ * one is ignored rather than hashed again.
  */
-export function rememberedContact(cookies: { get(name: string): string | undefined }): {
-	email?: string;
-	phone?: string;
-} {
-	const email = cookies.get(EMAIL_COOKIE);
-	const phone = cookies.get(PHONE_COOKIE);
-	return {
-		...(email && SHA256_HEX.test(email) ? { email } : {}),
-		...(phone && SHA256_HEX.test(phone) ? { phone } : {})
-	};
+export function rememberedContact(cookies: {
+	get(name: string): string | undefined;
+}): RememberedContact {
+	const out: RememberedContact = {};
+	for (const [field, name] of Object.entries(COOKIES) as [keyof typeof COOKIES, string][]) {
+		const value = cookies.get(name);
+		if (value && SHA256_HEX.test(value)) out[field] = value;
+	}
+	return out;
 }
