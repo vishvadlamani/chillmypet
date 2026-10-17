@@ -43,7 +43,7 @@ function check(label, cond, detail) {
 	check('and counts them under the photo', /Swipe to explore[\s\S]{0,200}?1 \/ 5/.test(html));
 	check('the story section follows the buy box', /<h2[^>]*>[\s\S]{0,120}?steals the Christmas card/.test(html));
 	check('the closing band points back at the picker, under an h2', /<h2[^>]*>[\s\S]{0,120}?Every tree needs a little one/.test(html) && /href="#variant-picker"/.test(html));
-	check('SSR says the size goes by the dog’s weight', /Sized by weight: S 3–6 lb/.test(html));
+	check('SSR says the size goes by the dog’s weight, in kg and lb', /By weight: S 1\.5–2\.5 kg \(3–6 lb\)/.test(html));
 	// The store's own quantity breaks, priced by the server, said in words.
 	check('SSR offers the bundle cards at the server’s prices', html.includes('$52.06') && html.includes('$76.41') && /You save 7% with 2 costumes/.test(html));
 	check('the theme lifts the delivery strip above the header', /class="tree-strip"[^>]*>[^<]*Order by \w+day, Dec \d+/.test(html) && html.indexOf('tree-strip') < html.indexOf('<header'));

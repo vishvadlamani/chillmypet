@@ -15,7 +15,7 @@
 	{#each products as product, i (product.slug)}
 		<li>
 			<a class="card" href="/products/{product.slug}">
-				<figure>
+				<figure class:contain={product.fit === 'contain'}>
 					{#if product.image}
 						<img
 							src={product.image}
@@ -99,6 +99,14 @@
 		object-fit: cover;
 		display: block;
 	}
+	/* A whole studio shot, never cropped. The frame takes the photo's own
+	   warm backdrop (top to bottom), so the bars either side are invisible. */
+	figure.contain {
+		background: linear-gradient(#f8f1e7, #eee4d6);
+	}
+	figure.contain img {
+		object-fit: contain;
+	}
 	.body {
 		display: flex;
 		flex-direction: column;
@@ -116,6 +124,7 @@
 	.sub {
 		margin: 0;
 		font-size: 14px;
+		line-height: 1.45;
 		color: var(--tree-muted);
 	}
 	.price {

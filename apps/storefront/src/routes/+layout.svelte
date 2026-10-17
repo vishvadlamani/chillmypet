@@ -48,6 +48,14 @@
 	);
 
 	/**
+	 * The brand's own colours and type (navy, teal, orange, DM Sans; see the
+	 * brand skin in `tree-theme.css`) on every tree-chrome page except the
+	 * Christmas ones, which keep the pine and cream: `/christmas` and the
+	 * products `pages.ts` flags `christmas` say so with `festive` in their data.
+	 */
+	let brandSkin = $derived(treeChrome && !page.data.festive);
+
+	/**
 	 * Block-rendered pages carry their own announcement strip, from the
 	 * manifest, and the tree chrome lifts one above the header; the site's
 	 * plain strip stands down for both, since two strips saying the same thing
@@ -123,7 +131,12 @@
 <svelte:window onclick={closeMenus} onkeydown={closeMenus} />
 
 <svelte:head>
-	{#if treeChrome}
+	{#if brandSkin}
+		<link
+			href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap"
+			rel="stylesheet"
+		/>
+	{:else if treeChrome}
 		<link
 			href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
 			rel="stylesheet"
@@ -171,7 +184,7 @@
 	</main>
 </div>
 {:else}
-<div class="flex min-h-screen flex-col" class:tree-chrome={treeChrome}>
+<div class="flex min-h-screen flex-col" class:tree-chrome={treeChrome} class:brand-skin={brandSkin}>
 	{#if liftedStrip}
 		<p class="tree-strip">{liftedStrip}</p>
 	{/if}
@@ -257,7 +270,10 @@
 
 			{#if onCheckout}{@render languageSwitch('in-bar keep lead')}{/if}
 
-			<a href="/" class="site-brand">{t('common.brand')}</a>
+			<a href="/" class="site-brand">
+				<!-- The owner's logo, paw and wordmark side by side (static/brand). -->
+				<img src="/brand/logo.png" alt={t('common.brand')} width="449" height="96" />
+			</a>
 
 			<div class="site-tools">
 				<!-- On a phone the switch lives in the menu. A checkout has no menu,
@@ -283,7 +299,9 @@
 	<footer class="site-footer">
 		<div class="site-footer-inner">
 			<div class="site-footer-brand">
-				<a href="/" class="site-footer-name">{t('common.brand')}</a>
+				<a href="/" class="site-footer-name">
+					<img src="/brand/logo-light.png" alt={t('common.brand')} width="449" height="96" />
+				</a>
 				<p>{t('footer.tagline')}</p>
 			</div>
 			<div>

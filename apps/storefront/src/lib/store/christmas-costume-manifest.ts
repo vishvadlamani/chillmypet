@@ -102,7 +102,8 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				sizeLabel: 'Size',
 				// The same bands as the size guide's table, in pounds for a US buyer;
 				// the table carries kilograms too.
-				sizeNote: 'Sized by weight: S 3–6 lb · M 6–11 lb · L 11–17 lb. Between two? Go up.',
+				// Metric first, pounds beside it: the supplier's table is in kilograms.
+				sizeNote: 'By weight: S 1.5–2.5 kg (3–6 lb) · M 2.5–5 kg (6–11 lb) · L 5–7.5 kg (11–17 lb). Between two? Go up.',
 				sizeGuideHref: '#size-guide',
 				sizeGuideLabel: 'Size guide',
 				sizeMissing: 'Pick your dog’s size first, then we’re good to go.',
@@ -146,7 +147,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				items: [
 					{
 						label: 'Size & fit',
-						body: 'Sizes go by your pet’s weight: S for 3–6 lb, M for 6–11 lb, L for 11–17 lb.\n\nIt’s a cape with a hood, so nothing goes around the legs or the belly and it forgives a stocky build. Between two sizes, go up: the cord at the neck takes up the slack.',
+						body: 'Sizes go by your pet’s weight: S for 1.5–2.5 kg (3–6 lb), M for 2.5–5 kg (6–11 lb), L for 5–7.5 kg (11–17 lb).\n\nIt’s a cape with a hood, so nothing goes around the legs or the belly and it forgives a stocky build. Between two sizes, go up: the cord at the neck takes up the slack.',
 						link: { label: 'See the size guide', href: '#size-guide' }
 					},
 					{
@@ -217,7 +218,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					{ src: '/products/dog-christmas-costume/shih-tzu.jpg', alt: 'A shih tzu in the green Christmas tree costume in front of a decorated tree', caption: 'Ready by the tree' },
 					{ src: '/products/dog-christmas-costume/schnauzer.jpg', alt: 'A miniature schnauzer in the green Christmas tree costume', caption: 'Ready for the photo' }
 				],
-				note: 'AI-styled images. For small dogs and cats up to 17 lb (7.5 kg); see the size guide below.'
+				note: 'AI-styled images. For small dogs and cats up to 7.5 kg (17 lb); see the size guide below.'
 			}
 		},
 		{
@@ -332,7 +333,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					},
 					{
 						label: 'How do I pick the size?',
-						body: 'Go by weight: S for 3–6 lb (1.5–2.5 kg), M for 6–11 lb (2.5–5 kg), L for 11–17 lb (5–7.5 kg). The cord at the neck adjusts the fit.\n\nNot sure? Size up. A loose cape looks better than a tight one.'
+						body: 'Go by weight: S for 1.5–2.5 kg (3–6 lb), M for 2.5–5 kg (6–11 lb), L for 5–7.5 kg (11–17 lb). The cord at the neck adjusts the fit.\n\nNot sure? Size up. A loose cape looks better than a tight one.'
 					},
 					{
 						label: 'How do the bundles work?',

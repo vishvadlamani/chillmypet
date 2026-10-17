@@ -135,6 +135,16 @@ body {
 	color: var(--site-ink);
 	white-space: nowrap;
 }
+.site-brand img {
+	display: block;
+	height: 30px;
+	width: auto;
+}
+@media (min-width: 768px) {
+	.site-brand img {
+		height: 38px;
+	}
+}
 .site-tools {
 	grid-column: 3;
 	grid-row: 1;
@@ -394,6 +404,11 @@ body {
 	font-weight: 700;
 	letter-spacing: 0.5px;
 	color: var(--footer-ink);
+}
+.site-footer-name img {
+	display: block;
+	height: 34px;
+	width: auto;
 }
 .site-footer-brand p {
 	margin: 8px 0 0;

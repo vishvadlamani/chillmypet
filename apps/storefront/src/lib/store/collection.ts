@@ -16,6 +16,8 @@ export interface ProductCard {
 	inStock: boolean;
 	/** Whether the product page asks for a size, which is what the card offers. */
 	pickSize: boolean;
+	/** How the photo sits in the card's frame (`cardFit` in `pages.ts`). */
+	fit: 'cover' | 'contain';
 }
 
 /**
@@ -68,7 +70,8 @@ export async function loadCollection(
 					? `${sizes[0].label ?? sizes[0].value}–${sizes.at(-1)!.label ?? sizes.at(-1)!.value}`
 					: (sizes[0]?.label ?? ''),
 			inStock: p.variants.some((v) => v.stock > 0),
-			pickSize: PRODUCT_PAGES[p.slug].pickSize
+			pickSize: PRODUCT_PAGES[p.slug].pickSize,
+			fit: PRODUCT_PAGES[p.slug].cardFit ?? 'cover'
 		};
 	});
 }

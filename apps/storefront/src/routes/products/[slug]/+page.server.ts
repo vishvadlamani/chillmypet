@@ -111,6 +111,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		variantIndex,
 		pickSize: page.pickSize,
 		theme: page.theme ?? null,
+		// A Christmas product keeps the pine and cream; the rest wear the brand
+		// skin (`+layout.svelte`).
+		festive: Boolean(page.christmas),
 		slug,
 		currency: catalogue.currency,
 		// The manifest is content, not metadata: the title and description that
