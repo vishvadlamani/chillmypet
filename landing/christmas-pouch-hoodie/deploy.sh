@@ -25,7 +25,7 @@ if [ -d functions ]; then
 fi
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
-cp index.html thank-you.html config.js pixel.js app.js style.css _worker.js _routes.json ./*.jpg ./*.webp "$out"/
+cp index.html thank-you.html config.js param-builder.js pixel.js app.js style.css _worker.js _routes.json ./*.jpg ./*.webp "$out"/
 # The ad's video (config.js: video) and any PNG are optional: the page works
 # without them, so their absence is not an error.
 for f in ./*.mp4 ./*.png; do

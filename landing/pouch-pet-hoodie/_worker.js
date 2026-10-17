@@ -146,11 +146,10 @@ async function userData(request, url, typed = {}) {
 	if (ip) out.client_ip_address = ip;
 	if (ua) out.client_user_agent = ua;
 	if (cookies._fbp) out.fbp = cookies._fbp;
-	// The pixel writes _fbc from ?fbclid= once it loads; an event that beats it
-	// there builds the same value from the landing URL.
-	const fbclid = new URL(url).searchParams.get('fbclid');
+	// As the browser holds it, and never built here from ?fbclid=: Events
+	// Manager flags a hand-built fb.1.<ms>.<fbclid> as a "modified fbclid". If
+	// this page comes back, give it the Christmas page's Parameter Builder.
 	if (cookies._fbc) out.fbc = cookies._fbc;
-	else if (fbclid) out.fbc = `fb.1.${Date.now()}.${fbclid}`;
 	return out;
 }
 

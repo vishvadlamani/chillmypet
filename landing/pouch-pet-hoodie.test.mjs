@@ -83,10 +83,10 @@ await test('a browser event gets a server copy with the same id', async () => {
 	assert.equal(e.user_data.client_ip_address, '203.0.113.7');
 	assert.equal(e.user_data.client_user_agent, 'Mozilla/5.0 test');
 	assert.equal(e.user_data.fbp, 'fb.1.1700000000000.123');
-	assert.match(e.user_data.fbc, /^fb\.1\.\d+\.CLICK1$/);
+	assert.equal(e.user_data.fbc, undefined, 'no _fbc is minted from the URL');
 });
 
-await test('the pixel-written _fbc cookie wins over one built from the URL', async () => {
+await test('the _fbc cookie is sent as it is, whatever the URL says', async () => {
 	const { events } = await hit(
 		'/api/event',
 		{ name: 'PageView', id: 'abc-123-def-456', url: HOST + '/?fbclid=NEW' },
