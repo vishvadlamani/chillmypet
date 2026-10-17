@@ -882,6 +882,15 @@ account, so Android shoppers lost it in the move. Redirect methods such as
 Klarna work because `CardFields` confirms with a `return_url` and
 `redirect: 'if_required'`.
 
+**Link is hidden in code, and that is the one exception.** `CardFields`
+creates the Payment Element with `wallets: { link: 'never' }`, on the owner's
+instruction of 2026-10-17: a shopper signed into Link sees their own Link
+email at the top of the payment box, and the owner did not want it there. So
+the configuration still has Link on, and turning it on there will not bring it
+back to the inline checkout; delete the option for that. The hosted fallback
+page and the Payment Link pages read the configuration only, so they still
+offer Link until it is switched off in Stripe → Settings → Payment methods.
+
 A wallet needs the domain as well as the configuration. Read through the
 Stripe API on 2026-10-12: `chillmypet.com` and `www.chillmypet.com` are
 registered payment method domains on ChillMP with Apple Pay, Google Pay, Klarna
