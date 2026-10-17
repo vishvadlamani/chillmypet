@@ -261,12 +261,9 @@
 	<title>{data.seo.title} · {t('common.brand')}</title>
 	<meta name="description" content={data.seo.description} />
 	{#if tree}
-		<!-- The tree storefront sets everything in Poppins, like the storefront
-		     below, plus an absolute og:image for the same reason as the hoodie. -->
-		<link
-			href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
-			rel="stylesheet"
-		/>
+		<!-- The layout loads the font: Poppins for a Christmas page, the brand's
+		     DM Sans for the rest. An absolute og:image, for the same reason as
+		     the hoodie. -->
 		<meta property="og:image" content={new URL(data.seo.image, page.url).href} />
 	{:else if christmas}
 		<!-- Fredoka for the Christmas page, scoped like Poppins below: only this

@@ -8,5 +8,7 @@ import type { PageServerLoad } from './$types';
  */
 export const load: PageServerLoad = async ({ locals }) => ({
 	...treeChrome(locals.settings),
+	// Keeps the Christmas pine and cream, not the brand skin (`+layout.svelte`).
+	festive: true,
 	products: await loadCollection(locals.commerce, locals.locale, (page) => Boolean(page.christmas))
 });

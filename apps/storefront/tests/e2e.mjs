@@ -163,6 +163,25 @@ function check(label, cond, detail) {
 	check('/contact answers', contact.status === 200);
 }
 {
+	// The brand's own look everywhere but Christmas (2026-10-17): the logo in
+	// the header, and the navy/teal skin on the shop's pages, while /christmas
+	// and the Christmas products keep the pine and cream.
+	const skinned = async (path) => {
+		const html = await fetch(`${BASE}${path}`).then((r) => r.text());
+		return { html, brand: /class="[^"]*\bbrand-skin\b/.test(html) };
+	};
+	const home = await skinned('/');
+	check('the header shows the logo', /<header[\s\S]*?src="\/brand\/logo\.png"[\s\S]*?<\/header>/.test(home.html));
+	check('the tab icon is the brand paw, not SvelteKit’s', home.html.includes('/brand/favicon-32.png') && !home.html.includes('favicon.svg'));
+	for (const path of ['/', '/catalog', '/contact', '/checkout', '/products/dog-life-jacket']) {
+		check(`${path} wears the brand skin`, (await skinned(path)).brand);
+	}
+	for (const path of ['/christmas', '/products/dog-christmas-costume', '/products/reindeer-dog-hoodie']) {
+		check(`${path} keeps the Christmas colours`, !(await skinned(path)).brand);
+	}
+	check('the life jacket card shows its whole photo', /<figure class="[^"]*\bcontain\b[^"]*"[^>]*>(?:<!--[^>]*-->|\s)*<img[^>]*card-sailboat/.test(home.html));
+}
+{
 	// The Catalog menu is a disclosure: closed until tapped, shut by Escape.
 	const p = await browser.newPage();
 	await p.goto(BASE, { waitUntil: 'networkidle' });

@@ -40,6 +40,12 @@ export interface ProductPage {
 	 */
 	cardImage?: string;
 	/**
+	 * `contain` shows the whole card photo inside the frame instead of
+	 * cropping it to fill: for a side-on studio shot (the life jacket's), whose
+	 * dog lost its nose and tail to the crop in a phone's narrow card.
+	 */
+	cardFit?: 'cover' | 'contain';
+	/**
 	 * How `/products/<slug>/checkout` is laid out. Unset, it is the product
 	 * page's top over the checkout's fields. `shop` is a dedicated checkout
 	 * page in the shape shoppers know from hosted shop checkouts: contact,
@@ -73,7 +79,8 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 		// The shop's look since 2026-10-17, like the Christmas pages.
 		theme: 'tree',
 		// sailboat.jpg on the warm backdrop of the Christmas studio shots.
-		cardImage: '/products/dog-life-jacket/card-sailboat.jpg'
+		cardImage: '/products/dog-life-jacket/card-sailboat.jpg',
+		cardFit: 'contain'
 	},
 	[CHRISTMAS_HOODIE_SLUG]: {
 		manifest: CHRISTMAS_HOODIE_PAGE,

@@ -800,6 +800,43 @@ the menu leads instead. Things to know:
   `$lib/line-icons.ts` instead of emoji. Only promises the policy pages
   already make go in either.
 
+**Two skins since 2026-10-17: the brand's, and Christmas.** The owner
+supplied the logo (`static/brand/`: `logo.png` paw and wordmark side by side
+for the header, `logo-light.png` with the navy turned white for the dark
+footers, `logo-stacked.png` as supplied, and the teal-circle paw as the tab
+and home-screen icons; the tab icon before that was SvelteKit's default
+logo) and asked for its colours everywhere except the Christmas pages.
+So:
+
+- **The brand skin** is navy `#0b3c49`, teal `#14a3b0` (`#0e8590` under white
+  text), orange `#ff6b2c` and white, set in DM Sans. It is the tree look
+  with its `--tree-*` colours re-pointed (`.brand-skin` in `tree-theme.css`),
+  so every rule built on those names follows. Orange marks things (the
+  cart count, the trust strip's icons); text that has to be read small in
+  orange uses a deeper `#c9501a`.
+- **Christmas keeps the pine, cream and Poppins**: `/christmas` and the
+  products `pages.ts` flags `christmas` (costume, reindeer hoodie) put
+  `festive: true` in their data, and `+layout.svelte` leaves `.brand-skin`
+  off for them. Everything else in the tree chrome wears the brand: home,
+  `/catalog`, contact, policies, `/checkout`, the life jacket. A new
+  Christmas product is festive by setting its `christmas` flag; nothing
+  else.
+- The layout loads the font the skin needs (DM Sans or Poppins), so a page
+  must not load its own. The life jacket's manifest accents are the brand
+  teal; the Christmas manifests keep pine.
+- `tests/e2e.mjs` asserts the logo, the tab icon, and which pages wear which
+  skin.
+
+**Sizes read metric first, pounds beside.** The costume's size note and
+FAQ say `1.5–2.5 kg (3–6 lb)`, like its table; the tables in
+`garment-sizes.ts` and `sizes.ts` already print both units, and the life
+jacket's chart carries cm/in and kg/lb.
+
+**A card can show its whole photo** (`cardFit: 'contain'` in `pages.ts`).
+The life jacket's card photo is a side-on dog, and a phone's narrow card
+cropped its nose and tail; `card-sailboat.jpg` is now cropped square around
+the dog and shown whole, over its own backdrop colours.
+
 **Every sized product also has a one-page checkout** at
 `/products/<slug>/checkout` (`/products/dog-christmas-costume/checkout`):
 the product's delivery strip, photos, title and picker, then the checkout's
