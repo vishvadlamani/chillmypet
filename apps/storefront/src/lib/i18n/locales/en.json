@@ -7,6 +7,8 @@
 	"nav": {
 		"home": "Home",
 		"christmas": "Christmas",
+		"catalog": "Catalog",
+		"allProducts": "All products",
 		"shop": "Shop",
 		"contact": "Contact",
 		"trackOrder": "Track order",

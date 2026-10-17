@@ -26,6 +26,13 @@ export interface ProductPage {
 	 */
 	christmas?: boolean;
 	/**
+	 * Left out of the header's menu, `/catalog` and the home page. The page,
+	 * its checkout and everything that links to it straight (an ad, a landing
+	 * page's Buy now) keep working: this only stops the shop's own navigation
+	 * from offering it.
+	 */
+	unlisted?: boolean;
+	/**
 	 * How `/products/<slug>/checkout` is laid out. Unset, it is the product
 	 * page's top over the checkout's fields. `shop` is a dedicated checkout
 	 * page in the shape shoppers know from hosted shop checkouts: contact,
@@ -58,7 +65,11 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 		manifest: CHRISTMAS_HOODIE_PAGE,
 		pickSize: true,
 		theme: 'christmas',
-		checkout: 'shop'
+		checkout: 'shop',
+		// A person's garment in a shop of dog clothes, and the Christmas landing
+		// page sells it straight to its own checkout, so the menu leaves it out
+		// for now (the owner's call, 2026-10-17). Delete this line to list it.
+		unlisted: true
 	},
 	[DOG_CHRISTMAS_COSTUME_SLUG]: {
 		manifest: CHRISTMAS_COSTUME_PAGE,

@@ -69,7 +69,7 @@ function check(label, cond, detail) {
 	const main = /<main[\s\S]*?<\/main>/.exec(html)?.[0] ?? html;
 	check('no costume or life-jacket copy leaked in', !/chin rest|life jacket|pom-pom|ruffled/i.test(main));
 	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
-	check('the site header links to this page and to /christmas', header.includes(`href="/products/${SLUG}"`) && header.includes('href="/christmas"'));
+	check('the site header’s Catalog menu links to /christmas and /catalog', header.includes('href="/christmas"') && header.includes('href="/catalog"'));
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });

@@ -51,11 +51,15 @@ function check(label, cond, detail) {
 	check('SSR shows Apple Pay among the accepted payment methods', /aria-label="Apple Pay"/.test(html));
 	check('and not Google Pay, which is off in Stripe', !/aria-label="Google Pay"/.test(html));
 	check('and not Discover, which Stripe does not offer a Czech account', !/aria-label="Discover"/.test(html));
-	// The site header, not the page: a shopper who taps the logo and comes back
-	// through the menu has to be able to find this page again.
-	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
-	check('the site header links to this page', header.includes('href="/products/christmas-pouch-hoodie"'), header.slice(0, 400));
-	check('and to the life jacket', header.includes('href="/products/dog-life-jacket"'));
+}
+{
+	// Unlisted for now (`unlisted` in pages.ts): the Christmas landing page
+	// sells it straight to its checkout, and the shop's own menu, catalogue and
+	// home page leave it out. Its page still answers, above.
+	for (const path of ['/', '/catalog', '/christmas']) {
+		const html = await fetch(`${BASE}${path}`).then((r) => r.text());
+		check(`${path} does not list the pouch hoodie`, !html.includes('href="/products/christmas-pouch-hoodie"'));
+	}
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });

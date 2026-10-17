@@ -93,3 +93,64 @@ body {
 	outline-offset: 2px;
 	border-radius: 2px;
 }
+
+/* The header's Catalog menu (`+layout.svelte`). Plain global CSS rather than
+   the layout's own <style>: a scoped block stamps a hash class on every
+   element in the layout, and the tests match the chrome's class names
+   (`tree-strip`, `shop-header`) on the raw HTML. */
+.catalog-menu {
+	position: relative;
+}
+.catalog-menu summary {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	cursor: pointer;
+	list-style: none;
+	/* A thumb-sized target inside a 14px line. */
+	padding: 10px 0;
+	margin: -10px 0;
+}
+.catalog-menu summary::-webkit-details-marker {
+	display: none;
+}
+.catalog-menu summary svg {
+	width: 11px;
+	height: 11px;
+	transition: transform 0.15s ease;
+}
+.catalog-menu[open] summary svg {
+	transform: rotate(180deg);
+}
+.catalog-menu > ul {
+	position: absolute;
+	top: calc(100% + 12px);
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 30;
+	min-width: 190px;
+	margin: 0;
+	padding: 6px;
+	list-style: none;
+	background: var(--tree-card, #fff);
+	border: 1px solid var(--tree-rule, rgb(0 0 0 / 0.12));
+	border-radius: 10px;
+	box-shadow: 0 10px 30px rgb(36 59 49 / 0.14);
+	text-align: left;
+}
+.catalog-menu > ul a {
+	display: block;
+	padding: 11px 14px;
+	border-radius: 6px;
+}
+.catalog-menu > ul a:hover,
+.catalog-menu > ul a[aria-current='page'] {
+	background: var(--tree-tint, #f2f2f2);
+}
+/* Where you are, in the bar itself. */
+.site-menu > li > a[aria-current='page'],
+.site-menu .active {
+	text-decoration: underline;
+	text-underline-offset: 6px;
+	text-decoration-thickness: 1px;
+}
