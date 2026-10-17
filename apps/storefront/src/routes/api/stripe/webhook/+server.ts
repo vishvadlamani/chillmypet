@@ -1,4 +1,5 @@
-import { sendPurchase } from '$lib/server/purchase';
+import { sendOrderConfirmation } from '$lib/server/email';
+import { attributionFromMetadata, sendPurchase } from '$lib/server/purchase';
 import type { RequestHandler } from './$types';
 
 /**
@@ -29,7 +30,7 @@ export const POST: RequestHandler = async ({ request, locals, url, platform }) =
 	// the event-id dedup table — so a redelivered event, which Stripe does
 	// aggressively, cannot report the same conversion twice.
 	if (result.handled && result.action === 'order_paid' && result.orderNumber) {
-		const tracking = trackPurchase(commerce, result.orderNumber, raw, url);
+		const tracking = trackPurchase(commerce, locals.email, result.orderNumber, raw, url);
 		const context = platform?.context;
 		if (context && typeof context.waitUntil === 'function') {
 			context.waitUntil(tracking);
@@ -43,11 +44,13 @@ export const POST: RequestHandler = async ({ request, locals, url, platform }) =
 };
 
 /**
- * Reports the conversion to Meta. Never rejects — Stripe must still get its 2xx
- * if this fails, or it will redeliver an event that was already applied.
+ * Reports the conversion to Meta and emails the customer their confirmation.
+ * Never rejects — Stripe must still get its 2xx if this fails, or it will
+ * redeliver an event that was already applied.
  */
 async function trackPurchase(
 	commerce: App.Locals['commerce'],
+	email: App.Locals['email'],
 	orderNumber: string,
 	rawBody: string,
 	url: URL
@@ -57,34 +60,29 @@ async function trackPurchase(
 		if (!order) return;
 
 		// Safe to read now: handleWebhook verified the signature before returning
-		// handled, so these bytes are Stripe's. Only the click identifiers are
-		// taken from here — everything else comes from our own order row.
-		const metadata = readMetadata(rawBody);
-
-		await sendPurchase(commerce, order, {
-			eventSourceUrl: `${url.origin}/checkout/success?order=${encodeURIComponent(orderNumber)}`,
-			attribution: {
-				fbp: metadata.fbp,
-				fbc: metadata.fbc
-			}
-		});
+		// handled, so these bytes are Stripe's, carrying what the checkout put in
+		// metadata from the customer's own request. Only attribution is taken
+		// from here — everything else comes from our own order row.
+		await Promise.all([
+			sendPurchase(commerce, order, {
+				eventSourceUrl: `${url.origin}/checkout/success?order=${encodeURIComponent(orderNumber)}`,
+				attribution: attributionFromMetadata(readMetadata(rawBody))
+			}),
+			sendOrderConfirmation(email, order)
+		]);
 	} catch (error) {
 		console.error('Purchase tracking failed after payment', orderNumber, error);
 	}
 }
 
-function readMetadata(rawBody: string): { fbp?: string; fbc?: string } {
+function readMetadata(rawBody: string): Record<string, unknown> {
 	try {
 		const event = JSON.parse(rawBody) as Record<string, unknown>;
 		const object = ((event.data as Record<string, unknown>)?.object ?? {}) as Record<
 			string,
 			unknown
 		>;
-		const metadata = (object.metadata ?? {}) as Record<string, unknown>;
-		return {
-			fbp: typeof metadata.fbp === 'string' ? metadata.fbp : undefined,
-			fbc: typeof metadata.fbc === 'string' ? metadata.fbc : undefined
-		};
+		return (object.metadata ?? {}) as Record<string, unknown>;
 	} catch {
 		return {};
 	}

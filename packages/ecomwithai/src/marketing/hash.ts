@@ -51,72 +51,64 @@ export type CapiUserInput = {
 	state?: string;
 	zip?: string;
 	country?: string;
+	/**
+	 * A first-party id for the visitor, the same on every event they fire,
+	 * including the first anonymous PageView, so it is what ties a visitor's
+	 * browsing to the purchase that comes later. Hashed unless it already is a
+	 * SHA-256 hex digest, which passes through.
+	 */
+	externalId?: string;
 	/** These four must NOT be hashed. */
 	clientIpAddress?: string;
 	clientUserAgent?: string;
 	fbp?: string;
 	fbc?: string;
-	/**
-	 * Keys hashed on an earlier request, such as a buyer's details remembered
-	 * from their order so the events after it can be matched too. A raw field
-	 * above wins over its key here: it is what this event actually knows.
-	 */
-	matchKeys?: MatchKeys;
 };
-
-/** The hashed advanced-matching fields, by the names Meta gives them. */
-export const MATCH_KEYS = ['em', 'ph', 'fn', 'ln', 'ct', 'st', 'zp', 'country'] as const;
-export type MatchKey = (typeof MATCH_KEYS)[number];
-export type MatchKeys = Partial<Record<MatchKey, string>>;
-
-const SHA256_HEX = /^[0-9a-f]{64}$/;
-
-/** True for a key Meta reads and a value shaped like the hash it expects. */
-export function isMatchKey(key: string, value: unknown): key is MatchKey {
-	return (
-		(MATCH_KEYS as readonly string[]).includes(key) &&
-		typeof value === 'string' &&
-		SHA256_HEX.test(value)
-	);
-}
-
-/**
- * Normalizes and hashes whichever customer fields are present. The result is
- * safe to keep — it is what Meta receives anyway — and can be handed back later
- * as `matchKeys`.
- */
-export async function hashMatchKeys(input: CapiUserInput): Promise<MatchKeys> {
-	const fields: [MatchKey, string | undefined][] = [
-		['em', input.email && normalize.email(input.email)],
-		['ph', input.phone && normalize.phone(input.phone)],
-		['fn', input.firstName && normalize.name(input.firstName)],
-		['ln', input.lastName && normalize.name(input.lastName)],
-		['ct', input.city && normalize.city(input.city)],
-		['st', input.state && normalize.state(input.state)],
-		['zp', input.zip && normalize.zip(input.zip)],
-		['country', input.country && normalize.country(input.country)]
-	];
-
-	const keys: MatchKeys = {};
-	for (const [key, value] of fields) {
-		// Omit empty keys rather than sending `[null]` — a null entry carries no
-		// signal and drags down the reported match quality.
-		if (!value) continue;
-		keys[key] = await sha256Hex(value);
-	}
-	return keys;
-}
 
 export type HashedUserData = Record<string, string[] | string>;
 
+/**
+ * A value that is already a SHA-256 digest. Passed through untouched, the way
+ * Meta's own SDKs do it: a host that stores contact details only as hashes (in a
+ * cookie, say) can send them without ever holding the plaintext again.
+ * Normalizing one first would destroy it — phone normalization strips letters.
+ */
+const SHA256_HEX = /^[a-f0-9]{64}$/;
+
 export async function buildUserData(input: CapiUserInput): Promise<HashedUserData> {
+	const fields: [string, string | undefined, (v: string) => string][] = [
+		['em', input.email, normalize.email],
+		['ph', input.phone, normalize.phone],
+		['fn', input.firstName, normalize.name],
+		['ln', input.lastName, normalize.name],
+		['ct', input.city, normalize.city],
+		['st', input.state, normalize.state],
+		['zp', input.zip, normalize.zip],
+		['country', input.country, normalize.country]
+	];
+
 	const userData: HashedUserData = {};
 
-	for (const [key, value] of Object.entries(input.matchKeys ?? {})) {
-		if (isMatchKey(key, value)) userData[key] = [value];
+	for (const [key, raw, clean] of fields) {
+		if (!raw) continue;
+		if (SHA256_HEX.test(raw)) {
+			userData[key] = [raw];
+			continue;
+		}
+		const value = clean(raw);
+		// Omit empty keys rather than sending `[null]` — a null entry carries no
+		// signal and drags down the reported match quality.
+		if (!value) continue;
+		userData[key] = [await sha256Hex(value)];
 	}
-	for (const [key, value] of Object.entries(await hashMatchKeys(input))) {
-		userData[key] = [value];
+
+	// Meta's pixel sends an `external_id` that already looks like a SHA-256
+	// digest as it is, and hashes anything else. Doing the same here is what
+	// lets a host hand one id to both halves and have them agree: hash a digest
+	// a second time and the browser and server copies name two different people.
+	const externalId = input.externalId?.trim();
+	if (externalId) {
+		userData.external_id = [SHA256_HEX.test(externalId) ? externalId : await sha256Hex(externalId)];
 	}
 
 	if (input.clientIpAddress) userData.client_ip_address = input.clientIpAddress;
@@ -130,4 +122,51 @@ export async function buildUserData(input: CapiUserInput): Promise<HashedUserDat
 /** The `fbc` value Meta expects when a visitor lands with `?fbclid=`. */
 export function buildFbc(fbclid: string, createdAt: number): string {
 	return `fb.1.${createdAt}.${fbclid}`;
+}
+
+/**
+ * A browser id in the `_fbp` format, for a host to set before Meta's script has.
+ *
+ * The pixel only creates `_fbp` once `fbevents.js` runs in the browser, which
+ * is after the first page's server-side PageView has already gone without one.
+ * The pixel adopts an `_fbp` cookie it finds rather than minting its own, so a
+ * value set here identifies the browser to both halves from the first request.
+ */
+export function buildFbp(createdAt: number, random = Math.floor(Math.random() * 2 ** 31)): string {
+	return `fb.1.${createdAt}.${random}`;
+}
+
+/** The click id inside an `_fbc` value, or undefined when it is not one. */
+export function fbclidOf(fbc: string | undefined): string | undefined {
+	return fbc?.match(/^fb\.\d+\.\d+\.(.+)$/)?.[1];
+}
+
+/**
+ * `fb.<subdomain index>.<ms timestamp>.<click id>`, plus the optional appendix
+ * Meta's own libraries add.
+ */
+const FBC_SHAPE = /^fb\.\d+\.\d+\.[^.]+(\.[A-Za-z0-9_-]+)?$/;
+
+/**
+ * The `fbc` for an event on a page whose URL may carry a `fbclid`.
+ *
+ * A click id on the URL beats the `_fbc` cookie when the two disagree. The
+ * cookie still holds an earlier click until Meta's script rewrites it, and
+ * sending that next to a URL carrying the new one is what Events Manager flags
+ * as a modified fbclid — it compares the two, and a stale id reads as tampered.
+ * When they agree the cookie is kept, so its original timestamp survives.
+ *
+ * A cookie not in Meta's format is dropped, the way Meta's parameter-builder
+ * library drops one: no fbc costs a little matching, while an invalid one is
+ * reported against the whole dataset.
+ */
+export function resolveFbc(
+	cookie: string | undefined,
+	fbclid: string | null | undefined,
+	now: number
+): string | undefined {
+	const stored = cookie && FBC_SHAPE.test(cookie) ? cookie : undefined;
+	if (!fbclid) return stored;
+	if (stored?.split('.')[3] === fbclid) return stored;
+	return buildFbc(fbclid, now);
 }

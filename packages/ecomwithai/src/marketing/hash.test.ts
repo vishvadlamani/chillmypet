@@ -6,7 +6,8 @@
  *   npm test
  */
 import { createHash } from 'node:crypto';
-import { buildFbc, buildUserData, hashMatchKeys, isMatchKey, normalize, sha256Hex } from './hash.ts';
+import { buildFbc, buildFbp, buildUserData, fbclidOf, normalize, resolveFbc, sha256Hex } from './hash.ts';
+import { createMetaService, redactToken } from './index.ts';
 
 let failures = 0;
 
@@ -66,30 +67,130 @@ check('client ip is not hashed', userData.client_ip_address, '203.0.113.7');
 check('user agent is not hashed', userData.client_user_agent, 'Mozilla/5.0');
 check('fbp is not hashed', userData.fbp, 'fb.1.1558571054389.1098115397');
 check('fbc is not hashed', userData.fbc, 'fb.1.1554763741205.AbCdEfGh');
+check('absent external id is omitted', 'external_id' in userData, false);
 
-// --- remembered match keys ---
-const remembered = await hashMatchKeys({ email: 'vish@example.com', lastName: 'Adlamani', state: 'Texas' });
-check('remembered keys are hashed, not raw', remembered.em, reference);
-check('remembered keys omit what would not match', 'st' in remembered, false);
-
-const later = await buildUserData({
-	matchKeys: { ...remembered, fn: 'not-a-hash', zz: reference } as never,
-	email: 'other@example.com',
-	fbp: 'fb.1.1558571054389.1098115397'
-});
-check('a remembered key reaches the payload', later.ln, [remembered.ln]);
+// --- external_id: the browser and server copies must carry the same string ---
+const digest = createHash('sha256').update('visitor-42').digest('hex');
 check(
-	'a raw field wins over its remembered key',
-	later.em,
-	[createHash('sha256').update('other@example.com').digest('hex')]
+	'external id is hashed when it is not a digest yet',
+	(await buildUserData({ externalId: ' visitor-42 ' })).external_id,
+	[digest]
 );
-check('a remembered value that is not a hash is dropped', 'fn' in later, false);
-check('a key Meta does not read is dropped', 'zz' in later, false);
-check('a hash is a match key', isMatchKey('ln', reference), true);
-check('uppercase hex is not', isMatchKey('ln', reference.toUpperCase()), false);
+check(
+	'external id that is already a digest passes through, not hashed twice',
+	(await buildUserData({ externalId: digest })).external_id,
+	[digest]
+);
+check('blank external id is omitted', 'external_id' in (await buildUserData({ externalId: '  ' })), false);
+
+// --- external_id, and values the host already hashed ---
+const sha = (v: string) => createHash('sha256').update(v).digest('hex');
+const visitor = await buildUserData({
+	externalId: ' 0f8e3c1a-visitor ',
+	email: reference,
+	phone: sha('16505551212')
+});
+check('external_id is trimmed and hashed', visitor.external_id, [sha('0f8e3c1a-visitor')]);
+// Run through phone normalization, a digest would lose its letters and become
+// a hash of a hash — accepted by Meta, matching nobody.
+check('a pre-hashed phone passes through untouched', visitor.ph, [sha('16505551212')]);
+check('a pre-hashed email passes through untouched', visitor.em, [reference]);
+check('absent external_id is omitted', 'external_id' in userData, false);
 
 // --- fbc construction ---
 check('fbc format', buildFbc('AbCdEfGh', 1554763741205), 'fb.1.1554763741205.AbCdEfGh');
+check('fbclid read back out of an fbc', fbclidOf('fb.1.1554763741205.AbC.d-E_f'), 'AbC.d-E_f');
+check('fbclid of a malformed fbc', fbclidOf('nonsense'), undefined);
+
+// --- fbp construction ---
+check('fbp format', buildFbp(1558571054389, 1098115397), 'fb.1.1558571054389.1098115397');
+check('minted fbp has the pixel shape', /^fb\.1\.\d{13}\.\d+$/.test(buildFbp(Date.now())), true);
+
+// --- event payload: the dedupe key ---
+// Meta dedupes on event_id, and `original_event_data` carries one of its own.
+// Sent without it, Events Manager reported 0% of server events with an event ID.
+const plain = await createMetaService({ pixelId: '1' }).buildEventPayload({
+	eventName: 'PageView',
+	eventId: 'abc-123',
+	user: {}
+});
+check('event_id is at the top level', plain.event_id, 'abc-123');
+check('no original_event_data on a live event', 'original_event_data' in plain, false);
+
+const shared = await createMetaService({ pixelId: '1', attributionShare: '0.3' }).buildEventPayload({
+	eventName: 'PageView',
+	eventId: 'abc-123',
+	eventTime: 1700000000,
+	user: {}
+});
+check(
+	'original_event_data, when sent, carries the same event_id',
+	shared.original_event_data,
+	{ event_name: 'PageView', event_time: 1700000000, event_id: 'abc-123' }
+);
+
+// --- verify(): can this token post to this dataset? ---
+// A token for another dataset is rejected once per event, silently, so the
+// server half never arrives. verify() asks with an empty batch and must never
+// hand the token back, even when Meta quotes it.
+const TOKEN = 'EAAtesttoken1234567890abcdef';
+const realFetch = globalThis.fetch;
+let posted: { url: string; body: string } | undefined;
+const answer = (status: number, body: unknown) => {
+	globalThis.fetch = (async (url: string, init?: RequestInit) => {
+		posted = { url: String(url), body: String(init?.body) };
+		return new Response(JSON.stringify(body), { status });
+	}) as typeof fetch;
+};
+const probe = () =>
+	createMetaService({ pixelId: '1341978141149107', accessToken: TOKEN, endpoint: 'https://capi.test' }).verify();
+
+answer(400, { error: { message: '(#100) The parameter data must be non-empty', code: 100 } });
+check('verify accepts a token Meta only faults for the empty batch', await probe(), { ok: true });
+check('verify posts to the pixel, with no event in the batch', posted?.url, 'https://capi.test/v25.0/1341978141149107/events');
+check('verify sends an empty data array', new URLSearchParams(posted?.body).get('data'), '[]');
+
+answer(400, { error: { message: 'Unsupported post request. Object with ID 1341978141149107 does not exist', code: 100 } });
+check('verify rejects a token for another dataset', await probe(), {
+	ok: false,
+	reason: 'rejected',
+	detail: '(#100) Unsupported post request. Object with ID 1341978141149107 does not exist'
+});
+
+answer(400, { error: { message: `Malformed access token ${TOKEN}`, code: 190 } });
+const malformed = await probe();
+check('verify rejects an invalid token', malformed.ok ? 'ok' : malformed.reason, 'rejected');
+check('verify never echoes the token', JSON.stringify(malformed).includes(TOKEN), false);
+check('verify redacts other tokens Meta quotes', redactToken('bad EAAotherTOKEN0123456789xyz here', TOKEN), 'bad [token] here');
+
+check('verify without a token sends nothing', await createMetaService({ pixelId: '1' }).verify(), {
+	ok: false,
+	reason: 'not_configured'
+});
+
+globalThis.fetch = (async () => {
+	throw new Error('connect ECONNREFUSED');
+}) as typeof fetch;
+check('verify reports an unreachable endpoint', await probe(), {
+	ok: false,
+	reason: 'unreachable',
+	detail: 'Error: connect ECONNREFUSED'
+});
+globalThis.fetch = realFetch;
+
+// --- fbc resolution: the URL's click id must reach Meta untouched ---
+const now = 1700000000000;
+check('fbc keeps the cookie when the URL has no click id', resolveFbc('fb.1.1554763741205.Old', null, now), 'fb.1.1554763741205.Old');
+check('fbc mints from the URL when there is no cookie', resolveFbc(undefined, 'NeW_Click-Id', now), 'fb.1.1700000000000.NeW_Click-Id');
+check('fbc keeps the cookie when it carries the same click id', resolveFbc('fb.1.1554763741205.NeW_Click-Id', 'NeW_Click-Id', now), 'fb.1.1554763741205.NeW_Click-Id');
+check('fbc replaces a cookie from an earlier click', resolveFbc('fb.1.1554763741205.Old', 'NeW_Click-Id', now), 'fb.1.1700000000000.NeW_Click-Id');
+check('fbc treats a case-only difference as a different click', resolveFbc('fb.1.1554763741205.new_click-id', 'NeW_Click-Id', now), 'fb.1.1700000000000.NeW_Click-Id');
+check('fbc is absent with neither', resolveFbc(undefined, null, now), undefined);
+check('fbc keeps a cookie carrying an appendix', resolveFbc('fb.1.1554763741205.Old.AQ', null, now), 'fb.1.1554763741205.Old.AQ');
+for (const bad of ['testclickid', 'fb.1.abc.Old', 'fb.1.1554763741205.', 'fb.1.1554763741205', '']) {
+	check(`fbc drops a malformed cookie "${bad}"`, resolveFbc(bad, null, now), undefined);
+}
+check('fbc mints from the URL over a malformed cookie', resolveFbc('not-an-fbc', 'NeW_Click-Id', now), 'fb.1.1700000000000.NeW_Click-Id');
 
 console.log(failures ? `\n${failures} failure(s)` : '\nAll normalization checks passed.');
 process.exitCode = failures ? 1 : 0;

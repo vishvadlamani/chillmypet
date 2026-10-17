@@ -27,6 +27,10 @@ const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } }
 // fbq.queue where we can assert on it without touching Meta.
 await ctx.route('**/connect.facebook.net/**', (route) => route.abort());
 await ctx.route('**/facebook.com/tr*', (route) => route.abort());
+// And GA4's hits, for the same reason: a test run is not a visit, and the live
+// container would otherwise report one for 127.0.0.1. See tests/e2e.mjs.
+await ctx.route('**/google.com/g/collect*', (route) => route.abort());
+await ctx.route('**/google-analytics.com/**', (route) => route.abort());
 
 const pageErrors = [];
 const page = await ctx.newPage();

@@ -45,8 +45,12 @@ export const CHECKOUT_PAGE: FunnelDefinition = {
 			props: {
 				heading: { $ref: 'copy.shipping' },
 				countries: { $ref: 'markets.names' },
-				// One field that expands into six once an address is chosen.
-				lookup: { countries: { $ref: 'markets.codes' } },
+				// One field that expands into six once an address is chosen — but
+				// only where an address provider is configured. Without one the ref
+				// is absent, the prop drops, and the block renders the plain form
+				// with Country first; a lone search box that can never suggest
+				// anything hides the country select behind a link nobody finds.
+				lookup: { $ref: 'address.lookup' },
 				note: { $ref: 'copy.shippingNote' }
 			}
 		},

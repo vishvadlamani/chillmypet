@@ -83,6 +83,20 @@ export interface PaymentService {
 	 * changes bytes and the signature will never match.
 	 */
 	handleWebhook(rawBody: string, signatureHeader: string | null): Promise<WebhookOutcome>;
+	/**
+	 * Settles an order by asking Stripe what happened, instead of waiting to be
+	 * told.
+	 *
+	 * The webhook is the primary path and stays so, but it is one delivery away
+	 * from silence: an endpoint subscribed to the wrong events, a secret rotated,
+	 * an outage. Nothing about that failure is visible from here — the order
+	 * simply stays `pending_payment` while the card was charged, and a sale that
+	 * never settles is never reported. Call this wherever the customer surfaces
+	 * after paying; it is idempotent, it asserts the same amount the webhook
+	 * does, and it returns `order_paid` only for the call that actually applied
+	 * the change, so the conversion is still reported exactly once.
+	 */
+	reconcile(input: { orderNumber: string }): Promise<WebhookOutcome>;
 	refund(input: {
 		orderNumber: string;
 		amountCents?: number;
@@ -169,6 +183,90 @@ export function createPaymentService(deps: {
 			variantId: Number(r.variant_id),
 			quantity: Number(r.quantity)
 		}));
+	}
+
+	/**
+	 * The one place an order becomes `paid`.
+	 *
+	 * Reached from two directions — a webhook Stripe sent, and `reconcile`
+	 * reading the same fact back off Stripe — so the assertion that the money
+	 * matches the order lives here rather than in either caller. Each path
+	 * passes its own `eventId`, which makes it idempotent against repeats of
+	 * itself; the already-paid check below is what makes the two idempotent
+	 * against each other, so whichever arrives second reports nothing.
+	 */
+	async function settleOrder(input: {
+		orderNumber: string;
+		eventId: string;
+		eventType: string;
+		providerRef: string;
+		paidCents: number;
+		paidCurrency: string;
+	}): Promise<WebhookOutcome> {
+		const { orderNumber, eventId, eventType, providerRef, paidCents } = input;
+		const row = await orderRow(orderNumber);
+		if (!row) return { handled: false, reason: 'order_not_found' };
+
+		const alreadyPaid = String(row.status) === 'paid';
+
+		// The amount is asserted first, and regardless of what the order already
+		// says: a session created elsewhere, or edited, must not be able to settle
+		// an order for less than it costs, and an underpayment is worth refusing
+		// out loud even when it arrives too late to do damage.
+		const expected = Number(row.total_cents);
+		const paidCurrency = input.paidCurrency.toLowerCase();
+		const expectedCurrency = String(row.currency).toLowerCase();
+
+		if (
+			!Number.isFinite(paidCents) ||
+			paidCents !== expected ||
+			(paidCurrency && paidCurrency !== expectedCurrency)
+		) {
+			// Recorded only while the order is still open. Letting a stray
+			// underpayment stamp `amount_mismatch` onto a payment that already
+			// succeeded would make a settled sale look like a failed one.
+			if (!alreadyPaid) {
+				await processOnce(eventId, eventType, async (tx) => {
+					await tx.execute({
+						sql: `update payments set status = 'amount_mismatch',
+						      failure_reason = ?, updated_at = datetime('now')
+						      where store_id = ? and order_id = ?`,
+						args: [
+							`expected ${expected} ${expectedCurrency}, got ${paidCents} ${paidCurrency}`,
+							storeId,
+							Number(row.id)
+						]
+					});
+				});
+			}
+			return {
+				handled: false,
+				reason: 'amount_mismatch',
+				detail: `expected ${expected}, got ${paidCents}`
+			};
+		}
+
+		// Settled already, by the other path. Reporting this as a duplicate rather
+		// than a fresh `order_paid` is what stops one sale becoming two
+		// conversions when a late webhook lands on a receipt-settled order.
+		if (alreadyPaid) return { handled: false, reason: 'duplicate' };
+
+		const applied = await processOnce(eventId, eventType, async (tx) => {
+			await tx.execute({
+				sql: `update payments set status = 'succeeded', provider_ref = coalesce(provider_ref, ?),
+				      updated_at = datetime('now')
+				      where store_id = ? and order_id = ?`,
+				args: [providerRef, storeId, Number(row.id)]
+			});
+			await tx.execute({
+				sql: `update orders set status = 'paid' where store_id = ? and id = ?`,
+				args: [storeId, Number(row.id)]
+			});
+		});
+
+		return applied
+			? { handled: true, eventType, orderNumber, action: 'order_paid' }
+			: { handled: false, reason: 'duplicate' };
 	}
 
 	/**
@@ -330,58 +428,17 @@ export function createPaymentService(deps: {
 			const orderNumber = meta.orderNumber;
 			const sessionOrIntentId = String(object.id ?? '');
 
-			const markPaid = async () => {
-				if (!orderNumber) return { handled: false as const, reason: 'order_not_found' as const };
-				const row = await orderRow(orderNumber);
-				if (!row) return { handled: false as const, reason: 'order_not_found' as const };
-
-				// The amount is asserted, never assumed: a session created elsewhere,
-				// or edited, must not be able to settle an order for less than it costs.
-				const paidCents = Number(object.amount_total ?? object.amount_received ?? NaN);
-				const expected = Number(row.total_cents);
-				const paidCurrency = String(object.currency ?? '').toLowerCase();
-				const expectedCurrency = String(row.currency).toLowerCase();
-
-				if (
-					!Number.isFinite(paidCents) ||
-					paidCents !== expected ||
-					(paidCurrency && paidCurrency !== expectedCurrency)
-				) {
-					await processOnce(eventId, eventType, async (tx) => {
-						await tx.execute({
-							sql: `update payments set status = 'amount_mismatch',
-							      failure_reason = ?, updated_at = datetime('now')
-							      where store_id = ? and order_id = ?`,
-							args: [
-								`expected ${expected} ${expectedCurrency}, got ${paidCents} ${paidCurrency}`,
-								storeId,
-								Number(row.id)
-							]
-						});
-					});
-					return {
-						handled: false as const,
-						reason: 'amount_mismatch' as const,
-						detail: `expected ${expected}, got ${paidCents}`
-					};
-				}
-
-				const applied = await processOnce(eventId, eventType, async (tx) => {
-					await tx.execute({
-						sql: `update payments set status = 'succeeded', provider_ref = coalesce(provider_ref, ?),
-						      updated_at = datetime('now')
-						      where store_id = ? and order_id = ?`,
-						args: [sessionOrIntentId, storeId, Number(row.id)]
-					});
-					await tx.execute({
-						sql: `update orders set status = 'paid' where store_id = ? and id = ?`,
-						args: [storeId, Number(row.id)]
-					});
+			const markPaid = async (): Promise<WebhookOutcome> => {
+				if (!orderNumber) return { handled: false, reason: 'order_not_found' };
+				return settleOrder({
+					orderNumber,
+					eventId,
+					eventType,
+					providerRef: sessionOrIntentId,
+					// A session reports `amount_total`, an intent `amount_received`.
+					paidCents: Number(object.amount_total ?? object.amount_received ?? NaN),
+					paidCurrency: String(object.currency ?? '')
 				});
-
-				return applied
-					? { handled: true as const, eventType, orderNumber, action: 'order_paid' }
-					: { handled: false as const, reason: 'duplicate' as const };
 			};
 
 			const releaseStock = async (
@@ -466,6 +523,52 @@ export function createPaymentService(deps: {
 					// them all would just fill the dedup table.
 					return { handled: false, reason: 'ignored', detail: eventType };
 			}
+		},
+
+		async reconcile({ orderNumber }) {
+			const row = await orderRow(orderNumber);
+			if (!row) return { handled: false, reason: 'order_not_found' };
+			// Already settled, so there is nothing to apply and nothing to report:
+			// whichever path got here first sent the conversion.
+			if (String(row.status) === 'paid') return { handled: false, reason: 'duplicate' };
+
+			const payment = await this.byOrderNumber(orderNumber);
+			const ref = payment?.providerRef;
+			// An order placed with no payment provider, or one whose intent was
+			// never created. There is nothing at Stripe to ask about.
+			if (!ref) return { handled: false, reason: 'ignored', detail: 'no payment reference' };
+
+			// One settlement criterion, whichever path took the money: an intent
+			// Stripe says succeeded, for the amount Stripe says it captured. A
+			// Checkout Session is followed to its intent rather than judged on its
+			// own status, because a session reads `complete` as soon as the
+			// customer finishes the form — including for delayed methods that have
+			// taken nothing yet.
+			let intentId = ref;
+			if (!ref.startsWith('pi_')) {
+				const session = await stripe.getCheckoutSession(ref);
+				if (!session.paymentIntentId) {
+					return { handled: false, reason: 'ignored', detail: `session ${session.status}` };
+				}
+				intentId = session.paymentIntentId;
+			}
+
+			const intent = await stripe.getPaymentIntent(intentId);
+			if (intent.status !== 'succeeded') {
+				return { handled: false, reason: 'ignored', detail: intent.status };
+			}
+
+			return settleOrder({
+				orderNumber,
+				// Stable, and deliberately not shaped like a Stripe event id: reading
+				// the same intent again settles nothing twice, while a real webhook
+				// for this sale stays free to arrive and finds the order already paid.
+				eventId: `reconcile:${intentId}`,
+				eventType: 'reconcile:payment_intent.succeeded',
+				providerRef: intentId,
+				paidCents: Number(intent.amountReceived ?? NaN),
+				paidCurrency: intent.currency ?? ''
+			});
 		},
 
 		async refund({ orderNumber, amountCents, reason }) {

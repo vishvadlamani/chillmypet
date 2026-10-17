@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import PageLayout from '@funnel/core/PageLayout.svelte';
-	import { DR_BLOCKS } from '@funnel/blocks-dr';
+	import { STORE_BLOCKS } from '$lib/store/blocks';
 	import { countryForm } from '@funnel/blocks-dr/subdivisions';
 	import type { FunnelStateAdapter, SubmitFn, TrackFn } from '@funnel/core';
 	import { DEFAULT_SHIPPING_RATES } from 'ecomwithai';
@@ -58,15 +58,34 @@
 	// reason.
 	const bag: Record<string, string> = $state(
 		(() => {
-			if (typeof sessionStorage === 'undefined') return {};
+			// The `typeof` sits inside the try because merely touching the global
+			// throws a SecurityError where the browser blocks site data (Safari's
+			// "Block All Cookies", some in-app browsers). Outside it, that crashed
+			// this component on hydration and took the form fields with it.
 			try {
+				if (typeof sessionStorage === 'undefined') return {};
 				return JSON.parse(sessionStorage.getItem(KEY) ?? '{}');
 			} catch {
 				return {};
 			}
 		})()
 	);
-	const persist = () => sessionStorage.setItem(KEY, JSON.stringify(bag));
+	const persist = () => {
+		try {
+			sessionStorage.setItem(KEY, JSON.stringify(bag));
+		} catch {
+			// Blocked or full: the state still lives in `bag` for this page view.
+		}
+	};
+
+	// The store sells to the US, and a blank country select is a scroll through
+	// two hundred names on a phone. Set before the blocks mount, because the
+	// field group seeds from state once; anyone elsewhere picks their own, and an
+	// autocompleted address overwrites it.
+	if (!bag.country) {
+		bag.country =
+			countryOptions(page.data.locale ?? defaultLocale).find((c) => c.code === 'US')?.name ?? '';
+	}
 
 	const funnelState: FunnelStateAdapter = {
 		begin: () => {},
@@ -233,10 +252,59 @@
 		cardUnavailable = api === null;
 	}
 
-	let checkoutTracked = false;
+	/**
+	 * One InitiateCheckout per checkout started, not per view of this page.
+	 *
+	 * The guard here used to be a plain `let`, which lives exactly as long as one
+	 * component mount — while the cart it describes sits in localStorage and
+	 * outlives every one of them. So a reload, a back-navigation, and the bounce
+	 * back from Stripe's hosted page (`/checkout?cancelled=`) each reported a
+	 * fresh checkout start on the same unchanged cart, several times over for
+	 * every real one. A campaign optimising on InitiateCheckout then bids against
+	 * a number that is mostly one shopper reloading.
+	 *
+	 * Keyed on what is in the cart and held in sessionStorage instead: re-entering
+	 * this page with the same lines is the same start and stays silent, while a
+	 * genuinely different cart — a second order after one completes, a bundle
+	 * swapped on the product page — is a new start and fires. A new session fires
+	 * again too, which is right: someone coming back tomorrow to finish is
+	 * starting checkout, not continuing this one.
+	 */
+	const INITIATED_KEY = 'checkout-initiated';
+
+	const cartSignature = (lines: PricedLine[]): string =>
+		lines
+			.map((l) => `${l.variantId}:${l.quantity}`)
+			.sort()
+			.join(',');
+
+	// Private mode and a full quota both throw on these. Reporting the event twice
+	// costs a duplicate; refusing to report it loses the event outright — so a
+	// storage failure falls through to firing, which is the behaviour this
+	// replaced.
+	function alreadyInitiated(signature: string): boolean {
+		try {
+			return sessionStorage.getItem(INITIATED_KEY) === signature;
+		} catch {
+			return false;
+		}
+	}
+
+	function markInitiated(signature: string): void {
+		try {
+			sessionStorage.setItem(INITIATED_KEY, signature);
+		} catch {
+			// Nothing to recover: the next mount fires again.
+		}
+	}
+
 	$effect(() => {
-		if (checkoutTracked || !priced || priced.lines.length === 0) return;
-		checkoutTracked = true;
+		if (!priced || priced.lines.length === 0) return;
+		const signature = cartSignature(priced.lines);
+		if (alreadyInitiated(signature)) return;
+		// Marked before firing, so an effect that re-runs on the same cart while
+		// these calls are in flight cannot get past the check above.
+		markInitiated(signature);
 		pixel('InitiateCheckout', {
 			content_type: 'product',
 			content_ids: priced.lines.map((l) => l.sku),
@@ -250,6 +318,7 @@
 			items: priced.lines.map((l) => ({
 				item_id: l.sku,
 				item_name: l.title,
+				item_variant: variantName(l.colour, l.size),
 				price: amount(l.unitPriceCents),
 				quantity: l.quantity
 			}))
@@ -367,6 +436,15 @@
 	function colourName(code: string): string {
 		return t(`product.colors.${code}` as never);
 	}
+
+	/**
+	 * GA4's `item_variant`, from the option codes rather than their translated
+	 * names: "red_santa / M" reads the same in every locale, so a report split
+	 * by variant doesn't also split by language.
+	 */
+	function variantName(colour: string, size: string): string {
+		return [colour, size].filter(Boolean).join(' / ');
+	}
 </script>
 
 <svelte:head>
@@ -405,7 +483,7 @@
 		<PageLayout
 			definition={data.definition}
 			version={data.version}
-			components={DR_BLOCKS}
+			components={STORE_BLOCKS}
 			{track}
 			{submit}
 			state={funnelState}
@@ -437,6 +515,7 @@
 					items: (priced?.lines ?? []).map((l) => ({
 						item_id: l.sku,
 						item_name: l.title,
+						item_variant: variantName(l.colour, l.size),
 						price: amount(l.unitPriceCents),
 						quantity: l.quantity
 					}))

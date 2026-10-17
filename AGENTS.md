@@ -10,6 +10,8 @@ packages/ecomwithai/    the open-source framework — EDIT HERE
 packages/funnel-core/   block runtime: manifests, $ref binding, page layout
 packages/blocks-dr/     direct-response block library — A COPY, see below
 apps/storefront/        BFF: SvelteKit UI, language packs, routes
+landing/                static Payment Link pages on Cloudflare Pages, outside the store:
+                        christmas-pouch-hoodie (live), pouch-pet-hoodie (redirects to it)
 ```
 
 `packages/ecomwithai` is the editable copy of the framework, and the public repo
@@ -98,11 +100,20 @@ events only, which is the half that iOS and ad blockers eat, and Purchase is
 the event that dies most. This was live for a month with the ad account's pixel
 in the extras list: the campaign reported no conversions the whole time, while
 the unused pixel collected clean server-side data. If you change
-`META_PIXEL_ID`, generate a matching token for that dataset in the same change.
+`META_PIXEL_ID`, generate a matching token for that dataset in the same change,
+and run `npm run meta:check` to prove the token reaches it. `deploy.yml` runs the
+same check before every build, against the repository secret.
 Neither failure is loud: with no token `send()` returns `not_configured` and
 posts nothing, and with a token belonging to another dataset Meta rejects the
 event — both only reach `console.error`, because tracking must never fail an
 order. Events Manager, not the logs, is where you notice.
+
+The roster now reads `META_PIXEL_ID = 1341978141149107` (ad account
+`1550461850095009`, portfolio "Vish Ads") and nothing else.
+`META_EXTRA_PIXEL_IDS` is set, and empty: the retired CZK account's
+`1363695699271757` was removed on 2026-10-11, and an unset variable would fall
+back to the database setting, which may still list it. `wrangler.toml` carries the
+full which-id-is-whose table — read it before touching any of these numbers.
 
 **The dataLayer is the container's whole view of the app.** GTM tags cannot
 reach into the store, so `$lib/analytics/datalayer.ts` pushes GA4 ecommerce
@@ -123,6 +134,32 @@ runs with the same reach as this codebase, by whoever holds container access —
 and a Meta pixel published in it would double-count against the ones the
 snippet already initialises.
 
+What the container holds, as published on 2026-10-08:
+- A GA4 Google tag for `G-YCFPQ38SXP`, which sends page_view.
+- A GA4 event tag that forwards every dataLayer event and carries
+  `transaction_id`, `event_id` and the `_fbp`/`_fbc` values. Its
+  `transport_url` is empty, so there is no server-side GTM.
+- One **paused** custom-template tag. Leave it paused unless you know it is not
+  a Meta tag.
+
+**Google tag gateway runs through Cloudflare on the path `/qndl`** (set up
+2026-10-08 in Vish's Cloudflare account). GA4 hits go first-party to
+`chillmypet.com/qndl/ga/g/c` instead of google-analytics.com, which ad
+blockers and Safari's tracking prevention leave alone. The container itself
+loads from there too: `GTM_GATEWAY_PATH = "/qndl"` in `wrangler.toml` makes the
+snippet request `/qndl/gtm.js`, so a blocker aimed at googletagmanager.com no
+longer stops GA4 before it starts. If that request errors, for example because
+someone removed the route in Cloudflare (a setting, invisible from this repo),
+the snippet loads googletagmanager.com instead, in the same page view, and
+`gtm.js` is pushed only once. Verified in Chromium for gateway up, gateway
+down and no gateway. Staging omits the variable because it has no gateway. The
+noscript iframe stays on Google, since the gateway does not serve `ns.html`.
+If the path ever changes in Cloudflare, change the variable with it.
+
+`tests/e2e.mjs` fails "no pixel is initialised twice" if a Meta tag is ever
+published in the container again. Locally the GTM checks need the dev server
+started with `GTM_CONTAINER_ID=GTM-T446VNH9`: the seed sets no container.
+
 **Every browser event has a server copy, and they share an `event_id`.**
 `track()` mints one id, hands it to `fbq` as `eventID`, and posts the same id to
 `/api/track`, which sends the Conversions API copy using the cookies, address
@@ -135,39 +172,87 @@ goes missing to iOS and ad blockers is the one worth having. `/api/track`
 refuses `Purchase` and ignores any `user_data` in its body: a sale is reported
 from the order, and a public endpoint must not be able to claim identity.
 
-**`fbc` and `fbp` come from Meta's Parameter Builder, once per request.**
-`$lib/server/meta-browser-ids.ts` runs `capi-param-builder-nodejs` in
-`hooks.server.ts` before `resolve`, writes `_fbc`/`_fbp` back as first-party
-cookies, and puts the values on `locals.metaBrowserIds`; every CAPI call reads
-them through `attributionFrom`. Two diagnostics drove this. Click ID coverage
-sat at 10%, because `_fbc` only existed if `fbevents.js` ran on the landing URL,
-so an ad blocker, ITP or a beacon that beat the script lost the click for the
-whole visit. And Meta flagged our `fbc` as a "modified fbclid". The builder
-appends a tag naming itself, and that is how Meta knows the click id arrived
-intact. Send its values verbatim: no re-minting from `fbclid`, no
-percent-encoding (the cookie is written with an identity `encode`), and keep
-`url.search` on any redirect a landing URL can hit.
+**The SSR PageView's server copy needs the browser's ids before the browser has
+them.** It leaves before `fbevents.js` has run, so on a first visit there is no
+`_fbp` yet, and on an ad click the pixel mints `_fbc` at a different millisecond
+from the server. `seedMetaCookies()` in `hooks.server.ts` writes both on GET
+requests that accept `text/html`, before `resolve` (SvelteKit puts cookies on the
+response inside it). The pixel adopts a well-formed cookie it finds, so both
+halves carry the same `fbp`/`fbc` from the first request. The same check keeps
+the server PageView to real page loads, and only on a 200. Crawlers (Meta's own
+fetches every ad's landing page), monitors, scripts and the scanners probing
+`/wp-login.php` read the HTML without ever running the pixel, so each one was a
+server-only PageView matched on an IP and a user agent. The dataset showed it:
+10.4K PageViews against 89 ViewContents on a site whose landing page fires
+ViewContent on every view, at a 3.2/10 match quality. `NON_BROWSER` must never
+match the Facebook and Instagram in-app browsers (`FBAN`, `Instagram`), which
+is where every ad click opens.
 
-**A buyer stays matchable after their order.** Only Purchase carries a name,
-email or address, so every PageView from someone who had already bought went to
-Meta with cookies alone, and Events Manager flagged Last Name coverage on
-PageView at 4.55%. `placeOrder` now calls `rememberBuyer` (in
-`$lib/server/meta-identity.ts`) once the order commits and before payment, so
-the receipt is already covered. It writes the SHA-256 match keys into the
-httpOnly `cmp_mk` cookie. `hooks.server.ts` reads them into
-`locals.metaMatchKeys`, passes them to `fbq('init', id, keys)` (the pixel
-accepts hashes as-is) and to the server PageView, and `/api/track` adds them
-to every mirrored event. They go to the CAPI layer as `matchKeys`. A raw field
-on the same event wins over its key, so Purchase still matches on the order
-itself. Hashes only: never put a raw value in that cookie. And the keys are
-validated as 64 hex characters before they reach the inline script, which is
-the only thing keeping a forged cookie from becoming markup. Coverage cannot
-reach 100%: a visitor who has never ordered has no name to send.
+**Don't put `original_event_data` on a live event.** It describes the past
+acquisition a *delayed* event belongs to, and it has its own `event_id` that
+Meta dedupes on. The framework sent it on every event, without that id, from
+the first commit, and Events Manager reported 0% of server PageViews carrying an
+event ID and 0% browser/server coverage on dataset `1341978141149107`, even
+though the top-level `event_id` was correct the whole time. It now goes out only
+beside `attribution_data`, and then it carries the same id. `hash.test.ts` pins
+both. That fix reached `main` on 2026-10-10 but chillmypet.com only on
+2026-10-11 at 22:24 UTC (`/_app/version.json` gives a deploy's build time), so
+Meta's 7-day figures span both sides of it until about 2026-10-19.
+
+**When Events Manager says server events have no dedupe key, check delivery
+before the payload.** On 2026-10-11 it reported, for ViewContent on
+`1341978141149107`, 0% of server events with an event ID and 0% coverage. Every
+sender was checked against that: the storefront's `track()` → `/api/track`, the
+Christmas page's `xmasTrack` → `/api/event`, and the hoodie page's, all put the
+browser's `eventID` on the server copy as `event_id`, and the live Christmas
+files were byte-identical to the repo. Nothing else posts to the dataset: no
+Zaraz, no server-side GTM (the container's GA4 tag carries an `event_id` for
+GA4 only). A correct payload reading as 0% means old events in the window, or
+server events not arriving at all. In that order:
+
+1. `GET /api/meta-status` on chillmypet.com and on the Christmas page. Each asks
+   Meta, with an empty batch, whether *that deployment's* token may post to its
+   dataset, which is the token nobody can read back. `accepted` (200) or not
+   (503, with Meta's reason, token redacted). Cached five minutes per isolate.
+2. `npm run meta:dedupe`, or the "Meta deduplication report" workflow in
+   Actions: Meta's own per-event figures from the Dataset Quality API, against
+   the goals of 95% of server events with `event_id` and 75% coverage.
+3. Coverage is a 7-day average, so after a fix, wait the week.
+
+Coverage also counts browser events whose server copy never left. The
+Christmas page's `xmasTrack` holds each copy up to 3 s for `_fbp`, and a visitor
+who left in that window took it with them. Driven in Chromium with Meta's script
+blocked and the page left after 500 ms, that was 0 of 2 server copies for a
+PageView and ViewContent the pixel had fired. Waiting copies now go out on
+`pagehide`/`visibilitychange`, which gives 2 of 2 under the same event ids and
+still one copy each on a longer visit.
+
+**`fbc` follows the page's `fbclid`, not the cookie, when the two disagree.**
+A returning visitor lands from a new ad with the previous click still in
+`_fbc`, and Meta's script only rewrites it after the server copy has gone out.
+Sending the stale value next to an `event_source_url` that carries the new one
+is what Events Manager flags as "modified fbclid" — on PageView and ViewContent,
+the landing-page events. `resolveFbc()` mints from the URL in that case and
+otherwise passes the cookie through byte for byte; never lowercase, trim or
+re-encode either. A cookie not shaped `fb.N.<ms>.<id>` is dropped rather than
+sent. `/api/track` reads the click id off the body's `eventSourceUrl`, because
+the beacon's own URL never has one. `tests/payment-flow.mjs` replays a stale
+cookie against a new click through both paths.
 
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires
 from the Stripe webhook and the browser event from the success page, two requests
 that cannot pass a value to each other. Break that and every sale counts twice.
+
+**InitiateCheckout counts checkouts started, not views of `/checkout`.** Its
+guard is keyed on the cart's contents and kept in `sessionStorage`, because the
+cart it describes lives in `localStorage` and outlives the page. A plain
+per-mount `let` was there first, and it counted a reload, a back-navigation and
+the bounce back from Stripe's cancel url as fresh starts on an unchanged cart —
+which is how the dataset came to hold roughly six InitiateCheckouts for every
+AddToCart, a ratio no real funnel produces. Re-entering the page with the same
+lines stays silent; a genuinely different cart, or a new session, fires again.
+`tests/e2e.mjs` reloads `/checkout` and asserts nothing fired.
 
 **A discounted order needs a coupon on the Stripe session.** Line items sum to
 subtotal plus shipping, and `handleWebhook` asserts the session total equals the
@@ -201,6 +286,43 @@ surfacing them. Do not move it inside the try block that owns the order.
 only sent as 2-letter codes — truncating "Texas" to "te" hashes to a value that
 matches nobody. `hash.test.ts` pins these rules.
 
+**Every event names the visitor with one `external_id`, and it is 64 hex
+characters on purpose.** `ensureVisitorId()` in `$lib/server/purchase.ts` mints
+a random id into the httpOnly `cmp_vid` cookie in `hooks.server.ts`, before
+`resolve()`. The same string goes onto every `fbq('init', …)` and onto every
+Conversions API copy, so Meta can tie a ViewContent, an InitiateCheckout and the
+Purchase to one person on a landing page where nobody has typed an email yet.
+Events Manager asked for exactly that coverage on ViewContent. The shape is what
+makes the two halves agree: the pixel sends a value that looks like a SHA-256
+digest as it is and hashes anything else, and `buildUserData` follows the same
+rule. Change the id to a UUID and the browser copy carries its hash while the
+server copy carries something else, and they stop matching without any error.
+The id is random, never derived from the person. Like `_fbp`, it is an
+advertising identifier: the consent gate (Not built, below) has to hold this
+cookie back too. The Christmas page (`landing/`) mints the same cookie in
+`pixel.js`.
+
+**The webhook's Purchase carries the buyer's address and user agent through
+Stripe.** The webhook is a request from Stripe, so it has none of the customer's
+cookies, IP or user agent. `attributionMetadata()` packs `fbp`, `fbc`,
+`external_id`, `client_ip` and `client_ua` from the checkout request into the
+intent or session metadata, and `attributionFromMetadata()` unpacks them for the
+Purchase. Before this the Purchase went out with no `client_user_agent`, which
+Meta lists as required for website events. Such events are accepted but may not
+be used for optimisation, and Events Manager scored Purchase's match quality at
+0. Stripe refuses a whole request when any metadata value is over 500
+characters, so a longer value is left out rather than failing a checkout. Any new
+path that creates an intent or session must pass this metadata too. The hosted
+fallback in `/api/checkout/session` was missing it.
+
+**A returning shopper's events carry their email and phone too.**
+`$lib/server/identity.ts` keeps `cmp_em` and `cmp_ph`: SHA-256 digests of the
+email and phone a shopper gave at checkout, written by the checkout action and
+never by `/api/track`, so the next visit's PageView and ViewContent carry them.
+`buildUserData` passes a 64-hex value through untouched; hash it again and it
+matches nobody. Phones get a calling code (`withCallingCode`) before hashing, in
+the cookie and on Purchase alike, or the same person hashes two ways.
+
 ## Gotchas that already cost debugging time
 
 **`waitUntil` must be called as a method.** `const w = platform.context.waitUntil`
@@ -227,6 +349,28 @@ trailing-slash-only pattern.
 deliberately idempotent because `persist()` reads `lines`; an unconditional
 write re-triggered the effect calling it. `effect_update_depth_exceeded` in the
 console means you've done this somewhere.
+
+**A Stripe → Meta "partner integration" double-counts every sale, and it is
+not ours to switch on.** Stripe can post Purchase events straight to a Meta
+dataset. It sounds like free redundancy and is the opposite: Meta dedupes on
+`event_id`, this app derives Purchase's from the order number via
+`purchaseEventId()`, and Stripe mints its own — different ids, so no dedupe, so
+every sale counts twice and the ad account optimises against inflated numbers.
+It was worse while payments ran through a Stripe account shared with another
+business: such a connection would also have reported **their** sales as
+ChillMyPet conversions. Payments are on ChillMyPet's own account now (see
+Payments below), but the double-count is unchanged. Conversions come from this
+codebase, from the webhook, on `action === 'order_paid'`. If you find one of
+these connected, disconnect it at the Stripe end rather than filtering at the
+Meta end.
+
+**It applies to the Payment Link pages too.** `acct_1U3NewJOsB1nguzl`
+("ChillMP") is the storefront's account and also the Christmas page's, which
+charges through Payment Links and reports its own Purchase twice under one id,
+the Checkout Session id: from `landing/christmas-pouch-hoodie/thank-you.html`
+in the browser and from its `_worker.js` webhook on the server. An integration
+would mint a third id for the same sale, and nothing dedupes it. The hoodie
+page did the same until it went off sale on 2026-10-09.
 
 **Don't delete `local.db` while the dev server is running.** It holds the file
 handle, keeps writing to the unlinked inode, and you'll chase phantom failures.
@@ -356,6 +500,24 @@ browser. Without `GOOGLE_PLACES_API_KEY` it degrades to manual entry, and in dev
 serves a small Canadian fixture — deliberately, because a missing env var must
 not take checkout down.
 
+**Production has no Places key, so the checkout shows the plain address form.**
+The manifest's `lookup` is a ref (`address.lookup`) that the checkout loader
+only provides with a key or in dev. It used to be unconditional: with no key
+the page offered one "Start typing your address" box that could never suggest
+anything, and the country select stayed hidden behind an "Enter address
+manually" link that only appeared after three characters. The country now
+starts on United States and can be changed; e2e and store tests run in dev, so
+they still drive the lookup path against the fixture.
+
+**Never touch `sessionStorage` or `localStorage` outside a try.** Where a
+browser blocks site data (Safari's "Block All Cookies", some in-app browsers)
+even `typeof sessionStorage` throws a SecurityError. Both block pages read
+their state bag at component init, and until 2026-10-16 the `typeof` sat
+outside the try: the product page crashed on hydration (no size, no Add to
+cart) and the checkout lost its form fields. The cart already caught its own
+errors; with storage blocked it lives in memory, which survives the client-side
+navigation from product page to checkout.
+
 ## Adding things
 
 **A language:** drop `apps/storefront/src/lib/i18n/locales/<code>.json` next to
@@ -365,9 +527,41 @@ packs**: titles and descriptions live in `product_translations` and the FAQ in a
 `content.faq` metafield, both per locale, so add a row in the seed for the new
 locale too.
 
+**A product:** a definition in `apps/storefront/scripts/<slug>.js` (the
+`ProductDefinition` shape in `catalog.js`: translations, options, media,
+variants, metafields), listed in `scripts/products.js`; a manifest in
+`$lib/store`, mapped in `pages.ts`; photos under `static/products/<slug>/`;
+and a browser test like `tests/christmas-hoodie.mjs`. The seed writes it on a
+fresh database, the Worker adds it to a live one, and `check-live.js` fails the
+deploy if its page does not answer. Nothing else to register: the header reads
+the catalogue.
+
 **A store:** `SEED_STORE_ID=x SEED_STORE_DOMAIN=x.com npm run db:seed`, then add
 the domain to `apps/storefront/wrangler.toml`. One Worker serves all tenants;
 the `Host` header picks which. No code change.
+
+**A different ad account:** the store reports to whichever dataset
+`META_PIXEL_ID` names, so moving accounts is config plus one secret, in this
+order. Do it in this order or the store spends the gap reporting nothing.
+
+1. In Events Manager, find the dataset the new ad account optimises against.
+   Meta merged "pixel" and "dataset" into a single object, so that one id is
+   both — a dataset showing no connected pixel is not missing one, it just has
+   never been sent a browser event.
+2. On that dataset: Settings > Conversions API > **Generate access token**.
+3. `npx wrangler secret put META_CAPI_ACCESS_TOKEN` on **both** `chillmypet` and
+   `chillmypet-staging`.
+4. Move the outgoing id into `META_EXTRA_PIXEL_IDS` and put the new one in
+   `META_PIXEL_ID`, in `wrangler.toml` and in `seed.js`'s `SETTINGS`. Demote,
+   don't delete: an old pixel costs nothing and its history stays warm.
+5. Deploy staging, place a test order, and confirm in Events Manager > Test
+   Events that Purchase arrives **twice over** — once `Browser`, once `Server`,
+   collapsed into one event. One copy alone means the token and the id disagree.
+6. Check domain verification separately. `meta_domain_verification` in `seed.js`
+   holds one token, and a domain verifies to **one** business portfolio at a
+   time — so moving to an account under a different portfolio may need the
+   domain released from the old one and re-verified, which is what Aggregated
+   Event Measurement needs to attribute at all. The meta tag changes with it.
 
 **A domain module:** create `packages/ecomwithai/src/<name>/index.ts` exporting
 an interface plus a `create<Name>Service({ db, storeId })` factory, add a subpath
@@ -392,6 +586,130 @@ page the campaign lands on and `/checkout` is where it pays. The bundle picker
 adds real cart lines, the checkout prices through `/api/cart`, the Payment
 Element mounts under the shipping method, and Place order runs `placeOrder`.
 
+`/products/christmas-pouch-hoodie` is the second product page, built the same
+way with three differences worth knowing:
+
+- **The buyer picks the size.** `PRODUCT_PAGES` entries carry `pickSize`. Off
+  (the life jacket), the host buys the first size in stock in the chosen
+  colour; on (the hoodie, sized for the *wearer*), the host refuses to add
+  anything until a size is chosen and asks the picker to prompt instead. The
+  design fills option 1, the slot the cart and checkout call `colour`, so
+  nothing downstream changed. Its codes have entries under
+  `product.colors.<code>` in both language packs, or the checkout prints the key.
+- **Its blocks are the host's.** `design_size_picker`, `design_gallery`,
+  `size_guide` and `benefit_cards` live in `$lib/blocks` and are registered in
+  `$lib/store/blocks.ts`, not in `packages/blocks-dr` (a copy). The picker and
+  gallery share the choice through funnel state (`design`, `size`), and the
+  host writes `size_prompt` when someone taps buy without a size.
+- **A Christmas skin, scoped to the page** (`theme: 'christmas'`): Fredoka,
+  the navy/teal/orange brand colours as working colours, red/pine/snow as
+  accents, snowfall that stops under `prefers-reduced-motion`. The "order by"
+  strip reads `CHRISTMAS_DELIVERY.cutoff` in `$lib/store/christmas.ts`, a
+  config value that `christmas.test.ts` re-derives from the shipping promise
+  (4 business days + 12 days, worst case) and that a `christmas_cutoff` store
+  setting overrides without a deploy. Once the date has passed the strip drops
+  out through `requires`.
+
+The product itself is `scripts/christmas-hoodie.js`, listed in
+`scripts/products.js`. `db:seed` writes it on a fresh database. A live one
+gets it from **the Worker itself**: `$lib/server/catalogue.ts` runs once per
+isolate, on the first request after a deploy, handed to `waitUntil` so it
+never sits on a request's path. It reads `sqlite_master` once and runs
+`applySchema` only when a table or index is missing, then adds every product
+in `products.js` the store lacks, and never rewrites one it has.
+`npm run db:products` is the same list, run by hand. A new product goes on
+that list in the same change as its manifest in `pages.ts`.
+
+`/products/dog-christmas-costume` is the third product page: a hooded tree
+cape for small dogs and cats, red or green, S–L **by the pet's weight**. It is
+the hoodie's page with the hoodie's rules (`pickSize: true`, `theme:
+'christmas'`, the real delivery cut-off, no countdown chips, no stock bar, no
+was-price, no reviews), defined in `scripts/dog-christmas-costume.js` and
+listed in `products.js`, so the Worker adds it to the live store on the first
+request after the deploy and `check-live.js` proves the page answers.
+`tests/dog-christmas-costume.mjs` drives it to a placed order. Three things to
+know:
+
+- **The size guide's columns follow the product.** `sizeGuideTable()` in
+  `$lib/store/garment-sizes.ts` reads `specs.size_chart` and emits a table
+  whose columns are what the rows carry: chest and length for a person's
+  garment, weight bands for a pet's costume, plus neck and back length the
+  moment a costume row carries `neckCm` or `backLengthCm`. The costume ships
+  the supplier's weight bands and nothing else — never fill in another
+  seller's measurements.
+- **The price is a placeholder.** $28.50 is the reference store's figure
+  (pawlidaypets.com, whose page has no copy and gave none). It has no
+  compare-at on purpose. Change it in the script and the live store needs a
+  catalogue migration — `products.js` is additive and never rewrites a row.
+- **It looks like littletreepups.com, on the owner's instruction.** Done on
+  2026-10-16 from that page's measured styles: the `tree` theme in
+  `pages.ts` (not `christmas`), `$lib/styles/tree-theme.css` for the cream
+  and pine palette, Poppins, the hairline accordions and the site chrome
+  (`+layout.svelte` adds `tree-chrome` and lifts the page's delivery strip
+  above the header, hiding the in-page copy, so it stays one strip), plus
+  opt-in looks on the shared blocks: `design_gallery` `hint` (plain frame,
+  "Swipe to explore 1 / 5"), `design_size_picker` `look: 'pills'` (pills,
+  bundle cards, full-width pine button), `size_guide` `look: 'band'`. The
+  hoodie sets none of these and renders as before. `story`, `photo_pair` and
+  `closing_cta` are host blocks used only here. Only the look came across:
+  none of that shop's words, photos, ratings, struck prices or pre-ticked
+  add-ons.
+- **The bundle cards are the store's real quantity breaks.** They read
+  `bundles.plain` (the tiers without the undiscounted "was" total) and say
+  their saving in words. Every unit in a bundle is the colour and size
+  picked; the host adds `units` of that variant, and the server applies the
+  break at `/api/cart` and on the order, as for any cart. The chosen tier
+  lives in funnel state as `costume_bundle`, not `bundle`, so a 3-pack chosen
+  on the life jacket cannot carry over, and the sticky bar reads the same
+  field so it shows and buys what the cards show.
+- **Colour fills the design slot.** The picker's `designLabel` reads "Colour",
+  its codes are `red` and `green`, which both language packs already name,
+  and `item_variant` reaches GA4 as `green / M`. SKUs are `CMP-XT-<COLOUR>-<SIZE>`
+  (XT: Xmas tree), beside the hoodie's `CMP-XH-`.
+
+That was chillmypet.com's state on 2026-10-12: the live Worker answered `No
+product at "christmas-pouch-hoodie"` — the manifest's own 404 reads `No page
+manifest` — so the code had shipped and the row had not, and the ads kept
+landing on the Payment Link page instead. `deploy.yml` was meant to run
+`db:migrate` and `db:products` first, but that needs the database's token as
+a repository secret, and the repository's owner does not hold it: the Turso
+account is Vish's. So the step skipped, and once a token for another database
+was saved under that name it failed with a 401 and blocked the release
+instead. The Worker holds the right token because it serves every page from
+that database, which is why the sync lives there now. Three things keep code
+and rows together. The Worker's sync. `deploy.yml`, which after the deploy
+runs `scripts/check-live.js` to fetch every product page on chillmypet.com
+and fails the run if one is not a 200 within four minutes, so code without a
+row is a red run rather than a quiet 404. And the site header, built from
+the catalogue (`+layout.server.ts`): it links to every product that has both
+a row and a manifest, so a product missing from the live database is a
+missing link, never a dead one — and a product reachable only by typing its
+URL, which is what the hoodie was, cannot happen again.
+
+**Where the Christmas ads should land, decided 2026-10-12:**
+`/products/christmas-pouch-hoodie` on chillmypet.com, once its row is in the
+live database. The reasons, in order of weight for an audience that is mostly
+women 55+ on the Facebook app: the brand's own domain in the address bar
+instead of `pages.dev`; a real cart, so AddToCart, InitiateCheckout,
+AddPaymentInfo and Purchase are four separate signals instead of two fired in
+the same tap; Apple Pay, Link and Klarna inline on the one checkout page; an
+order row, the admin queue and the confirmation email; and every fbc, dedupe
+and webhook guarantee in this file. The Payment Link page keeps selling until
+the owner changes the ad's destination in Ads Manager, and that change waits
+on three checks: the page answers 200 on chillmypet.com, `/api/meta-status`
+reads `accepted`, and one real order has been placed and refunded.
+
+**The Pouch Pet Hoodie has no product page here yet.** It sells from the
+landing page in `landing/pouch-pet-hoodie/` (chillmypet-hoodie.pages.dev,
+on the Cloudflare account its README names), through a Stripe Payment Link on
+ChillMP, so its orders never reach the database. The link has a required Size
+field but no colour field: the colour travels as `client_reference_id` (black,
+gray, pink, cream) and is only visible on the order in Stripe. An earlier
+`/products/pouch-pet-hoodie` built on the old colour-and-size dropdown was set
+aside when the design-and-size picker replaced it; it is in the history of
+`$lib/store/hoodie-manifest.ts` and `scripts/hoodie.js`. Rebuild it on the
+Christmas page's blocks, not from that.
+
 ⚠️ **The invented reviews do not ship, and that is deliberate.** The 22
 testimonials that came with the block library are written words attributed to
 named people who never said them, the 4.9-from-1,127 rating was never counted,
@@ -405,10 +723,26 @@ Put real customer text in those arrays and flip it, and the rating, the hero
 quotes and the wall all come back. Do not flip it to make the page look
 fuller.
 
-Meta tracking is **fully live**: the browser pixel and the Conversions API both
-fire, deduplicated on `event_id`. The CAPI token is set on both Workers and was
-verified end to end against Meta's real API — payload built by the framework,
-`events_received: 1`, no warnings. Note the token's `debug_token` scopes read
+Meta tracking is **built and proven, and mid-move between ad accounts.** The
+browser pixel and the Conversions API both fire, deduplicated on `event_id`, and
+the whole path was verified end to end against Meta's real API — payload built
+by the framework, `events_received: 1`, no warnings.
+
+⚠️ **Whether each site's token is for this dataset has never been confirmed.**
+The config has pointed at dataset `1341978141149107` since 2026-09-16, but the
+token on the Workers was generated for the retired `1363695699271757`, and
+nothing records it being replaced; the Christmas page's token was only ever
+proven to *exist*. A token is scoped to one dataset, so a stale one means every
+server event is refused, silently, into `console.error`, while browser events
+keep arriving. Check it, don't assume it: open
+`https://chillmypet.com/api/meta-status` and
+`https://chillmypet-christmas.pages.dev/api/meta-status` (see "When Events
+Manager says server events have no dedupe key" above). Anything but
+`"server_events": "accepted"` means: generate a token for `1341978141149107`
+(Events Manager → the dataset → Settings → Conversions API → Generate access
+token), `wrangler secret put META_CAPI_ACCESS_TOKEN` on `chillmypet` and
+`chillmypet-staging`, set it on the Pages project, and update the repository
+secret. Note the token's `debug_token` scopes read
 `read_ads_dataset_quality` only and a `GET /{pixel_id}` returns "Missing
 Permission"; that is expected. Posting to `/{dataset_id}/events` is a
 dataset-level grant, separate from the pixel-read scope, so don't take a failed
@@ -431,11 +765,30 @@ passed to `elements()` in the browser. Restricting only the intent changes what
 can be charged, not what is shown — which is exactly how Amazon Pay survived
 being turned off once already.
 
-Which methods appear is scoped by `STRIPE_PAYMENT_METHOD_CONFIGURATION`
-(`pmc_1U3QlJBbNuiab9E2mZmVymgE` — card, Apple Pay, Google Pay, Link, Cash App;
-Amazon Pay off). Do **not** change the account default instead: the Stripe
-account is shared with another business, and its default configuration is
-theirs.
+Which methods appear is scoped by `STRIPE_PAYMENT_METHOD_CONFIGURATION`, and on
+production it is deliberately **unset**: both call sites then fall back to the
+account's own default, `pmc_1U3NfSJOsB1nguzljz7ADcR4`, which is ours to edit in
+Stripe → Settings → Payment methods. That is where to switch a method on or
+off, not here. As of 2026-10-07 it has card, Apple Pay, Link and Klarna on for
+USD buyers (Bancontact, BLIK, EPS, MB Way, Pix and Satispay are also on but only
+show in their own currencies) and **Google Pay off** — it was on under the old
+account, so Android shoppers lost it in the move. Redirect methods such as
+Klarna work because `CardFields` confirms with a `return_url` and
+`redirect: 'if_required'`.
+
+A wallet needs the domain as well as the configuration. Read through the
+Stripe API on 2026-10-12: `chillmypet.com` and `www.chillmypet.com` are
+registered payment method domains on ChillMP with Apple Pay, Google Pay, Klarna
+and Link active, so Apple Pay really does render in the Payment Element on an
+iPhone, and Google Pay is off only because the configuration says so. The
+`payment_badges` row on both product pages shows Apple Pay beside the cards for
+that reason, and `tests/christmas-hoodie.mjs` asserts Google Pay's badge stays
+absent — add it to both manifests only after turning the method on in Stripe.
+
+Do **not** use `pmc_1UGKEnJOsB1nguzl8TDgEoLT`, even though the dashboard API
+lists it as a "Default". It belongs to a connected application
+(`ca_Swgjj07BVs6HeEHEehhBS5taE2VK9Tcj`), not to the account, and this app's own
+keys are not entitled to it.
 
 The form posts `cardReady`. When Stripe.js could not mount — an ad blocker on
 `js.stripe.com` is the usual reason on paid social — it is `0` and the action
@@ -457,29 +810,152 @@ touch this application. Staging deliberately has **no Stripe keys**, because it
 shares production's database — a card test there would be a real charge. With
 `commerce.payments` null it falls back to the old confirmation screen.
 
-⚠️ **The Stripe account is not ChillMyPet's.** It is `acct_1Au2A6BbNuiab9E2`,
-"Idea to Run" (`me@devyngreen.com`), used with the owner's agreement as a
-temporary arrangement until ChillMyPet has its own. Consequences to keep in
-mind: settlements land in that account, refunds and chargebacks are theirs to
-absorb, and `STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET` exists so buyers recognise
-the charge — that account's own descriptor reads `IDEA TO RUN AI EMPLOYE`. When
-ChillMyPet's own account is ready, swap three secrets and re-point the webhook;
-no code changes.
+**Payments run on ChillMyPet's own Stripe account since 2026-10-07:
+`acct_1U3NewJOsB1nguzl`, "ChillMP".** It is registered in **CZ**, charges USD,
+has charges and payouts enabled, and its own statement descriptor is
+`CHILLMYPET`. Its endpoint for this app is `we_1UFU0bJOsB1nguzl4AwL0RK6` →
+`https://chillmypet.com/api/stripe/webhook`, subscribed to all seven events in
+`README.md` plus `charge.dispute.created` and `radar.early_fraud_warning.created`
+(which the handler acknowledges and ignores). The switch was verified by the
+publishable key the live checkout ships (`pk_live_51U3NewJOsB1nguzl…`) and by a
+signed `customer.created` probe that the live webhook accepted (200, `ignored`)
+while it rejected a wrong secret (400). A real order and refund has not been run
+yet; until one has, treat the end-to-end path as unproven.
+
+Before that, from launch to 2026-10-07, payments ran on a **borrowed account**:
+`acct_1Au2A6BbNuiab9E2`, "Idea to Run", used with its owner's agreement. Every
+order paid before the switch settled there, so **refunds and chargebacks for
+those orders still happen in that account**, not ChillMP, and that account's
+webhook (if it still points here) now fails our signature check. A refund
+issued there will not release stock or mark the order refunded here.
+
+**Stripe embeds the account in its object ids, so an id from one account is
+meaningless on another.** The account id and every object minted on it share a
+fragment: `JOsB1nguzl` for ChillMP, `BbNuiab9E2` for the old account. That is
+also the fastest way to tell from outside which account the live site uses:
+look for the fragment in the checkout page's `pk_live_`. On a key that predates
+the format, look at any `pmc_` id on the page. A leftover id from the old
+account is the one value that fails at the customer, not in a log. It happened
+during this switch, for about a minute: the new keys were live while
+`STRIPE_PAYMENT_METHOD_CONFIGURATION` still named the old account's
+configuration.
+
+**The swap is configuration, not code, and it is four secrets, not three.**
+They live on the `chillmypet` Worker (Cloudflare → Workers & Pages → chillmypet →
+Settings → Variables and Secrets), not in `wrangler.toml`. The production Worker
+holds `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
+`STRIPE_STATEMENT_DESCRIPTOR`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` and
+`META_CAPI_ACCESS_TOKEN` as secrets.
+
+⚠️ **`STRIPE_PUBLISHABLE_KEY` is the exception: it is public, and it lives in
+`wrangler.toml`.** It goes to every visitor's browser, so whatever value it holds
+is published. On 2026-10-09 a dashboard edit set it, as a plain-text variable,
+to a `whsec_…` webhook signing secret. Every `/checkout` page then carried that
+secret in its HTML, and the card form could not mount, so every buyer was sent to
+the hosted page. It was found on 2026-10-10. Pinning the real `pk_live_` key in
+`wrangler.toml` means each deploy overwrites whatever the dashboard holds. Never
+type a secret into this name. The webhook secret that leaked has to be rolled
+in Stripe (Developers → Webhooks → the endpoint → Roll secret) and the new value
+set where that endpoint's secret lives. `wrangler secret delete` needs `--name` and no
+`--force` flag; when it fails, the secrets you just set are already live. Set
+and remove in one go, or remove first. To move to yet another account, follow
+the same steps (ordered):
+
+1. `wrangler secret put` **`STRIPE_SECRET_KEY`** from the new account, on the
+   production Worker only — staging has no Stripe keys on purpose (see Live
+   environment) — and change **`STRIPE_PUBLISHABLE_KEY`** in `wrangler.toml` to
+   the new account's `pk_live_` key in the same deploy.
+2. **Clear `STRIPE_PAYMENT_METHOD_CONFIGURATION`**, or create a new
+   configuration on the new account and use that id. Clearing is the better
+   default: both call sites pass it only when set, so an empty value falls back
+   to the account's own default — and that default was only ever unsafe to rely
+   on because the account was *shared*. Once the account is ours, its default is
+   ours to set in the dashboard. A stale id from the old account is the one
+   value here that fails at the customer, not in a log.
+3. Create the webhook endpoint on the new account, subscribe it to all seven
+   events listed in `README.md` — `payment_intent.succeeded` above all, since
+   the inline Payment Element settles through an intent and not a session — and
+   `wrangler secret put` its **`STRIPE_WEBHOOK_SECRET`**. A secret from the old
+   account's endpoint fails every signature check, which reads as orders simply
+   never turning paid.
+4. Keep **`STRIPE_STATEMENT_DESCRIPTOR=CHILLMYPET`** unless the new account's
+   own descriptor already reads ChillMyPet to a buyer. It is not about who owns
+   the account; it is about what the shopper recognises on their statement.
+5. Run `npm run test:payments` before and after. It uses a mock Stripe, so it
+   proves the code path, not the credentials — verify those with one real
+   low-value order that you then refund.
+
+Do **not** connect the new account's Stripe→Meta integration while swapping.
+See the partner-integration gotcha above: it double-counts against the
+Conversions API events this codebase already sends.
+
+⚠️ **A sale settles from two directions, and `settleOrder` is where they meet.**
+It is the only code that sets an order to `paid`, and it has exactly two
+callers: `handleWebhook`, when Stripe tells us, and `reconcile`, when
+`/checkout/success` asks Stripe directly about an order it is about to render as
+unpaid. Both assert the same amount against the order row, both go through
+`processOnce`, and `settleOrder` refuses an order already marked paid — which is
+what makes them idempotent against *each other*, so whichever arrives second
+reports no conversion and one sale stays one sale. Keep that refusal: without
+it, a webhook landing after a reconciled receipt is a second `order_paid` and a
+second Purchase.
+
+The second caller exists because the first is one delivery from silence. The
+inline Payment Element settles on **`payment_intent.succeeded`** and never
+creates a Checkout Session, so an endpoint subscribed only to
+`checkout.session.completed` — which is what the README told you to do until
+this was found, having been written for the hosted-page flow — hears nothing
+about any real order. That failure is invisible from in here: the card is
+charged, the order stays `pending_payment`, the receipt reads "processing", and
+neither half of the Purchase pair fires (the browser event needs `data.paid`,
+the server event needs `action === 'order_paid'`). Nothing logs, because nothing
+arrived.
+
+Reconciliation covers it but does not replace the subscription: a customer who
+closes the tab at 3-D Secure never loads the receipt, and only the webhook will
+ever settle that order. If Events Manager is missing Purchase while Stripe shows
+successful charges, check the endpoint's event list first. The full set the
+handler acts on is in README.md under Payment.
 
 `npm run test:payments` drives that whole path against a mock Stripe and a mock
 Conversions API — no account, no keys, nothing charged. Run it for any change to
-checkout, the webhook, or conversion reporting.
+checkout, the webhook, or conversion reporting. It does cover this path — it
+signs a `payment_intent.succeeded` event and asserts the order settles and the
+conversion reports — which is the point worth remembering: it posts that event
+to the endpoint itself, so it proves the handler works and can never tell you
+whether Stripe is configured to deliver it. A green suite is not evidence of a
+live subscription.
 
 Not built, in rough priority order:
 
 1. **Tax.** Nothing. EU VAT/OSS and US nexus are genuinely hard — use Stripe Tax
-   rather than building it.
+   rather than building it. More pressing since the Stripe account that takes the
+   money is Czech: the seller of record is now an EU business, so EU VAT applies
+   to its own sales, not only to EU shoppers. Settle that with an accountant
+   before scaling ad spend.
 2. **Consent gate.** The pixel loads for everyone. GDPR/ePrivacy require prior
-   consent for advertising cookies before taking EU traffic.
-3. **Admin.** No way to fulfil, refund, or look up a customer.
-4. **Transactional email.** No order confirmation is sent. Once payments are on
-   Stripe emails a payment receipt — that is not an order confirmation.
-5. ~~**Payments.**~~ Live, on a borrowed Stripe account — see above.
+   consent for advertising cookies before taking EU traffic. As with tax, an EU
+   merchant cannot treat this as somebody else's market.
+3. **Admin — built, switched off.** `/admin` lists the queue to ship (paid,
+   unshipped, oldest first) and every order, searches by order number or
+   email, and marks an order shipped with carrier and tracking, which emails
+   the customer. It is a 404 until `ADMIN_PASSWORD` is a Worker secret, then
+   HTTP Basic auth against it; no pixel, container or server PageView runs on
+   it. Shipping is a row in `fulfillments`, **not** an order status: the
+   payment module reads `status = 'paid'` as settled, so a shipped order that
+   moved off `paid` could be settled — and reported — again. Run
+   `npm run db:migrate` against production before first use; the storefront
+   itself never reads that table. Refunds are still issued in Stripe.
+   `npm run test:admin` covers it.
+4. **Transactional email — built, switched off.** `$lib/server/email.ts` sends
+   an order confirmation through Resend, beside the Purchase event, on the
+   three paths that report a sale (webhook, receipt reconcile, no-payments
+   checkout). Each runs once per sale, which is what keeps it to one email;
+   `test:payments` counts them. It sends nothing until `RESEND_API_KEY` is a
+   Worker secret, and the sending domain (`orders@chillmypet.com` by default)
+   must be verified in Resend first. No shipping-notification email yet.
+5. ~~**Payments.**~~ Live, on ChillMyPet's own Stripe account since 2026-10-07
+   — see above.
 6. ~~**DNS.**~~ Done — chillmypet.com and www are live on the `chillmypet`
    Worker, HTTPS enforced.
 
@@ -490,6 +966,138 @@ Not built, in rough priority order:
 | Production | `chillmypet` Worker → chillmypet.com, www.chillmypet.com |
 | Staging | `chillmypet-staging` → workers.dev, no custom domain |
 | Database | Turso `chillmypet-vish.aws-us-west-2.turso.io` (group `default`) |
+| Payments | Stripe `acct_1U3NewJOsB1nguzl` ("ChillMP"), live since 2026-10-07 |
+| Meta dataset | `1341978141149107` (browser + CAPI), the only pixel. Removed 2026-10-11: `28272021345717397` (nobody could say whose it was) and `1363695699271757` (the retired CZK account's; nothing running used it) |
+| Hoodie landing page | `chillmypet-hoodie.pages.dev`, Cloudflare Pages, source in `landing/pouch-pet-hoodie/`, on a third Cloudflare account — see below. Off sale; redirects to the Christmas page since 2026-10-11 |
+| Christmas landing page | `chillmypet-christmas.pages.dev`, Cloudflare Pages on the same account, source in `landing/christmas-pouch-hoodie/`, published on merge by `deploy-christmas.yml`, previewed per pull request at `pr-<n>.chillmypet-christmas.pages.dev` by `preview-christmas.yml`. `?test` puts a browser in quiet mode (nothing to Meta, checkout marked `test_`) |
+
+**Which Cloudflare account holds what.** Everything chillmypet.com runs on is
+in **Vish's** Cloudflare account, alongside many unrelated Workers. That covers
+the `chillmypet` and `chillmypet-staging` Workers, all their secrets, and the
+domain itself. chillmypet.com was registered through Cloudflare Registrar on
+2026-08-08 and expires 2027-08-08. The business owner has a separate,
+newer Cloudflare account that serves nothing for chillmypet.com. Never add
+chillmypet.com there through "Connect your domain": it would issue new
+nameservers for a domain that is already live elsewhere. The
+`chillmypet-hoodie` Pages project is on neither: it is on account
+`5fef1d1dbb6eaee72fdfc2b26a61a386` (checked 2026-10-07 — the repo's
+`CLOUDFLARE_WORKERS` token lists Vish's account's Pages projects, and it is not
+among them). The Christmas page's project is on the same account, and the
+`OWNER_CLOUDFLARE_API_TOKEN` repository secret reaches it, so both pages now
+publish on merge (`deploy-christmas.yml`, `deploy-hoodie.yml`). Moving the store
+into the owner's account is possible, but it is a planned migration (domain
+transfer between accounts, Worker and secrets re-created, custom domain
+re-bound), not a dashboard click. When in doubt about which account serves the
+site, change a value and watch the live page: the Stripe fragment trick above
+answers it in seconds.
+
+### Ads, and the pages they land on
+
+All current advertising is in the Meta ad account **Vish Kanada**
+(`act_1550461850095009`, USD). Campaigns and ad sets as read through the
+Supermetrics connector on 2026-10-12 (the "- Copy" campaign has been renamed
+since the 11th):
+
+| Campaign | Ad set | Lands on | Optimises for | State |
+|---|---|---|---|---|
+| !Christmas Hoodie Campaign! (the "- Copy" campaign, renamed) | !Christmas Hoodie Ad Set!, ad "!Christmas Hoodie Ad!" | Christmas page | **AddToCart** on `1341978141149107` since 11 Oct (Purchase before) | **Live**, $10/day, 11–20 Oct, US 18+, Facebook placements only, Advantage audience |
+| !Christmas Hoodie Campaign! | Chritmas Hoodie Ad Set | Christmas page | Purchase | Paused |
+| Christmas Hoodie Campaign | Chritmas Hoodie Ad Set | Christmas page | ⚠️ AddPaymentInfo (as recorded 2026-10-11) | Paused |
+| Hoodie Campaign - Copy | Hoodie Ad | hoodie page | Purchase | Ended 8 Oct |
+| Hoodie Campaign | Hoodie Ad | hoodie page | ⚠️ AddPaymentInfo | Paused, ended 8 Oct |
+| New Traffic Campaign | New Traffic Ad | `/products/dog-life-jacket` | Landing page views | Ended 20 Sep |
+| Purchase Campaign, New Sales Campaign | none delivered | — | — | Ended 23 Sep, never served |
+
+What the live campaign did on 10–12 Oct, from the same read: $34.98 spent,
+2,635 impressions, 152 link clicks, 123 landing page views, 143 ViewContent,
+and no AddToCart, InitiateCheckout or Purchase. 91 of the 152 clicks were
+women 55+ (65+: 59, 55–64: 32), and 90 came from the Facebook app, 40 from
+Instagram, 18 from Audience Network — all on phones. So the ad set has been
+optimising for an event the page produced zero times, which leaves Meta
+nothing to learn from; and on a Payment Link page AddToCart and
+InitiateCheckout are the same tap, so even one sale would teach it two
+things at once. The storefront page separates them (see State of play).
+
+Earlier, the old ad account `act_1431226177195979` (CZK) ran four "Dog Vest"
+ads to `/products/dog-life-jacket`, optimising for Purchase or
+InitiateCheckout on `1363695699271757`. That pixel is no longer on any page,
+so don't restart those ads there.
+
+**The live Christmas ad does not show the Christmas hoodie.** Its video
+(checked 2026-10-12 through the Supermetrics connector) is a woman on a plane
+in a red fleece pouch hoodie with a puppy, captioned "Small dog owners this
+one's for you"; the page sells an embroidered Santa or stocking hoodie with a
+cat in a ring. That is the first thing to look at when the page's clicks
+produce no AddToCart, before the page itself. Details in the Christmas page's
+README.
+
+**Never optimise a Payment Link page for AddPaymentInfo.** The card is typed on
+Stripe's page, which reports nothing to the pixel, so the event can never fire
+and Meta spends against a goal nobody can reach. The two paused campaigns
+marked ⚠️ still have it, and the fix (conversion event → Purchase) is waiting
+on a decision to restart them. The "- Copy" campaigns were made to correct it.
+
+**A zero in Ads Manager is not evidence that tracking broke.** On 2026-10-11,
+17 clicks and no AddToCart looked like a fault and was not. The way to tell is
+in the Christmas page's README ("Checked on the live page"): drive the live
+page as an ad click with every pixel hit and server copy answered locally,
+then follow it to Stripe's real checkout and stop before paying. That run
+covered all three pages. The Christmas page and `/products/dog-life-jacket`
+reach a working payment form with PageView, ViewContent, AddToCart and
+InitiateCheckout sent. The hoodie page reached Stripe's inactive message, which
+is what led to its redirect. Payment itself has never been run live on any of
+them.
+
+**Where to read the numbers.** The Supermetrics connector reads the Meta ad
+accounts and GA4 property `557080165` ("Chillmypet"). Its Meta access is
+**read-only**: write access is not enabled for this team, so campaign changes
+through it are refused, and those go through Ads Manager. GA4 runs only on
+chillmypet.com through GTM. The landing pages load no GA4, so their visitors
+appear in GA4 only when they click through to chillmypet.com, as a referral
+from `chillmypet-christmas.pages.dev`. The ads' `utm_*` tags are not read
+anywhere on the landing pages. Ads Manager and Stripe are the record there.
+
+### The hoodie landing page, a second shop now off sale
+
+`chillmypet-hoodie.pages.dev` ("Pouch Pet Hoodie · ChillMyPet") sold the cat
+pouch hoodie that the Hoodie campaigns (2–8 Oct 2026) featured. The Reels say "Link in bio",
+so that traffic does not necessarily land on chillmypet.com. It is a static
+page whose source is `landing/pouch-pet-hoodie/` (`config.js`, `pixel.js`,
+`_worker.js`), and it **shares none of this app's checkout**:
+
+- It loads the same three pixels. Since the upload of 2026-10-07 (four colours,
+  `_worker.js` running: `POST /api/event` answers 400 to a bad body) every
+  browser event is also posted to the worker under the same id, but the worker
+  only forwards it to Meta when the Pages project holds `META_CAPI_ACCESS_TOKEN`
+  — whether it does has not been checked. Without it, the page is browser-side
+  only.
+- It sold through a Stripe **Payment Link** on ChillMP
+  (`plink_1ULu2aJOsB1nguzlIzkLcmZG`, buy.stripe.com/fZu28sfbIgamgIe8tp1wY01),
+  which returns to `thank-you.html`. A hoodie sale creates **no order in
+  Turso** and is invisible to everything in the storefront. Its Purchase came
+  from that thank-you page's pixel, plus a server copy from `/api/purchase`
+  when the Pages project holds `STRIPE_SECRET_KEY` and the token, which was
+  never confirmed.
+- ⚠️ **The hoodie is off sale, and the page redirects to the Christmas page.**
+  Its Payment Link was deactivated from the Stripe Dashboard on 2026-10-09
+  (18:17 UTC), the day after the last hoodie campaign ended. After that, Buy
+  led to Stripe's inactive message, "now sold at
+  chillmypet.com/products/pouch-pet-hoodie", a page that is a 404 on
+  production. On 2026-10-11 the owner chose to send that traffic where it can
+  buy: `_worker.js` answers every page request with a 302 to
+  chillmypet-christmas.pages.dev, query string kept, and both hoodie Payment
+  Links' inactive messages name the Christmas page. **After Christmas the
+  owner decides** whether the plain hoodie returns as
+  `/products/pouch-pet-hoodie` here, which was the plan the old message
+  described. Until then, don't reactivate the link or remove the redirect.
+- The old webhook to `chillmypet-hoodie.pages.dev/api/stripe-webhook`
+  (`we_1UO1BAJOsB1nguzlCakDMBBI`) is gone. As of 2026-10-11 ChillMP has two
+  endpoints: chillmypet.com's and the Christmas page's.
+
+So the fbc, dedupe and webhook guarantees in this file cover chillmypet.com
+only. Before judging the hoodie ads by their reported conversions, either move
+the hoodie into this store, where it gets the CAPI Purchase and an order row,
+or count its sales from ChillMP's Payments in the Stripe dashboard.
 
 Both Workers hold `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` and
 `META_CAPI_ACCESS_TOKEN` as secrets, and **both point at the same database** — a
@@ -505,7 +1113,17 @@ without it, a checkout test on staging is a fabricated conversion in the numbers
 the ad account optimizes against. Change the value to whatever code Events
 Manager shows you when you want to watch a run live.
 
-Migrations run from a machine with the credentials, not from the Worker:
+The test code only reroutes the *server* copy. The browser pixel has no such
+switch, so `wrangler.staging.toml` pins `META_PIXEL_ID`, `META_EXTRA_PIXEL_IDS`
+and `GTM_CONTAINER_ID` to empty — `??` keeps an empty string, so staging loads
+no pixel and no container instead of inheriting production's from the shared
+store row. Leave them empty; set `META_PIXEL_ID` for one run when you want to
+watch it in Test Events.
+
+The Worker applies the schema itself on its first request after a deploy
+(`$lib/server/catalogue.ts`: one read of `sqlite_master`, and `applySchema`
+only when something is missing), so a merge is enough. By hand, from a machine
+with the credentials:
 
 ```sh
 export TURSO_DATABASE_URL=libsql://chillmypet-vish.aws-us-west-2.turso.io
@@ -513,9 +1131,9 @@ export TURSO_AUTH_TOKEN=...
 npm run db:migrate     # idempotent, create-if-not-exists
 ```
 
-`npm run db:seed` deletes and recreates the product. It is safe on an empty
-catalogue, and **refuses to run** once an order line references one of those
-variants — `order_items.variant_id` has no ON DELETE action, so order history
+`npm run db:seed` deletes and recreates the life jacket and every product in
+`products.js`. It is safe on an empty catalogue, and **refuses to run** once an
+order line references one of those variants — `order_items.variant_id` has no ON DELETE action, so order history
 wins. On a throwaway database (after an e2e run, say) delete the file and reseed;
 against a real one, migrate the catalogue instead.
 
@@ -529,6 +1147,22 @@ verify a build before touching production:
 cd apps/storefront
 npm run build && npx wrangler deploy -c wrangler.staging.toml
 ```
+
+**Merging to `main` deploys.** `.github/workflows/deploy.yml` checks, tests,
+builds and runs `wrangler deploy` on every push to `main`. `CLOUDFLARE_API_TOKEN`
+and `CLOUDFLARE_ACCOUNT_ID` are repository secrets since 2026-10-11: run
+38184138598 (the merge of PR #40) deployed version `7780424a…` to chillmypet.com
+and www, which is where the paragraph that used to stand here — the secrets were
+missing and production shipped by hand — stopped being true. Two consequences.
+A merge is a release, so review a pull request as one. And the database has to
+keep up with the code: the Worker does that itself on its first request after
+the deploy (`$lib/server/catalogue.ts`; see the Christmas hoodie under State of
+play for why it is not a CI step), and the workflow then fetches every product
+page on the live site and fails if one does not answer 200. The fallback stays: if
+the Cloudflare secret ever goes missing the run posts a "chillmypet.com was NOT
+deployed" warning on its summary page instead of failing, and a green run with
+that warning means production did not change. `/_app/version.json` on the live
+site gives a deploy's build time when you need to know what is running.
 
 The production config (`wrangler.toml`) declares chillmypet.com and www as
 custom domains. Deploying it points the live domain at whatever you just built,
@@ -554,7 +1188,7 @@ Two things a future agent should know rather than rediscover:
 - Deliberately **not** copied: the `FloatPaw™` name (a trademark question, which
   "it's not copyrighted" does not answer) and `contact@floatpaw.store` (it would
   route this store's customers to theirs). Store branding stays ChillMyPet, and
-  the support address is `contact@chillmypet.com`.
+  the support address is `contact.chillmypet@gmail.com`.
 
 The block library arrived with a third asset set, and one of them shipped a
 competitor's mark: `static/size-chart.webp` carried the **FloatPaw** wordmark
@@ -573,6 +1207,47 @@ Still placeholders, and known to be: `product-floatly.webp` (a supplier photo,
 no visible branding), the customer UGC in `static/reviews/` standing in for
 product photography, and `avatar-floatly.webp`, which only renders if the
 spotlight quotes are switched back on.
+
+The Christmas hoodie's two photos (`static/products/christmas-pouch-hoodie/`)
+were supplied by the owner in chat as screenshots, with the instruction to use
+them. Their original source and licence were not stated, and they look like
+generated lifestyle shots from a supplier listing. Ask before treating them as
+cleared for ads. Both designs have a photo; a design added without one renders
+a box labelled "Placeholder", never another design's picture.
+
+The Dog Christmas Tree Costume's five photos
+(`static/products/dog-christmas-costume/`) were supplied by the owner in chat on
+2026-10-12 as screenshots of a supplier listing, with the instruction to use
+them; the same caveat as the hoodie's applies — ask before treating them as
+cleared for ads. They carry no third-party branding and EXIF was stripped. What
+the page serves is a treatment of them, not the originals. On 2026-10-16 all
+five were redone from the originals in one pass (ca96a07 has them as supplied):
+cut out locally with rembg's BiRefNet-lite (run in the sandbox, so no photo
+left the machine; it keeps the white pom-poms that u2net punched holes in),
+the loose pom-pom props the supplier scattered round the product dropped, and
+each set on the same generated warm studio backdrop. The dog shot stands on a
+floor sweep with a contact shadow; the three flat-lays lie on a surface with a
+top-light shadow; the hood close-up keeps the supplier's framing. The product
+pixels are the supplier's, with levels, +7% saturation and light sharpening
+only. Gallery shots are 1540x1379 (the gallery's 1100:985 frame at retina
+size), the grid shots 1400 square. `hero-both.webp` is the red dog and the
+green costume from the same cut-outs, side by side on a transparent
+background; it is no longer on the page but is kept for ads.
+
+On 2026-10-16 the owner replaced the costume page's photos with
+littletreepups.com's (same dropshipped product; the owner's call). Taken from
+that page and re-encoded as plain JPEGs with no metadata: `worn-red.jpg` (now
+their red studio shot, so the catalogue's listing image, the sticky bar, the
+bundle cards and og:image all show it), `green-studio.jpg` (the gallery's
+green, via the gallery's `photos` override, since the catalogue's green row is
+still the flat-lay), `details.jpg`, `duo.jpg`, `cat.jpg`, `living-room.jpg`,
+`shih-tzu.jpg`, `schnauzer.jpg`. Not taken: their size-guide graphic (their
+wordmark and their measurements) and their colour graphic (it promises a
+colour per pet inside a bundle, which ours does not do). Their lifestyle shots
+are AI-styled, and the page says so under the photo pair, as theirs does. The
+older supplier treatments (`red.jpg`, `green.jpg`, `green-back.jpg`,
+`hood-detail.jpg`) stay on disk because catalogue media rows point at them. Nothing about the product was generated or altered: it
+is the real costume on a plain background. Its copy was written here.
 
 Don't add further third-party branding, photography, or marketing text without
 the owner confirming rights for that specific source.

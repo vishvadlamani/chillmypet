@@ -9,7 +9,8 @@
  *   node tests/payment-flow.mjs
  *
  * Expects a dev server started with the same STRIPE_* env vars. See
- * `npm run test:payments`.
+ * `npm run test:payments`. For the confirmation-email checks it also needs
+ * RESEND_API_KEY set to anything and EMAIL_API_ENDPOINT=http://127.0.0.1:12113.
  */
 import { createServer } from 'node:http';
 import { createHash, createHmac } from 'node:crypto';
@@ -21,6 +22,7 @@ const RUN = Date.now().toString(36);
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? 'whsec_test_secret';
 const MOCK_PORT = Number(process.env.STRIPE_MOCK_PORT ?? 12111);
 const CAPI_PORT = Number(process.env.CAPI_MOCK_PORT ?? 12112);
+const EMAIL_PORT = Number(process.env.EMAIL_MOCK_PORT ?? 12113);
 
 let failures = 0;
 function check(label, cond, detail) {
@@ -32,47 +34,74 @@ function check(label, cond, detail) {
 // Only the two calls the checkout path makes. Records them so the test can
 // assert on what we actually sent, which is where the real bugs live.
 const seen = [];
+// Real objects rather than fixed responses: the app now reads state back off
+// Stripe as well as writing to it, so a GET has to return what the matching
+// POST created. Flipping an intent to `succeeded` here is how the test stands
+// in for a customer finishing the card form.
+const intents = new Map();
+const sessions = new Map();
+let intentSeq = 0;
+
 const mock = createServer((req, res) => {
 	let body = '';
 	req.on('data', (c) => (body += c));
 	req.on('end', () => {
-		seen.push({ path: req.url, body, auth: req.headers.authorization ?? '' });
-		if (req.url === '/v1/coupons') {
-			res.writeHead(200, { 'content-type': 'application/json' });
-			res.end(JSON.stringify({ id: 'coupon_mock_1' }));
-			return;
-		}
+		seen.push({ path: req.url, method: req.method, body, auth: req.headers.authorization ?? '' });
+		const json = (payload, status = 200) => {
+			res.writeHead(status, { 'content-type': 'application/json' });
+			res.end(JSON.stringify(payload));
+		};
+
+		if (req.url === '/v1/coupons') return json({ id: 'coupon_mock_1' });
+
 		if (req.url === '/v1/payment_intents') {
 			const params = new URLSearchParams(body);
-			res.writeHead(200, { 'content-type': 'application/json' });
-			res.end(
-				JSON.stringify({
-					id: `pi_test_mock_${RUN}`,
-					client_secret: `pi_test_mock_${RUN}_secret`,
-					amount: Number(params.get('amount')),
-					currency: params.get('currency'),
-					status: 'requires_payment_method'
-				})
-			);
-			return;
+			// Unique per creation, like the real thing. A fixed id would let a
+			// second order collide with the first on (provider, provider_ref) and
+			// quietly settle the wrong one.
+			const id = `pi_test_mock_${RUN}_${++intentSeq}`;
+			const intent = {
+				id,
+				client_secret: `${id}_secret`,
+				amount: Number(params.get('amount')),
+				amount_received: 0,
+				currency: params.get('currency'),
+				status: 'requires_payment_method'
+			};
+			intents.set(id, intent);
+			return json(intent);
 		}
+
+		if (req.url.startsWith('/v1/payment_intents/')) {
+			const id = decodeURIComponent(req.url.slice('/v1/payment_intents/'.length));
+			const intent = intents.get(id);
+			return intent ? json(intent) : json({ error: { message: `no such intent ${id}` } }, 404);
+		}
+
 		if (req.url === '/v1/checkout/sessions') {
 			const params = new URLSearchParams(body);
-			res.writeHead(200, { 'content-type': 'application/json' });
-			res.end(
-				JSON.stringify({
-					id: 'cs_test_mock_1',
-					url: params.get('ui_mode') === 'embedded' ? null : `${BASE}/__stripe-hosted-page`,
-					client_secret: params.get('ui_mode') === 'embedded' ? 'cs_test_mock_1_secret' : null,
-					status: 'open',
-					amount_total: null,
-					currency: params.get('line_items[0][price_data][currency]')
-				})
-			);
-			return;
+			const session = {
+				id: 'cs_test_mock_1',
+				url: params.get('ui_mode') === 'embedded' ? null : `${BASE}/__stripe-hosted-page`,
+				client_secret: params.get('ui_mode') === 'embedded' ? 'cs_test_mock_1_secret' : null,
+				status: 'open',
+				// Open sessions have no intent yet, which is what stops a
+				// reconcile settling an order nobody has paid for.
+				payment_intent: null,
+				amount_total: null,
+				currency: params.get('line_items[0][price_data][currency]')
+			};
+			sessions.set(session.id, session);
+			return json(session);
 		}
-		res.writeHead(404, { 'content-type': 'application/json' });
-		res.end(JSON.stringify({ error: { message: `unmocked ${req.url}` } }));
+
+		if (req.url.startsWith('/v1/checkout/sessions/')) {
+			const id = decodeURIComponent(req.url.slice('/v1/checkout/sessions/'.length));
+			const session = sessions.get(id);
+			return session ? json(session) : json({ error: { message: `no such session ${id}` } }, 404);
+		}
+
+		json({ error: { message: `unmocked ${req.url}` } }, 404);
 	});
 });
 await new Promise((resolve) => mock.listen(MOCK_PORT, '127.0.0.1', resolve));
@@ -103,7 +132,106 @@ const capiPurchases = () =>
 		})
 		.filter((e) => e?.event_name === 'Purchase');
 
-const capiPageViews = () =>
+// --- mock email provider -------------------------------------------------
+// Stands in for Resend, so the test can count confirmations per order. The dev
+// server needs RESEND_API_KEY set and EMAIL_API_ENDPOINT pointed here.
+const emails = [];
+const mailer = createServer((req, res) => {
+	let body = '';
+	req.on('data', (c) => (body += c));
+	req.on('end', () => {
+		try {
+			emails.push({ headers: req.headers, ...JSON.parse(body) });
+		} catch {
+			emails.push({ headers: req.headers, unparsed: body });
+		}
+		res.writeHead(200, { 'content-type': 'application/json' });
+		res.end(JSON.stringify({ id: `em_${emails.length}` }));
+	});
+});
+await new Promise((resolve) => mailer.listen(EMAIL_PORT, '127.0.0.1', resolve));
+const emailsFor = (orderNumber) => emails.filter((e) => e.subject?.includes(orderNumber));
+
+const settle = () => new Promise((r) => setTimeout(r, 2000));
+
+// What the customer's browser sends at checkout. The webhook that reports the
+// sale is a request from Stripe, so these only reach Meta if they travel
+// through the payment's metadata.
+const BUYER_UA = 'Mozilla/5.0 (PayFlowTest) Safari/605.1.15';
+const VISITOR = '0123456789abcdef'.repeat(4);
+
+/** The metadata we actually sent Stripe, as the object its webhook echoes back. */
+const sentMetadata = (params) =>
+	Object.fromEntries(
+		[...params].filter(([k]) => k.startsWith('metadata[')).map(([k, v]) => [k.slice(9, -1), v])
+	);
+
+const capiPayloads = () =>
+	capiEvents.flatMap((e) => {
+		try {
+			return JSON.parse(e.body).data ?? [];
+		} catch {
+			return [];
+		}
+	});
+
+// --- the server reports the click the browser saw -------------------------
+// A visitor carrying `_fbc` from an older ad click lands from a new one. The
+// pixel switches to the new click id, so the server copies must too, exactly
+// as issued. Meta's own example id: mixed case, `-` and `_`, none of which may
+// change.
+const CLICK = 'IwAR2F4-dbP0l7Mn1IawQQGCINEz7PYXQvwjNwB_qa2ofrHyiLjcbCRxTDMgk';
+const staleClick = { cookie: '_fbc=fb.1.1600000000000.OlderClickId' };
+const landing = `${BASE}/products/dog-life-jacket?fbclid=${CLICK}&run=${RUN}`;
+
+// As a browser asks for a page: the server copy of PageView goes only to real
+// page loads, never to a bot or a script fetching the HTML.
+await fetch(landing, { headers: { ...staleClick, accept: 'text/html', 'user-agent': BUYER_UA } });
+await fetch(`${BASE}/api/track`, {
+	method: 'POST',
+	headers: { ...staleClick, 'content-type': 'application/json' },
+	body: JSON.stringify({ eventName: 'ViewContent', eventId: `vc-${RUN}`, eventSourceUrl: landing })
+});
+await settle();
+
+const landingPageView = capiPayloads().find(
+	(e) => e.event_name === 'PageView' && e.event_source_url === landing
+);
+const landingViewContent = capiPayloads().find((e) => e.event_id === `vc-${RUN}`);
+const clickFbc = new RegExp(`^fb\\.1\\.\\d{13}\\.${CLICK}$`);
+check(
+	'the landing PageView carries the new click id, unaltered',
+	clickFbc.test(landingPageView?.user_data?.fbc ?? ''),
+	`fbc ${landingPageView?.user_data?.fbc}`
+);
+check(
+	"a beacon takes the click id from the page's URL, not its own",
+	clickFbc.test(landingViewContent?.user_data?.fbc ?? ''),
+	`fbc ${landingViewContent?.user_data?.fbc}`
+);
+
+// --- the deployed token can be checked from outside -------------------------
+// Every server event carries the browser's event_id, so a dataset that reports
+// server events with no dedupe key and no coverage is usually not receiving the
+// server half at all. /api/meta-status asks Meta, with an empty batch, whether
+// the Worker's own token may post to its dataset.
+{
+	const before = capiEvents.length;
+	const status = await fetch(`${BASE}/api/meta-status`);
+	const report = await status.json();
+	const probe = capiEvents.slice(before).at(-1);
+	check('meta-status reports the server half can land', status.status === 200 && report.server_events === 'accepted', JSON.stringify(report));
+	check('meta-status names the dataset it posts to', /^\d+$/.test(report.dataset ?? ''), JSON.stringify(report));
+	check(
+		'meta-status asks with an empty batch, sending no event',
+		probe?.path?.endsWith(`/${report.dataset}/events`) && new URLSearchParams(probe.body).get('data') === '[]',
+		JSON.stringify(probe)
+	);
+	const token = process.env.META_CAPI_ACCESS_TOKEN;
+	check('meta-status never shows the token', !token || !JSON.stringify(report).includes(token));
+}
+
+const capiEventsNamed = (name) =>
 	capiEvents
 		.map((e) => {
 			try {
@@ -112,9 +240,52 @@ const capiPageViews = () =>
 				return null;
 			}
 		})
-		.filter((e) => e?.event_name === 'PageView');
+		.filter((e) => e?.event_name === name);
 
-const settle = () => new Promise((r) => setTimeout(r, 2000));
+const sha256 = (v) => createHash('sha256').update(v).digest('hex');
+
+/** `name=value` pairs a response set, as a map. */
+const setCookies = (response) =>
+	Object.fromEntries(
+		response.headers.getSetCookie().map((c) => {
+			const [pair] = c.split(';');
+			const at = pair.indexOf('=');
+			return [pair.slice(0, at), decodeURIComponent(pair.slice(at + 1))];
+		})
+	);
+
+// --- a first visit already identifies the browser --------------------------
+// Meta's script sets `_fbp` only once it runs, after the server's PageView for
+// that page has gone. The server mints it — and a visitor id — on the first
+// navigation, so even that PageView can be matched.
+{
+	const landing = await fetch(`${BASE}/products/dog-life-jacket?first=${RUN}`, {
+		headers: { accept: 'text/html' }
+	});
+	await landing.text();
+	const set = setCookies(landing);
+	check('a first navigation is given an _fbp', /^fb\.1\.\d{13}\.\d+$/.test(set._fbp ?? ''), set._fbp);
+	check('and a visitor id', /^[a-f0-9]{64}$/.test(set.cmp_vid ?? ''), set.cmp_vid);
+	check(
+		'which script cannot read',
+		landing.headers.getSetCookie().some((c) => c.startsWith('cmp_vid=') && /httponly/i.test(c))
+	);
+
+	await settle();
+	const pageView = capiEventsNamed('PageView').find((e) => e.event_source_url?.includes(`first=${RUN}`));
+	check('its server PageView carries the minted _fbp', pageView?.user_data?.fbp === set._fbp, JSON.stringify(pageView?.user_data));
+	check(
+		'and the visitor id as external_id, as is: it is already digest-shaped',
+		pageView?.user_data?.external_id?.[0] === set.cmp_vid,
+		JSON.stringify(pageView?.user_data?.external_id)
+	);
+
+	const returning = await fetch(`${BASE}/products/dog-life-jacket`, {
+		headers: { accept: 'text/html', cookie: `_fbp=${set._fbp}; cmp_vid=${set.cmp_vid}` }
+	});
+	await returning.text();
+	check('a browser that has both is not given new ones', returning.headers.getSetCookie().length === 0);
+}
 
 // --- place an order --------------------------------------------------------
 const product = await fetch(`${BASE}/products/dog-life-jacket`).then((r) => r.text());
@@ -144,7 +315,8 @@ const placed = await fetch(`${BASE}/checkout`, {
 	headers: {
 		'content-type': 'application/x-www-form-urlencoded',
 		origin: BASE,
-		cookie: '_fbp=fb.1.1700000000000.1234567890; _fbc=fb.1.1700000000000.testclickid'
+		'user-agent': BUYER_UA,
+		cookie: `_fbp=fb.1.1700000000000.1234567890; _fbc=fb.1.1700000000000.testclickid; cmp_vid=${VISITOR}`
 	},
 	body: form
 });
@@ -159,49 +331,6 @@ check(
 	redirectLocation === `${BASE}/__stripe-hosted-page`,
 	`got ${placed.status} ${redirectLocation ?? JSON.stringify(payload)?.slice(0, 200)}`
 );
-
-// --- the buyer is remembered for the events after the order ---------------
-// Only Purchase used to carry a name, so every PageView from someone who had
-// already bought went to Meta with cookies alone — the low Last Name coverage
-// Events Manager flags on PageView.
-const matchCookie = placed.headers
-	.getSetCookie()
-	.find((c) => c.startsWith('cmp_mk='));
-const lastNameHash = createHash('sha256').update('flow').digest('hex');
-check(
-	'placing an order remembers the buyer',
-	Boolean(matchCookie?.includes(lastNameHash)),
-	matchCookie ?? 'no cmp_mk cookie set'
-);
-check('the remembered buyer is httpOnly', /;\s*HttpOnly/i.test(matchCookie ?? ''));
-check(
-	'the remembered buyer holds hashes, never raw values',
-	!/payflow|flow%40|lisbon|1%20test/i.test(matchCookie ?? '')
-);
-
-if (matchCookie) {
-	const pageViewsBefore = capiPageViews().length;
-	const html = await fetch(`${BASE}/products/dog-life-jacket`, {
-		headers: { cookie: matchCookie.split(';')[0] }
-	}).then((r) => r.text());
-	check(
-		'the browser pixel is initialised with the remembered last name',
-		html.includes(`"ln":"${lastNameHash}"`),
-		'no advanced matching in the pixel snippet'
-	);
-	await settle();
-	const pageView = capiPageViews().slice(pageViewsBefore).at(-1);
-	check(
-		'the server PageView carries the remembered last name',
-		pageView?.user_data?.ln?.[0] === lastNameHash,
-		JSON.stringify(pageView?.user_data ?? null)
-	);
-
-	const forged = await fetch(`${BASE}/products/dog-life-jacket`, {
-		headers: { cookie: 'cmp_mk=ln:</script><script>alert(1)</script>' }
-	}).then((r) => r.text());
-	check('a forged cookie cannot reach the page as markup', !forged.includes('alert(1)'));
-}
 
 const sessionCall = seen.find((c) => c.path === '/v1/checkout/sessions');
 check('a checkout session was created', Boolean(sessionCall));
@@ -223,11 +352,15 @@ if (sessionCall) {
 	);
 	check(
 		'meta click identifiers ride along for the webhook',
-		// The Parameter Builder appends a tag naming itself, and must leave the
-		// click id itself untouched.
-		/^fb\.1\.1700000000000\.1234567890\.[A-Za-z0-9_-]{8}$/.test(p.get('metadata[fbp]') ?? '') &&
-			/^fb\.1\.1700000000000\.testclickid\.[A-Za-z0-9_-]{8}$/.test(p.get('metadata[fbc]') ?? ''),
-		JSON.stringify({ fbp: p.get('metadata[fbp]'), fbc: p.get('metadata[fbc]') })
+		p.get('metadata[fbp]') === 'fb.1.1700000000000.1234567890' &&
+			p.get('metadata[fbc]') === 'fb.1.1700000000000.testclickid'
+	);
+	check(
+		'so do the buyer’s user agent, address and visitor id',
+		p.get('metadata[client_ua]') === BUYER_UA &&
+			Boolean(p.get('metadata[client_ip]')) &&
+			p.get('metadata[external_id]') === VISITOR,
+		JSON.stringify(sentMetadata(p))
 	);
 	check('the secret key is sent as a bearer token', sessionCall.auth.startsWith('Bearer sk_'));
 	check(
@@ -252,6 +385,11 @@ if (sessionCall) {
 		capiPurchases().length === 0,
 		`${capiPurchases().length} Purchase event(s) fired before any money moved`
 	);
+	check(
+		'and sends no confirmation email before payment',
+		emailsFor(orderNumber).length === 0,
+		`${emailsFor(orderNumber).length} sent`
+	);
 
 	// --- an unsigned webhook must be rejected -----------------------------
 	const totalCents = Number(p.get('line_items[0][price_data][unit_amount]'));
@@ -268,12 +406,9 @@ if (sessionCall) {
 					client_reference_id: orderNumber,
 					amount_total: amountTotal,
 					currency: 'usd',
-					metadata: {
-						store_id: 'chillmypet',
-						order_number: orderNumber,
-						fbp: 'fb.1.1700000000000.1234567890',
-						fbc: 'fb.1.1700000000000.testclickid'
-					}
+					// Stripe echoes the session's metadata back verbatim, so the
+					// event carries exactly what the checkout sent.
+					metadata: sentMetadata(p)
 				}
 			}
 		});
@@ -313,6 +448,23 @@ if (sessionCall) {
 	await settle();
 	const purchases = capiPurchases();
 	check('payment reports exactly one conversion', purchases.length === 1, `got ${purchases.length}`);
+	check(
+		'and emails exactly one confirmation',
+		emailsFor(orderNumber).length === 1,
+		`${emailsFor(orderNumber).length} sent`
+	);
+	const confirmation = emailsFor(orderNumber)[0];
+	check('to the address on the order', confirmation?.to?.[0] === 'payflow@example.com', JSON.stringify(confirmation?.to));
+	check(
+		'keyed so a retried send is dropped',
+		confirmation?.headers?.['idempotency-key'] === `order-confirmation/${orderNumber}`,
+		confirmation?.headers?.['idempotency-key']
+	);
+	check(
+		'linking to the receipt',
+		confirmation?.text?.includes(`/checkout/success?order=${orderNumber}`),
+		'no receipt link'
+	);
 
 	const purchase = purchases[0];
 	if (purchase) {
@@ -337,6 +489,16 @@ if (sessionCall) {
 			purchase.user_data?.fbp === 'fb.1.1700000000000.1234567890' &&
 				purchase.user_data?.fbc === 'fb.1.1700000000000.testclickid',
 			JSON.stringify({ fbp: purchase.user_data?.fbp, fbc: purchase.user_data?.fbc })
+		);
+		check(
+			'the buyer’s user agent and address reach Meta, which a website event requires',
+			purchase.user_data?.client_user_agent === BUYER_UA && Boolean(purchase.user_data?.client_ip_address),
+			JSON.stringify({ ua: purchase.user_data?.client_user_agent, ip: purchase.user_data?.client_ip_address })
+		);
+		check(
+			'the visitor id is the external_id the pixel was given',
+			JSON.stringify(purchase.user_data?.external_id) === JSON.stringify([VISITOR]),
+			JSON.stringify(purchase.user_data?.external_id)
 		);
 		check(
 			'address fields from our own order row are matched on',
@@ -367,6 +529,11 @@ if (sessionCall) {
 		'a redelivered event does not report the sale twice',
 		capiPurchases().length === 1,
 		`${capiPurchases().length} Purchase events after redelivery`
+	);
+	check(
+		'nor email it twice',
+		emailsFor(orderNumber).length === 1,
+		`${emailsFor(orderNumber).length} sent`
 	);
 
 	// --- underpayment must not settle an order ----------------------------
@@ -436,6 +603,8 @@ if (sessionCall) {
 		province: 'BC',
 		postalCode: 'V3W 3N1',
 		country: 'CA',
+		// Typed the way people type it — no calling code, which Meta needs.
+		phone: '(604) 555-0199',
 		method: 'express',
 		cardReady: '1',
 		submissionId,
@@ -450,15 +619,34 @@ if (sessionCall) {
 		headers: {
 			'content-type': 'application/x-www-form-urlencoded',
 			origin: BASE,
-			cookie: '_fbp=fb.1.1700000000000.1234567890'
+			'user-agent': BUYER_UA,
+			cookie: `_fbp=fb.1.1700000000000.1234567890; cmp_vid=${VISITOR}`
 		},
 		body: inline
 	});
 	const raw = await placed.text();
+	const remembered = setCookies(placed);
 
+	// What the shopper gave at checkout, kept as digests for every later event.
+	check(
+		'checkout remembers the email as a digest',
+		remembered.cmp_em === sha256('inline@example.com'),
+		remembered.cmp_em
+	);
+	check(
+		'and the phone, with its calling code, as a digest',
+		remembered.cmp_ph === sha256('16045550199'),
+		remembered.cmp_ph
+	);
+	check(
+		'neither holds the plaintext',
+		!placed.headers.getSetCookie().some((c) => /inline|555/.test(c))
+	);
+
+	const intentId = /(pi_test_mock_[A-Za-z0-9]+_\d+)_secret/.exec(raw)?.[1];
 	check(
 		'the inline checkout answers with an intent, not a redirect',
-		placed.status === 200 && raw.includes(`pi_test_mock_${RUN}_secret`),
+		placed.status === 200 && Boolean(intentId),
 		`${placed.status} ${raw.slice(0, 200)}`
 	);
 
@@ -480,9 +668,13 @@ if (sessionCall) {
 		check('store id is in metadata for tenant routing', p.get('metadata[store_id]') === 'chillmypet');
 		check(
 			'the click identifier rides along for the webhook',
-			// Tagged by the Parameter Builder, with the id itself untouched.
-			/^fb\.1\.1700000000000\.1234567890\.[A-Za-z0-9_-]{8}$/.test(p.get('metadata[fbp]') ?? ''),
-			p.get('metadata[fbp]')
+			p.get('metadata[fbp]') === 'fb.1.1700000000000.1234567890'
+		);
+		check('so does the visitor id', p.get('metadata[external_id]') === VISITOR);
+		check(
+			'a first-time visitor gets a visitor id on the spot, and it rides along too',
+			/^[a-f0-9]{64}$/.test(p.get('metadata[external_id]') ?? '') && p.get('metadata[client_ua]') === BUYER_UA,
+			JSON.stringify(sentMetadata(p))
 		);
 		check(
 			'the card statement carries a descriptor the buyer will recognise',
@@ -497,14 +689,10 @@ if (sessionCall) {
 			type: 'payment_intent.succeeded',
 			data: {
 				object: {
-					id: `pi_test_mock_${RUN}`,
+					id: intentId,
 					amount_received: Number(p.get('amount')),
 					currency: 'usd',
-					metadata: {
-						store_id: 'chillmypet',
-						order_number: orderNumber,
-						fbp: 'fb.1.1700000000000.1234567890'
-					}
+					metadata: sentMetadata(p)
 				}
 			}
 		});
@@ -529,14 +717,226 @@ if (sessionCall) {
 		const purchase = capiPurchases().find((e) => e.event_id === `purchase-${orderNumber}`);
 		check('the inline sale reports its own conversion', Boolean(purchase));
 		check(
+			'and emails its own confirmation',
+			emailsFor(orderNumber).length === 1 && emailsFor(orderNumber)[0]?.to?.[0] === 'inline@example.com',
+			`${emailsFor(orderNumber).length} sent`
+		);
+		check(
+			'with the buyer’s user agent, though Stripe sent the webhook',
+			purchase?.user_data?.client_user_agent === BUYER_UA,
+			JSON.stringify(purchase?.user_data)
+		);
+		check(
 			'for the amount actually charged',
 			purchase?.custom_data?.value === (Number(p.get('amount')) / 100).toFixed(2),
 			`${purchase?.custom_data?.value} vs ${(Number(p.get('amount')) / 100).toFixed(2)}`
 		);
+		check(
+			'naming the same visitor as the browsing before it',
+			purchase?.user_data?.external_id?.[0] === VISITOR,
+			JSON.stringify(purchase?.user_data?.external_id)
+		);
+		check(
+			'and the same phone hash the cookie holds',
+			purchase?.user_data?.ph?.[0] === sha256('16045550199'),
+			JSON.stringify(purchase?.user_data?.ph)
+		);
 	}
+
+	// --- a returning shopper is matched on every event ----------------------
+	// After checkout the browser carries the digests, so the next PageView and
+	// ViewContent name the shopper too — not only the sale.
+	const cookie = [
+		'_fbp=fb.1.1700000000000.1234567890',
+		`cmp_vid=${VISITOR}`,
+		`cmp_em=${remembered.cmp_em}`,
+		`cmp_ph=${remembered.cmp_ph}`
+	].join('; ');
+
+	const page = await fetch(`${BASE}/products/dog-life-jacket?back=${RUN}`, {
+		headers: { accept: 'text/html', cookie }
+	});
+	await page.text();
+
+	const viewId = `view-${RUN}`;
+	const beacon = await fetch(`${BASE}/api/track`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json', cookie },
+		body: JSON.stringify({
+			eventName: 'ViewContent',
+			eventId: viewId,
+			// A page cannot claim an identity: this must be ignored.
+			user_data: { em: [sha256('someone-else@example.com')] },
+			customData: { content_type: 'product', content_ids: ['x'] }
+		})
+	});
+	check('the beacon answers 204', beacon.status === 204, `got ${beacon.status}`);
+
+	// AddToCart is the event the campaign optimises on, so its server copy
+	// must carry every parameter Meta lists for it, not only an identity.
+	const cartId = `cart-${RUN}`;
+	const added = {
+		content_type: 'product',
+		content_ids: ['CMP-LJ-TEST'],
+		contents: [{ id: 'CMP-LJ-TEST', quantity: 1, item_price: 44.97 }],
+		num_items: 1,
+		currency: 'USD',
+		value: '44.97'
+	};
+	await fetch(`${BASE}/api/track`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json', cookie },
+		body: JSON.stringify({ eventName: 'AddToCart', eventId: cartId, customData: added })
+	});
+
+	await settle();
+	const pageView = capiEventsNamed('PageView').find((e) => e.event_source_url?.includes(`back=${RUN}`));
+	const view = capiEventsNamed('ViewContent').find((e) => e.event_id === viewId);
+	const cart = capiEventsNamed('AddToCart').find((e) => e.event_id === cartId);
+	check(
+		"AddToCart's server copy carries every parameter Meta lists for it",
+		Object.entries(added).every(([k, v]) => JSON.stringify(cart?.custom_data?.[k]) === JSON.stringify(v)),
+		JSON.stringify(cart?.custom_data)
+	);
+	for (const [name, ev] of [
+		['PageView', pageView],
+		['ViewContent', view],
+		['AddToCart', cart]
+	]) {
+		const u = ev?.user_data ?? {};
+		check(
+			`a returning shopper's ${name} carries fbp, external_id, email and phone`,
+			u.fbp === 'fb.1.1700000000000.1234567890' &&
+				u.external_id?.[0] === VISITOR &&
+				u.em?.[0] === sha256('inline@example.com') &&
+				u.ph?.[0] === sha256('16045550199'),
+			JSON.stringify(u)
+		);
+	}
+}
+
+// --- a sale nobody told us about -------------------------------------------
+// The webhook is one delivery away from silence, and none of the ways it goes
+// quiet are visible from inside the app: an endpoint subscribed to the wrong
+// events (this store's was set up for `checkout.session.completed`, which the
+// inline card form never fires), a rotated secret, an outage. The card is
+// charged and the order simply stays pending.
+//
+// So this pays at Stripe and delivers no webhook at all. The receipt has to
+// settle the order and report the sale on its own, because a conversion that
+// depends on a single delivery is one the ad account eventually stops seeing.
+{
+	const submissionId = `nohook-${RUN}`;
+	const form = new URLSearchParams({
+		email: 'nohook@example.com',
+		fullName: 'No Hook',
+		address1: '3 Test St',
+		city: 'Delta',
+		province: 'BC',
+		postalCode: 'V3W 3N1',
+		country: 'CA',
+		method: 'express',
+		cardReady: '1',
+		submissionId,
+		lines: JSON.stringify([{ variantId: variant, quantity: 1 }])
+	});
+
+	const placed = await fetch(`${BASE}/checkout`, {
+		method: 'POST',
+		redirect: 'manual',
+		headers: { 'content-type': 'application/x-www-form-urlencoded', origin: BASE },
+		body: form
+	});
+	const raw = await placed.text();
+	const intentId = /(pi_test_mock_[A-Za-z0-9]+_\d+)_secret/.exec(raw)?.[1];
+
+	const call = [...seen].reverse().find((c) => c.path === '/v1/payment_intents');
+	const params = new URLSearchParams(call?.body ?? '');
+	const orderNumber = params.get('metadata[order_number]');
+	const amount = Number(params.get('amount'));
+
+	check(
+		'a second inline order minted an intent of its own',
+		Boolean(intentId) && Boolean(orderNumber),
+		`intent ${intentId} order ${orderNumber}`
+	);
+
+	// Unpaid so far, so the receipt must not claim otherwise — reconciliation
+	// settles what Stripe says succeeded, never what the URL asks for.
+	const beforeHtml = await fetch(
+		`${BASE}/checkout/success?order=${encodeURIComponent(orderNumber)}`
+	).then((r) => r.text());
+	check(
+		'an intent that has not succeeded does not settle the order',
+		!/Payment received/i.test(beforeHtml) && /processing/i.test(beforeHtml),
+		'reconciliation marked an unpaid order as sold'
+	);
+
+	// The card clears at Stripe. Nothing tells the application.
+	const intent = intents.get(intentId);
+	intent.status = 'succeeded';
+	intent.amount_received = amount;
+
+	const paidHtml = await fetch(
+		`${BASE}/checkout/success?order=${encodeURIComponent(orderNumber)}`
+	).then((r) => r.text());
+	check('the receipt settles a sale no webhook announced', /Payment received/i.test(paidHtml));
+
+	await settle();
+	const reported = () => capiPurchases().filter((e) => e.event_id === `purchase-${orderNumber}`);
+	check('and reports the conversion itself', reported().length === 1, `${reported().length} sent`);
+	check(
+		'for the amount actually captured',
+		reported()[0]?.custom_data?.value === (amount / 100).toFixed(2),
+		`${reported()[0]?.custom_data?.value} vs ${(amount / 100).toFixed(2)}`
+	);
+
+	// Nobody reloads a receipt once, and the page itself polls.
+	await fetch(`${BASE}/checkout/success?order=${encodeURIComponent(orderNumber)}`).then((r) =>
+		r.text()
+	);
+	await settle();
+	check('reloading the receipt does not sell it twice', reported().length === 1, `${reported().length} sent`);
+	check(
+		'the receipt that settled it sent the one confirmation',
+		emailsFor(orderNumber).length === 1 && emailsFor(orderNumber)[0]?.to?.[0] === 'nohook@example.com',
+		`${emailsFor(orderNumber).length} sent`
+	);
+
+	// And the webhook may still turn up afterwards — subscriptions get fixed,
+	// outages end, Stripe retries for days. It must find the order settled.
+	const lateBody = JSON.stringify({
+		id: `evt_late_${RUN}`,
+		type: 'payment_intent.succeeded',
+		data: {
+			object: {
+				id: intentId,
+				amount_received: amount,
+				currency: 'usd',
+				metadata: { store_id: 'chillmypet', order_number: orderNumber }
+			}
+		}
+	});
+	const ts = Math.floor(Date.now() / 1000);
+	const sig = createHmac('sha256', WEBHOOK_SECRET).update(`${ts}.${lateBody}`).digest('hex');
+	const late = await fetch(`${BASE}/api/stripe/webhook`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json', 'stripe-signature': `t=${ts},v1=${sig}` },
+		body: lateBody
+	});
+	const outcome = await late.json();
+	check(
+		'a webhook landing after the receipt settles nothing new',
+		outcome.handled === false && outcome.reason === 'duplicate',
+		JSON.stringify(outcome)
+	);
+	await settle();
+	check('and reports no second conversion', reported().length === 1, `${reported().length} sent`);
+	check('or second email', emailsFor(orderNumber).length === 1, `${emailsFor(orderNumber).length} sent`);
 }
 
 mock.close();
 capi.close();
+mailer.close();
 console.log(failures === 0 ? '\nPayment flow OK.' : `\n${failures} failure(s).`);
 process.exit(failures === 0 ? 0 : 1);

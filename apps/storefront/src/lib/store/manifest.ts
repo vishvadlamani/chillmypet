@@ -164,11 +164,21 @@ export const STORE_PAGE: FunnelDefinition = {
 			component: 'payment_badges',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
-			// Cards only, because that is what the checkout takes — the Stripe
-			// payment method configuration for this store is card-only, so a PayPal
-			// or Google Pay badge here promises a button that isn't on the next
-			// page. Add them back to both places together, never to one.
-			props: { methods: ['visa', 'mastercard', 'amex', 'discover'], width: 'full' }
+			// Exactly what the checkout takes, so this list follows the Stripe
+			// configuration, not taste. Read through the Stripe API on 2026-10-12:
+			// ChillMP's default configuration has card, Apple Pay, Link and Klarna
+			// on and Google Pay OFF (it was on under the old account, and this list
+			// still promised it), and chillmypet.com is a registered Apple Pay
+			// domain. A badge for a method that isn't there promises a button the
+			// next page doesn't have, so change this list and that configuration
+			// together, never one without the other, and keep it identical to the
+			// Christmas hoodie page's. Rendered with real artwork by
+			// $lib/components/PaymentIcons.svelte.
+			// No Discover: Stripe does not offer it to accounts in Czechia (ChillMP).
+			props: {
+				methods: ['visa', 'mastercard', 'amex', 'applepay'],
+				width: 'full'
+			}
 		},
 		{
 			id: 'stock-bar',
@@ -209,12 +219,12 @@ export const STORE_PAGE: FunnelDefinition = {
 				items: [
 					{
 						label: 'When will I get my order? 🚚',
-						body: 'Please allow us 2–4 business days to process your order.\n\nOnce processed, 93% of orders arrive between 5–12 days later.\n\nIf you have any questions, please contact us at contact@chillmypet.com.',
+						body: 'Please allow us 2–4 business days to process your order.\n\nOnce processed, 93% of orders arrive between 5–12 days later.\n\nIf you have any questions, please contact us at contact.chillmypet@gmail.com.',
 						link: { label: 'Read our shipping policy', href: '/policies/shipping' }
 					},
 					{
 						label: 'What if the size doesn’t fit my dog? 📏',
-						body: 'We offer 30 day — no questions asked — free exchanges and returns.\n\nIf you have any questions or would like to begin an exchange, please email us at contact@chillmypet.com.',
+						body: 'We offer 30 day — no questions asked — free exchanges and returns.\n\nIf you have any questions or would like to begin an exchange, please email us at contact.chillmypet@gmail.com.',
 						link: { label: 'Read our return and exchange policy', href: '/policies/refunds' }
 					}
 				]

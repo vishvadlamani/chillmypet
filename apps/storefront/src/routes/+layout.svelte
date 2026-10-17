@@ -12,6 +12,8 @@
 	// navigations would otherwise go unrecorded.
 	afterNavigate((navigation) => {
 		if (navigation.type === 'enter') return;
+		// The admin loads no pixel, and its page views are not a shopper's.
+		if (isAdmin) return;
 		// Plain, not scoped: every pixel is initialised by the snippet in
 		// app.html, so one call gives each of them exactly one PageView.
 		track('PageView');
@@ -30,12 +32,38 @@
 	 */
 	let ownsAnnouncement = $derived(Boolean(page.data.definition));
 
+	/**
+	 * The tree storefront (the costume page) sets its strip ABOVE the header,
+	 * the way a shop's own bar sits, so the layout lifts the page's announcement
+	 * up here and the theme hides the in-page copy. Still one strip, still the
+	 * page's words.
+	 */
+	let treeChrome = $derived(page.data.theme === 'tree');
+	let liftedStrip = $derived.by(() => {
+		if (!treeChrome) return '';
+		const blocks = (page.data.definition?.blocks ?? []) as {
+			component: string;
+			props?: { message?: unknown };
+		}[];
+		const message = blocks.find((b) => b.component === 'announcement_bar')?.props?.message;
+		return typeof message === 'string' ? message : '';
+	});
+
+	/** The admin renders bare: no shop header, cart or footer around an order list. */
+	let isAdmin = $derived(page.url.pathname === '/admin' || page.url.pathname.startsWith('/admin/'));
+
 	$effect(() => {
 		cart.hydrate();
 	});
 </script>
 
-<div class="flex min-h-screen flex-col">
+{#if isAdmin}
+	{@render children()}
+{:else}
+<div class="flex min-h-screen flex-col" class:tree-chrome={treeChrome}>
+	{#if liftedStrip}
+		<p class="tree-strip">{liftedStrip}</p>
+	{/if}
 	{#if !ownsAnnouncement}
 		<p class="bg-tide-700 px-4 py-2 text-center text-sm text-white">
 			{t('announcement.banner', { discount: 30 })}
@@ -51,11 +79,28 @@
 				{t('common.brand')}
 			</a>
 
-			<ul class="flex items-center gap-5 text-sm text-ink-600">
+			<!-- On a phone the product names no longer fit beside the brand, and
+			     three of them wrapped the header onto three lines. Below `sm` the
+			     list takes its own line and scrolls sideways instead of wrapping;
+			     the negative margin lets the first link start at the gutter. -->
+			<ul
+				class="flex items-center gap-x-5 overflow-x-auto whitespace-nowrap text-sm text-ink-600 [scrollbar-width:none] max-sm:order-last max-sm:-mx-4 max-sm:w-[calc(100%+2rem)] max-sm:px-4 [&::-webkit-scrollbar]:hidden"
+			>
 				<li><a class="hover:text-ink-900" href="/">{t('nav.home')}</a></li>
-				<li>
-					<a class="hover:text-ink-900" href="/products/dog-life-jacket">{t('nav.shop')}</a>
-				</li>
+				<!-- One link per product that can actually be bought here, from the
+				     layout's load: the catalogue decides, so a second product is
+				     reachable the day its row lands and never before. -->
+				{#each page.data.nav ?? [] as item (item.slug)}
+					<li>
+						<a
+							class="hover:text-ink-900"
+							href="/products/{item.slug}"
+							aria-current={page.url.pathname === `/products/${item.slug}` ? 'page' : undefined}
+						>
+							{item.title}
+						</a>
+					</li>
+				{/each}
 			</ul>
 
 			<div class="ms-auto flex items-center gap-4">
@@ -112,3 +157,4 @@
 		</div>
 	</footer>
 </div>
+{/if}
