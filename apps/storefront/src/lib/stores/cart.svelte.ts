@@ -87,6 +87,19 @@ class Cart {
 		this.persist();
 	}
 
+	/**
+	 * Swaps the whole cart for these lines — what a reminder email's "finish my
+	 * order" link restores. Prices here are display-only like everywhere else in
+	 * the cart; the checkout re-prices them against the database.
+	 */
+	replace(lines: CartLine[]) {
+		this.lines = lines
+			.filter(isLine)
+			.map((line) => ({ ...line, quantity: Math.max(1, Math.min(MAX_PER_LINE, line.quantity)) }));
+		this.hydrated = true;
+		this.persist();
+	}
+
 	clear() {
 		// Idempotent on purpose: `persist()` reads `lines`, so an unconditional
 		// write here would re-trigger any effect that calls clear() and loop.

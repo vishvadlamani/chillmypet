@@ -96,7 +96,7 @@
 		"title": "Checkout",
 		"contactTitle": "Contact",
 		"email": "Email",
-		"emailHint": "Order confirmation and tracking go here.",
+		"emailHint": "Order confirmation and tracking go here. If you don't finish, we'll send one reminder.",
 		"phone": "Phone",
 		"shippingTitle": "Shipping address",
 		"shippingNote": "Free and insured delivery on every order.",
@@ -262,6 +262,13 @@
 					]
 				},
 				{
+					"heading": "Checkout reminders",
+					"body": [
+						"If you type your email address at checkout and leave without finishing, we keep it, with what was in your basket and your first name if you gave it, so we can send you one reminder email with a link back to your order.",
+						"We send at most one reminder per address in 30 days, never after you've bought, and never after you unsubscribe — every reminder has an unsubscribe link. Unfinished checkouts are deleted after 30 days."
+					]
+				},
+				{
 					"heading": "Payment details",
 					"body": [
 						"We never see or store your card number. Payments are processed by Stripe on their own hosted page; we receive only the fact that a payment succeeded, the amount, and the last-four digits Stripe shows us.",
@@ -299,7 +306,7 @@
 				{
 					"heading": "Who we share with",
 					"body": [
-						"Only the parties needed to run the shop: Stripe for payment, our shipping carrier for delivery, and Meta for advertising measurement as described above. We don't sell your data."
+						"Only the parties needed to run the shop: Stripe for payment, our shipping carrier for delivery, Resend to send our emails, and Meta for advertising measurement as described above. We don't sell your data."
 					]
 				}
 			]
@@ -358,5 +365,16 @@
 			"For a sizing question, your dog's chest measurement and weight",
 			"For a damaged item, a photo"
 		]
+	},
+	"recovery": {
+		"restoring": "Bringing back your cart…",
+		"restoreMissing": "This link has expired.",
+		"backToShop": "Back to the shop",
+		"unsubscribeTitle": "Unsubscribe from reminders",
+		"unsubscribeBody": "We'll stop sending checkout reminders to this address. Order confirmations still arrive when you buy.",
+		"unsubscribeButton": "Unsubscribe",
+		"unsubscribed": "Done — you won't get any more reminders from us.",
+		"unsubscribeInvalid": "This link has expired or was already used. If you still get reminders, reply to one and we'll stop them by hand.",
+		"unsubscribeFailed": "Something went wrong. Please try again."
 	}
 }

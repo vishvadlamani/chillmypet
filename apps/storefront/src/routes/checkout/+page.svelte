@@ -209,6 +209,35 @@
 	const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 	/**
+	 * Saves the email with the cart as soon as both exist, so a shopper who
+	 * leaves before pressing pay can get the one reminder the note under the
+	 * email field promises. Debounced, so it posts once they stop typing rather
+	 * than per keystroke, and only when something changed. The endpoint answers
+	 * the same whatever it decided, and the answer is ignored.
+	 */
+	let savedDraft = '';
+	$effect(() => {
+		const email = (bag.email ?? '').trim();
+		if (!cart.hydrated || cart.lines.length === 0 || !EMAIL.test(email)) return;
+		const body = JSON.stringify({
+			email,
+			fullName: (bag.fullName ?? '').trim(),
+			lines: cart.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity }))
+		});
+		if (body === savedDraft) return;
+		const timer = setTimeout(() => {
+			savedDraft = body;
+			fetch('/api/checkout/draft', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body,
+				keepalive: true
+			}).catch(() => {});
+		}, 1500);
+		return () => clearTimeout(timer);
+	});
+
+	/**
 	 * The cross-form check.
 	 *
 	 * Each block validates only its own fields, and none of them has a submit

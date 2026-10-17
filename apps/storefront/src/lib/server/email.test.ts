@@ -7,7 +7,9 @@ import type { Order } from 'ecomwithai';
 import {
 	escapeHtml,
 	renderOrderConfirmation,
+	renderCheckoutReminder,
 	renderShippingNotification,
+	sendCheckoutReminder,
 	sendOrderConfirmation,
 	sendShippingNotification,
 	type EmailConfig
@@ -119,6 +121,42 @@ check(
 	'with its own idempotency key, so it is not dropped as the confirmation',
 	(calls[0]?.init.headers as Record<string, string>)?.['idempotency-key'] === 'shipped/CMP-TEST1'
 );
+
+// --- abandoned-checkout reminder -------------------------------------------
+const token = 'ab'.repeat(24);
+const reminder = {
+	to: 'holly@example.com',
+	token,
+	firstName: 'Holly <i>',
+	currency: 'USD',
+	christmasMessage: '🎄 Order by Monday, Dec 7 for Christmas delivery to the US',
+	lines: [
+		{ title: 'Dog Christmas Tree Costume', options: ['Red', 'M'], quantity: 2, unitPriceCents: 2850, imageUrl: 'https://chillmypet.com/products/x.jpg?a=1&b=2' }
+	]
+};
+const nudge = renderCheckoutReminder(reminder, config.origin);
+check('reminder greets by name, escaped', nudge.html.includes('Hi Holly &lt;i&gt;,') && !nudge.html.includes('Holly <i>'));
+check('reminder subject names the cart', nudge.subject === 'Your order is still in your cart 🎄');
+check('one item reads as its title', renderCheckoutReminder({ ...reminder, lines: [{ ...reminder.lines[0], quantity: 1 }] }, config.origin).subject === 'Dog Christmas Tree Costume is still in your cart 🎄');
+check('no Christmas line after the cut-off, and no tree in the subject', (() => {
+	const late = renderCheckoutReminder({ ...reminder, christmasMessage: null }, config.origin);
+	return !late.text.includes('Christmas delivery') && !late.subject.includes('🎄');
+})());
+check('reminder lists the line with options and total', nudge.text.includes('2 × Dog Christmas Tree Costume — Red — M  $57.00') && nudge.text.includes('Subtotal: $57.00'));
+check('restore link carries the token', nudge.text.includes(`https://chillmypet.com/checkout/restore/${token}`) && nudge.html.includes(`/checkout/restore/${token}`));
+check('unsubscribe link carries the token', nudge.text.includes(`https://chillmypet.com/email/unsubscribe/${token}`));
+check('image URL is attribute-escaped', nudge.html.includes('src="https://chillmypet.com/products/x.jpg?a=1&amp;b=2"'));
+check('without a name it still greets', renderCheckoutReminder({ ...reminder, firstName: null }, config.origin).text.startsWith('Hi there,'));
+check('no "undefined" or "null" in a reminder', !/undefined|null/.test(nudge.text) && !/>\s*(undefined|null)\s*</.test(nudge.html));
+
+calls.length = 0;
+check('no API key: no reminder is sent', (await sendCheckoutReminder({ ...config, apiKey: undefined }, reminder, ok)) === 'not_configured' && calls.length === 0);
+check('reminder sends', (await sendCheckoutReminder(config, reminder, ok)) === 'sent');
+const nudgeBody = JSON.parse(String(calls[0].init.body));
+check('reminder goes to the draft address', nudgeBody.to?.[0] === 'holly@example.com');
+check('reminder is keyed on the token, so a retried sweep cannot send it twice', (calls[0].init.headers as Record<string, string>)['idempotency-key'] === `checkout-reminder/${token}`);
+check('reminder offers the mail client an unsubscribe', nudgeBody.headers?.['List-Unsubscribe'] === `<https://chillmypet.com/email/unsubscribe/${token}>`);
+check('order emails carry no List-Unsubscribe', (calls.length = 0, await sendOrderConfirmation(config, order, ok), JSON.parse(String(calls[0].init.body)).headers === undefined));
 
 if (failures) {
 	console.log(`\n${failures} email check(s) failed.`);

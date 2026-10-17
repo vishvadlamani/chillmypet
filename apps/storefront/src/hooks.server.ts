@@ -4,6 +4,7 @@ import { createCommerce, createDirectory, type Store } from 'ecomwithai';
 import { newEventId } from 'ecomwithai/marketing';
 import { ADMIN_HEADERS, adminGate, isAdminPath } from '$lib/server/admin';
 import { ensureCatalogue } from '$lib/server/catalogue';
+import { sweepSoon } from '$lib/server/recovery';
 import { metaBrowserIds } from '$lib/server/meta-browser-ids';
 import { rememberedContact, type RememberedContact } from '$lib/server/identity';
 import { attributionFrom, ensureVisitorId } from '$lib/server/purchase';
@@ -290,6 +291,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// before the pixel or any beacon runs. Every request, not just documents: a
 	// beacon or form post gets its click id from the referrer this way.
 	event.locals.metaBrowserIds = metaBrowserIds(event);
+
+	// Abandoned-checkout reminders ride on page traffic: nothing schedules the
+	// Worker, so a shopper's page view is what notices a reminder has come due.
+	// Throttled per isolate and run after the response, so it never slows a page.
+	if (!isAdmin && isDocumentRequest(event.request)) {
+		sweepSoon(event.locals.commerce, event.locals.email, settings, event.platform?.context);
+	}
 
 	const response = await resolve(event, {
 		transformPageChunk: ({ html }) =>

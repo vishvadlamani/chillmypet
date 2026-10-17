@@ -15,6 +15,7 @@ import { createCatalogService, type CatalogService } from './catalog/index.ts';
 import { createCustomerService, type CustomerService } from './customers/index.ts';
 import { createDb, type Client, type DatabaseConfig } from './db/index.ts';
 import { createFulfillmentService, type FulfillmentService } from './fulfillments/index.ts';
+import { createRecoveryService, type RecoveryService } from './recovery/index.ts';
 import { createMetaService, type MetaConfig, type MetaService } from './marketing/index.ts';
 import { createOrderService, type OrderService } from './orders/index.ts';
 import { createStoreService, type Store, type StoreService } from './stores/index.ts';
@@ -53,6 +54,7 @@ export type {
 	MarkShippedInput,
 	MarkShippedResult
 } from './fulfillments/index.ts';
+export type { RecoveryService, CheckoutDraft, CartLineRef, SaveDraftInput, DueOptions } from './recovery/index.ts';
 export { CheckoutError, type CheckoutErrorCode } from './orders/index.ts';
 export {
 	DEFAULT_SHIPPING_RATES,
@@ -94,6 +96,8 @@ export type Commerce = {
 	orders: OrderService;
 	/** Shipping, recorded beside the order so `orders.status` stays `paid`. */
 	fulfillments: FulfillmentService;
+	/** Abandoned-checkout drafts and the rules for reminding them. */
+	recovery: RecoveryService;
 	/** Null unless a pixel id is configured for this store. */
 	meta: MetaService | null;
 	/** Null unless a payment provider is configured for this store. */
@@ -153,6 +157,7 @@ export function createCommerce(config: CommerceConfig): Commerce {
 	});
 
 	const fulfillments = createFulfillmentService({ db, storeId });
+	const recovery = createRecoveryService({ db, storeId, defaultLocale: store.defaultLocale });
 
 	const pixelId = config.meta?.pixelId;
 	const meta = pixelId ? createMetaService({ ...config.meta, pixelId }) : null;
@@ -168,6 +173,7 @@ export function createCommerce(config: CommerceConfig): Commerce {
 		customers,
 		orders,
 		fulfillments,
+		recovery,
 		meta,
 		payments,
 		quantityBreaks: config.quantityBreaks ?? []

@@ -252,6 +252,24 @@ check('fulfilments are looked up by page', [...(await alpha.fulfillments.forOrde
 check("another store cannot read the fulfilment", await bravo.fulfillments.byOrderNumber(order.orderNumber), null);
 check("nor see it in a page lookup", (await bravo.fulfillments.forOrders([order.orderNumber])).size, 0);
 
+// --- checkout recovery ---
+const draftToken = await alpha.recovery.saveDraft({
+	email: 'Left@Example.com',
+	lines: [{ variantId: alphaSeed.variantIds['TEE-BLUE-M'], quantity: 1 }]
+});
+check('a draft is saved', typeof draftToken, 'string');
+await db.execute({
+	sql: "update checkout_drafts set created_at = datetime('now', '-2 hours'), updated_at = datetime('now', '-2 hours') where token = ?",
+	args: [draftToken]
+});
+check('it is due for this store', (await alpha.recovery.due()).map((d) => d.email), ['left@example.com']);
+check('another store does not see it as due', (await bravo.recovery.due()).length, 0);
+check('another store cannot read it', await bravo.recovery.byToken(draftToken!), null);
+check('another store cannot claim it', await bravo.recovery.claim(draftToken!), false);
+check('another store cannot unsubscribe its address', await bravo.recovery.unsubscribe(draftToken!), false);
+check('so the address is still subscribed here', await alpha.recovery.isUnsubscribed('left@example.com'), false);
+check('another store purging leaves it', (await bravo.recovery.purge(), (await alpha.recovery.byToken(draftToken!))?.email), 'left@example.com');
+
 // --- stock adjustment ---
 check('stock can be added', await alpha.catalog.adjustStock(alphaSeed.variantIds['TEE-BLUE-M'], 5), 5);
 let belowZero = 'no error';
