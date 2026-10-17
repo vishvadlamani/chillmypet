@@ -300,7 +300,14 @@
 		<div class="site-footer-inner">
 			<div class="site-footer-brand">
 				<a href="/" class="site-footer-name">
-					<img src="/brand/logo-light.png" alt={t('common.brand')} width="449" height="96" />
+					<!-- Light lettering for the dark tree and brand footers; the plain
+					     chrome's footer is light, and needs the navy logo. -->
+					<img
+						src={treeChrome ? '/brand/logo-light.png' : '/brand/logo.png'}
+						alt={t('common.brand')}
+						width="449"
+						height="96"
+					/>
 				</a>
 				<p>{t('footer.tagline')}</p>
 			</div>

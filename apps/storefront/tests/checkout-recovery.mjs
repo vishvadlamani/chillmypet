@@ -82,7 +82,7 @@ const newShopper = async () => {
 {
 	const ctx = await newShopper();
 	const page = await ctx.newPage();
-	await page.goto(`${BASE}/products/dog-christmas-costume`, { waitUntil: 'networkidle' });
+	await page.goto(`${BASE}/products/dog-christmas-costume?details=1`, { waitUntil: 'networkidle' });
 	// No colour chosen: the page opens on green (`leadDesign`), and that is
 	// what goes in the cart.
 	await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();

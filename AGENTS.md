@@ -865,6 +865,22 @@ contact, address and shipping blocks, then the same card fields and pay
 button. It is a second way in for an ad that should land on the form; the
 product page and `/checkout` are unchanged. Things to know:
 
+- **The costume's own URL lands here** (`landing: 'checkout'` in `pages.ts`,
+  2026-10-17). The Christmas costume ad links to
+  `/products/dog-christmas-costume`, and the owner wants one screen from the
+  ad to the card form, so that URL answers with a 302 to
+  `/products/dog-christmas-costume/checkout`, query string kept: `fbclid`
+  rides along, and the Parameter Builder writes `_fbc` on the redirect
+  itself (`one-page-checkout.mjs` checks both). The long page (story, size
+  guide, FAQ) is at `?details=1`, which the picker's Size guide links to;
+  `tests/dog-christmas-costume.mjs` drives it there. `check-live.js` follows
+  redirects for this reason. The one-page checkouts now carry their
+  product's `theme` and `festive`, so the costume's is in its Christmas
+  colours with the strip above the header.
+- **An empty cart says so in the payment box.** Stripe's fields mount only
+  for an amount above zero, and with nothing in the cart the box used to
+  read "Loading secure payment…" forever (an owner's phone found it). It now
+  reads `checkout.paymentEmpty`, or `paymentPick` on a one-page checkout.
 - **Composed, not authored.** `onePageCheckout()` in
   `$lib/store/one-page-checkout.ts` takes the strip, gallery, h1 and picker
   from the product's manifest and the fields from `CHECKOUT_PAGE`, so copy,

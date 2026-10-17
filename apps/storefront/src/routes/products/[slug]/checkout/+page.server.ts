@@ -69,6 +69,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		...checkoutPayment(locals, url),
 		slug,
 		look: page.checkout ?? null,
+		// The product's own skin and colours (the layout reads both), so the
+		// Christmas costume's checkout looks like its product page.
+		theme: page.theme ?? null,
+		festive: Boolean(page.christmas),
 		// The colour the picker shows chosen before anyone chooses.
 		leadDesign: page.leadDesign ?? null,
 		tierField,

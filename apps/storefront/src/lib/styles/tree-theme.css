@@ -176,8 +176,10 @@
 	--spacing-gutter: 0px;
 }
 
-/* The lifted strip replaces this one. */
-.tree-theme aside[aria-label='Announcement'] {
+/* The lifted strip replaces this one (on the product page, and on its
+   one-page checkout, which renders the same strip block). */
+.tree-theme aside[aria-label='Announcement'],
+.tree-chrome .tree-checkout aside[aria-label='Announcement'] {
 	display: none;
 }
 

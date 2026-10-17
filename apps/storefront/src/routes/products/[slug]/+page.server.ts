@@ -1,4 +1,4 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { bindDefinition, createRefResolver } from '@funnel/core';
 import { loadBundles } from '$lib/store/bundles';
 import { loadChristmasDelivery } from '$lib/store/christmas';
@@ -13,12 +13,20 @@ import { PRODUCT_PAGES } from '$lib/store/pages';
 import { loadVariantPicker, variantEntries } from '$lib/store/variants';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const { commerce, locale, settings } = locals;
 	const slug = params.slug;
 
 	const page = PRODUCT_PAGES[slug];
 	if (!page) error(404, `No page manifest for "${slug}" — add one in $lib/store/pages.ts`);
+
+	// A product whose URL lands on its checkout (`landing` in pages.ts): the
+	// ad's click goes straight to the one-screen form. The whole query string
+	// travels, because `fbclid` is how Meta ties the click to the sale and
+	// the Parameter Builder reads it there. `?details=1` is the long page.
+	if (page.landing === 'checkout' && !url.searchParams.has('details')) {
+		redirect(302, `/products/${slug}/checkout${url.search}`);
+	}
 
 	// Every source is a live query. They run together because none depends on
 	// another, and the page renders behind the slowest one either way.

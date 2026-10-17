@@ -21,7 +21,9 @@ import { chromium } from 'playwright';
 import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
-const URL_ = `${BASE}/products/dog-christmas-costume`;
+// The long page. The bare URL is where the ad points, and it lands on the
+// one-page checkout instead (`landing` in pages.ts; one-page-checkout.mjs).
+const URL_ = `${BASE}/products/dog-christmas-costume?details=1`;
 const PRICE = '27.99';
 const SKU = 'CMP-XT-GREEN-M';
 
