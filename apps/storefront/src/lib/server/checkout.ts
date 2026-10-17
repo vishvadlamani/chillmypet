@@ -143,6 +143,11 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 		await rememberContact(cookies, {
 			email,
 			phone: value('phone') || undefined,
+			firstName,
+			lastName,
+			city: named.city,
+			state: value('province') || undefined,
+			zip: named.postalCode,
 			country
 		});
 	} catch (error) {

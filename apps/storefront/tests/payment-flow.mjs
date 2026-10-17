@@ -638,9 +638,24 @@ if (sessionCall) {
 		remembered.cmp_ph === sha256('16045550199'),
 		remembered.cmp_ph
 	);
+	// And the name and address, so a returning shopper's PageView carries a
+	// last name — Events Manager flagged its coverage at 4.55%.
+	const address = {
+		cmp_fn: sha256('inline'),
+		cmp_ln: sha256('buyer'),
+		cmp_ct: sha256('delta'),
+		cmp_st: sha256('bc'),
+		cmp_zp: sha256('v3w3n1'),
+		cmp_country: sha256('ca')
+	};
 	check(
-		'neither holds the plaintext',
-		!placed.headers.getSetCookie().some((c) => /inline|555/.test(c))
+		'and the name and address, normalized as Purchase sends them, as digests',
+		Object.entries(address).every(([name, digest]) => remembered[name] === digest),
+		JSON.stringify(Object.fromEntries(Object.keys(address).map((n) => [n, remembered[n]])))
+	);
+	check(
+		'none holds the plaintext',
+		!placed.headers.getSetCookie().some((c) => /inline|buyer|delta|v3w|555/i.test(c))
 	);
 
 	const intentId = /(pi_test_mock_[A-Za-z0-9]+_\d+)_secret/.exec(raw)?.[1];
@@ -750,13 +765,24 @@ if (sessionCall) {
 		'_fbp=fb.1.1700000000000.1234567890',
 		`cmp_vid=${VISITOR}`,
 		`cmp_em=${remembered.cmp_em}`,
-		`cmp_ph=${remembered.cmp_ph}`
+		`cmp_ph=${remembered.cmp_ph}`,
+		...Object.keys(address).map((name) => `${name}=${remembered[name]}`)
 	].join('; ');
 
 	const page = await fetch(`${BASE}/products/dog-life-jacket?back=${RUN}`, {
 		headers: { accept: 'text/html', cookie }
 	});
-	await page.text();
+	const pageHtml = await page.text();
+	check(
+		"the browser pixel is initialised with the shopper's last name",
+		pageHtml.includes(`ln: '${sha256('buyer')}'`),
+		'no ln in the fbq init'
+	);
+
+	const forged = await fetch(`${BASE}/products/dog-life-jacket`, {
+		headers: { accept: 'text/html', cookie: `cmp_ln='});alert(1);//` }
+	}).then((r) => r.text());
+	check('a forged match cookie cannot reach the page as script', !forged.includes('alert(1)'));
 
 	const viewId = `view-${RUN}`;
 	const beacon = await fetch(`${BASE}/api/track`, {
@@ -805,11 +831,13 @@ if (sessionCall) {
 	]) {
 		const u = ev?.user_data ?? {};
 		check(
-			`a returning shopper's ${name} carries fbp, external_id, email and phone`,
+			`a returning shopper's ${name} carries fbp, external_id, email, phone and last name`,
 			u.fbp === 'fb.1.1700000000000.1234567890' &&
 				u.external_id?.[0] === VISITOR &&
 				u.em?.[0] === sha256('inline@example.com') &&
-				u.ph?.[0] === sha256('16045550199'),
+				u.ph?.[0] === sha256('16045550199') &&
+				u.ln?.[0] === sha256('buyer') &&
+				u.zp?.[0] === sha256('v3w3n1'),
 			JSON.stringify(u)
 		);
 	}

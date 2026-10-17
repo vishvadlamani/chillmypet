@@ -4,7 +4,7 @@ import { createCommerce, createDirectory, type Store } from 'ecomwithai';
 import { buildFbc, buildFbp, fbclidOf, newEventId } from 'ecomwithai/marketing';
 import { ADMIN_HEADERS, adminGate, isAdminPath } from '$lib/server/admin';
 import { ensureCatalogue } from '$lib/server/catalogue';
-import { rememberedContact } from '$lib/server/identity';
+import { rememberedContact, type RememberedContact } from '$lib/server/identity';
 import { attributionFrom, ensureVisitorId } from '$lib/server/purchase';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
@@ -35,15 +35,37 @@ function getDirectory() {
  *
  * Each init carries the visitor's `external_id`, the same string every
  * Conversions API copy sends, so the two halves of an event name one person.
+ * A returning shopper's remembered digests go in too, under the pixel's own
+ * advanced-matching keys; the pixel sends a SHA-256 value as it is.
  *
  * Guards against database content reaching the page as markup, and against a
- * cookie doing the same: the id is checked against its exact shape again here.
+ * cookie doing the same: every value is checked against its exact shape again
+ * here.
  */
-function pixelSnippet(pixelIds: string[], pageViewEventId: string, externalId: string): string {
+function pixelSnippet(
+	pixelIds: string[],
+	pageViewEventId: string,
+	externalId: string,
+	contact: RememberedContact
+): string {
 	const ids = pixelIds.filter((id) => /^\d{1,20}$/.test(id));
 	if (ids.length === 0) return '';
 
-	const matching = /^[a-f0-9]{64}$/.test(externalId) ? `, {external_id: '${externalId}'}` : '';
+	const keys: Record<string, string | undefined> = {
+		external_id: externalId,
+		em: contact.email,
+		ph: contact.phone,
+		fn: contact.firstName,
+		ln: contact.lastName,
+		ct: contact.city,
+		st: contact.state,
+		zp: contact.zip,
+		country: contact.country
+	};
+	const fields = Object.entries(keys)
+		.filter(([, value]) => value && /^[a-f0-9]{64}$/.test(value))
+		.map(([key, value]) => `${key}: '${value}'`);
+	const matching = fields.length ? `, {${fields.join(', ')}}` : '';
 	const inits = ids.map((id) => `fbq('init', '${id}'${matching});`).join('\n');
 	const noscript = ids
 		.map(
@@ -304,7 +326,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 			html
 				.replace('%lang%', locale)
 				.replace('%dir%', textDirection(locale))
-				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId, visitorId))
+				.replace('%meta_pixel%', pixelSnippet(pixelIds, pageViewEventId, visitorId, rememberedContact(event.cookies))
+				)
 				.replace('%gtm_head%', gtm.head)
 				.replace('%gtm_body%', gtm.body)
 				.replace(

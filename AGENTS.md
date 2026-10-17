@@ -315,10 +315,15 @@ characters, so a longer value is left out rather than failing a checkout. Any ne
 path that creates an intent or session must pass this metadata too. The hosted
 fallback in `/api/checkout/session` was missing it.
 
-**A returning shopper's events carry their email and phone too.**
-`$lib/server/identity.ts` keeps `cmp_em` and `cmp_ph`: SHA-256 digests of the
-email and phone a shopper gave at checkout, written by the checkout action and
-never by `/api/track`, so the next visit's PageView and ViewContent carry them.
+**A returning shopper's events carry their email, phone, name and address too.**
+`$lib/server/identity.ts` keeps `cmp_em`, `cmp_ph`, `cmp_fn`, `cmp_ln`,
+`cmp_ct`, `cmp_st`, `cmp_zp` and `cmp_country`: SHA-256 digests of what a
+shopper gave at checkout, normalized exactly as Purchase normalizes them. Name
+and address joined email and phone after Events Manager flagged Last Name
+coverage on PageView at 4.55%. The pixel's `fbq('init')` carries the same
+digests, each shape-checked again before it is written into the script. They
+are written by the checkout action and never by `/api/track`, so the next
+visit's PageView and ViewContent carry them.
 `buildUserData` passes a 64-hex value through untouched; hash it again and it
 matches nobody. Phones get a calling code (`withCallingCode`) before hashing, in
 the cookie and on Purchase alike, or the same person hashes two ways.
