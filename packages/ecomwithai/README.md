@@ -222,7 +222,9 @@ Working: catalog with generic options, variants, media, metafields and
 translations; customers with lifetime totals; orders with idempotency and stock
 safety; Stripe payments with verified webhooks, refunds and stock release;
 multi-tenancy; the agent toolkit and MCP server; Meta Conversions API with
-browser/server event deduplication.
+browser/server event deduplication; abandoned-checkout drafts (`recovery`)
+with the one-reminder-per-address, never-after-purchase and opt-out rules
+built in, for a host to send its own reminder email from.
 
 Not built yet: tax, an admin UI, transactional email, returns handling beyond
 refunds, and providers other than Stripe.

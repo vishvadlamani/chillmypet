@@ -56,45 +56,163 @@ export function sendShippingNotification(
 	return send(config, order, 'shipped', renderShippingNotification(order, shipment, config.origin), fetchImpl);
 }
 
-async function send(
+function send(
 	config: EmailConfig,
 	order: Order,
 	kind: string,
-	{ subject, html, text }: { subject: string; html: string; text: string },
+	rendered: Rendered,
 	fetchImpl: typeof fetch
 ): Promise<SendResult> {
-	if (!config.apiKey || !order.email) return 'not_configured';
+	return deliver(config, { to: order.email, kind, ref: order.orderNumber }, rendered, fetchImpl);
+}
+
+type Rendered = { subject: string; html: string; text: string };
+
+/** The one place an email leaves. `ref` names it in logs and, with `kind`, keys Resend's dedupe. */
+async function deliver(
+	config: EmailConfig,
+	envelope: { to: string; kind: string; ref: string; headers?: Record<string, string> },
+	{ subject, html, text }: Rendered,
+	fetchImpl: typeof fetch
+): Promise<SendResult> {
+	const { to, kind, ref } = envelope;
+	if (!config.apiKey || !to) return 'not_configured';
 	try {
 		const response = await fetchImpl(config.endpoint || DEFAULT_ENDPOINT, {
 			method: 'POST',
 			headers: {
 				authorization: `Bearer ${config.apiKey}`,
 				'content-type': 'application/json',
-				'idempotency-key': `${kind}/${order.orderNumber}`
+				'idempotency-key': `${kind}/${ref}`
 			},
 			body: JSON.stringify({
 				from: config.from,
-				to: [order.email],
+				to: [to],
 				...(config.replyTo ? { reply_to: config.replyTo } : {}),
 				subject,
 				html,
-				text
+				text,
+				...(envelope.headers ? { headers: envelope.headers } : {})
 			})
 		});
 		if (!response.ok) {
-			console.error(
-				`Email ${kind} rejected`,
-				order.orderNumber,
-				response.status,
-				await response.text().catch(() => '')
-			);
+			console.error(`Email ${kind} rejected`, ref, response.status, await response.text().catch(() => ''));
 			return 'failed';
 		}
 		return 'sent';
 	} catch (error) {
-		console.error(`Email ${kind} failed`, order.orderNumber, error);
+		console.error(`Email ${kind} failed`, ref, error);
 		return 'failed';
 	}
+}
+
+export type ReminderLine = {
+	title: string;
+	options: string[];
+	quantity: number;
+	unitPriceCents: number;
+	/** Absolute URL, or null to leave the photo out. */
+	imageUrl: string | null;
+};
+
+/** What an abandoned-checkout reminder needs: who, what was in the cart, and the draft's token. */
+export type CheckoutReminder = {
+	to: string;
+	token: string;
+	firstName: string | null;
+	lines: ReminderLine[];
+	currency: string;
+	/** The Christmas delivery line, while it is still true; null after the cut-off. */
+	christmasMessage: string | null;
+};
+
+const reminderLinks = (token: string, origin: string) => ({
+	restoreUrl: `${origin}/checkout/restore/${encodeURIComponent(token)}`,
+	unsubscribeUrl: `${origin}/email/unsubscribe/${encodeURIComponent(token)}`
+});
+
+/**
+ * The one reminder an abandoned checkout gets. Same guarantees as the others —
+ * never throws — and keyed on the draft's token, so a sweep retried after the
+ * send went out cannot send it twice. `List-Unsubscribe` lets a mail client
+ * offer its own unsubscribe button, pointing at the same page as the footer.
+ */
+export function sendCheckoutReminder(
+	config: EmailConfig,
+	reminder: CheckoutReminder,
+	fetchImpl: typeof fetch = fetch
+): Promise<SendResult> {
+	const { unsubscribeUrl } = reminderLinks(reminder.token, config.origin);
+	return deliver(
+		config,
+		{
+			to: reminder.to,
+			kind: 'checkout-reminder',
+			ref: reminder.token,
+			headers: { 'List-Unsubscribe': `<${unsubscribeUrl}>` }
+		},
+		renderCheckoutReminder(reminder, config.origin),
+		fetchImpl
+	);
+}
+
+export function renderCheckoutReminder(reminder: CheckoutReminder, origin: string): Rendered {
+	const { lines, currency } = reminder;
+	const { restoreUrl, unsubscribeUrl } = reminderLinks(reminder.token, origin);
+	const hello = reminder.firstName ? `Hi ${reminder.firstName},` : 'Hi there,';
+	const label = (l: ReminderLine) => [l.title, ...l.options].join(' — ');
+	const subtotal = lines.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0);
+	const lead = lines.length === 1 && lines[0].quantity === 1 ? lines[0].title : 'Your order';
+	const subject = reminder.christmasMessage
+		? `${lead} is still in your cart 🎄`
+		: `${lead} is still in your cart`;
+
+	const text = [
+		hello,
+		'',
+		'You left this in your cart. We saved it, so you can finish in one tap.',
+		'',
+		...lines.map((l) => `  ${l.quantity} × ${label(l)}  ${money(l.unitPriceCents * l.quantity, currency)}`),
+		`  Subtotal: ${money(subtotal, currency)}`,
+		'',
+		'Free US shipping · 30-day free returns',
+		...(reminder.christmasMessage ? ['', reminder.christmasMessage] : []),
+		'',
+		`Finish your order: ${restoreUrl}`,
+		'',
+		'Questions? Just reply to this email.',
+		'ChillMyPet',
+		'',
+		"You're getting this one-time reminder because this address was entered at checkout on our site.",
+		`Unsubscribe: ${unsubscribeUrl}`
+	].join('\n');
+
+	const cell = 'padding:10px 0;border-bottom:1px solid #eee;vertical-align:middle;';
+	const html = `<!doctype html>
+<html><body style="margin:0;padding:24px;background:#f6f6f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;">
+<tr><td>
+<h1 style="font-size:22px;margin:0 0 8px;">${escapeHtml(hello)}</h1>
+<p style="margin:0 0 24px;color:#555;">You left this in your cart. We saved it, so you can finish in one tap.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+${lines
+	.map(
+		(l) =>
+			`<tr>${l.imageUrl ? `<td width="72" style="${cell}"><img src="${escapeHtml(l.imageUrl)}" width="60" height="60" alt="" style="display:block;border-radius:8px;object-fit:cover;"></td>` : ''}<td style="${cell}">${l.quantity} × ${escapeHtml(label(l))}</td><td align="right" style="${cell}">${money(l.unitPriceCents * l.quantity, currency)}</td></tr>`
+	)
+	.join('\n')}
+<tr><td colspan="${lines.some((l) => l.imageUrl) ? 2 : 1}" style="padding:10px 0;font-weight:700;">Subtotal</td><td align="right" style="padding:10px 0;font-weight:700;">${money(subtotal, currency)}</td></tr>
+</table>
+<p style="margin:8px 0 0;color:#555;">Free US shipping · 30-day free returns</p>
+${reminder.christmasMessage ? `<p style="margin:16px 0 0;padding:12px 14px;background:#eef5f0;border-radius:8px;color:#285B43;font-weight:600;">${escapeHtml(reminder.christmasMessage)}</p>` : ''}
+<p style="margin:28px 0;"><a href="${escapeHtml(restoreUrl)}" style="background:#1a1a1a;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;">Finish my order</a></p>
+<p style="margin:0;color:#888;font-size:13px;">Questions? Just reply to this email.</p>
+<p style="margin:24px 0 0;color:#aaa;font-size:12px;line-height:1.5;">You're getting this one-time reminder because this address was entered at checkout on our site. <a href="${escapeHtml(unsubscribeUrl)}" style="color:#888;">Unsubscribe</a></p>
+</td></tr>
+</table>
+</body></html>`;
+
+	return { subject, html, text };
 }
 
 function money(cents: number, currency: string): string {

@@ -96,7 +96,7 @@
 		"title": "Finalizar compra",
 		"contactTitle": "Contacto",
 		"email": "Correo electrónico",
-		"emailHint": "Aquí enviaremos la confirmación y el seguimiento.",
+		"emailHint": "Aquí enviaremos la confirmación y el seguimiento. Si no terminas, te enviaremos un recordatorio.",
 		"phone": "Teléfono",
 		"shippingTitle": "Dirección de envío",
 		"shippingNote": "Envío gratuito y asegurado en todos los pedidos.",
@@ -262,6 +262,13 @@
 					]
 				},
 				{
+					"heading": "Recordatorios de compra",
+					"body": [
+						"Si escribes tu correo al pagar y te vas sin terminar, lo guardamos junto con lo que había en tu carrito y tu nombre si lo diste, para enviarte un único correo de recordatorio con un enlace a tu pedido.",
+						"Enviamos como máximo un recordatorio por dirección cada 30 días, nunca después de que compres y nunca si te das de baja: cada recordatorio incluye un enlace para darse de baja. Los pagos sin terminar se borran a los 30 días."
+					]
+				},
+				{
 					"heading": "Datos de pago",
 					"body": [
 						"Nunca vemos ni almacenamos tu número de tarjeta. Los pagos los procesa Stripe en su propia página; nosotros solo recibimos que el pago se completó, el importe y los últimos cuatro dígitos que Stripe nos muestra.",
@@ -299,7 +306,7 @@
 				{
 					"heading": "Con quién compartimos",
 					"body": [
-						"Solo con quien hace falta para operar la tienda: Stripe para el pago, el transportista para la entrega y Meta para la medición publicitaria descrita arriba. No vendemos tus datos."
+						"Solo con quien hace falta para operar la tienda: Stripe para el pago, el transportista para la entrega, Resend para enviar nuestros correos y Meta para la medición publicitaria descrita arriba. No vendemos tus datos."
 					]
 				}
 			]
@@ -358,5 +365,16 @@
 			"Para una duda de talla, el contorno de pecho y el peso de tu perro",
 			"Para un artículo dañado, una foto"
 		]
+	},
+	"recovery": {
+		"restoring": "Recuperando tu carrito…",
+		"restoreMissing": "Este enlace ha caducado.",
+		"backToShop": "Volver a la tienda",
+		"unsubscribeTitle": "Darse de baja de los recordatorios",
+		"unsubscribeBody": "Dejaremos de enviar recordatorios de compra a esta dirección. Las confirmaciones de pedido seguirán llegando cuando compres.",
+		"unsubscribeButton": "Darme de baja",
+		"unsubscribed": "Hecho: no recibirás más recordatorios.",
+		"unsubscribeInvalid": "Este enlace ha caducado o ya se usó. Si sigues recibiendo recordatorios, responde a uno y los detendremos a mano.",
+		"unsubscribeFailed": "Algo salió mal. Inténtalo de nuevo."
 	}
 }

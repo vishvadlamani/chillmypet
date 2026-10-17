@@ -20,6 +20,7 @@
 		"test:payments": "node tests/payment-flow.mjs",
 		"test:store": "node tests/store-flow.mjs && node tests/christmas-hoodie.mjs && node tests/dog-christmas-costume.mjs",
 		"test:admin": "node tests/admin-flow.mjs",
+		"test:recovery": "node tests/checkout-recovery.mjs",
 		"db:content": "node --env-file-if-exists=.env scripts/sync-content.js",
 		"db:products": "node --env-file-if-exists=.env scripts/add-products.js"
 	},

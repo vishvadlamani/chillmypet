@@ -963,11 +963,59 @@ Not built, in rough priority order:
    checkout). Each runs once per sale, which is what keeps it to one email;
    `test:payments` counts them. It sends nothing until `RESEND_API_KEY` is a
    Worker secret, and the sending domain (`orders@chillmypet.com` by default)
-   must be verified in Resend first. No shipping-notification email yet.
+   must be verified in Resend first. The admin's "Mark shipped" sends a
+   shipping notification the same way.
 5. ~~**Payments.**~~ Live, on ChillMyPet's own Stripe account since 2026-10-07
    — see above.
 6. ~~**DNS.**~~ Done — chillmypet.com and www are live on the `chillmypet`
    Worker, HTTPS enforced.
+
+## Abandoned-checkout reminders
+
+One reminder email to a shopper who typed their email at checkout and left
+without paying. Built and tested; like every other email it sends nothing until
+`RESEND_API_KEY` is set (see "Transactional email" above).
+
+- **Capture.** `/checkout` posts `{email, fullName, lines}` to
+  `/api/checkout/draft` 1.5s after the shopper stops typing a valid email, and
+  again whenever the cart changes. The endpoint always answers 204. Drafts live
+  in `checkout_drafts`, one row per address per store; lines are variant ids and
+  quantities only, re-priced when the email is built. The note under the email
+  field ("If you don't finish, we'll send one reminder") and the privacy
+  policy's "Checkout reminders" section are what make this fair to a shopper in
+  the EU, which matters because the seller of record is Czech. Keep both if you
+  change the timing or add a second email.
+- **The rules live in the framework** (`packages/ecomwithai/src/recovery`, tested
+  in `recovery.test.ts`): due an hour after the last touch and only within 48h;
+  at most one reminder per address in 30 days however many carts it starts;
+  never after a paid order from that address placed since the draft; never to an
+  address in `email_suppressions`; `claim()` succeeds once, so racing sweeps
+  cannot both send; drafts are deleted 30 days after their last touch. An order
+  left in `pending_payment` (pressed pay, never paid) still counts as abandoned.
+- **Nothing schedules the Worker.** `$lib/server/recovery.ts` `sweepSoon` runs
+  a sweep in `waitUntil` on a document request, at most once per isolate every
+  10 minutes, and `/api/recovery/sweep` (GET or POST, 60s pause per isolate)
+  lets anything outside ping it; the owner's hourly Apps Script that fills the
+  ChillMyPet Ads sheet does. Both are safe to leave public: they can only send
+  reminders already due, each once, and return counts. A Cloudflare cron
+  trigger would be cleaner, but needs a wrapper entry with a `scheduled`
+  handler (adapter-cloudflare only exports `fetch`) and a free cron slot on
+  Vish's account, which holds many other Workers.
+- **The email** (`renderCheckoutReminder` in `email.ts`) is English only, like
+  the others: product photo, lines, subtotal, the Christmas cut-off line while
+  `loadChristmasDelivery` still returns one, a "Finish my order" button to
+  `/checkout/restore/<token>`, and an unsubscribe link to
+  `/email/unsubscribe/<token>` plus a `List-Unsubscribe` header. Resend's
+  idempotency key is `checkout-reminder/<token>`.
+- **Restore** writes the draft's lines into the cart (`cart.replace`) and its
+  email into the checkout's `store-state`, then goes to `/checkout`, which
+  re-prices as always. **Unsubscribe** is a button that POSTs JSON to
+  `/api/email/unsubscribe`, never the page's GET: mail scanners open every link.
+  There is no one-click `List-Unsubscribe-Post`, because SvelteKit's CSRF check
+  rejects a form POST with no Origin, which is what mail providers send.
+- `npm run test:recovery` drives all of it in a browser against a mock Resend
+  (dev server with `RESEND_API_KEY=re_test EMAIL_API_ENDPOINT=http://127.0.0.1:12113`
+  and no Stripe key).
 
 ## Live environment
 
