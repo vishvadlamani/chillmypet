@@ -439,7 +439,9 @@ are the host's business, not the block's. `pages.ts` maps a slug to the manifest
 that renders it: a manifest is per-product (its FAQ, gallery and size chart are
 one product's), so an unmapped slug is a 404 even when the product exists.
 
-**The scarcity bar is a marketing number, not inventory.** Stock is maintained
+**The scarcity bar is a marketing number, not inventory, and no page shows it
+any more** (the life jacket's went with its redesign on 2026-10-17; see
+below). If one ever comes back: stock is maintained
 outside this system, so `loadStock` reads `stock_sold_pct` from store settings
 (default 70) rather than counting the `stock` column — a bar computed from this
 database reported 0% sold on a store that had sold units elsewhere. It is
@@ -612,6 +614,22 @@ The block-rendered pages ARE the storefront: `/products/dog-life-jacket` is the
 page the campaign lands on and `/checkout` is where it pays. The bundle picker
 adds real cart lines, the checkout prices through `/api/cart`, the Payment
 Element mounts under the shipping method, and Place order runs `placeOrder`.
+
+**The life jacket page wears the shop's look since 2026-10-17** (`theme:
+'tree'`), on the owner's instruction, and lost its sales-page furniture on the
+same day: the per-visitor 15-minute countdown, the "Today only: 30% off"
+strip, the "% sold" bar, the "Ironclad guarantee" seal and every struck-through
+price. A countdown that restarts for each visitor and a discount off a price
+the jacket never sold at ($63.97) are exactly what the FTC treats as
+deceptive. It is $44.99 with no compare-at (`seed.js`, and `price-changes.js`
+for the live row), its bundle cards read `bundles.plain` and say their saving
+in words, and below the hero it has the Christmas pages' trust strip, FAQ row,
+"real inbox" cards, photo wall and closing band. Its purchase mechanics did
+not change: the `bundles` picker with its colour select, Buy now, the sticky
+bar, the first size in stock (`pickSize: false`). `tests/e2e.mjs` asserts the
+countdown, "today only", "% sold" and was-prices stay gone. The size chart
+(`static/size-chart.svg`) is recoloured to the shop's pine; its numbers are
+unchanged.
 
 `/products/christmas-pouch-hoodie` is the second product page, built the same
 way with three differences worth knowing:
@@ -1206,7 +1224,10 @@ Not built, in rough priority order:
    checkout). Each runs once per sale, which is what keeps it to one email;
    `test:payments` counts them. It sends nothing until `RESEND_API_KEY` is a
    Worker secret, and the sending domain (`orders@chillmypet.com` by default)
-   must be verified in Resend first. The admin's "Mark shipped" sends a
+   must be verified in Resend first. Replies go to `EMAIL_REPLY_TO`
+   (`wrangler.toml`): contact.chillmypet@gmail.com, the support inbox every
+   page names (owner's confirmation, 2026-10-17). `contact@chillmypet.com`,
+   which the Christmas pages and landing pages used to show, is not read. The admin's "Mark shipped" sends a
    shipping notification the same way.
 5. ~~**Payments.**~~ Live, on ChillMyPet's own Stripe account since 2026-10-07
    — see above.

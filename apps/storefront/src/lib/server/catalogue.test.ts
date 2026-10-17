@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { SCHEMA, applySchema, createDb, schemaStatements } from 'ecomwithai/db';
 import { PRICE_CHANGES } from '../../../scripts/price-changes.js';
 import { PRODUCTS, STORE_ID } from '../../../scripts/products.js';
+import { insertProduct } from '../../../scripts/catalog.js';
 import { SCHEMA_OBJECTS, ensureCatalogue, resetCatalogueSync, syncCatalogue } from './catalogue.ts';
 
 let failures = 0;
@@ -139,6 +140,31 @@ check(
 	check('every variant at the old price, and not the one priced by hand', await prices(COSTUME), [change.toCents, 3100]);
 	const second = await syncCatalogue(db);
 	check('and a second sync moves nothing', second.repriced, []);
+	close();
+}
+
+// --- a change can take a "was" price off with it -----------------------------
+{
+	const { db, close } = openDb();
+	await applySchema(db);
+	await addStore(db);
+	const change = PRICE_CHANGES.find((c) => c.slug === 'dog-life-jacket')!;
+	// The life jacket is seeded, not listed, so stand one in at its old row:
+	// any listed product's shape, under its slug, at the old price and "was".
+	const shape = PRODUCTS[1];
+	await insertProduct(db, STORE_ID, {
+		...shape,
+		slug: change.slug,
+		variants: shape.variants.map((v) => ({ ...v, sku: `LJ-${v.sku}`, priceCents: change.fromCents, compareAtCents: 6397 }))
+	});
+	const result = await syncCatalogue(db);
+	check('the life jacket moves to its new price', result.repriced.includes(change.slug), true);
+	const rows = await db.execute({
+		sql: `select distinct v.price_cents as p, v.compare_at_cents as c from product_variants v
+		      join products p on p.id = v.product_id where p.slug = ?`,
+		args: [change.slug]
+	});
+	check('and its struck-through price is gone', rows.rows.map((r) => [Number(r.p), r.c]), [[change.toCents, null]]);
 	close();
 }
 

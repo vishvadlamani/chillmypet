@@ -204,7 +204,7 @@
 				}).join('') +
 				'</tbody></table>';
 		} else {
-			box.innerHTML = '<p class="pending">We’ve asked our maker for the exact chest and length measurements and will add them here the moment we have them. Not sure which size? Email <a href="mailto:contact@chillmypet.com">contact@chillmypet.com</a> with your height and the hoodie size you usually wear, and we’ll help you choose.</p>';
+			box.innerHTML = '<p class="pending">We’ve asked our maker for the exact chest and length measurements and will add them here the moment we have them. Not sure which size? Email <a href="mailto:contact.chillmypet@gmail.com">contact.chillmypet@gmail.com</a> with your height and the hoodie size you usually wear, and we’ll help you choose.</p>';
 		}
 		if (c.modelWears) {
 			var p = document.createElement('p');

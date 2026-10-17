@@ -1,7 +1,17 @@
 import type { FunnelDefinition } from '@funnel/core';
 
 /**
- * The store page. Starts at the top and grows downward, one block at a time.
+ * The life jacket's page. Starts at the top and grows downward, one block at
+ * a time.
+ *
+ * In the shop's tree look since 2026-10-17 (`theme: 'tree'` in `pages.ts`),
+ * like the Christmas pages, and without the sales-page furniture it was
+ * built with: no per-visitor countdown, no "today only" strip, no "% sold"
+ * bar and no struck-through "was" prices, on the owner's instruction. A
+ * countdown that restarts for every visitor and a discount off a price the
+ * jacket never sold at are the claims the FTC calls deceptive. What it
+ * offers now is the real price, the real quantity breaks and the promises
+ * the policy pages make.
  *
  * Two rules hold for everything added here:
  *   - literals are authored decisions (copy, order, tone, colour)
@@ -12,45 +22,6 @@ export const STORE_PAGE: FunnelDefinition = {
 	name: 'Store — product page',
 	layout: 'page',
 	blocks: [
-		{
-			id: 'urgency-timer',
-			component: 'countdown',
-			version: 1,
-			props: {
-				// `{month}` is substituted at render. Typing "August" here is the one
-				// mistake this page has already made once.
-				headline: '🔥 {month} sale ends in',
-				uppercase: true,
-				variant: 'chips',
-				size: 'md',
-				// Singular reads as a unit label; "Mins" reads as a word.
-				labels: { mins: 'Min', secs: 'Sec' },
-				// Per-visitor window, not a shared deadline: a month-long sale with a
-				// nine-minute clock on it is an evergreen timer, and it persists
-				// through the host so a reload doesn't hand out a fresh 15 minutes.
-				durationMinutes: { $ref: 'offer.urgencyMinutes' },
-				bg: '#1a1a1a',
-				fg: '#ffffff',
-				digitColor: '#f5c518',
-				chipBg: '#2e2e2e',
-				onExpire: 'restart'
-			}
-		},
-		{
-			id: 'offer-strip',
-			component: 'announcement_bar',
-			version: 1,
-			props: {
-				message: '🎁 Today only: {discount}% off + free shipping 🚚',
-				vars: { discount: { $ref: 'offer.discountPct' } },
-				uppercase: true,
-				tracking: 'normal',
-				size: 'md',
-				weight: 'medium',
-				bg: '#f2e34c',
-				fg: '#1a1a1a'
-			}
-		},
 		{
 			id: 'gallery',
 			component: 'media',
@@ -70,6 +41,10 @@ export const STORE_PAGE: FunnelDefinition = {
 					// The only real product shot there is — studio, on white, showing the
 					// handle, buckles and reflective strips. The rest are customer
 					// photos standing in until there's proper photography.
+					// The catalogue's sailboat photo on the Christmas shots' warm
+					// backdrop (`card-sailboat.jpg`), so the page opens on the shop's
+					// colours rather than a white tile.
+					{ src: '/products/dog-life-jacket/card-sailboat.jpg', alt: 'Dog life jacket in the Sailboat print, side view' },
 					{ src: '/product-floatly.webp', alt: 'Dog life jacket, side view' },
 					{ src: '/reviews/tile-bulldog.jpg', alt: 'Worn, full view in coral' },
 					{ src: '/reviews/indoor-purple.jpg', alt: 'Side profile showing the reflective strips' },
@@ -129,10 +104,10 @@ export const STORE_PAGE: FunnelDefinition = {
 				// Each line maps to an answer in the FAQ below — chin rest, handle,
 				// quick-dry — so the page makes one argument instead of four.
 				items: [
-					{ icon: '🐾', text: 'Perfect for **non-swimmers & senior dogs**' },
-					{ icon: '🌊', text: 'Chin rest keeps their **head above water**' },
-					{ icon: '🤝', text: 'Reinforced handle for **quick lift-outs**' },
-					{ icon: '💨', text: 'Quick-dry — ready again the next day' }
+					{ icon: '✓', text: 'Made for **non-swimmers and senior dogs**' },
+					{ icon: '✓', text: 'Chin rest keeps their **head above water**' },
+					{ icon: '✓', text: 'Reinforced handle for **quick lift-outs**' },
+					{ icon: '✓', text: 'Quick-dry, ready again the next day' }
 				]
 			}
 		},
@@ -142,10 +117,12 @@ export const STORE_PAGE: FunnelDefinition = {
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
 			// No tiers, no picker — better than an empty box where the price goes.
-			requires: ['bundles.tiers'],
+			requires: ['bundles.plain'],
 			props: {
-				heading: 'Bundle & Save',
-				tiers: { $ref: 'bundles.tiers' },
+				heading: 'Choose your bundle',
+				// The tiers without a "was" total: each card says its saving in
+				// words, as on the Christmas pages.
+				tiers: { $ref: 'bundles.plain' },
 				addons: { $ref: 'bundles.addons' },
 				options: { $ref: 'bundles.colours' },
 				optionLabel: 'Colour',
@@ -155,7 +132,7 @@ export const STORE_PAGE: FunnelDefinition = {
 				// — that's the host contract and the standard pixel event, and tying
 				// it to button copy would break attribution on the first copy test.
 				cta: 'Buy now',
-				accent: '#2f3d24',
+				accent: '#285b43',
 				width: 'full'
 			}
 		},
@@ -177,19 +154,6 @@ export const STORE_PAGE: FunnelDefinition = {
 			// No Discover: Stripe does not offer it to accounts in Czechia (ChillMP).
 			props: {
 				methods: ['visa', 'mastercard', 'amex', 'applepay'],
-				width: 'full'
-			}
-		},
-		{
-			id: 'stock-bar',
-			component: 'stock_progress',
-			version: 1,
-			layout: { row: 'hero', col: 'right' },
-			requires: ['stock.soldPct'],
-			props: {
-				// `label` and the icon are the block's own defaults — "{month} Stock",
-				// computed, so it never reads August in September.
-				sold: { $ref: 'stock.soldPct' },
 				width: 'full'
 			}
 		},
@@ -218,13 +182,13 @@ export const STORE_PAGE: FunnelDefinition = {
 				bodyWidth: 'full',
 				items: [
 					{
-						label: 'When will I get my order? 🚚',
+						label: 'When will I get my order?',
 						body: 'Please allow us 2–4 business days to process your order.\n\nOnce processed, 93% of orders arrive between 5–12 days later.\n\nIf you have any questions, please contact us at contact.chillmypet@gmail.com.',
 						link: { label: 'Read our shipping policy', href: '/policies/shipping' }
 					},
 					{
-						label: 'What if the size doesn’t fit my dog? 📏',
-						body: 'We offer 30 day — no questions asked — free exchanges and returns.\n\nIf you have any questions or would like to begin an exchange, please email us at contact.chillmypet@gmail.com.',
+						label: 'What if the size doesn’t fit my dog?',
+						body: 'You have 30 days to return it or swap the size, and the return label is on us.\n\nTo begin an exchange, email contact.chillmypet@gmail.com with your order number.',
 						link: { label: 'Read our return and exchange policy', href: '/policies/refunds' }
 					}
 				]
@@ -261,29 +225,37 @@ export const STORE_PAGE: FunnelDefinition = {
 				width: 'full'
 			}
 		},
-		{
-			id: 'rule-after-hero',
-			component: 'divider',
-			version: 1,
-			props: { width: 'shell', spacing: 'loose' }
-		},
 		// ── FAQ: two blocks, not one. `heading` already exists and does this job
 		//    better than a heading prop bolted onto every block that might want one.
+		{
+			id: 'trust',
+			component: 'trust_strip',
+			version: 1,
+			// Promises the shipping and refund policies already make, nothing more.
+			props: {
+				items: [
+					{ icon: 'truck', text: 'Free US shipping' },
+					{ icon: 'return', text: '30-day returns' },
+					{ icon: 'lock', text: 'Secure checkout' },
+					{ icon: 'mail', text: 'Real people reply' }
+				]
+			}
+		},
 		{
 			id: 'faq-heading',
 			component: 'heading',
 			version: 1,
-			props: { text: 'Frequently asked questions', level: 2, size: 'lg', width: 'shell' }
+			layout: { row: 'faq', col: 'left' },
+			props: { eyebrow: 'Before the first swim', text: 'Questions, answered.', level: 2 }
 		},
 		{
 			id: 'faq',
 			component: 'accordion',
 			version: 1,
+			layout: { row: 'faq', col: 'right' },
 			props: {
 				divided: true,
-				// `shell`, not `full`: it has to line up with the hero above it, and
-				// `full` means the window, which is 140px wider at this viewport.
-				width: 'shell',
+				width: 'full',
 				items: [
 					{
 						label: 'Is the chin rest comfortable for smaller dogs?',
@@ -308,31 +280,54 @@ export const STORE_PAGE: FunnelDefinition = {
 					},
 					{
 						label: 'What if the size doesn’t fit right when it arrives?',
-						body: 'No problem — reach out to our team and we’ll help you exchange for the correct size, hassle-free.'
+						body: 'Email contact.chillmypet@gmail.com with your order number and we’ll swap it for the right size. You have 30 days, and the return label is on us.'
 					}
 				]
 			}
 		},
 		{
-			id: 'guarantee',
-			component: 'guarantee',
+			id: 'who-we-are-heading',
+			component: 'heading',
 			version: 1,
+			// No reviews to show yet, so the page answers "can I trust this shop"
+			// with what it promises instead, in place of the old guarantee seal.
 			props: {
-				image: '/guarantee-30day.webp',
-				// Was "500+ dogs already have theirs", beside "hundreds of owners" —
-				// numbers nobody counted. The guarantee itself is real: it's the
-				// refund policy at /policies/refunds, word for word.
-				eyebrow: 'Backed for 30 days',
-				body: 'It’s not just a life jacket — it’s the piece of kit you don’t get in the water without. Shop with total confidence: you’re covered by our **Ironclad 30-Day Guarantee**. If you don’t absolutely love it, or if it arrives damaged, we’ll refund your money immediately. No questions asked. **100% risk-free.**',
-				align: 'center',
-				width: 'article'
+				eyebrow: 'Who you’re buying from',
+				text: 'A small shop with a real inbox.',
+				level: 2,
+				width: 'page'
 			}
 		},
 		{
-			id: 'rule-after-faq',
-			component: 'divider',
+			id: 'who-we-are',
+			component: 'benefit_cards',
 			version: 1,
-			props: { width: 'shell', spacing: 'loose' }
+			// Every line is one the contact and policy pages already make; change
+			// them together (and with the Christmas pages' copies).
+			props: {
+				items: [
+					{
+						icon: 'mail',
+						title: 'A real person answers',
+						body: 'Email contact.chillmypet@gmail.com about a size, an order or a return. We reply within 1–2 business days.'
+					},
+					{
+						icon: 'parcel',
+						title: 'Free shipping, with tracking',
+						body: 'Packed within 2–4 business days, and you get tracking when it ships. Lost on the way? We replace it or refund it.'
+					},
+					{
+						icon: 'lock',
+						title: 'Secure checkout',
+						body: 'Payments are handled by Stripe. Your card number never touches our site.'
+					},
+					{
+						icon: 'return',
+						title: '30 days to change your mind',
+						body: 'Send it back unworn within 30 days for a full refund. Swapping sizes is free, and the return label is on us.'
+					}
+				]
+			}
 		},
 		{
 			id: 'review-wall-heading',
@@ -341,7 +336,7 @@ export const STORE_PAGE: FunnelDefinition = {
 			// Heading and rule follow the wall they introduce, or the page keeps a
 			// "What owners are saying" section with nothing under it.
 			requires: ['reviews.featured'],
-			props: { text: 'What owners are saying', level: 2, size: 'lg', width: 'shell' }
+			props: { text: 'What owners are saying', level: 2, width: 'page' }
 		},
 		{
 			id: 'review-summary',
@@ -384,7 +379,7 @@ export const STORE_PAGE: FunnelDefinition = {
 			component: 'heading',
 			version: 1,
 			requires: ['reviews.photos'],
-			props: { text: 'Out on the water', level: 2, size: 'lg', width: 'shell' }
+			props: { eyebrow: 'Small dogs, big water', text: 'Out on the water.', level: 2, width: 'page' }
 		},
 		{
 			id: 'photo-wall',
@@ -397,6 +392,18 @@ export const STORE_PAGE: FunnelDefinition = {
 				columns: 3,
 				mediaAspect: 'auto',
 				width: 'shell'
+			}
+		},
+		{
+			id: 'closing',
+			component: 'closing_cta',
+			version: 1,
+			props: {
+				eyebrow: 'Every dock, every boat, every lake.',
+				title: 'Let them be the adventurous one.',
+				cta: 'Choose their colour',
+				// An in-page anchor to the bundle picker's heading, not a route.
+				href: '#bundle-picker-label'
 			}
 		},
 		{
@@ -418,16 +425,15 @@ export const STORE_PAGE: FunnelDefinition = {
 				// Mirrors the picker instead of restating a price. Same tier list,
 				// same state key — otherwise the dock quotes $93 while the picker
 				// above it sells the $85 tier.
-				tiers: { $ref: 'bundles.tiers' },
+				tiers: { $ref: 'bundles.plain' },
 				selectionField: 'bundle',
 				// Fallbacks, used only if the picker is absent (single-SKU page).
 				image: { $ref: 'product.image' },
 				alt: { $ref: 'product.alt' },
 				title: { $ref: 'product.title' },
 				price: { $ref: 'product.price' },
-				compareAt: { $ref: 'product.compareAt' },
 				cta: 'Buy now',
-				accent: '#1d64f2'
+				accent: '#285b43'
 			}
 		}
 	]

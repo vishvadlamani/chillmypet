@@ -12,6 +12,10 @@
  * they were placed at (`order_items.unit_price_cents`); carts are re-priced
  * by the server on every request, so nothing in flight charges the old price.
  *
+ * `compareAtCents`, when present, is written with the new price: `null`
+ * takes a struck-through "was" price off. Absent, the compare-at is left as
+ * it is.
+ *
  * Keep entries after they have run: a database restored from before the
  * change still needs them. Change the product's script in the same commit, so
  * a fresh seed and a live store end up at the same price.
@@ -25,6 +29,15 @@ export const PRICE_CHANGES = [
 		fromCents: 2850,
 		toCents: 2799,
 		// One price for the two Christmas dog outfits, the reindeer hoodie's.
+		date: '2026-10-17'
+	},
+	{
+		slug: 'dog-life-jacket',
+		fromCents: 4497,
+		toCents: 4499,
+		// The $63.97 "was" price was never one it sold at; it drove the page's
+		// "30% off" strip. Taken off with the move to a .99 price.
+		compareAtCents: null,
 		date: '2026-10-17'
 	}
 ];

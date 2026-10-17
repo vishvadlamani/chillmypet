@@ -138,7 +138,7 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 					},
 					{
 						label: 'Returns & exchanges',
-						body: 'You get 30 days. Exchanges and returns are free, and we send the label.\n\nJust email contact@chillmypet.com with your order number.',
+						body: 'You get 30 days. Exchanges and returns are free, and we send the label.\n\nJust email contact.chillmypet@gmail.com with your order number.',
 						link: { label: 'Read our return policy', href: '/policies/refunds' }
 					},
 					{
@@ -224,7 +224,7 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 					{
 						icon: 'mail',
 						title: 'A real person answers',
-						body: 'Email contact@chillmypet.com about a size, an order or a return. We reply within 1–2 business days.'
+						body: 'Email contact.chillmypet@gmail.com about a size, an order or a return. We reply within 1–2 business days.'
 					},
 					{
 						icon: 'parcel',
@@ -265,7 +265,7 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 				rows: { $ref: 'sizes.rows' },
 				pending: 'Measurements for each size are on their way from our maker. Email us your dog’s chest, neck and back and we’ll tell you which size to pick.',
 				contact:
-					'Not sure? Email contact@chillmypet.com with your dog’s measurements and breed, and we’ll help you pick.'
+					'Not sure? Email contact.chillmypet@gmail.com with your dog’s measurements and breed, and we’ll help you pick.'
 			}
 		},
 		{

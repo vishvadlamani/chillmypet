@@ -90,7 +90,15 @@ function check(label, cond, detail) {
 	check('SSR carries a description for search and social', /name="description" content=".{40}/.test(html));
 	check('SSR quotes a price', /\$\d+\.\d{2}/.test(html));
 	check('SSR offers a way to buy', /Buy now/i.test(html) && !/Sold out/i.test(html));
-	check('SSR renders the bundle picker', /Bundle &amp; Save|Bundle & Save/.test(html));
+	check('SSR renders the bundle picker', /Choose your bundle/.test(html));
+	// The sales-page furniture went with the redesign (2026-10-17): no
+	// per-visitor countdown, no "today only", no scarcity bar, and no
+	// struck-through price the jacket never sold at.
+	const body = html.replace(/<style[\s\S]*?<\/style>/g, '');
+	check('no countdown, "today only" or "% sold" on the page', !/sale ends|today only|% sold|left in stock/i.test(body));
+	check('no was-price or strikethrough price', !/<s>|<del>|line-through/i.test(body));
+	check('the price is $44.99', body.includes('$44.99'));
+	check('the page wears the shop’s look', /class="tree-strip/.test(html) && /tree-theme/.test(html));
 
 	// The words are invented and the rating was never counted. They must not
 	// reach a shopper — see $lib/store/reviews-wall.ts.
@@ -247,7 +255,7 @@ check('cart badge counts them', (await page.textContent('header a[href="/checkou
 	const calls = await fbqCalls();
 	const addToCart = tracked(calls, 'AddToCart');
 	check('AddToCart fired', Boolean(addToCart));
-	check('AddToCart is worth the whole bundle', addToCart?.[2]?.value === '134.91');
+	check('AddToCart is worth the whole bundle', addToCart?.[2]?.value === '134.97');
 	check('AddToCart carries variant skus', /^CMP-LJ-/.test(addToCart?.[2]?.content_ids?.[0] ?? ''));
 	check(
 		'one AddToCart per click, not one per unit',
@@ -258,8 +266,8 @@ check('cart badge counts them', (await page.textContent('header a[href="/checkou
 // --- checkout ---
 await page.waitForSelector('form dl');
 const summary = await page.textContent('form dl');
-check('subtotal is 3 x 44.97', summary?.includes('$134.91'));
-check('the 3-pack discount is applied', summary?.includes('$12.14'));
+check('subtotal is 3 x 44.99', summary?.includes('$134.97'));
+check('the 3-pack discount is applied', summary?.includes('$12.15'));
 
 {
 	const calls = await fbqCalls();
@@ -289,7 +297,7 @@ check('the 3-pack discount is applied', summary?.includes('$12.14'));
 
 	const initiate = tracked(calls, 'InitiateCheckout');
 	check('InitiateCheckout fired', Boolean(initiate));
-	check('InitiateCheckout value is subtotal', initiate?.[2]?.value === '134.91');
+	check('InitiateCheckout value is subtotal', initiate?.[2]?.value === '134.97');
 	check('InitiateCheckout counts the units', initiate?.[2]?.num_items === 3);
 }
 

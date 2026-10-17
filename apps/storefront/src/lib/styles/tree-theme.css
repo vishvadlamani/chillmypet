@@ -206,6 +206,19 @@
 		line-height: 45px;
 	}
 }
+/* The library bundle picker's label ("Choose your bundle") is an h2 drawn as
+   a small caps label; the section-title size above would make it a headline. */
+.tree-theme section h2[id$='-label'] {
+	font-size: 13px;
+	line-height: 20px;
+	letter-spacing: 1.2px;
+	color: var(--tree-ink);
+}
+/* A photo in the masonry wall never splits across two columns. */
+.tree-theme article {
+	break-inside: avoid;
+}
+
 /* The library heading's eyebrow: small, bold, widely tracked. */
 .tree-theme section > p.tracking-eyebrow {
 	font-size: 11px;

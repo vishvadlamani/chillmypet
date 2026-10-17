@@ -70,6 +70,8 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 	[PRODUCT_SLUG]: {
 		manifest: STORE_PAGE,
 		pickSize: false,
+		// The shop's look since 2026-10-17, like the Christmas pages.
+		theme: 'tree',
 		// sailboat.jpg on the warm backdrop of the Christmas studio shots.
 		cardImage: '/products/dog-life-jacket/card-sailboat.jpg'
 	},

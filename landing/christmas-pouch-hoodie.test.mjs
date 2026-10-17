@@ -372,7 +372,7 @@ const session = (metadata, extra = {}) => ({
 	// promised until it is on in Stripe (see the README).
 	check('only payment methods the checkout really offers', !/google pay|klarna|afterpay|affirm|paypal|discover|pay later|instal?lments|interest.free|\blink\b/i.test(text.replace(/<a [^>]*>/g, '')));
 	check('the choices, the button and the dock are there', ['id="designs"', 'id="sizes"', 'id="buy"', 'id="dock"', 'id="dock-buy"', 'id="size-chart"', 'id="size-error"', 'id="size-guide"'].every((id) => html.includes(id)), 'an id is missing');
-	check('a real way to reach a person, and the policies', html.includes('mailto:contact@chillmypet.com') && html.includes('chillmypet.com/policies/refunds') && html.includes('chillmypet.com/privacy'));
+	check('a real way to reach a person, and the policies', html.includes('mailto:contact.chillmypet@gmail.com') && html.includes('chillmypet.com/policies/refunds') && html.includes('chillmypet.com/privacy'));
 	check('ViewContent on load, AddToCart on Buy', /xmasTrack\('ViewContent'/.test(js) && /xmasTrack\('AddToCart'/.test(js));
 	// The checkout sends InitiateCheckout once the buyer starts on their
 	// details; sending it here too would count one checkout twice.
