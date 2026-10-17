@@ -677,6 +677,35 @@ know:
   and `item_variant` reaches GA4 as `green / M`. SKUs are `CMP-XT-<COLOUR>-<SIZE>`
   (XT: Xmas tree), beside the hoodie's `CMP-XH-`.
 
+**Every sized product also has a one-page checkout** at
+`/products/<slug>/checkout` (`/products/dog-christmas-costume/checkout`):
+the product's delivery strip, photos, title and picker, then the checkout's
+contact, address and shipping blocks, then the same card fields and pay
+button. It is a second way in for an ad that should land on the form; the
+product page and `/checkout` are unchanged. Things to know:
+
+- **Composed, not authored.** `onePageCheckout()` in
+  `$lib/store/one-page-checkout.ts` takes the strip, gallery, h1 and picker
+  from the product's manifest and the fields from `CHECKOUT_PAGE`, so copy,
+  sizes and bundle cards cannot drift from the product page. Only
+  `pickSize` products get one: the life jacket's picker doesn't name a
+  variant, so its URL is a 404.
+- **One checkout, two pages.** `$lib/components/Checkout.svelte` is the whole
+  checkout (re-pricing, cross-form check, card fields, InitiateCheckout,
+  AddPaymentInfo) and both pages render it; both actions are `placeOrder`.
+  Change checkout behaviour there, never in a page.
+- **Choosing is adding.** The picker's button is off (`button: false`), and
+  the page keeps the cart equal to what the picker shows: a size fills it,
+  a bundle sets the quantity, no size takes the line out. Other products in
+  the cart are left alone and charged with it.
+- **The events are paced for a page that is both.** ViewContent on arrival;
+  one AddToCart per page view, on the first choice the buyer makes there
+  (choices restored from the product page were reported there);
+  InitiateCheckout once per session, keyed on the page rather than the cart
+  and held until a name or email is typed, so trying three sizes is not
+  three checkouts started. Purchase is unchanged: the webhook, the order's
+  derived id. `tests/one-page-checkout.mjs` pins all of it.
+
 That was chillmypet.com's state on 2026-10-12: the live Worker answered `No
 product at "christmas-pouch-hoodie"` — the manifest's own 404 reads `No page
 manifest` — so the code had shipped and the row had not, and the ads kept

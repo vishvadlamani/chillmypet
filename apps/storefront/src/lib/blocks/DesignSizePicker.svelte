@@ -51,6 +51,12 @@
 			tiersTitle?: string;
 			/** Small print under the button. */
 			ctaNote?: string;
+			/**
+			 * False on the one-page checkout, where the host fills the cart from
+			 * the choice itself and the only button on the page is the one that
+			 * pays. Two buttons there would ask the buyer which one to press.
+			 */
+			button?: boolean;
 		}
 	);
 	const pills = $derived(p.look === 'pills');
@@ -221,11 +227,13 @@
 		</fieldset>
 	{/if}
 
-	<button type="button" class="cta" onclick={add}>
-		<span>{p.cta ?? 'Add to cart'}</span>
-		{#if tier?.price ?? p.price}<span>{tier?.price ?? p.price}</span>{/if}
-	</button>
-	{#if p.ctaNote}<p class="fine center">{p.ctaNote}</p>{/if}
+	{#if p.button !== false}
+		<button type="button" class="cta" onclick={add}>
+			<span>{p.cta ?? 'Add to cart'}</span>
+			{#if tier?.price ?? p.price}<span>{tier?.price ?? p.price}</span>{/if}
+		</button>
+		{#if p.ctaNote}<p class="fine center">{p.ctaNote}</p>{/if}
+	{/if}
 </div>
 {:else}
 <div class="picker" id="variant-picker">
@@ -299,9 +307,11 @@
 		</p>
 	</fieldset>
 
-	<button type="button" class="cta" onclick={add}>
-		{p.cta ?? 'Add to cart'}{#if p.price}&nbsp;· {p.price}{/if}
-	</button>
+	{#if p.button !== false}
+		<button type="button" class="cta" onclick={add}>
+			{p.cta ?? 'Add to cart'}{#if p.price}&nbsp;· {p.price}{/if}
+		</button>
+	{/if}
 </div>
 {/if}
 
