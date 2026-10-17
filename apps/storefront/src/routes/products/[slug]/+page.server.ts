@@ -32,6 +32,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	if (!product || !catalogue) error(404, `No product at "${slug}"`);
 
+	// A page with its own listing photo (`cardImage`) shows it wherever the
+	// catalogue's lead photo would go: the sticky bar, the bundle cards, the
+	// link preview.
+	if (page.cardImage) {
+		product.image = page.cardImage;
+		bundles.tiers = bundles.tiers.map((tier) => ({ ...tier, image: page.cardImage }));
+	}
+
 	// Sources compose — each one is a namespace a `$ref` path can start with.
 	const resolve = createRefResolver({
 		bundles: {
@@ -59,7 +67,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		// the supplier's figures are not in yet, which shows the guide's note.
 		sizes: page.pickSize ? (sizeGuideTable(catalogue) ?? {}) : sizeChart,
 		// The design and size pickers. Only a manifest that names them reads them.
-		variants: page.pickSize ? loadVariantPicker(catalogue, locale) : {},
+		variants: page.pickSize ? loadVariantPicker(catalogue, locale, page.leadDesign) : {},
 		// Config, not computation: see `$lib/store/christmas.ts`. Empty once the
 		// cut-off has passed, which drops the strip through `requires`.
 		christmas: page.theme ? loadChristmasDelivery(settings) : {},
@@ -114,6 +122,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		// A Christmas product keeps the pine and cream; the rest wear the brand
 		// skin (`+layout.svelte`).
 		festive: Boolean(page.christmas),
+		// The colour the picker shows chosen before anyone chooses.
+		leadDesign: page.leadDesign ?? null,
 		slug,
 		currency: catalogue.currency,
 		// The manifest is content, not metadata: the title and description that

@@ -10,6 +10,7 @@ import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SCHEMA, applySchema, createDb, schemaStatements } from 'ecomwithai/db';
+import { COPY_CHANGES } from '../../../scripts/copy-changes.js';
 import { PRICE_CHANGES } from '../../../scripts/price-changes.js';
 import { PRODUCTS, STORE_ID } from '../../../scripts/products.js';
 import { insertProduct } from '../../../scripts/catalog.js';
@@ -83,6 +84,7 @@ check(
 		added: LISTED,
 		skipped: [],
 		repriced: [],
+		recopied: [],
 		storeMissing: false
 	});
 	check('one row per product', await count(db, 'select count(*) as n from products'), LISTED.length);
@@ -98,6 +100,7 @@ check(
 		added: [],
 		skipped: LISTED,
 		repriced: [],
+		recopied: [],
 		storeMissing: false
 	});
 	check('still one row per product', await count(db, 'select count(*) as n from products'), LISTED.length);
@@ -140,6 +143,51 @@ check(
 	check('every variant at the old price, and not the one priced by hand', await prices(COSTUME), [change.toCents, 3100]);
 	const second = await syncCatalogue(db);
 	check('and a second sync moves nothing', second.repriced, []);
+	close();
+}
+
+// --- a live store's copy is renamed, once, and only where it still reads the old words
+{
+	const { db, close } = openDb();
+	await applySchema(db);
+	await addStore(db);
+	await syncCatalogue(db);
+	const field = async (name: 'title' | 'description') =>
+		String(
+			(
+				await db.execute({
+					sql: `select t.${name} as v from product_translations t
+					      join products p on p.id = t.product_id where p.slug = ? and t.locale = 'en'`,
+					args: [COSTUME]
+				})
+			).rows[0].v
+		);
+	const title = COPY_CHANGES.find((c) => c.slug === COSTUME && c.field === 'title')!;
+	check('a fresh store gets the costume under its new name', await field('title'), title.to);
+	check('which says Pet, not Dog', title.to.startsWith('Pet '), true);
+
+	// The live store: added before the rename.
+	for (const change of COPY_CHANGES) {
+		await db.execute({
+			sql: `update product_translations set ${change.field} = ? where locale = ? and product_id =
+			      (select id from products where slug = ?)`,
+			args: [change.from, change.locale, change.slug]
+		});
+	}
+	const first = await syncCatalogue(db);
+	check('the sync renames the costume', first.recopied, [COSTUME]);
+	check('its title', await field('title'), title.to);
+	check('and its description', (await field('description')).includes('your dog or cat'), true);
+	const second = await syncCatalogue(db);
+	check('a second sync changes nothing', second.recopied, []);
+
+	// Copy edited by hand since is left alone.
+	await db.execute({
+		sql: `update product_translations set title = 'Tree Cape' where product_id = (select id from products where slug = ?)`,
+		args: [COSTUME]
+	});
+	await syncCatalogue(db);
+	check('a title edited by hand is not overwritten', await field('title'), 'Tree Cape');
 	close();
 }
 
@@ -200,6 +248,7 @@ check(
 		added: [],
 		skipped: LISTED,
 		repriced: [],
+		recopied: [],
 		storeMissing: true
 	});
 	check('nothing was written', await count(db, 'select count(*) as n from products'), 0);

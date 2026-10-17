@@ -181,3 +181,27 @@ export async function applyPriceChange(db, storeId, change) {
 	});
 	return result.rowsAffected;
 }
+
+/** The translation columns a copy change may write. Never interpolated from input. */
+const COPY_FIELDS = new Set(['title', 'subtitle', 'description']);
+
+/**
+ * Rewrites one field of a product's translation, but only where it still reads
+ * `from`. Returns how many rows moved: 0 once it has applied, and 0 where the
+ * copy was edited by hand since. See `copy-changes.js`.
+ *
+ * @param {import('ecomwithai/db').Client} db
+ * @param {string} storeId
+ * @param {{ slug: string, locale: string, field: string, from: string, to: string }} change
+ * @returns {Promise<number>}
+ */
+export async function applyCopyChange(db, storeId, { slug, locale, field, from, to }) {
+	if (!COPY_FIELDS.has(field)) throw new Error(`not a copy field: ${field}`);
+	const result = await db.execute({
+		sql: `update product_translations set ${field} = ?
+		      where store_id = ? and locale = ? and ${field} = ?
+		        and product_id = (select id from products where store_id = ? and slug = ?)`,
+		args: [to, storeId, locale, from, storeId, slug]
+	});
+	return result.rowsAffected;
+}

@@ -95,7 +95,10 @@
 	 * Tier ids are the host's own `qty-N` from `$lib/store/bundles.ts`.
 	 */
 	let wanted = $derived.by(() => {
-		const design = bag.design || data.variantIndex[0]?.colourCode || '';
+		// The picker's own default when nothing was chosen: the lead design
+		// (`leadDesign` in pages.ts), else the catalogue's first. The two must
+		// agree, or a buyer who leaves the shown colour as it is gets another.
+		const design = bag.design || data.leadDesign || data.variantIndex[0]?.colourCode || '';
 		const entry = data.variantIndex.find((v) => v.colourCode === design && v.size === bag.size);
 		if (!entry) return null;
 		const tier = data.tiered ? /^qty-(\d+)$/.exec(bag[data.tierField] ?? '') : null;

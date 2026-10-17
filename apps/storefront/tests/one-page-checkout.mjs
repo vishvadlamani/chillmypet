@@ -36,7 +36,7 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
-	check('the product title is the h1', /<h1[^>]*>[\s\S]{0,200}?Dog Christmas Tree Costume/.test(html));
+	check('the product title is the h1', /<h1[^>]*>[\s\S]{0,200}?Pet Christmas Tree Costume/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('SSR shows the photos', html.includes('class="gallery'));
 	check('SSR offers both colours', html.includes('>Red<') && html.includes('>Green<'));
