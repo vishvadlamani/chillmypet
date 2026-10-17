@@ -110,7 +110,7 @@
 		"country": "Country",
 		"methodTitle": "Shipping method",
 		"methodStandard": "Standard",
-		"methodStandardEta": "5–8 business days",
+		"methodStandardEta": "5–12 days after it ships",
 		"methodExpress": "Express",
 		"methodExpressEta": "2–3 business days",
 		"free": "Free",
@@ -177,7 +177,7 @@
 				{
 					"heading": "Delivery options and cost",
 					"body": [
-						"Standard shipping is free and takes 5–8 business days after dispatch.",
+						"Standard shipping is free and takes 5–12 days after dispatch.",
 						"Express shipping costs $12.00 and takes 2–3 business days after dispatch.",
 						"Delivery estimates are for transit time after dispatch and don't include the processing time above."
 					]

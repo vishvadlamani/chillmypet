@@ -110,7 +110,7 @@
 		"country": "País",
 		"methodTitle": "Método de envío",
 		"methodStandard": "Estándar",
-		"methodStandardEta": "5–8 días laborables",
+		"methodStandardEta": "5–12 días tras la salida",
 		"methodExpress": "Exprés",
 		"methodExpressEta": "2–3 días laborables",
 		"free": "Gratis",
@@ -177,7 +177,7 @@
 				{
 					"heading": "Opciones y coste",
 					"body": [
-						"El envío estándar es gratuito y tarda 5–8 días laborables tras la salida.",
+						"El envío estándar es gratuito y tarda 5–12 días tras la salida.",
 						"El envío exprés cuesta 12,00 $ y tarda 2–3 días laborables tras la salida.",
 						"Los plazos son de tránsito y no incluyen el tiempo de preparación."
 					]
