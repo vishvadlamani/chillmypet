@@ -1,5 +1,6 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
-import { CheckoutError, DEFAULT_SHIPPING_RATES } from 'ecomwithai';
+import { CheckoutError } from 'ecomwithai';
+import { SHIPPING_RATES } from '$lib/store/shipping-rates';
 import { isCountryCode } from '$lib/countries';
 import { sendOrderConfirmation } from '$lib/server/email';
 import { rememberContact } from '$lib/server/identity';
@@ -99,7 +100,8 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 	}
 
 	const methodInput = value('method');
-	const method = DEFAULT_SHIPPING_RATES.some((r) => r.id === methodInput) ? methodInput : 'standard';
+	// Only what the store offers: anything else, Express included, is Standard.
+	const method = SHIPPING_RATES.some((r) => r.id === methodInput) ? methodInput : 'standard';
 
 	let order;
 	try {

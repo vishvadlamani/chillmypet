@@ -94,8 +94,9 @@ hoodie's are unchanged. In order:
   (optional), city, state, ZIP. Side by side on a desktop as in the
   reference; on a phone the town has its row and state and ZIP share one.
   Labels and required-ness follow the country (`countryForm`).
-- **Shipping method**: a bordered list, Standard (Free) and Express
-  ($12.00), with the Christmas cut-off line under it while it applies.
+- **Shipping method**: a bordered list, Standard (Free) only since
+  2026-10-17 (Express is off, see `SHIPPING_RATES`), with the Christmas
+  cut-off line under it while it applies.
 - **Payment**: Stripe's Payment Element in the page's colours and type,
   inside a box that holds its final height while Stripe.js loads.
 - **Total by the button** (phone), **Pay $54.99**, then the policy links.
