@@ -11,6 +11,7 @@
 	import { sessionFunnelState } from '$lib/store/session-state.svelte';
 	import { cart } from '$lib/stores/cart.svelte';
 	import type { ActionData, PageData } from './$types';
+	import '$lib/styles/shop-checkout.css';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -22,6 +23,30 @@
 		country:
 			countryOptions(page.data.locale ?? defaultLocale).find((c) => c.code === 'US')?.name ?? ''
 	});
+
+	/**
+	 * A choice made somewhere else and carried here in the link: the Christmas
+	 * landing page's Buy sends `?design=red_santa&size=M`. It wins over what
+	 * the session remembers, because it is what the buyer just tapped, and it
+	 * is set before any block mounts, so the picker renders folded on the
+	 * server as well. Only codes this product sells are taken.
+	 *
+	 * `added=1` says the page that sent them already reported the AddToCart
+	 * (the landing page does, under its own event id, the moment Buy is
+	 * tapped). Reporting it again here would count one add twice on the very
+	 * event the Christmas ad set optimises for, so this page stays quiet about
+	 * adds for the rest of the view, even if the buyer changes the size.
+	 */
+	const linked = (() => {
+		const params = page.url.searchParams;
+		const design = params.get('design') ?? '';
+		const size = params.get('size') ?? '';
+		const entry = data.variantIndex.find((v) => v.colourCode === design && v.size === size);
+		if (!entry) return null;
+		state.set('design', design);
+		state.set('size', size);
+		return { reported: params.get('added') === '1' };
+	})();
 
 	/**
 	 * An ad can land here, so this is a product view as much as the product
@@ -87,7 +112,7 @@
 	 * The cart is read untracked: this effect writes it, and reading what it
 	 * writes would re-run it.
 	 */
-	let addReported = false;
+	let addReported = linked?.reported ?? false;
 	$effect(() => {
 		if (!cart.hydrated) return;
 		const want = wanted;
@@ -154,10 +179,23 @@
 	<meta property="og:image" content={new URL(data.seo.image, page.url).href} />
 	<!-- The product page is the one to index; this is its checkout. -->
 	<meta name="robots" content="noindex, nofollow" />
-	<link
-		href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
-		rel="stylesheet"
-	/>
+	{#if data.look === 'shop'}
+		<!-- The landing page's type, so the checkout reads as the same shop. -->
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+			rel="stylesheet"
+		/>
+		<!-- The wordmark only: ten letters, as the landing page loads it. -->
+		<link
+			href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&text=ChillMyPet&display=swap"
+			rel="stylesheet"
+		/>
+	{:else}
+		<link
+			href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+	{/if}
 </svelte:head>
 
 <Checkout
@@ -174,4 +212,5 @@
 	colClass="flex flex-col gap-3 md:gap-5"
 	topSummary={false}
 	mainClass="flex flex-col gap-6 pb-8"
+	look={data.look === 'shop' ? 'shop' : 'default'}
 />

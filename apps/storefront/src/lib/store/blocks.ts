@@ -6,6 +6,9 @@ import ClosingCta from '$lib/blocks/ClosingCta.svelte';
 import DesignGallery from '$lib/blocks/DesignGallery.svelte';
 import DesignSizePicker from '$lib/blocks/DesignSizePicker.svelte';
 import PhotoPair from '$lib/blocks/PhotoPair.svelte';
+import ShopContact from '$lib/blocks/ShopContact.svelte';
+import ShopDelivery from '$lib/blocks/ShopDelivery.svelte';
+import ShopMethod from '$lib/blocks/ShopMethod.svelte';
 import SizeGuide from '$lib/blocks/SizeGuide.svelte';
 import StepList from '$lib/blocks/StepList.svelte';
 import StorySplit from '$lib/blocks/StorySplit.svelte';
@@ -31,5 +34,9 @@ export const STORE_BLOCKS: PageComponentMap = {
 	story: { render: StorySplit },
 	design_gallery: { render: DesignGallery },
 	design_size_picker: { render: DesignSizePicker },
-	size_guide: { render: SizeGuide }
+	size_guide: { render: SizeGuide },
+	// The shop checkout's fields (`$lib/store/one-page-checkout.ts`).
+	shop_contact: { render: ShopContact },
+	shop_delivery: { render: ShopDelivery },
+	shop_method: { render: ShopMethod }
 };

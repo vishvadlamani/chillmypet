@@ -50,13 +50,17 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	// The composed manifest is authored, not data: it is the same for every
 	// request to this slug, so versioning it before binding keeps one version
 	// per page rather than one per price or stock change.
-	const { definition, version } = bindDefinition(onePageCheckout(page.manifest, slug), resolve);
+	const { definition, version } = bindDefinition(
+		onePageCheckout(page.manifest, slug, page.checkout),
+		resolve
+	);
 
 	return {
 		definition,
 		version,
 		...checkoutPayment(locals, url),
 		slug,
+		look: page.checkout ?? null,
 		tierField,
 		// The host's lookup from the picker's codes to a variant. Never a prop:
 		// a block that carried variant ids would be coupled to this catalogue.

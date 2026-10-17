@@ -16,7 +16,10 @@
 		video: false
 	};
 	var design = function (code) { return c.designs.filter(function (d) { return d.code === (code || state.design); })[0]; };
-	var link = function () { return c.links[state.design + ':' + state.size]; };
+	var link = function () {
+		var sku = c.skus[state.design + ':' + state.size];
+		return sku ? { sku: sku } : null;
+	};
 
 	// Every photo on the page is one of the two product shots; the close-ups are
 	// the same files zoomed with CSS (--z around --x/--y), so nothing is shown
@@ -272,19 +275,38 @@
 			value: c.price,
 			currency: c.currency
 		};
+		// AddToCart is this page's: it is the tap, and the event the ad set
+		// optimises for. InitiateCheckout is not sent here any more. The
+		// checkout sends it once the buyer starts typing their details, which
+		// is what starting a checkout means, and what keeps the two from being
+		// one tap counted twice.
 		xmasTrack('AddToCart', data, true);
-		xmasTrack('InitiateCheckout', data, true);
-		// The visitor id rides to Stripe as client_reference_id, the one value a
-		// Payment Link carries through to the session, so the webhook's Purchase
-		// names the same person as the events above.
-		// In quiet mode it is prefixed test_, which is how the owner tells their
-		// own checkouts apart in the Stripe Dashboard, and how the webhook knows
-		// not to report the sale if one is paid.
-		var url = target.url;
-		var ref = c.quiet ? 'test_' + (c.visitorId || 'visit') : c.visitorId;
-		if (ref) url += (url.indexOf('?') < 0 ? '?' : '&') + 'client_reference_id=' + ref;
-		// A beat for the beacons, then on to Stripe.
+		// A beat for the beacons, then on to the checkout.
+		var url = checkoutUrl();
 		setTimeout(function () { location.href = url; }, 150);
+	}
+
+	/**
+	 * chillmypet.com's checkout for this hoodie, with what was chosen here.
+	 *
+	 * added=1 tells it this page already reported the add, so it doesn't
+	 * report a second one. vid is this visitor's id (cmp_vid, the external_id
+	 * on every event here), which chillmypet.com adopts when it has none, so
+	 * Meta sees one person from the ad to the Purchase. fbclid and the utm_
+	 * tags come along from this page's own address: chillmypet.com runs Meta's
+	 * Parameter Builder on the click id it finds in its URL, and a cookie set
+	 * on pages.dev is not one it can read.
+	 */
+	function checkoutUrl() {
+		var q = new URLSearchParams();
+		q.set('design', state.design);
+		q.set('size', state.size);
+		q.set('added', '1');
+		if (c.visitorId) q.set('vid', c.visitorId);
+		new URLSearchParams(location.search).forEach(function (value, key) {
+			if (key === 'fbclid' || /^utm_[a-z]+$/.test(key)) q.set(key, value);
+		});
+		return c.checkout + '?' + q.toString();
 	}
 	all('.buy').forEach(function (a) { a.addEventListener('click', buy); });
 

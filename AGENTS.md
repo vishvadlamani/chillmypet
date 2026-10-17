@@ -744,6 +744,48 @@ product page and `/checkout` are unchanged. Things to know:
   three checkouts started. Purchase is unchanged: the webhook, the order's
   derived id. `tests/one-page-checkout.mjs` pins all of it.
 
+**The Christmas hoodie's checkout has a look of its own, `shop`**, and it is
+where the Christmas landing page's Buy now goes (since 2026-10-17;
+`docs/christmas-checkout.md` has the reference it copies, the comparison
+that chose it, and every departure). `PRODUCT_PAGES[…].checkout = 'shop'`
+turns it on for that product only. Things to know:
+
+- **Markup, not behaviour.** `Checkout.svelte` takes `look`; pricing, the
+  cross-form check, the card fields, the events and the post are the same
+  code for both looks, and the default look renders as before. The shop
+  look's fields are host blocks (`shop_contact`, `shop_delivery`,
+  `shop_method`), which ask for first and last name separately and post them
+  as `firstName`/`lastName`, so "Mary Ann" is not split at its first space.
+  They write the same host-state keys as the library's forms, plus
+  `firstName`/`lastName` (and `fullName`, joined, for the draft capture and
+  InitiateCheckout).
+- **Errors live under the fields.** `$lib/checkout-fields.ts` is the one set
+  of rules the blocks show and the pay button checks. Pay with something
+  missing writes a fresh `checkout_attempt` token to state; each block shows
+  its messages once the token changes from what it was when the block
+  mounted, and the host focuses the first `aria-invalid` field.
+- **The link carries the choice.** `?design=&size=` is set into state before
+  any block mounts (so the server renders the picker folded), and only codes
+  the product sells are taken. `added=1` means the sender reported the
+  AddToCart, and this page then reports none for the view. `?vid=` is
+  adopted as `cmp_vid` on a first visit only (`ensureVisitorId`), so the
+  landing page's events and the Purchase share one `external_id`.
+- **The Payment Element's box reserves its finished height** (316px stacked,
+  236px from 440px wide, measured with `SHOP_APPEARANCE`), so the pay button
+  does not move while Stripe.js loads. Change the appearance, measure again.
+  `CardFields` now also calls `elements.update({ amount })` when the total
+  changes after mounting (Express shipping, a second unit), on every
+  checkout.
+- **Text 16px and up, fields 60px, every target 44px.** The test walks every
+  visible text node and fails on anything smaller.
+
+`tests/shop-checkout.mjs` (in `test:store`) drives it as the Facebook app on
+an iPhone. With `PAYMENTS_BASE_URL` set to a second dev server holding
+`STRIPE_PUBLISHABLE_KEY` and a dummy secret key, it also loads the real
+Stripe.js to check the button stays put, that the form offers no Link,
+Google Pay or Discover, and that a blocked js.stripe.com leaves the hosted
+fallback.
+
 **The first screen on a phone is a budget, and the tests hold it.** The ads
 open in the Facebook app, which leaves an iPhone about 390×664. Oct 3–16 sent
 175 landing-page views and got no AddToCart, from pages whose first screen was
@@ -804,6 +846,14 @@ and webhook guarantee in this file. The Payment Link page keeps selling until
 the owner changes the ad's destination in Ads Manager, and that change waits
 on three checks: the page answers 200 on chillmypet.com, `/api/meta-status`
 reads `accepted`, and one real order has been placed and refunded.
+
+Since 2026-10-17 the landing page no longer sells through Payment Links: its
+Buy now sends the buyer to `/products/christmas-pouch-hoodie/checkout` here,
+with the design and size chosen (the `shop` look above). So every sale from
+the ad gets an order row, the guarded stock decrement, the webhook Purchase
+and the confirmation email, while the ad keeps its destination. The same
+three checks apply to that: the first two passed on 2026-10-17, and the real
+order and refund has still not been run.
 
 **The Pouch Pet Hoodie has no product page here yet.** It sells from the
 landing page in `landing/pouch-pet-hoodie/` (chillmypet-hoodie.pages.dev,
@@ -1132,7 +1182,7 @@ without paying. Built and tested; like every other email it sends nothing until
 | Payments | Stripe `acct_1U3NewJOsB1nguzl` ("ChillMP"), live since 2026-10-07 |
 | Meta dataset | `1341978141149107` (browser + CAPI), the only pixel. Removed 2026-10-11: `28272021345717397` (nobody could say whose it was) and `1363695699271757` (the retired CZK account's; nothing running used it) |
 | Hoodie landing page | `chillmypet-hoodie.pages.dev`, Cloudflare Pages, source in `landing/pouch-pet-hoodie/`, on a third Cloudflare account — see below. Off sale; redirects to the Christmas page since 2026-10-11 |
-| Christmas landing page | `chillmypet-christmas.pages.dev`, Cloudflare Pages on the same account, source in `landing/christmas-pouch-hoodie/`, published on merge by `deploy-christmas.yml`, previewed per pull request at `pr-<n>.chillmypet-christmas.pages.dev` by `preview-christmas.yml`. `?test` puts a browser in quiet mode (nothing to Meta, checkout marked `test_`) |
+| Christmas landing page | `chillmypet-christmas.pages.dev`, Cloudflare Pages on the same account, source in `landing/christmas-pouch-hoodie/`. Buy now goes to chillmypet.com's checkout for the hoodie (since 2026-10-17; its eight Payment Links are still active in Stripe, unlinked). Published on merge by `deploy-christmas.yml`, previewed per pull request at `pr-<n>.chillmypet-christmas.pages.dev` by `preview-christmas.yml`. `?test` puts a browser in quiet mode (nothing to Meta from this page; chillmypet.com has no quiet mode, so a test Buy counts there) |
 
 **Which Cloudflare account holds what.** Everything chillmypet.com runs on is
 in **Vish's** Cloudflare account, alongside many unrelated Workers. That covers

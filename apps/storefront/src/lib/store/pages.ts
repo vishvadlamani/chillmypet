@@ -25,6 +25,16 @@ export interface ProductPage {
 	 * map's order, so the first entry is the collection's lead product.
 	 */
 	christmas?: boolean;
+	/**
+	 * How `/products/<slug>/checkout` is laid out. Unset, it is the product
+	 * page's top over the checkout's fields. `shop` is a dedicated checkout
+	 * page in the shape shoppers know from hosted shop checkouts: contact,
+	 * delivery, shipping method and payment in one column, the order summary
+	 * beside it (folded into a bar on a phone), and the picker reduced to a
+	 * line once a design and size are chosen. It is where the Christmas
+	 * landing page sends its Buy button; see `$lib/store/one-page-checkout.ts`.
+	 */
+	checkout?: 'shop';
 }
 
 /** Kept in step with `scripts/christmas-hoodie.js`. */
@@ -44,7 +54,12 @@ export const REINDEER_DOG_HOODIE_SLUG = 'reindeer-dog-hoodie';
  */
 export const PRODUCT_PAGES: Record<string, ProductPage> = {
 	[PRODUCT_SLUG]: { manifest: STORE_PAGE, pickSize: false },
-	[CHRISTMAS_HOODIE_SLUG]: { manifest: CHRISTMAS_HOODIE_PAGE, pickSize: true, theme: 'christmas' },
+	[CHRISTMAS_HOODIE_SLUG]: {
+		manifest: CHRISTMAS_HOODIE_PAGE,
+		pickSize: true,
+		theme: 'christmas',
+		checkout: 'shop'
+	},
 	[DOG_CHRISTMAS_COSTUME_SLUG]: {
 		manifest: CHRISTMAS_COSTUME_PAGE,
 		pickSize: true,

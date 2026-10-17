@@ -154,7 +154,30 @@
 		"yourOrder": "Tu pedido",
 		"changeOrder": "Cambiar",
 		"paymentHostedNote": "Los datos de la tarjeta se introducen en la página segura de Stripe. Nunca pasan por este sitio.",
-		"paymentFallback": "Abriendo nuestra página de pago segura…"
+		"paymentFallback": "Abriendo nuestra página de pago segura…",
+		"deliveryTitle": "Entrega",
+		"optionalField": "{field} (opcional)",
+		"fieldErrors": {
+			"email": "Introduce tu correo electrónico",
+			"emailInvalid": "Revisa tu correo electrónico, debería ser como nombre@ejemplo.com",
+			"firstName": "Introduce tu nombre",
+			"lastName": "Introduce tus apellidos",
+			"address": "Introduce tu dirección",
+			"city": "Introduce tu ciudad",
+			"state": "Elige tu {label}",
+			"zip": "Introduce tu {label}",
+			"country": "Elige un país"
+		},
+		"shop": {
+			"showSummary": "Ver resumen del pedido",
+			"hideSummary": "Ocultar resumen del pedido",
+			"secure": "Pago seguro",
+			"paymentNote": "Tu tarjeta va directamente a Stripe, nuestro procesador de pagos. Nunca vemos el número.",
+			"oneItem": "1 artículo",
+			"manyItems": "{count} artículos",
+			"fixFields": "Faltan algunos datos. Están marcados en rojo arriba.",
+			"pick": "Elige un diseño y una talla para ver el total."
+		}
 	},
 	"footer": {
 		"shipping": "Política de envíos",
