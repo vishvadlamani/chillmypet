@@ -546,7 +546,8 @@ locale too.
 **A product:** a definition in `apps/storefront/scripts/<slug>.js` (the
 `ProductDefinition` shape in `catalog.js`: translations, options, media,
 variants, metafields), listed in `scripts/products.js`; a manifest in
-`$lib/store`, mapped in `pages.ts`; photos under `static/products/<slug>/`, then `npm run images` for their small copies;
+`$lib/store`, mapped in `pages.ts`; photos under `static/products/<slug>/`, then `npm run images` for their small copies
+(`christmas: true` on its `PRODUCT_PAGES` entry also lists it on `/christmas`);
 and a browser test like `tests/christmas-hoodie.mjs`. The seed writes it on a
 fresh database, the Worker adds it to a live one, and `check-live.js` fails the
 deploy if its page does not answer. Nothing else to register: the header reads
@@ -682,6 +683,37 @@ know:
   its codes are `red` and `green`, which both language packs already name,
   and `item_variant` reaches GA4 as `green / M`. SKUs are `CMP-XT-<COLOUR>-<SIZE>`
   (XT: Xmas tree), beside the hoodie's `CMP-XH-`.
+
+`/products/reindeer-dog-hoodie` is the fourth: a red plush hoodie with
+antlers on the hood and a tree patch on the back, S–XL, one colour, built
+exactly like the costume (`tree` theme, same blocks and rules), defined in
+`scripts/reindeer-dog-hoodie.js` and tested by `tests/reindeer-dog-hoodie.mjs`.
+Two things differ:
+
+- **It has no size chart, on purpose.** The reference store (littletreepups.com,
+  on the owner's instruction, look only) sells S–L with its own figures; this
+  listing is S–XL and the supplier's table has not arrived. The metafields are
+  empty, so the size guide says how to measure and shows its `pending` note.
+  When the table arrives the live row needs a migration, like a price change:
+  `products.js` never rewrites a product it has.
+- **The price is a placeholder too**: $27.99, the reference store's figure, no
+  compare-at.
+
+The picker's single-colour case gives the sizes the rest of the row
+(`.options.single`), and the bundle cards' saving line names its unit through
+`unitsNoun` ("with 2 hoodies"); it used to say "costumes" on every page.
+
+**`/christmas` is the page the Christmas ads can share.** It lists every
+product whose `PRODUCT_PAGES` entry has `christmas: true` and which has a row
+in the store, in catalogue order, each card linking to its product page. A new
+Christmas product is listed by setting that flag; nothing else. It buys
+nothing itself: size, bundle and AddToCart stay on the product pages, so the
+conversion path the tests pin is the only one. It wears the tree chrome (the
+layout reads `theme` and `announcement` off its data, since it has no
+manifest), hides the header links on a phone like a product page, and lays
+the cards out as rows on a phone so the first screen shows more than one
+product with its price. The header links to it once it has a product. The
+pouch hoodie (a person's garment, `christmas` theme) is not on it.
 
 **Every sized product also has a one-page checkout** at
 `/products/<slug>/checkout` (`/products/dog-christmas-costume/checkout`):

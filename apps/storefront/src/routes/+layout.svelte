@@ -30,17 +30,19 @@
 	 * that matter most — so the site's strip stands down where a page brings its
 	 * own. A page is one of those if its data carries a definition.
 	 */
-	let ownsAnnouncement = $derived(Boolean(page.data.definition));
+	let ownsAnnouncement = $derived(Boolean(page.data.definition) || page.data.theme === 'tree');
 
 	/**
 	 * The tree storefront (the costume page) sets its strip ABOVE the header,
 	 * the way a shop's own bar sits, so the layout lifts the page's announcement
 	 * up here and the theme hides the in-page copy. Still one strip, still the
-	 * page's words.
+	 * page's words. `/christmas` has no manifest and hands its message over as
+	 * `announcement` instead.
 	 */
 	let treeChrome = $derived(page.data.theme === 'tree');
 	let liftedStrip = $derived.by(() => {
 		if (!treeChrome) return '';
+		if (typeof page.data.announcement === 'string') return page.data.announcement;
 		const blocks = (page.data.definition?.blocks ?? []) as {
 			component: string;
 			props?: { message?: unknown };
@@ -57,7 +59,9 @@
 	 * language and the cart on one row and drop the links; the checkouts drop
 	 * them everywhere, because a link out of a checkout is a way to not pay.
 	 */
-	let onProduct = $derived(page.url.pathname.startsWith('/products/'));
+	let onProduct = $derived(
+		page.url.pathname.startsWith('/products/') || page.url.pathname === '/christmas'
+	);
 	let onCheckout = $derived(
 		page.url.pathname === '/checkout' || /^\/products\/[^/]+\/checkout$/.test(page.url.pathname)
 	);
@@ -100,6 +104,17 @@
 				class="{onCheckout ? 'hidden' : onProduct ? 'flex max-sm:hidden' : 'flex'} items-center gap-x-5 overflow-x-auto whitespace-nowrap text-sm text-ink-600 [scrollbar-width:none] max-sm:order-last max-sm:-mx-4 max-sm:w-[calc(100%+2rem)] max-sm:px-4 [&::-webkit-scrollbar]:hidden"
 			>
 				<li><a class="hover:text-ink-900" href="/">{t('nav.home')}</a></li>
+				{#if page.data.christmasShop}
+					<li>
+						<a
+							class="hover:text-ink-900"
+							href="/christmas"
+							aria-current={page.url.pathname === '/christmas' ? 'page' : undefined}
+						>
+							{t('nav.christmas')}
+						</a>
+					</li>
+				{/if}
 				<!-- One link per product that can actually be bought here, from the
 				     layout's load: the catalogue decides, so a second product is
 				     reachable the day its row lands and never before. -->
