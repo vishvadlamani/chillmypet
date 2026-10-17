@@ -151,3 +151,23 @@ export async function insertProduct(db, storeId, def) {
 		tx.close();
 	}
 }
+
+/**
+ * Moves a product's variants from one price to another, but only the variants
+ * still at `fromCents`. Returns how many moved: 0 once it has applied, and 0
+ * for a variant someone priced by hand since. See `price-changes.js`.
+ *
+ * @param {import('ecomwithai/db').Client} db
+ * @param {string} storeId
+ * @param {{ slug: string, fromCents: number, toCents: number }} change
+ * @returns {Promise<number>}
+ */
+export async function applyPriceChange(db, storeId, { slug, fromCents, toCents }) {
+	const result = await db.execute({
+		sql: `update product_variants set price_cents = ?
+		      where store_id = ? and price_cents = ?
+		        and product_id = (select id from products where store_id = ? and slug = ?)`,
+		args: [toCents, storeId, fromCents, storeId, slug]
+	});
+	return result.rowsAffected;
+}

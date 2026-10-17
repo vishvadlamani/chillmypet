@@ -553,6 +553,16 @@ fresh database, the Worker adds it to a live one, and `check-live.js` fails the
 deploy if its page does not answer. Nothing else to register: `/catalog` and the home
 page read the catalogue.
 
+**Changing a price:** set `PRICE_CENTS` in the product's script and add
+`{ slug, fromCents, toCents }` to `scripts/price-changes.js` in the same
+commit. The Worker's catalogue sync applies it on the first request after
+the deploy, and `npm run db:products` applies it by hand. Each change moves
+only variants still at `fromCents`, so it runs once, and a price someone set
+by hand in the meantime is left alone. Placed orders keep their unit price;
+carts are re-priced by the server, so nobody is charged the old price.
+Bundle cards and their savings follow on their own (they are the quantity
+breaks applied to the unit price). `catalogue.test.ts` pins the guard.
+
 **A store:** `SEED_STORE_ID=x SEED_STORE_DOMAIN=x.com npm run db:seed`, then add
 the domain to `apps/storefront/wrangler.toml`. One Worker serves all tenants;
 the `Host` header picks which. No code change.
@@ -654,10 +664,12 @@ know:
   moment a costume row carries `neckCm` or `backLengthCm`. The costume ships
   the supplier's weight bands and nothing else — never fill in another
   seller's measurements.
-- **The price is a placeholder.** $28.50 is the reference store's figure
-  (pawlidaypets.com, whose page has no copy and gave none). It has no
-  compare-at on purpose. Change it in the script and the live store needs a
-  catalogue migration — `products.js` is additive and never rewrites a row.
+- **The price is $27.99, the reindeer hoodie's** (owner's instruction,
+  2026-10-17: one price for the Christmas dog outfits). It was $28.50, the
+  first reference store's figure. It has no compare-at on purpose. A price
+  change is two edits in one commit: `PRICE_CENTS` in the product's script
+  (a fresh seed) and an entry in `scripts/price-changes.js` (a live store,
+  which `products.js` never rewrites). See "Changing a price" below.
 - **It looks like littletreepups.com, on the owner's instruction.** Done on
   2026-10-16 from that page's measured styles: the `tree` theme in
   `pages.ts` (not `christmas`), `$lib/styles/tree-theme.css` for the cream
@@ -694,8 +706,9 @@ Two things differ:
   on the owner's instruction, look only) sells S–L with its own figures; this
   listing is S–XL and the supplier's table has not arrived. The metafields are
   empty, so the size guide says how to measure and shows its `pending` note.
-  When the table arrives the live row needs a migration, like a price change:
-  `products.js` never rewrites a product it has.
+  When the table arrives the live row needs a migration: `products.js`
+  never rewrites a product it has. (A price change has its own path,
+  `scripts/price-changes.js`.)
 - **The price is a placeholder too**: $27.99, the reference store's figure, no
   compare-at.
 

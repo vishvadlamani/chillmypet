@@ -8,11 +8,14 @@
  *   npm run db:products            # local
  *   TURSO_DATABASE_URL=… TURSO_AUTH_TOKEN=… npm run db:products
  *
+ * It also applies `price-changes.js`, each guarded by the old price.
+ *
  * Idempotent: running it twice adds nothing the second time. A product also
  * needs a page manifest in `src/lib/store/pages.ts` before its URL serves.
  */
 import { createDb } from 'ecomwithai';
-import { insertProduct, productExists } from './catalog.js';
+import { applyPriceChange, insertProduct, productExists } from './catalog.js';
+import { PRICE_CHANGES } from './price-changes.js';
 import { PRODUCTS } from './products.js';
 import { STORE } from './content.js';
 
@@ -33,6 +36,12 @@ for (const def of PRODUCTS) {
 	}
 	const { variants } = await insertProduct(db, STORE.id, def);
 	console.log(`${def.slug}: added to "${STORE.id}" with ${variants} variants`);
+}
+
+// The same guarded price changes the Worker applies on its own.
+for (const change of PRICE_CHANGES) {
+	const moved = await applyPriceChange(db, STORE.id, change);
+	if (moved > 0) console.log(`${change.slug}: ${moved} variants ${change.fromCents} -> ${change.toCents} cents`);
 }
 
 db.close();

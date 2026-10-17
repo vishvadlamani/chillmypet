@@ -40,7 +40,7 @@ function check(label, cond, detail) {
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('SSR shows the photos', html.includes('class="gallery'));
 	check('SSR offers both colours', html.includes('>Red<') && html.includes('>Green<'));
-	check('SSR offers the bundle cards at the server’s prices', html.includes('$53.01') && html.includes('$77.80'));
+	check('SSR offers the bundle cards at the server’s prices', html.includes('$52.06') && html.includes('$76.41'));
 	check('no size is pre-selected', !/name="size"[^>]*checked/.test(html));
 	const picker = /id="variant-picker"[\s\S]*?<\/fieldset>\s*(?:<\/div>|<p)/.exec(html)?.[0] ?? '';
 	check('the picker has no button of its own', picker.length > 0 && !html.includes('class="cta'));
@@ -158,7 +158,7 @@ await settle();
 {
 	const lines = await cartLines();
 	check('a size puts the chosen variant in the cart', lines.length === 1 && lines[0].colour === 'green' && lines[0].size === 'S' && lines[0].quantity === 1, JSON.stringify(lines));
-	check('the summary prices it', await shows(/Green · S[\s\S]*\$28\.50/), await summary());
+	check('the summary prices it', await shows(/Green · S[\s\S]*\$27\.99/), await summary());
 }
 await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();
 await page.locator('#variant-picker label.tier', { hasText: 'Two costumes' }).click();
@@ -167,7 +167,7 @@ await settle();
 	const lines = await cartLines();
 	check('a new size replaces the line, it doesn’t add one', lines.length === 1 && lines[0].size === 'M', JSON.stringify(lines));
 	check('the bundle sets the quantity', lines[0]?.quantity === 2, JSON.stringify(lines));
-	check('and the server’s bundle price is the total', await shows(/Total\s*\$53\.01/), await summary());
+	check('and the server’s bundle price is the total', await shows(/Total\s*\$52\.06/), await summary());
 	const add = await pairedOnce('AddToCart');
 	check('the one AddToCart is the first choice', JSON.stringify(add.content_ids) === '["CMP-XT-GREEN-S"]', JSON.stringify(add));
 	check('choosing does not start the checkout', (await browserEvent('InitiateCheckout')).length === 0);
@@ -217,8 +217,8 @@ check('the confirmation sends them back to the product', await page.locator(`a[h
 		rows.rows.length === 1 &&
 			row.sku === 'CMP-XT-GREEN-M' &&
 			Number(row.quantity) === 2 &&
-			Number(row.unit_price_cents) === 2850 &&
-			Number(row.total_cents) === 5301,
+			Number(row.unit_price_cents) === 2799 &&
+			Number(row.total_cents) === 5206,
 		JSON.stringify(row)
 	);
 	db.close();

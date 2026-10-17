@@ -11,7 +11,9 @@
  * serves every page from that database. So it does the job itself, once per
  * isolate, on the first request after a deploy, in the background.
  *
- * Both halves are additive and idempotent. The schema is `create ... if not
+ * Both halves are additive and idempotent, and so is the third: a listed price
+ * change (`scripts/price-changes.js`) moves only variants still at the old
+ * price. The schema is `create ... if not
  * exists` throughout, and a product the store already has is skipped, never
  * rewritten, so prices, stock and order history survive. Two isolates racing
  * to add the same product is harmless: `unique (store_id, slug)` fails the
@@ -22,7 +24,8 @@
  * request retries it, rather than every request retrying.
  */
 import { SCHEMA, applySchema, schemaStatements, type Client } from 'ecomwithai/db';
-import { insertProduct, productExists } from '../../../scripts/catalog.js';
+import { applyPriceChange, insertProduct, productExists } from '../../../scripts/catalog.js';
+import { PRICE_CHANGES } from '../../../scripts/price-changes.js';
 import { PRODUCTS, STORE_ID } from '../../../scripts/products.js';
 
 /**
@@ -50,6 +53,8 @@ export type CatalogueSync = {
 	added: string[];
 	/** Products the store already had, left as they were. */
 	skipped: string[];
+	/** Products whose price moved on this run (`scripts/price-changes.js`). */
+	repriced: string[];
 	/** The store row itself is absent: nothing to add products to. Seed first. */
 	storeMissing: boolean;
 };
@@ -65,7 +70,7 @@ export async function syncCatalogue(db: Client, storeId: string = STORE_ID): Pro
 	const store = await db.execute({ sql: 'select 1 from stores where id = ?', args: [storeId] });
 	const slugs = PRODUCTS.map((def) => def.slug);
 	if (store.rows.length === 0) {
-		return { schemaCreated, added: [], skipped: slugs, storeMissing: true };
+		return { schemaCreated, added: [], skipped: slugs, repriced: [], storeMissing: true };
 	}
 
 	const added: string[] = [];
@@ -85,7 +90,14 @@ export async function syncCatalogue(db: Client, storeId: string = STORE_ID): Pro
 			else throw error;
 		}
 	}
-	return { schemaCreated, added, skipped, storeMissing: false };
+
+	// After the adds, so a product added on this run at its script's (new)
+	// price is simply not matched by the guard.
+	const repriced: string[] = [];
+	for (const change of PRICE_CHANGES) {
+		if ((await applyPriceChange(db, storeId, change)) > 0) repriced.push(change.slug);
+	}
+	return { schemaCreated, added, skipped, repriced, storeMissing: false };
 }
 
 const RETRY_AFTER_MS = 60_000;
@@ -113,7 +125,7 @@ export function ensureCatalogue(
 				return;
 			}
 			synced = true;
-			if (result.schemaCreated.length > 0 || result.added.length > 0) {
+			if (result.schemaCreated.length > 0 || result.added.length > 0 || result.repriced.length > 0) {
 				console.log('catalogue sync', JSON.stringify(result));
 			}
 		})
