@@ -805,8 +805,19 @@ back by accident:
   frame and picker never disagree.
 - **The `pills` picker puts its tagline below the sizes on a phone**, and the
   costume's columns sit 12px apart there.
-- **`/checkout` opens on a "Your order" box** (photo, colour, size, total,
-  and a Change link back to the product) — `/api/cart` lines carry `image`.
+- **`/checkout` opens on a "Your order" box** (photo, colour, size, total)
+  — `/api/cart` lines carry `image`. Each line has its own − n + buttons
+  (`QuantityStepper.svelte`), Remove, and Change back to *its* product. The
+  cart lives in localStorage for good, so a basket can arrive holding last
+  summer's life jackets under a Christmas costume; before 2026-10-17 the only
+  way to change that at checkout was a small Remove at the foot of the page,
+  and the box's single Change went to whichever product was first. On a
+  one-page checkout the picker's own line has no Remove (the picker owns it)
+  and, where bundle cards set the count, no quantity buttons; the hoodie has
+  no bundle cards, so its count is set in the summary and kept across a
+  change of size. The shop look opens its folded phone summary by itself when
+  the cart holds another product, because that line is charged too.
+  `tests/basket-edit.mjs` pins all of it.
 
 **Photos are served as small copies.** `static/resized/{200,800}/products/…`
 holds WebP copies of every product photo, made by `npm run images` (sharp)

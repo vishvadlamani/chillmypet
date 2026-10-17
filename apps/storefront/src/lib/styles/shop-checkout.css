@@ -418,8 +418,31 @@
 }
 .shop-lines li {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: 14px;
+}
+/* Quantity and Remove under a line (QuantityStepper.svelte). */
+.shop .line-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 16px;
+	margin-top: 8px;
+	font-size: 16px;
+	font-weight: 400;
+}
+.shop .line-link {
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	color: var(--shop-accent);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+	cursor: pointer;
 }
 .shop-lines .thumb {
 	position: relative;

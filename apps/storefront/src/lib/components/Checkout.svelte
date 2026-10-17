@@ -16,6 +16,7 @@
 	import { PRODUCT_SLUG } from '$lib/store/product';
 	import { cart } from '$lib/stores/cart.svelte';
 	import CardFields from '$lib/components/CardFields.svelte';
+	import QuantityStepper from '$lib/components/QuantityStepper.svelte';
 	import { resized } from '$lib/resized';
 	import { fieldProblem } from '$lib/checkout-fields';
 	import type { ActionData, PageData } from '../../routes/checkout/$types';
@@ -41,7 +42,9 @@
 		colClass = 'flex flex-col gap-5',
 		topSummary = true,
 		mainClass = 'flex flex-col gap-6 py-8',
-		look = 'default'
+		look = 'default',
+		pickerSlug,
+		pickerSetsQuantity = false
 	}: {
 		data: Pick<
 			PageData,
@@ -105,10 +108,41 @@
 		 * blocks, which ask for first and last name separately.
 		 */
 		look?: 'default' | 'shop';
+		/**
+		 * On a one-page checkout, the product whose picker sits above the
+		 * form. Its line is the picker's to change: it gets no Remove (the
+		 * picker would show a size the cart no longer holds), and when the
+		 * picker's bundle cards set the count (`pickerSetsQuantity`), no
+		 * quantity buttons either. Every other line in the cart can be changed
+		 * or removed here.
+		 */
+		pickerSlug?: string;
+		pickerSetsQuantity?: boolean;
 	} = $props();
 
 	let shop = $derived(look === 'shop');
 	let summaryOpen = $state(false);
+
+	const canStep = (line: { slug: string }) => !(pickerSetsQuantity && line.slug === pickerSlug);
+	const canRemove = (line: { slug: string }) => line.slug !== pickerSlug;
+	// The cart's count, not the priced one: the price follows a moment later,
+	// from /api/cart, and the number under the buyer's thumb must not lag.
+	const quantityOf = (line: { variantId: number; quantity: number }) =>
+		cart.lines.find((l) => l.variantId === line.variantId)?.quantity ?? line.quantity;
+
+	/**
+	 * A basket can hold more than this page's product: the cart outlives every
+	 * visit, so a life jacket added in the summer is still there under a
+	 * Christmas hoodie, and it is charged with it. On a phone the shop
+	 * look's summary starts folded, which would hide exactly that, so it
+	 * opens by itself, once, when the cart holds anything else.
+	 */
+	let summaryOpened = false;
+	$effect(() => {
+		if (summaryOpened || !shop || !pickerSlug || !priced) return;
+		summaryOpened = true;
+		if (priced.lines.some((l) => l.slug !== pickerSlug)) summaryOpen = true;
+	});
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let t = $derived(createTranslator(locale));
@@ -612,6 +646,34 @@
 <!-- What the blocks wrote into host state, in the names the order takes.
      The mapping lives here because the block's job ends at "these are
      the fields"; what an address is called downstream is the host's. -->
+{#snippet lineControls(line: PricedLine, withChange: boolean)}
+	{#if canStep(line) || canRemove(line) || withChange}
+		<div
+			class={shop
+				? 'line-actions'
+				: 'text-15 text-fx-sub mt-1 flex flex-wrap items-center gap-x-4 gap-y-1'}
+		>
+			{#if canStep(line)}
+				<QuantityStepper variantId={line.variantId} quantity={quantityOf(line)} title={line.title} />
+			{/if}
+			{#if canRemove(line)}
+				<button
+					type="button"
+					onclick={() => cart.remove(line.variantId)}
+					class={shop ? 'line-link' : 'min-h-11 underline'}
+				>
+					{t('cart.remove')}
+				</button>
+			{/if}
+			{#if withChange}
+				<a href="/products/{line.slug}" class={shop ? 'line-link' : 'inline-flex min-h-11 items-center underline'}>
+					{t('checkout.changeOrder')}
+				</a>
+			{/if}
+		</div>
+	{/if}
+{/snippet}
+
 {#snippet hiddenFields()}
 	<!-- The shop look asks for the two names separately, and posts them
 	     that way, so "Mary Ann" stays a first name instead of being split
@@ -732,6 +794,7 @@
 					<span class="name">
 						{line.title}
 						<small>{colourName(line.colour)} · {line.size}</small>
+						{@render lineControls(line, false)}
 					</span>
 					<span class="amount">
 						{formatMoney(line.unitPriceCents * line.quantity, locale, currency)}
@@ -902,7 +965,7 @@
 			<section class="max-w-page px-gutter mx-auto w-full pt-6" aria-label={t('checkout.yourOrder')}>
 				<div class="rounded-field flex flex-col gap-3 border border-[#d8d5cf] bg-white p-3">
 					{#each priced.lines as line (line.variantId)}
-						<div class="flex items-center gap-3">
+						<div class="flex items-start gap-3">
 							{#if line.image}
 								<img
 									src={resized(line.image, 200)}
@@ -915,19 +978,20 @@
 							<div class="min-w-0 flex-1">
 								<p class="text-15 text-fx-ink truncate font-medium">{line.title}</p>
 								<p class="text-13 text-fx-muted">
-									{colourName(line.colour)} · {line.size} · {t('cart.quantity')}
-									{line.quantity}
+									{colourName(line.colour)} · {line.size}{#if !canStep(line)}
+										· {t('cart.quantity')} {line.quantity}{/if}
 								</p>
+								<!-- Each line its own controls and its own way back: one
+								     "Change" for the whole box took the buyer to whichever
+								     product happened to be first. -->
+								{@render lineControls(line, true)}
 							</div>
-							<span class="text-15 text-fx-ink font-semibold whitespace-nowrap tabular-nums">
+							<span class="text-15 text-fx-ink self-start font-semibold whitespace-nowrap tabular-nums">
 								{formatMoney(line.unitPriceCents * line.quantity, locale, currency)}
 							</span>
 						</div>
 					{/each}
-					<div class="text-15 flex items-center justify-between border-t border-[#e2e0dc] pt-2">
-						<a href="/products/{priced.lines[0].slug}" class="text-fx-sub underline">
-							{t('checkout.changeOrder')}
-						</a>
+					<div class="text-15 flex items-center justify-end border-t border-[#e2e0dc] pt-2">
 						<span class="text-fx-ink font-semibold tabular-nums">
 							{t('checkout.total')}: {formatMoney(totalCents, locale, currency)}
 						</span>
@@ -1005,16 +1069,10 @@
 									<div class="min-w-0">
 										<p class="text-15 text-fx-ink font-medium">{line.title}</p>
 										<p class="text-13 text-fx-muted">
-											{colourName(line.colour)} · {line.size} · {t('cart.quantity')}
-											{line.quantity}
+											{colourName(line.colour)} · {line.size}{#if !canStep(line)}
+												· {t('cart.quantity')} {line.quantity}{/if}
 										</p>
-										<button
-											type="button"
-											onclick={() => cart.remove(line.variantId)}
-											class="text-13 text-fx-muted mt-1 underline"
-										>
-											{t('cart.remove')}
-										</button>
+										{@render lineControls(line, false)}
 									</div>
 									<span class="text-15 text-fx-ink font-semibold whitespace-nowrap tabular-nums">
 										{formatMoney(line.unitPriceCents * line.quantity, locale, currency)}
