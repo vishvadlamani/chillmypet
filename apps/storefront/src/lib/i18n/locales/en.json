@@ -91,7 +91,10 @@
 		"remove": "Remove",
 		"subtotal": "Subtotal",
 		"checkout": "Checkout",
-		"quantity": "Qty"
+		"quantity": "Qty",
+		"decrease": "One fewer {item}",
+		"increase": "One more {item}",
+		"quantityOf": "Quantity of {item}"
 	},
 	"checkout": {
 		"title": "Checkout",

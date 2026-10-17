@@ -98,8 +98,10 @@
 		const design = bag.design || data.variantIndex[0]?.colourCode || '';
 		const entry = data.variantIndex.find((v) => v.colourCode === design && v.size === bag.size);
 		if (!entry) return null;
-		const tier = /^qty-(\d+)$/.exec(bag[data.tierField] ?? '');
-		return { entry, units: tier ? Number(tier[1]) : 1 };
+		const tier = data.tiered ? /^qty-(\d+)$/.exec(bag[data.tierField] ?? '') : null;
+		// null: no bundle cards, so the count is whatever the buyer set in the
+		// summary, kept across a change of size (read below, untracked).
+		return { entry, units: tier ? Number(tier[1]) : data.tiered ? 1 : null };
 	});
 
 	/**
@@ -118,10 +120,11 @@
 		const want = wanted;
 		untrack(() => {
 			const mine = cart.lines.filter((l) => l.slug === data.slug);
+			const units = want ? (want.units ?? mine[0]?.quantity ?? 1) : 0;
 			const unchanged = want
 				? mine.length === 1 &&
 					mine[0].variantId === want.entry.variantId &&
-					mine[0].quantity === want.units
+					mine[0].quantity === units
 				: mine.length === 0;
 			if (unchanged) return;
 
@@ -134,7 +137,7 @@
 							colour: want.entry.colourCode,
 							size: want.entry.size,
 							unitPriceCents: want.entry.unitPriceCents,
-							quantity: want.units
+							quantity: units
 						}
 					]
 				: [];
@@ -145,7 +148,7 @@
 			// mind, and a campaign optimising on adds should not see two.
 			if (!want || !picked || addReported) return;
 			addReported = true;
-			const { entry, units } = want;
+			const { entry } = want;
 			pixel('AddToCart', {
 				content_type: 'product',
 				content_ids: [entry.sku],
@@ -213,4 +216,6 @@
 	topSummary={false}
 	mainClass="flex flex-col gap-6 pb-8"
 	look={data.look === 'shop' ? 'shop' : 'default'}
+	pickerSlug={data.slug}
+	pickerSetsQuantity={data.tiered}
 />

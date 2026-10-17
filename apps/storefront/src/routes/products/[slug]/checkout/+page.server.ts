@@ -38,6 +38,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 	const picker = page.manifest.blocks.find((b) => b.component === 'design_size_picker');
 	const tierField = String(picker?.props?.tierField ?? 'bundle');
+	// Whether the picker's bundle cards decide how many. When they don't (the
+	// hoodie), the count is the buyer's to set in the summary.
+	const tiered = Boolean(picker?.props?.tiers);
 
 	const resolve = createRefResolver({
 		...checkoutSources(locals),
@@ -62,6 +65,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		slug,
 		look: page.checkout ?? null,
 		tierField,
+		tiered,
 		// The host's lookup from the picker's codes to a variant. Never a prop:
 		// a block that carried variant ids would be coupled to this catalogue.
 		variantIndex: variantEntries(catalogue),

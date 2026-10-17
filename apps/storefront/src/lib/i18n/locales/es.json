@@ -91,7 +91,10 @@
 		"remove": "Quitar",
 		"subtotal": "Subtotal",
 		"checkout": "Finalizar compra",
-		"quantity": "Cant."
+		"quantity": "Cant.",
+		"decrease": "Quitar uno: {item}",
+		"increase": "Añadir uno: {item}",
+		"quantityOf": "Cantidad de {item}"
 	},
 	"checkout": {
 		"title": "Finalizar compra",
