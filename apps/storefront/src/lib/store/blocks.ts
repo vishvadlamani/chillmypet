@@ -12,6 +12,7 @@ import ShopMethod from '$lib/blocks/ShopMethod.svelte';
 import SizeGuide from '$lib/blocks/SizeGuide.svelte';
 import StepList from '$lib/blocks/StepList.svelte';
 import StorySplit from '$lib/blocks/StorySplit.svelte';
+import TrustStrip from '$lib/blocks/TrustStrip.svelte';
 
 /**
  * The block registry the product pages render with: the library, plus the
@@ -32,6 +33,7 @@ export const STORE_BLOCKS: PageComponentMap = {
 	photo_pair: { render: PhotoPair },
 	step_list: { render: StepList },
 	story: { render: StorySplit },
+	trust_strip: { render: TrustStrip },
 	design_gallery: { render: DesignGallery },
 	design_size_picker: { render: DesignSizePicker },
 	size_guide: { render: SizeGuide },

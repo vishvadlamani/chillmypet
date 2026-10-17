@@ -729,16 +729,45 @@ the menu leads instead. Things to know:
   page's Buy now keep working, and `check-live.js` still fetches it. Delete
   the line in `pages.ts` to list it again. `tests/christmas-hoodie.mjs`
   asserts it is absent from all three.
-- **The shop's pages wear the tree chrome.** Home, `/catalog`, `/christmas`
-  and `/contact` return `treeChrome(settings)` from their loads (the theme
-  and the delivery strip), and `Collection.svelte` / `ProductGrid.svelte`
-  are the cards for all three listing pages. Christmas products sort first.
-- **The menu's CSS is global, in `app.css`.** A `<style>` block in
+- **One row, like a shop's.** The menu on the left, the name in the middle,
+  the language and the cart (a bag icon with the count) on the right. Below
+  768px the menu folds behind a ☰ button (`.phone-menu`, a `<details>` like
+  Catalog) that drops a panel with the pages and the language switch. A
+  checkout has neither: there the language switch takes the left slot so
+  the name stays centred. `tests/e2e.mjs` drives both menus.
+- **The whole site wears the tree chrome** (cream, pine, Poppins, the
+  delivery strip above the header, the green footer), except a product page
+  with a skin of its own (the life jacket's sales page, the pouch hoodie's
+  `christmas` page) and the one-page checkouts under `/products/`. The rule
+  is `treeChrome` in `+layout.svelte`; a page without its own strip gets
+  the layout load's `siteAnnouncement`, the Christmas delivery line.
+  `Collection.svelte` / `ProductGrid.svelte` are the cards for `/`,
+  `/catalog` and `/christmas`. Christmas products sort first.
+- **The footer** is the name and a line, then Shop, Help and Legal columns,
+  then the payment marks the checkout really offers (Visa, Mastercard, Amex,
+  Apple Pay; see Payments for why not Google Pay or Discover).
+- **The header and footer CSS is global, in `app.css`.** A `<style>` block in
   `+layout.svelte` stamps a hash class on every element of the layout, and
   the tests match chrome class names (`tree-strip`, `shop-header`) on the
-  raw HTML. Keep the layout free of scoped styles.
-- The phone rules above are unchanged: product pages and `/christmas` hide
-  the menu below `sm`, checkouts hide it everywhere.
+  raw HTML. Keep the layout free of scoped styles. `tree-theme.css` only
+  sets the `--site-*` and `--footer-*` colours for the tree look.
+- **`/checkout` is in the shop's colours too** (`.tree-checkout` in
+  `tree-theme.css`): the library's forms draw with the `fx` tokens, so the
+  class swaps the tokens and the pay button's colour. Nothing about how the
+  checkout behaves changed.
+- **The home page opens on a hero**: `duo.jpg` from the costume page, which
+  is AI-styled and captioned "AI-styled image" on the photo, as the costume
+  page captions its own. Keep the caption if the photo stays.
+- **Cards can show a treated photo** (`cardImage` in `pages.ts`). The life
+  jacket's is `card-sailboat.jpg`: its catalogue photo, a cut-out on pure
+  white, multiplied onto the warm backdrop of the Christmas studio shots so
+  it no longer sits as a white tile among cream ones. Same photo, same
+  product, only the backdrop changed.
+- **Product pages carry a `trust_strip`** under the buy box (free US
+  shipping, 30-day returns, secure checkout, real people reply), and the
+  "who you're buying from" cards use line icons by name from
+  `$lib/line-icons.ts` instead of emoji. Only promises the policy pages
+  already make go in either.
 
 **Every sized product also has a one-page checkout** at
 `/products/<slug>/checkout` (`/products/dog-christmas-costume/checkout`):
@@ -820,9 +849,10 @@ the size buttons inside 664px, and `tests/dog-christmas-costume.mjs` and
 `tests/one-page-checkout.mjs` measure it. What pays for it, so nobody puts it
 back by accident:
 
-- **The header is one row on a phone.** Product pages hide the product links
-  below `sm`; both checkouts hide them everywhere (a link out of a checkout
-  is a way to not pay). The language switch shows `en`/`es` on a phone.
+- **The header is one row on a phone**: ☰, the name, the cart, at most 64px
+  (`tests/e2e.mjs`). Both checkouts drop the menu everywhere (a link out of
+  a checkout is a way to not pay). The language switch is in the ☰ panel on
+  a phone, and in the bar on a checkout.
 - **The `hint` gallery swaps its thumbnail strip for arrows and a counter on a
   phone**, and trims the frame to 1:0.92 (the costume photos have 3% of
   backdrop above the star and 8% below the paws). Arrows walk the colours'

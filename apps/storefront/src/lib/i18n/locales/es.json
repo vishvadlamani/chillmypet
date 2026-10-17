@@ -5,6 +5,7 @@
 		"currency": "USD"
 	},
 	"nav": {
+		"menu": "Menú",
 		"home": "Inicio",
 		"christmas": "Navidad",
 		"catalog": "Catálogo",
@@ -185,6 +186,10 @@
 		}
 	},
 	"footer": {
+		"tagline": "Ropa pequeña para perros pequeños, con envío gratis en EE. UU. y 30 días para cambiar de opinión.",
+		"shop": "Tienda",
+		"help": "Ayuda",
+		"legal": "Legal",
 		"shipping": "Política de envíos",
 		"refunds": "Política de reembolsos",
 		"contact": "Contacto",

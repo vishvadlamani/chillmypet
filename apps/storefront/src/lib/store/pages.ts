@@ -33,6 +33,13 @@ export interface ProductPage {
 	 */
 	unlisted?: boolean;
 	/**
+	 * The photo a collection card shows, when it should not be the catalogue's
+	 * lead photo: the life jacket's is a cut-out on pure white, which sat as a
+	 * white tile among the cream studio shots. A treatment of the same photo,
+	 * not a different product shot.
+	 */
+	cardImage?: string;
+	/**
 	 * How `/products/<slug>/checkout` is laid out. Unset, it is the product
 	 * page's top over the checkout's fields. `shop` is a dedicated checkout
 	 * page in the shape shoppers know from hosted shop checkouts: contact,
@@ -60,7 +67,12 @@ export const REINDEER_DOG_HOODIE_SLUG = 'reindeer-dog-hoodie';
  * why an unmapped slug is a 404 even when the product exists.
  */
 export const PRODUCT_PAGES: Record<string, ProductPage> = {
-	[PRODUCT_SLUG]: { manifest: STORE_PAGE, pickSize: false },
+	[PRODUCT_SLUG]: {
+		manifest: STORE_PAGE,
+		pickSize: false,
+		// sailboat.jpg on the warm backdrop of the Christmas studio shots.
+		cardImage: '/products/dog-life-jacket/card-sailboat.jpg'
+	},
 	[CHRISTMAS_HOODIE_SLUG]: {
 		manifest: CHRISTMAS_HOODIE_PAGE,
 		pickSize: true,

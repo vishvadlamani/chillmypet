@@ -149,6 +149,20 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 			}
 		},
 		{
+			id: 'trust',
+			component: 'trust_strip',
+			version: 1,
+			// Promises the shipping and refund policies already make, nothing more.
+			props: {
+				items: [
+					{ icon: 'truck', text: 'Free US shipping' },
+					{ icon: 'return', text: '30-day returns' },
+					{ icon: 'lock', text: 'Secure checkout' },
+					{ icon: 'mail', text: 'Real people reply' }
+				]
+			}
+		},
+		{
 			id: 'story',
 			component: 'story',
 			version: 1,
@@ -208,22 +222,22 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 			props: {
 				items: [
 					{
-						icon: '✉️',
+						icon: 'mail',
 						title: 'A real person answers',
 						body: 'Email contact@chillmypet.com about a size, an order or a return. We reply within 1–2 business days.'
 					},
 					{
-						icon: '📦',
+						icon: 'parcel',
 						title: 'Free shipping, with tracking',
 						body: 'Packed within 2–4 business days, and you get tracking when it ships. Lost on the way? We replace it or refund it.'
 					},
 					{
-						icon: '🔒',
+						icon: 'lock',
 						title: 'Secure checkout',
 						body: 'Payments are handled by Stripe. Your card number never touches our site.'
 					},
 					{
-						icon: '↩️',
+						icon: 'return',
 						title: '30 days to change your mind',
 						body: 'Send it back unworn within 30 days for a full refund. Swapping sizes is free, and the return label is on us.'
 					}

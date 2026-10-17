@@ -826,7 +826,7 @@
 {/snippet}
 
 {#if form && 'success' in form && form.success}
-	<div class="storefront-type bg-fx-bg min-h-svh pb-12" class:shop-type={shop}>
+	<div class="storefront-type tree-checkout bg-fx-bg min-h-svh pb-12" class:shop-type={shop}>
 		<section class="max-w-page px-gutter mx-auto flex flex-col gap-4 py-16 text-center">
 			<h1 class="text-33 tracking-display text-fx-ink font-bold">{t('checkout.successTitle')}</h1>
 			<p class="text-17 text-fx-sub">
@@ -956,7 +956,7 @@
 		</div>
 	</div>
 {:else}
-	<div class="storefront-type bg-fx-bg min-h-svh pb-12">
+	<div class="storefront-type tree-checkout bg-fx-bg min-h-svh pb-12">
 		<!-- Contact, address and shipping method are blocks; everything below them
 		     is host chrome. Payment deliberately is not a block: unknown block
 		     types are skipped by design, which on a checkout would render a page

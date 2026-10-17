@@ -159,16 +159,32 @@ function check(label, cond, detail) {
 	const p = await browser.newPage();
 	await p.goto(BASE, { waitUntil: 'networkidle' });
 	const menu = p.locator('header .catalog-menu');
-	check('the Catalog menu starts closed', !(await p.locator('header a[href="/catalog"]').isVisible()));
+	const allProducts = menu.locator('a[href="/catalog"]');
+	check('the Catalog menu starts closed', !(await allProducts.isVisible()));
 	await menu.locator('summary').click();
-	check('a tap opens it on All products', await p.locator('header a[href="/catalog"]').isVisible());
+	check('a tap opens it on All products', await allProducts.isVisible());
 	await p.keyboard.press('Escape');
-	check('and Escape shuts it', !(await p.locator('header a[href="/catalog"]').isVisible()));
+	check('and Escape shuts it', !(await allProducts.isVisible()));
 	await menu.locator('summary').click();
-	await p.locator('header a[href="/christmas"]').click();
+	await menu.locator('a[href="/christmas"]').click();
 	await p.waitForURL('**/christmas');
 	check('following a link lands there with the menu shut', !(await menu.evaluate((d) => d.open)));
 	await p.close();
+}
+{
+	// On a phone the menu folds behind a button, and a checkout has none.
+	const ctxPhone = await browser.newContext({ viewport: { width: 390, height: 664 }, isMobile: true, hasTouch: true });
+	const p = await ctxPhone.newPage();
+	await p.goto(BASE, { waitUntil: 'networkidle' });
+	check('a phone gets the menu button, not the bar', (await p.locator('.phone-menu summary').isVisible()) && !(await p.locator('header nav > ul').isVisible()));
+	await p.locator('.phone-menu summary').tap();
+	check('which opens on the shop’s pages', await p.locator('.phone-menu a[href="/catalog"]').isVisible() && (await p.locator('.phone-menu a[href="/contact"]').isVisible()));
+	check('and on the language switch', await p.locator('.phone-menu button[value="es"]').isVisible());
+	check('the header keeps to one row on a phone', (await p.locator('header.site-header').evaluate((h) => h.getBoundingClientRect().height)) <= 64);
+	await p.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
+	check('a checkout has no menu button', (await p.locator('.phone-menu').count()) === 0);
+	check('but keeps the language switch', await p.locator('header button[value="es"]').isVisible());
+	await ctxPhone.close();
 }
 
 {

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Block, FlowContext } from '@funnel/core';
+	import { LINE_ICONS } from '$lib/line-icons';
 
 	/** A heading and a grid of short, single-claim cards. */
 	let { block }: { block: Block; ctx: FlowContext } = $props();
@@ -7,6 +8,9 @@
 	type Card = { icon?: string; title: string; body?: string };
 
 	const p = $derived((block.props ?? {}) as { title?: string; items?: Card[] });
+
+	// A named icon from the shared set; anything else (an emoji) is shown as it is.
+	const ICONS = LINE_ICONS;
 </script>
 
 {#if p.items?.length}
@@ -15,7 +19,11 @@
 		<ul>
 			{#each p.items as card (card.title)}
 				<li>
-					{#if card.icon}<span class="icon" aria-hidden="true">{card.icon}</span>{/if}
+					{#if card.icon && ICONS[card.icon]}
+						<svg class="icon line" viewBox="0 0 24 24" aria-hidden="true">{@html ICONS[card.icon]}</svg>
+					{:else if card.icon}
+						<span class="icon" aria-hidden="true">{card.icon}</span>
+					{/if}
 					<h3>{card.title}</h3>
 					{#if card.body}<p>{card.body}</p>{/if}
 				</li>
@@ -25,6 +33,16 @@
 {/if}
 
 <style>
+	svg.line {
+		display: block;
+		width: 28px;
+		height: 28px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.5;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
 	.benefits {
 		width: 100%;
 		max-width: 1300px;

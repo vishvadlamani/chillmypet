@@ -5,6 +5,7 @@
 	import { track } from '$lib/analytics/pixel';
 	import { createTranslator, defaultLocale, locales, localeName } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
+	import { PAYMENT_ICONS, type PaymentMethod } from '$lib/store/payment-icons';
 	// Scoped to `.tree-chrome`/`.tree-theme`, so loading it everywhere changes
 	// nothing elsewhere, and a page with no styles of its own (contact) still
 	// gets the shop's chrome.
@@ -26,24 +27,33 @@
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let t = $derived(createTranslator(locale));
 	let year = new Date().getFullYear();
+	const FOOTER_PAYMENTS: PaymentMethod[] = ['visa', 'mastercard', 'amex', 'applepay'];
 
 	/**
-	 * Block-rendered pages carry their own announcement strip, from the manifest.
-	 * Site chrome and page content stating the same offer one above the other
-	 * reads as a mistake, and on a landing page it costs the two lines of screen
-	 * that matter most — so the site's strip stands down where a page brings its
-	 * own. A page is one of those if its data carries a definition.
+	 * The shop's look, the tree storefront's cream and pine (after
+	 * littletreepups.com), is the site's: every page wears it except a product
+	 * page with a skin of its own (the life jacket's sales page, the pouch
+	 * hoodie's `christmas` page) and the one-page checkouts under `/products/`,
+	 * which keep the product page's top and their own chrome.
+	 *
+	 * Its strip sits ABOVE the header, the way a shop's own bar does, so the
+	 * layout lifts the page's announcement up here and the theme hides the
+	 * in-page copy. Still one strip, still the page's words: a manifest's
+	 * `announcement_bar`, a page's own `announcement`, or else the site's
+	 * Christmas delivery line from the layout's load.
 	 */
-	let ownsAnnouncement = $derived(Boolean(page.data.definition) || page.data.theme === 'tree');
+	let treeChrome = $derived(
+		page.data.theme === 'tree' ||
+			(page.data.theme == null && !page.url.pathname.startsWith('/products/'))
+	);
 
 	/**
-	 * The tree storefront (the costume page) sets its strip ABOVE the header,
-	 * the way a shop's own bar sits, so the layout lifts the page's announcement
-	 * up here and the theme hides the in-page copy. Still one strip, still the
-	 * page's words. `/christmas` has no manifest and hands its message over as
-	 * `announcement` instead.
+	 * Block-rendered pages carry their own announcement strip, from the
+	 * manifest, and the tree chrome lifts one above the header; the site's
+	 * plain strip stands down for both, since two strips saying the same thing
+	 * read as a mistake and cost the two lines of screen that matter most.
 	 */
-	let treeChrome = $derived(page.data.theme === 'tree');
+	let ownsAnnouncement = $derived(Boolean(page.data.definition) || treeChrome);
 	let liftedStrip = $derived.by(() => {
 		if (!treeChrome) return '';
 		if (typeof page.data.announcement === 'string') return page.data.announcement;
@@ -52,20 +62,19 @@
 			props?: { message?: unknown };
 		}[];
 		const message = blocks.find((b) => b.component === 'announcement_bar')?.props?.message;
-		return typeof message === 'string' ? message : '';
+		if (typeof message === 'string') return message;
+		return page.data.siteAnnouncement ?? '';
 	});
 
 	/**
 	 * Where the header gets out of the way. An ad lands on a product page, and
 	 * on a phone in the Facebook app the header was three rows (name, language
 	 * and cart, then the product links) above a photo, so the first screen held
-	 * no price and nothing to tap. On a phone those pages keep the name, the
-	 * language and the cart on one row and drop the links; the checkouts drop
-	 * them everywhere, because a link out of a checkout is a way to not pay.
+	 * no price and nothing to tap. On a phone every page now keeps the name,
+	 * the language and the cart on one row with the links behind a menu
+	 * button; the checkouts drop the links everywhere, because a link out of a
+	 * checkout is a way to not pay.
 	 */
-	let onProduct = $derived(
-		page.url.pathname.startsWith('/products/') || page.url.pathname === '/christmas'
-	);
 	let onCheckout = $derived(
 		page.url.pathname === '/checkout' || /^\/products\/[^/]+\/checkout$/.test(page.url.pathname)
 	);
@@ -86,29 +95,32 @@
 		cart.hydrate();
 	});
 
-	/** The Catalog menu: shut after a navigation, a tap elsewhere or Escape. */
+	/** The header's two menus: shut after a navigation, a tap elsewhere or Escape. */
 	let catalogMenu = $state<HTMLDetailsElement>();
+	let phoneMenu = $state<HTMLDetailsElement>();
 	let inCatalog = $derived(
 		page.url.pathname === '/catalog' ||
 			page.url.pathname === '/christmas' ||
 			page.url.pathname.startsWith('/products/')
 	);
 	afterNavigate(() => {
-		if (catalogMenu) catalogMenu.open = false;
+		for (const menu of [catalogMenu, phoneMenu]) if (menu) menu.open = false;
 	});
-	function closeCatalogMenu(event: Event) {
-		if (!catalogMenu?.open) return;
-		if (event instanceof KeyboardEvent) {
-			if (event.key !== 'Escape') return;
-			catalogMenu.open = false;
-			catalogMenu.querySelector('summary')?.focus();
-		} else if (!catalogMenu.contains(event.target as Node)) {
-			catalogMenu.open = false;
+	function closeMenus(event: Event) {
+		for (const menu of [catalogMenu, phoneMenu]) {
+			if (!menu?.open) continue;
+			if (event instanceof KeyboardEvent) {
+				if (event.key !== 'Escape') continue;
+				menu.open = false;
+				menu.querySelector('summary')?.focus();
+			} else if (!menu.contains(event.target as Node)) {
+				menu.open = false;
+			}
 		}
 	}
 </script>
 
-<svelte:window onclick={closeCatalogMenu} onkeydown={closeCatalogMenu} />
+<svelte:window onclick={closeMenus} onkeydown={closeMenus} />
 
 <svelte:head>
 	{#if treeChrome}
@@ -118,6 +130,26 @@
 		/>
 	{/if}
 </svelte:head>
+
+{#snippet languageSwitch(where: string)}
+	<form method="POST" action="/locale" class="site-lang-form {where}">
+		<input type="hidden" name="to" value={page.url.pathname} />
+		<span class="sr-only">{t('nav.language')}</span>
+		{#each locales as code (code)}
+			<button
+				type="submit"
+				name="locale"
+				value={code}
+				aria-current={code === locale ? 'true' : undefined}
+				class="site-lang"
+			>
+				<!-- The two-letter code on a phone, so the bar keeps to one row. -->
+				<span class="sm:hidden" aria-hidden="true">{code}</span>
+				<span class="max-sm:sr-only">{localeName(code)}</span>
+			</button>
+		{/each}
+	</form>
+{/snippet}
 
 {#if isAdmin}
 	{@render children()}
@@ -149,37 +181,46 @@
 		</p>
 	{/if}
 
-	<header class="border-b border-ink-200">
-		<nav
-			class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4"
-			aria-label={t('nav.shop')}
-		>
-			<a href="/" class="text-lg font-semibold tracking-tight">
-				{t('common.brand')}
-			</a>
+	<header class="site-header border-b border-ink-200">
+		<nav class="site-nav" aria-label={t('nav.shop')}>
+			<!-- Below 768px the menu folds behind a button, the way shops do on a
+			     phone: the name, the language and the cart keep one row, and the
+			     first screen keeps its room for the product. Never on a checkout:
+			     a link out of a checkout is a way to not pay. -->
+			{#if !onCheckout}
+				<details class="phone-menu" bind:this={phoneMenu}>
+					<summary aria-label={t('nav.menu')}>
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+						</svg>
+					</summary>
+					<ul>
+						<li><a href="/" aria-current={page.url.pathname === '/' ? 'page' : undefined}>{t('nav.home')}</a></li>
+						<li><a href="/catalog" aria-current={page.url.pathname === '/catalog' ? 'page' : undefined}>{t('nav.allProducts')}</a></li>
+						{#if page.data.christmasShop}
+							<li><a href="/christmas" aria-current={page.url.pathname === '/christmas' ? 'page' : undefined}>{t('nav.christmas')}</a></li>
+						{/if}
+						<li><a href="/contact" aria-current={page.url.pathname === '/contact' ? 'page' : undefined}>{t('nav.contact')}</a></li>
+						<li class="phone-menu-lang">{@render languageSwitch('in-menu')}</li>
+					</ul>
+				</details>
+			{/if}
 
 			<!-- Home, Catalog, Contact, the way a shop's menu reads. The products
 			     live under Catalog rather than in the bar: four product names
-			     were too long for one row, and wrapped or scrolled on a phone.
-			     Below `sm` the menu takes its own line under the brand. -->
-			<ul
-				class="{onCheckout ? 'hidden' : onProduct ? 'flex max-sm:hidden' : 'flex'} site-menu items-center gap-x-6 whitespace-nowrap text-sm text-ink-600 max-sm:order-last max-sm:w-full max-sm:justify-center"
-			>
+			     were too long for one row. -->
+			<ul class="{onCheckout ? 'hidden' : 'flex'} site-menu">
 				<li>
-					<a
-						class="hover:text-ink-900"
-						href="/"
-						aria-current={page.url.pathname === '/' ? 'page' : undefined}
-					>
+					<a href="/" aria-current={page.url.pathname === '/' ? 'page' : undefined}>
 						{t('nav.home')}
 					</a>
 				</li>
 				<li>
-					<!-- A disclosure, not a hover menu: a tap opens it on a phone,
+					<!-- A disclosure, not a hover menu: a tap opens it on a tablet,
 					     it works before hydration, and Escape or a tap elsewhere
 					     closes it. -->
 					<details class="catalog-menu" bind:this={catalogMenu}>
-						<summary class="hover:text-ink-900" class:active={inCatalog}>
+						<summary class:active={inCatalog}>
 							{t('nav.catalog')}
 							<svg viewBox="0 0 12 12" aria-hidden="true">
 								<path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" />
@@ -208,49 +249,28 @@
 					</details>
 				</li>
 				<li>
-					<a
-						class="hover:text-ink-900"
-						href="/contact"
-						aria-current={page.url.pathname === '/contact' ? 'page' : undefined}
-					>
+					<a href="/contact" aria-current={page.url.pathname === '/contact' ? 'page' : undefined}>
 						{t('nav.contact')}
 					</a>
 				</li>
 			</ul>
 
-			<div class="ms-auto flex items-center gap-4">
-				<form method="POST" action="/locale" class="flex items-center gap-1">
-					<input type="hidden" name="to" value={page.url.pathname} />
-					<span class="sr-only">{t('nav.language')}</span>
-					{#each locales as code (code)}
-						<button
-							type="submit"
-							name="locale"
-							value={code}
-							aria-current={code === locale ? 'true' : undefined}
-							class="rounded px-2 py-1 text-xs uppercase transition
-								{code === locale
-								? 'bg-ink-100 font-semibold text-ink-900'
-								: 'text-ink-400 hover:text-ink-900'}"
-						>
-							<!-- The two-letter code on a phone, so the language and the cart
-							     fit on the brand's row. -->
-							<span class="sm:hidden" aria-hidden="true">{code}</span>
-							<span class="max-sm:sr-only">{localeName(code)}</span>
-						</button>
-					{/each}
-				</form>
+			{#if onCheckout}{@render languageSwitch('in-bar keep lead')}{/if}
 
-				<a
-					href="/checkout"
-					class="flex items-center gap-2 text-sm font-medium hover:text-tide-600"
-				>
-					{t('nav.cart')}
-					<span
-						class="inline-flex min-w-6 justify-center rounded-full bg-ink-900 px-2 py-0.5 text-xs text-white"
-					>
-						{cart.count}
-					</span>
+			<a href="/" class="site-brand">{t('common.brand')}</a>
+
+			<div class="site-tools">
+				<!-- On a phone the switch lives in the menu. A checkout has no menu,
+				     so there it takes the menu's empty slot on the left instead. -->
+				{#if !onCheckout}{@render languageSwitch('in-bar')}{/if}
+
+				<a href="/checkout" class="site-cart">
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M5 8h14l-1.2 11.2a1.5 1.5 0 0 1-1.5 1.3H7.7a1.5 1.5 0 0 1-1.5-1.3L5 8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+						<path d="M9 10V6.5a3 3 0 0 1 6 0V10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+					</svg>
+					<span class="sr-only">{t('nav.cart')}</span>
+					<span class="site-cart-count">{cart.count}</span>
 				</a>
 			</div>
 		</nav>
@@ -260,16 +280,44 @@
 		{@render children()}
 	</main>
 
-	<footer class="mt-20 border-t border-ink-200 bg-ink-50">
-		<div
-			class="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-10 text-sm text-ink-600 sm:flex-row sm:items-center sm:justify-between"
-		>
-			<ul class="flex flex-wrap gap-5">
-				<li><a class="hover:text-ink-900" href="/policies/shipping">{t('footer.shipping')}</a></li>
-				<li><a class="hover:text-ink-900" href="/policies/refunds">{t('footer.refunds')}</a></li>
-				<li><a class="hover:text-ink-900" href="/privacy">{t('footer.privacy')}</a></li>
-				<li><a class="hover:text-ink-900" href="/terms">{t('footer.terms')}</a></li>
-				<li><a class="hover:text-ink-900" href="/contact">{t('footer.contact')}</a></li>
+	<footer class="site-footer">
+		<div class="site-footer-inner">
+			<div class="site-footer-brand">
+				<a href="/" class="site-footer-name">{t('common.brand')}</a>
+				<p>{t('footer.tagline')}</p>
+			</div>
+			<div>
+				<h2>{t('footer.shop')}</h2>
+				<ul>
+					<li><a href="/catalog">{t('nav.allProducts')}</a></li>
+					{#if page.data.christmasShop}
+						<li><a href="/christmas">{t('nav.christmas')}</a></li>
+					{/if}
+				</ul>
+			</div>
+			<div>
+				<h2>{t('footer.help')}</h2>
+				<ul>
+					<li><a href="/contact">{t('footer.contact')}</a></li>
+					<li><a href="/policies/shipping">{t('footer.shipping')}</a></li>
+					<li><a href="/policies/refunds">{t('footer.refunds')}</a></li>
+				</ul>
+			</div>
+			<div>
+				<h2>{t('footer.legal')}</h2>
+				<ul>
+					<li><a href="/privacy">{t('footer.privacy')}</a></li>
+					<li><a href="/terms">{t('footer.terms')}</a></li>
+				</ul>
+			</div>
+		</div>
+		<div class="site-footer-base">
+			<!-- The methods the checkout really offers (see AGENTS.md: Google Pay
+			     is off in Stripe, and a Czech account gets no Discover). -->
+			<ul class="site-footer-pay" aria-label="Accepted payment methods">
+				{#each FOOTER_PAYMENTS as m (m)}
+					<li role="img" aria-label={PAYMENT_ICONS[m].label}>{@html PAYMENT_ICONS[m].svg}</li>
+				{/each}
 			</ul>
 			<p>{t('footer.rights', { year })}</p>
 		</div>

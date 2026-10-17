@@ -5,6 +5,7 @@
 		"currency": "USD"
 	},
 	"nav": {
+		"menu": "Menu",
 		"home": "Home",
 		"christmas": "Christmas",
 		"catalog": "Catalog",
@@ -185,6 +186,10 @@
 		}
 	},
 	"footer": {
+		"tagline": "Little outfits for small dogs, with free US shipping and 30 days to change your mind.",
+		"shop": "Shop",
+		"help": "Help",
+		"legal": "Legal",
 		"shipping": "Shipping policy",
 		"refunds": "Refund policy",
 		"contact": "Contact us",
