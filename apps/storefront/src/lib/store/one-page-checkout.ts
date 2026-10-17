@@ -29,7 +29,13 @@ export function onePageCheckout(product: FunnelDefinition, slug: string): Funnel
 		// stays outside it, edge to edge.
 		const { layout: _, ...bare } = block;
 		const rest: Block =
-			block.component === 'announcement_bar' ? bare : { ...bare, layout: { row: 'product' } };
+			block.component === 'announcement_bar'
+				? bare
+				: { ...bare, layout: { row: 'product', col: 'product' } };
+		// The name, a size down: on a checkout it labels the purchase rather
+		// than selling it, and at the product page's size it pushed the size
+		// buttons off a phone's first screen.
+		if (isTitle) return [{ ...rest, props: { ...rest.props, size: 'md' } }];
 		if (block.component !== 'design_size_picker') return [rest];
 		return [
 			{

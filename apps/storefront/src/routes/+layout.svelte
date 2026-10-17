@@ -49,6 +49,19 @@
 		return typeof message === 'string' ? message : '';
 	});
 
+	/**
+	 * Where the header gets out of the way. An ad lands on a product page, and
+	 * on a phone in the Facebook app the header was three rows (name, language
+	 * and cart, then the product links) above a photo, so the first screen held
+	 * no price and nothing to tap. On a phone those pages keep the name, the
+	 * language and the cart on one row and drop the links; the checkouts drop
+	 * them everywhere, because a link out of a checkout is a way to not pay.
+	 */
+	let onProduct = $derived(page.url.pathname.startsWith('/products/'));
+	let onCheckout = $derived(
+		page.url.pathname === '/checkout' || /^\/products\/[^/]+\/checkout$/.test(page.url.pathname)
+	);
+
 	/** The admin renders bare: no shop header, cart or footer around an order list. */
 	let isAdmin = $derived(page.url.pathname === '/admin' || page.url.pathname.startsWith('/admin/'));
 
@@ -84,7 +97,7 @@
 			     list takes its own line and scrolls sideways instead of wrapping;
 			     the negative margin lets the first link start at the gutter. -->
 			<ul
-				class="flex items-center gap-x-5 overflow-x-auto whitespace-nowrap text-sm text-ink-600 [scrollbar-width:none] max-sm:order-last max-sm:-mx-4 max-sm:w-[calc(100%+2rem)] max-sm:px-4 [&::-webkit-scrollbar]:hidden"
+				class="{onCheckout ? 'hidden' : onProduct ? 'flex max-sm:hidden' : 'flex'} items-center gap-x-5 overflow-x-auto whitespace-nowrap text-sm text-ink-600 [scrollbar-width:none] max-sm:order-last max-sm:-mx-4 max-sm:w-[calc(100%+2rem)] max-sm:px-4 [&::-webkit-scrollbar]:hidden"
 			>
 				<li><a class="hover:text-ink-900" href="/">{t('nav.home')}</a></li>
 				<!-- One link per product that can actually be bought here, from the
@@ -118,7 +131,10 @@
 								? 'bg-ink-100 font-semibold text-ink-900'
 								: 'text-ink-400 hover:text-ink-900'}"
 						>
-							{localeName(code)}
+							<!-- The two-letter code on a phone, so the language and the cart
+							     fit on the brand's row. -->
+							<span class="sm:hidden" aria-hidden="true">{code}</span>
+							<span class="max-sm:sr-only">{localeName(code)}</span>
 						</button>
 					{/each}
 				</form>

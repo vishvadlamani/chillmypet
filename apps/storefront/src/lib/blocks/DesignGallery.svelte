@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Block, FlowContext } from '@funnel/core';
+	import { photoSrcset, resized } from '$lib/resized';
 
 	/**
 	 * The hero photo, following the design picked beside it.
@@ -113,10 +114,19 @@
 			ontouchend={extras.length ? touchEnd : undefined}
 		>
 			{#if shown}
-				<img src={shown.src} alt={shown.alt ?? ''} width="1100" height="985" />
+				<img
+					src={shown.src}
+					srcset={photoSrcset(shown.src, 1254)}
+					sizes="(min-width: 768px) 50vw, 100vw"
+					alt={shown.alt ?? ''}
+					width="1100"
+					height="985"
+				/>
 			{:else if current.image}
 				<img
 					src={current.image}
+					srcset={photoSrcset(current.image, 1254)}
+					sizes="(min-width: 768px) 50vw, 100vw"
 					alt={current.alt ?? current.label}
 					width="1100"
 					height="985"
@@ -129,7 +139,11 @@
 				</div>
 			{/if}
 			{#if !shown && !p.hint}<span class="ribbon" aria-hidden="true">{current.label}</span>{/if}
-			{#if extras.length && !p.hint}
+			<!-- With `hint`, these are the phone's way through the photos: the
+			     thumbnail strip is hidden there to bring the price and sizes onto
+			     the first screen, and the arrows stand in for it, for anyone who
+			     doesn't swipe. -->
+			{#if extras.length}
 				<span class="count" aria-hidden="true">{position + 1} / {total}</span>
 				<button type="button" class="arrow prev" aria-label="Previous photo" onclick={() => step(-1)}
 					>‹</button
@@ -160,7 +174,7 @@
 							onclick={() => show(d.code)}
 						>
 							{#if d.image}
-								<img src={d.image} alt="" width="120" height="108" loading="lazy" />
+								<img src={resized(d.image, 200)} alt="" width="120" height="108" loading="lazy" />
 							{:else}
 								<span class="mini-placeholder">Placeholder</span>
 							{/if}
@@ -175,7 +189,7 @@
 							aria-label="Show photo {designs.length + i + 1}{e.alt ? `: ${e.alt}` : ''}"
 							onclick={() => view(i)}
 						>
-							<img src={e.src} alt="" width="120" height="108" loading="lazy" />
+							<img src={resized(e.src, 200)} alt="" width="120" height="108" loading="lazy" />
 						</button>
 					</li>
 				{/each}
@@ -292,6 +306,37 @@
 	}
 	.plain .thumbs button.active {
 		border-color: var(--tree-green, #285b43);
+	}
+	/*
+	 * A phone in the Facebook app shows about 660px before the first scroll,
+	 * and the header, the delivery strip and a square photo take most of it.
+	 * The hint line and the thumbnail strip were another 100px, which is what
+	 * pushed the price and the sizes off the first screen; the counter and the
+	 * arrows on the photo do the same job inside it.
+	 */
+	@media (max-width: 767px) {
+		.plain .thumbs,
+		.plain .hint {
+			display: none;
+		}
+		/* A shade under square: the costume photos are shot with 3% of empty
+		   backdrop above the star and 8% below the paws, so this trims only
+		   backdrop and gives the sizes the last few pixels they need. */
+		.plain .frame img {
+			aspect-ratio: 1 / 0.92;
+			object-position: 50% 25%;
+		}
+		.plain .arrow {
+			width: 36px;
+			height: 36px;
+			font-size: 24px;
+		}
+	}
+	@media (min-width: 768px) {
+		.plain .count,
+		.plain .arrow {
+			display: none;
+		}
 	}
 	@media (min-width: 768px) {
 		.plain .thumbs button {

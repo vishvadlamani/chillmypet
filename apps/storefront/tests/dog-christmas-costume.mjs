@@ -135,6 +135,22 @@ await page.evaluate(() => {
 serverCopies.length = 0;
 await page.reload({ waitUntil: 'networkidle' });
 
+// --- the first screen, as the Facebook app on an iPhone shows it --------------
+// 390×664 is what is left of an iPhone 13 under the app's own bars. The price
+// and the size buttons have to be inside it: an ad that lands on a photo and
+// nothing to tap is where 175 landing-page views turned into no adds.
+{
+	await page.setViewportSize({ width: 390, height: 664 });
+	await page.evaluate(() => window.scrollTo(0, 0));
+	const bottom = (sel) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().bottom);
+	check('the price is on the first screen', (await bottom('#variant-picker .price')) <= 664);
+	const sizes = await bottom('#size-picker label');
+	check('and so are the size buttons', sizes <= 664, `they end at ${sizes}px`);
+	check('the header keeps to one row on a phone', (await bottom('header')) <= 125);
+	check('photos load as small copies', (await page.locator('.gallery .frame img').getAttribute('srcset'))?.includes('/resized/800/'));
+	await page.setViewportSize({ width: 390, height: 844 });
+}
+
 // --- ViewContent ----------------------------------------------------------------
 {
 	const view = await pairedOnce('ViewContent');
@@ -159,11 +175,16 @@ await page.reload({ waitUntil: 'networkidle' });
 // --- pick colour and size ----------------------------------------------------------
 // Browsing the extra photos must not change the colour, and picking a colour
 // must bring its photo back to the front.
-await page.getByRole('button', { name: /^Show photo 3:/ }).click();
+// On a phone the thumbnail strip gives way to arrows on the photo.
+check('a phone gets arrows on the photo, not a thumbnail strip', !(await page.locator('.gallery .thumbs').isVisible()) && (await page.getByRole('button', { name: 'Next photo' }).isVisible()));
+// Backwards from the first photo wraps to the extras without passing the
+// green costume's photo, which would choose green: landing on a colour's photo
+// chooses it, by design, so the frame and the picker never disagree.
+for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Previous photo' }).click();
 check(
 	'the gallery shows a photo of the whole product',
 	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/details.jpg') &&
-		/3 \/ 5/.test(await page.locator('.gallery .hint').innerText())
+		/3 \/ 5/.test(await page.locator('.gallery .count').innerText())
 );
 check(
 	'and browsing it leaves the colour alone',
@@ -187,6 +208,15 @@ check('the error clears once a size is chosen', (await page.locator('#size-error
 await page.locator('#variant-picker button', { hasText: /Add to cart/ }).click();
 await page.waitForURL('**/checkout', { timeout: 15000 });
 check('add to cart lands on the checkout', new URL(page.url()).pathname === '/checkout');
+{
+	const top = page.locator('section[aria-label="Your order"]');
+	await top.locator('img').waitFor({ timeout: 10000 }).catch(() => {});
+	const text = (await top.innerText().catch(() => '')) ?? '';
+	check('the checkout opens on what is being bought', /Dog Christmas Tree Costume[\s\S]*Green · M/.test(text), text);
+	check('with a small photo of it', (await top.locator('img').getAttribute('src').catch(() => ''))?.startsWith('/resized/200/'));
+	check('and a way back to change it', (await top.locator('a', { hasText: 'Change' }).getAttribute('href')) === '/products/dog-christmas-costume');
+	check('and no product menu to leave by', !(await page.locator('header nav ul').isVisible()));
+}
 
 {
 	const lines = await cartLines();

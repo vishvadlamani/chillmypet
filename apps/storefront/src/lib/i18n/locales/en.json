@@ -150,6 +150,8 @@
 		"paymentBack": "Edit details",
 		"paymentLoading": "Loading secure payment…",
 		"pickAbove": "Pick a colour and size above to see your total.",
+		"yourOrder": "Your order",
+		"changeOrder": "Change",
 		"paymentHostedNote": "Card details are entered on Stripe's secure page. They never touch this site.",
 		"paymentFallback": "Opening our secure payment page…"
 	},

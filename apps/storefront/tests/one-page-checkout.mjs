@@ -128,6 +128,18 @@ await page.evaluate(() => {
 serverCopies.length = 0;
 await page.reload({ waitUntil: 'networkidle' });
 
+// --- the first screen, as the Facebook app on an iPhone shows it --------------
+{
+	await page.setViewportSize({ width: 390, height: 664 });
+	const bottom = (sel) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().bottom);
+	check('the price is on the first screen', (await bottom('#variant-picker .price')) <= 664);
+	const sizes = await bottom('#size-picker label');
+	check('and so are the size buttons', sizes <= 664, `they end at ${sizes}px`);
+	check('no product menu on a checkout', !(await page.locator('header nav ul').isVisible()));
+	check('no order box at the top: the product is the top', (await page.locator('section[aria-label="Your order"]').count()) === 0);
+	await page.setViewportSize({ width: 390, height: 844 });
+}
+
 // --- arriving --------------------------------------------------------------------
 {
 	const view = await pairedOnce('ViewContent');

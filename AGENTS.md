@@ -546,7 +546,7 @@ locale too.
 **A product:** a definition in `apps/storefront/scripts/<slug>.js` (the
 `ProductDefinition` shape in `catalog.js`: translations, options, media,
 variants, metafields), listed in `scripts/products.js`; a manifest in
-`$lib/store`, mapped in `pages.ts`; photos under `static/products/<slug>/`;
+`$lib/store`, mapped in `pages.ts`; photos under `static/products/<slug>/`, then `npm run images` for their small copies;
 and a browser test like `tests/christmas-hoodie.mjs`. The seed writes it on a
 fresh database, the Worker adds it to a live one, and `check-live.js` fails the
 deploy if its page does not answer. Nothing else to register: the header reads
@@ -711,6 +711,35 @@ product page and `/checkout` are unchanged. Things to know:
   and held until a name or email is typed, so trying three sizes is not
   three checkouts started. Purchase is unchanged: the webhook, the order's
   derived id. `tests/one-page-checkout.mjs` pins all of it.
+
+**The first screen on a phone is a budget, and the tests hold it.** The ads
+open in the Facebook app, which leaves an iPhone about 390×664. Oct 3–16 sent
+175 landing-page views and got no AddToCart, from pages whose first screen was
+a three-row header, the strip and a photo, with the price and sizes below it.
+Now the costume page and its one-page checkout fit the price, the colours and
+the size buttons inside 664px, and `tests/dog-christmas-costume.mjs` and
+`tests/one-page-checkout.mjs` measure it. What pays for it, so nobody puts it
+back by accident:
+
+- **The header is one row on a phone.** Product pages hide the product links
+  below `sm`; both checkouts hide them everywhere (a link out of a checkout
+  is a way to not pay). The language switch shows `en`/`es` on a phone.
+- **The `hint` gallery swaps its thumbnail strip for arrows and a counter on a
+  phone**, and trims the frame to 1:0.92 (the costume photos have 3% of
+  backdrop above the star and 8% below the paws). Arrows walk the colours'
+  photos too, and landing on one chooses it — that is the gallery's rule, so
+  frame and picker never disagree.
+- **The `pills` picker puts its tagline below the sizes on a phone**, and the
+  costume's columns sit 12px apart there.
+- **`/checkout` opens on a "Your order" box** (photo, colour, size, total,
+  and a Change link back to the product) — `/api/cart` lines carry `image`.
+
+**Photos are served as small copies.** `static/resized/{200,800}/products/…`
+holds WebP copies of every product photo, made by `npm run images` (sharp)
+and committed, because the Worker serves files and cannot resize.
+`resized(src, width)` in `$lib/resized.ts` points at them: thumbnails, bundle
+cards and the checkout box use the 200px copy, the main photo gets the 800px
+one through `srcset`. `resized.test.ts` fails when a photo has no copies.
 
 That was chillmypet.com's state on 2026-10-12: the live Worker answered `No
 product at "christmas-pouch-hoodie"` — the manifest's own 404 reads `No page
