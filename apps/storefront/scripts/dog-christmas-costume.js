@@ -1,5 +1,5 @@
 /**
- * The Dog Christmas Tree Costume: a hooded fleece cape with three ruffled
+ * The Pet Christmas Tree Costume: a hooded fleece cape with three ruffled
  * tiers, pom-pom "baubles" and a glitter star on the hood, for small dogs and
  * cats. Red or green, sized by the PET'S weight, S–L.
  *
@@ -63,7 +63,10 @@ const SIZES = [
 	{ code: 'L', weightKg: [5, 7.5] }
 ];
 
-const TITLE = 'Dog Christmas Tree Costume';
+// "Pet", not "Dog", since 2026-10-17 (owner's call): it fits small dogs and
+// cats, and the page opens on a cat. The slug stays, so links and ads keep
+// working; a live store is renamed through `copy-changes.js`.
+const TITLE = 'Pet Christmas Tree Costume';
 
 /** @type {import('./catalog.js').ProductDefinition} */
 export const DOG_CHRISTMAS_COSTUME = {
@@ -75,7 +78,7 @@ export const DOG_CHRISTMAS_COSTUME = {
 			title: TITLE,
 			subtitle: 'The cutest tree in the house',
 			description:
-				'A soft hooded cape that turns your dog into a little Christmas tree. Three ruffled tiers, colourful pom-pom baubles and a glitter gold star on the hood. It ties at the neck and closes with one button, so it goes on in seconds and comes off just as fast. For small dogs and cats, in red or green, sizes S to L by weight.'
+				'A soft hooded cape that turns your dog or cat into a little Christmas tree. Three ruffled tiers, colourful pom-pom baubles and a glitter gold star on the hood. It ties at the neck and closes with one button, so it goes on in seconds and comes off just as fast. For small dogs and cats, in red or green, sizes S to L by weight.'
 		}
 	},
 	// Positional, and the order matters: the cart, /api/cart and the checkout

@@ -156,6 +156,8 @@
 		"paymentStepTitle": "Payment",
 		"paymentBack": "Edit details",
 		"paymentLoading": "Loading secure payment…",
+		"paymentEmpty": "Add something to your cart and the card form appears here.",
+		"paymentPick": "Choose a colour and size above, and the card form appears here.",
 		"pickAbove": "Pick a colour and size above to see your total.",
 		"yourOrder": "Your order",
 		"changeOrder": "Change",

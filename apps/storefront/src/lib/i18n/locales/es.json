@@ -156,6 +156,8 @@
 		"paymentStepTitle": "Pago",
 		"paymentBack": "Editar datos",
 		"paymentLoading": "Cargando el pago seguro…",
+		"paymentEmpty": "Añade algo al carrito y aquí aparecerá el formulario de pago.",
+		"paymentPick": "Elige un color y una talla arriba y aquí aparecerá el formulario de pago.",
 		"pickAbove": "Elige un color y una talla arriba para ver tu total.",
 		"yourOrder": "Tu pedido",
 		"changeOrder": "Cambiar",

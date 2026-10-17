@@ -1,7 +1,7 @@
 import type { FunnelDefinition } from '@funnel/core';
 
 /**
- * The Dog Christmas Tree Costume page.
+ * The Pet Christmas Tree Costume page.
  *
  * Laid out and styled like littletreepups.com, on the owner's instruction
  * (2026-10-16): cream and pine, Poppins, pill pickers, bundle cards, an
@@ -27,7 +27,7 @@ import type { FunnelDefinition } from '@funnel/core';
  */
 export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 	id: 'dog-christmas-costume',
-	name: 'Dog Christmas Tree Costume — product page',
+	name: 'Pet Christmas Tree Costume — product page',
 	layout: 'page',
 	blocks: [
 		{
@@ -55,24 +55,24 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			requires: ['variants.designs'],
 			props: {
 				designs: { $ref: 'variants.designs' },
-				// Red is the catalogue's own photo (worn-red.jpg, the listing image
-				// everywhere else too). Green's catalogue photo is a flat-lay, so the
-				// page shows the green costume worn instead.
+				// Green leads (`leadDesign` in pages.ts) and opens on the tabby
+				// wearing it, the owner's pick for the page's main photo. Red is the
+				// catalogue's own photo (worn-red.jpg). Green's catalogue photo is a
+				// flat-lay, so the page shows the costume worn instead.
 				photos: {
 					green: {
-						src: '/products/dog-christmas-costume/green-studio.jpg',
-						alt: 'A small curly-haired dog wearing the green Christmas tree costume, hood up, gold star on top'
+						src: '/products/dog-christmas-costume/cat.jpg',
+						alt: 'A tabby cat wearing the green Christmas tree costume on a rug, hood up, gold star on top'
 					}
 				},
 				// The shots not tied to a colour, after the colours' own photos, so
 				// every angle is one swipe away on the first screen.
 				extras: [
-					{ src: '/products/dog-christmas-costume/details.jpg', alt: 'The green costume worn, with close-ups of the gold star topper, the pom-poms and the layered cape' },
-					{ src: '/products/dog-christmas-costume/duo.jpg', alt: 'Two small dogs by a Christmas tree, one in the green costume and one in the red' },
-					{ src: '/products/dog-christmas-costume/cat.jpg', alt: 'A tabby cat wearing the green Christmas tree costume on a rug' }
+					{ src: '/products/dog-christmas-costume/green-studio.jpg', alt: 'A small curly-haired dog wearing the green Christmas tree costume, hood up, gold star on top' },
+					{ src: '/products/dog-christmas-costume/details.jpg', alt: 'The green costume worn, with close-ups of the gold star topper, the pom-poms and the layered cape' }
 				],
 				hint: 'Swipe to explore',
-				title: 'Dog Christmas Tree Costume photos'
+				title: 'Pet Christmas Tree Costume photos'
 			}
 		},
 		{
@@ -198,9 +198,10 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					{ title: 'Red or green', body: 'Classic pine green or a bold Christmas red. Same cut, same star, same pom-poms.' },
 					{ title: 'Off as fast as it goes on', body: 'One cord and one button. Dress them for the photo, the party or the visit, then let them be a dog again.' }
 				],
+				// Not the tabby: it is the gallery's opening photo now.
 				image: {
-					src: '/products/dog-christmas-costume/cat.jpg',
-					alt: 'A tabby cat wearing the green Christmas tree costume on a rug'
+					src: '/products/dog-christmas-costume/green-studio.jpg',
+					alt: 'A small curly-haired dog wearing the green Christmas tree costume, hood up, gold star on top'
 				}
 			}
 		},

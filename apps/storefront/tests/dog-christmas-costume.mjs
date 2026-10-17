@@ -1,5 +1,5 @@
 /**
- * The Dog Christmas Tree Costume, product page to placed order, on a
+ * The Pet Christmas Tree Costume, product page to placed order, on a
  * phone-sized screen — the same shape as tests/christmas-hoodie.mjs, because
  * the page is built on the same blocks and makes the same promises.
  *
@@ -21,7 +21,9 @@ import { chromium } from 'playwright';
 import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
-const URL_ = `${BASE}/products/dog-christmas-costume`;
+// The long page. The bare URL is where the ad points, and it lands on the
+// one-page checkout instead (`landing` in pages.ts; one-page-checkout.mjs).
+const URL_ = `${BASE}/products/dog-christmas-costume?details=1`;
 const PRICE = '27.99';
 const SKU = 'CMP-XT-GREEN-M';
 
@@ -36,11 +38,15 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
-	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Dog Christmas Tree Costume/.test(html));
+	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Pet Christmas Tree Costume/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('the gallery comes before the h1', html.indexOf('class="gallery') > -1 && html.indexOf('class="gallery') < html.search(/<h1[\s>]/));
-	check('the gallery carries every angle, not only the colours', /aria-label="Show photo 5: A tabby cat wearing the green/.test(html));
-	check('and counts them under the photo', /Swipe to explore[\s\S]{0,200}?1 \/ 5/.test(html));
+	// The page opens on green, the tabby wearing it (`leadDesign` in pages.ts).
+	check('the gallery opens on the tabby in the green costume', /class="frame[\s\S]{0,600}?cat\.jpg/.test(html));
+	check('and green is the colour chosen', /name="design"[^>]*value="green"[^>]*checked|checked[^>]*name="design"[^>]*value="green"/.test(html) || /value="green"[^>]*checked/.test(html));
+	check('the gallery carries every angle, not only the colours', /aria-label="Show photo 4: The green costume worn, with close-ups/.test(html));
+	check('and counts them under the photo', /Swipe to explore[\s\S]{0,200}?1 \/ 4/.test(html));
+	check('the two-dog scene is gone', !html.includes('duo.jpg'));
 	check('the story section follows the buy box', /<h2[^>]*>[\s\S]{0,120}?steals the Christmas card/.test(html));
 	check('the closing band points back at the picker, under an h2', /<h2[^>]*>[\s\S]{0,120}?Every tree needs a little one/.test(html) && /href="#variant-picker"/.test(html));
 	check('SSR says the size goes by the dog’s weight, in kg and lb', /By weight: S 1\.5–2\.5 kg \(3–6 lb\)/.test(html));
@@ -180,18 +186,18 @@ await page.reload({ waitUntil: 'networkidle' });
 // must bring its photo back to the front.
 // On a phone the thumbnail strip gives way to arrows on the photo.
 check('a phone gets arrows on the photo, not a thumbnail strip', !(await page.locator('.gallery .thumbs').isVisible()) && (await page.getByRole('button', { name: 'Next photo' }).isVisible()));
-// Backwards from the first photo wraps to the extras without passing the
-// green costume's photo, which would choose green: landing on a colour's photo
-// chooses it, by design, so the frame and the picker never disagree.
-for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Previous photo' }).click();
+// Backwards from the first photo wraps to the extras without passing the red
+// costume's photo, which would choose red: landing on a colour's photo chooses
+// it, by design, so the frame and the picker never disagree.
+await page.getByRole('button', { name: 'Previous photo' }).click();
 check(
 	'the gallery shows a photo of the whole product',
 	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/details.jpg') &&
-		/3 \/ 5/.test(await page.locator('.gallery .count').innerText())
+		/4 \/ 4/.test(await page.locator('.gallery .count').innerText())
 );
 check(
 	'and browsing it leaves the colour alone',
-	(await page.locator('#variant-picker input[name="design"]:checked').getAttribute('value')) === 'red'
+	(await page.locator('#variant-picker input[name="design"]:checked').getAttribute('value')) === 'green'
 );
 
 // The bundle cards: picking two re-prices the button and the sticky bar, and
@@ -200,10 +206,15 @@ await page.locator('#variant-picker label.tier', { hasText: 'Two costumes' }).cl
 check('two costumes re-price the button', (await page.locator('#variant-picker button.cta').innerText()).includes('$52.06'));
 await page.locator('#variant-picker label.tier', { hasText: 'One costume' }).click();
 check('and one costume puts it back', (await page.locator('#variant-picker button.cta').innerText()).includes('$27.99'));
-await page.locator('#variant-picker label', { hasText: 'Green' }).click();
+await page.locator('#variant-picker label', { hasText: 'Red' }).click();
 check(
 	'the gallery follows the colour',
-	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/green-studio.jpg')
+	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/worn-red.jpg')
+);
+await page.locator('#variant-picker label', { hasText: 'Green' }).click();
+check(
+	'and back to the tabby for green',
+	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/cat.jpg')
 );
 await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();
 check('the error clears once a size is chosen', (await page.locator('#size-error').innerText()).trim() === '');
@@ -215,7 +226,7 @@ check('add to cart lands on the checkout', new URL(page.url()).pathname === '/ch
 	const top = page.locator('section[aria-label="Your order"]');
 	await top.locator('img').waitFor({ timeout: 10000 }).catch(() => {});
 	const text = (await top.innerText().catch(() => '')) ?? '';
-	check('the checkout opens on what is being bought', /Dog Christmas Tree Costume[\s\S]*Green · M/.test(text), text);
+	check('the checkout opens on what is being bought', /Pet Christmas Tree Costume[\s\S]*Green · M/.test(text), text);
 	check('with a small photo of it', (await top.locator('img').getAttribute('src').catch(() => ''))?.startsWith('/resized/200/'));
 	check('and a way back to change it', (await top.locator('a', { hasText: 'Change' }).getAttribute('href')) === '/products/dog-christmas-costume');
 	check('and no product menu to leave by', !(await page.locator('header nav > ul').isVisible()));
@@ -244,7 +255,7 @@ check('add to cart lands on the checkout', new URL(page.url()).pathname === '/ch
 await page.waitForSelector('form dl');
 {
 	const summary = await page.locator('form', { has: page.locator('dl') }).innerText();
-	check('checkout shows the product', summary.includes('Dog Christmas Tree Costume'), summary.slice(0, 300));
+	check('checkout shows the product', summary.includes('Pet Christmas Tree Costume'), summary.slice(0, 300));
 	check('checkout shows colour and size', /Green · M/.test(summary), summary.slice(0, 300));
 	check('checkout charges $27.99', (await page.locator('form dl').innerText()).includes(`$${PRICE}`));
 }

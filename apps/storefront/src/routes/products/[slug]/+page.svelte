@@ -158,7 +158,7 @@
 	 */
 	function addChosenVariant(payload: Record<string, unknown>) {
 		const design =
-			String(payload.design ?? '') || bag.design || data.variantIndex[0]?.colourCode || '';
+			String(payload.design ?? '') || bag.design || data.leadDesign || data.variantIndex[0]?.colourCode || '';
 		const size = String(payload.size ?? '') || bag.size || '';
 		const entry = data.variantIndex.find((v) => v.colourCode === design && v.size === size);
 		if (!entry) {

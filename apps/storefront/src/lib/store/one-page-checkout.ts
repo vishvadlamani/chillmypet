@@ -52,7 +52,7 @@ export function onePageCheckout(
 					// picker's state, and the only button is the one that pays.
 					button: false,
 					// The guide lives on the product page, not on this one.
-					sizeGuideHref: `/products/${slug}#size-guide`
+					sizeGuideHref: `/products/${slug}?details=1#size-guide`
 				}
 			}
 		];
@@ -102,7 +102,7 @@ function shopCheckout(product: FunnelDefinition, slug: string): FunnelDefinition
 								tagline: '',
 								button: false,
 								fold: true,
-								sizeGuideHref: `/products/${slug}#size-guide`
+								sizeGuideHref: `/products/${slug}?details=1#size-guide`
 							}
 						} as Block
 					]

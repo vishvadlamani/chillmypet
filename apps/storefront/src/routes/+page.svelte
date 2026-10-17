@@ -11,17 +11,30 @@
 	let t = $derived(createTranslator(locale));
 
 	/**
-	 * The shop window: two small dogs in the tree costume, red and green, by
-	 * a Christmas tree. One of the costume page's lifestyle shots (see
-	 * AGENTS.md, Content and assets), AI-styled, and captioned as such here as
-	 * it is there.
+	 * The shop window: the three outfits as they are worn, a large photo and
+	 * two small ones, rather than one staged scene. The tabby in the green
+	 * costume leads, as on the costume's page; it is AI-styled (see AGENTS.md,
+	 * Content and assets) and captioned as such, as it is there. The two-dog
+	 * scene that stood here was taken down on the owner's call (2026-10-17).
 	 */
-	const HERO = {
-		src: '/products/dog-christmas-costume/duo.jpg',
-		width: 1254,
-		height: 836,
-		alt: 'Two small dogs by a Christmas tree, one in the green tree costume and one in the red'
-	};
+	const HERO = [
+		{
+			src: '/products/dog-christmas-costume/cat.jpg',
+			href: '/products/dog-christmas-costume',
+			alt: 'A tabby cat wearing the green Christmas tree costume on a rug',
+			caption: 'AI-styled image'
+		},
+		{
+			src: '/products/reindeer-dog-hoodie/worn-red.jpg',
+			href: '/products/reindeer-dog-hoodie',
+			alt: 'A small grey dog in the red reindeer hoodie by a Christmas tree'
+		},
+		{
+			src: '/products/dog-christmas-costume/worn-red.jpg',
+			href: '/products/dog-christmas-costume',
+			alt: 'A small dog wearing the red Christmas tree costume'
+		}
+	];
 </script>
 
 <svelte:head>
@@ -32,16 +45,16 @@
 	/>
 	<!-- Absolute: Facebook and Instagram resolve link previews from their own
 	     servers, not from this page. -->
-	<meta property="og:image" content={new URL(HERO.src, page.url).href} />
+	<meta property="og:image" content={new URL(HERO[0].src, page.url).href} />
 </svelte:head>
 
 <section class="tree-theme hero">
 	<div class="hero-text">
 		<p class="eyebrow">{t('common.brand')} · Christmas</p>
-		<h1>Little outfits for small dogs.</h1>
+		<h1>Little outfits for small pets.</h1>
 		<p class="lead">
-			Christmas costumes and hoodies that make the photo, made for small dogs. Free US
-			shipping, and 30 days to change your mind.
+			Christmas costumes and hoodies for small dogs and cats, sized to fit. Free US shipping,
+			and 30 days to change your mind.
 		</p>
 		<div class="actions">
 			{#if page.data.christmasShop}
@@ -50,18 +63,23 @@
 			<a class="secondary" href="/catalog">{t('nav.allProducts')}</a>
 		</div>
 	</div>
-	<figure>
-		<img
-			src={HERO.src}
-			srcset={photoSrcset(HERO.src, HERO.width)}
-			sizes="(min-width: 900px) 640px, 100vw"
-			alt={HERO.alt}
-			width={HERO.width}
-			height={HERO.height}
-			fetchpriority="high"
-		/>
-		<figcaption>AI-styled image</figcaption>
-	</figure>
+	<!-- Each photo opens the outfit it shows. -->
+	<div class="mosaic">
+		{#each HERO as photo, i (photo.src)}
+			<a href={photo.href} class="tile" class:big={i === 0}>
+				<img
+					src={photo.src}
+					srcset={photoSrcset(photo.src, 1254)}
+					sizes={i === 0 ? '(min-width: 900px) 420px, 60vw' : '(min-width: 900px) 260px, 40vw'}
+					alt={photo.alt}
+					width="1254"
+					height="1254"
+					fetchpriority={i === 0 ? 'high' : undefined}
+				/>
+				{#if photo.caption}<span class="caption">{photo.caption}</span>{/if}
+			</a>
+		{/each}
+	</div>
 </section>
 
 <Collection
@@ -84,28 +102,49 @@
 		/* The section carries `.tree-theme` for its colours, not its page bg. */
 		background: transparent;
 	}
-	.hero figure {
-		margin: 0;
+	/* One large photo and two small ones stacked beside it. */
+	.mosaic {
 		order: -1;
+		display: grid;
+		grid-template-columns: 3fr 2fr;
+		grid-template-rows: 1fr 1fr;
+		gap: 10px;
+		/* The lead tile is about square at 3/5 of the width. */
+		aspect-ratio: 5 / 3;
+	}
+	.tile {
+		position: relative;
+		display: block;
 		border-radius: 14px;
 		overflow: hidden;
 		background: var(--tree-tint);
-		position: relative;
 	}
-	.hero img {
+	.tile.big {
+		grid-row: 1 / 3;
+	}
+	.tile img {
+		position: absolute;
+		inset: 0;
 		display: block;
 		width: 100%;
-		height: auto;
-		aspect-ratio: 1254 / 836;
+		height: 100%;
 		object-fit: cover;
+		transition: transform 0.4s ease;
 	}
-	figcaption {
+	.tile:hover img {
+		transform: scale(1.03);
+	}
+	.tile:focus-visible {
+		outline: 2px solid var(--tree-green);
+		outline-offset: 3px;
+	}
+	.caption {
 		position: absolute;
-		right: 10px;
+		right: 8px;
 		bottom: 8px;
 		padding: 2px 8px;
 		border-radius: 999px;
-		background: rgb(36 59 49 / 0.55);
+		background: rgb(11 60 73 / 0.55);
 		color: #fff;
 		font-size: 11px;
 		letter-spacing: 0.4px;
@@ -170,8 +209,9 @@
 			padding-top: 48px;
 			padding-bottom: 24px;
 		}
-		.hero figure {
+		.mosaic {
 			order: 0;
+			gap: 14px;
 		}
 		.hero-text h1 {
 			font-size: 46px;

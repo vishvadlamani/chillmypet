@@ -35,6 +35,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		commerce.catalog.getProduct(slug, locale)
 	]);
 	if (!product || !catalogue) error(404, `No product at "${slug}"`);
+	// The product page's listing photo, as there (`cardImage` in pages.ts).
+	if (page.cardImage) {
+		product.image = page.cardImage;
+		bundles.tiers = bundles.tiers.map((tier) => ({ ...tier, image: page.cardImage }));
+	}
 
 	const picker = page.manifest.blocks.find((b) => b.component === 'design_size_picker');
 	const tierField = String(picker?.props?.tierField ?? 'bundle');
@@ -47,7 +52,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		product,
 		// The same tiers the product page's cards show: no "was" total.
 		bundles: { ...bundles, plain: bundles.tiers.map(({ compareAt: _, ...tier }) => tier) },
-		variants: loadVariantPicker(catalogue, locale),
+		variants: loadVariantPicker(catalogue, locale, page.leadDesign),
 		christmas: page.theme ? loadChristmasDelivery(settings) : {}
 	});
 	// The composed manifest is authored, not data: it is the same for every
@@ -64,6 +69,12 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		...checkoutPayment(locals, url),
 		slug,
 		look: page.checkout ?? null,
+		// The product's own skin and colours (the layout reads both), so the
+		// Christmas costume's checkout looks like its product page.
+		theme: page.theme ?? null,
+		festive: Boolean(page.christmas),
+		// The colour the picker shows chosen before anyone chooses.
+		leadDesign: page.leadDesign ?? null,
 		tierField,
 		tiered,
 		// The host's lookup from the picker's codes to a variant. Never a prop:

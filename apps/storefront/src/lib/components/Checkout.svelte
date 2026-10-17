@@ -894,7 +894,9 @@
 							<!-- Holds the height the card fields will take, so the button
 							     and everything under it stay put while Stripe.js loads. -->
 							<div class="shop-pay-box" class:ready={Boolean(cardApi)}>
-								{#if !cardApi}
+								{#if isEmpty && priced !== null}
+									<p class="shop-pay-loading">{t('checkout.paymentEmpty')}</p>
+								{:else if !cardApi}
 									<p class="shop-pay-loading">{t('checkout.paymentLoading')}</p>
 								{/if}
 								<CardFields
@@ -1029,7 +1031,14 @@
 						<!-- Stripe.js is a third-party script on a phone connection, and an
 						     empty bordered box reads as a broken checkout. Say what it is
 						     waiting for until the fields report themselves ready. -->
-						{#if !cardApi}
+						<!-- Stripe's fields mount only for an amount above zero, so with
+						     nothing in the cart they never come, and "Loading" would wait
+						     forever. Say what is missing instead. -->
+						{#if isEmpty && priced !== null}
+							<p class="text-15 text-fx-muted">
+								{emptyNote ? t('checkout.paymentPick') : t('checkout.paymentEmpty')}
+							</p>
+						{:else if !cardApi}
 							<p class="text-15 text-fx-muted">{t('checkout.paymentLoading')}</p>
 						{/if}
 						<CardFields

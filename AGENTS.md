@@ -555,6 +555,15 @@ fresh database, the Worker adds it to a live one, and `check-live.js` fails the
 deploy if its page does not answer. Nothing else to register: `/catalog` and the home
 page read the catalogue.
 
+**Renaming a product, or changing its description:** edit the product's script
+and add `{ slug, locale, field, from, to }` to `scripts/copy-changes.js` in
+the same commit (title, subtitle or description). The catalogue sync and
+`db:products` apply it where the field still reads `from` exactly, so it runs
+once and leaves copy edited by hand alone. Keep the slug: the URL is in ads and
+links. The costume became the **Pet** Christmas Tree Costume this way on
+2026-10-17 (owner's call: it fits small dogs and cats); its URL is still
+`/products/dog-christmas-costume`.
+
 **Changing a price:** set `PRICE_CENTS` in the product's script and add
 `{ slug, fromCents, toCents }` to `scripts/price-changes.js` in the same
 commit. The Worker's catalogue sync applies it on the first request after
@@ -709,6 +718,15 @@ know:
   lives in funnel state as `costume_bundle`, not `bundle`, so a 3-pack chosen
   on the life jacket cannot carry over, and the sticky bar reads the same
   field so it shows and buys what the cards show.
+- **It opens on green, on the tabby** (owner's call, 2026-10-17):
+  `leadDesign: 'green'` in `pages.ts` puts green first in the picker and the
+  gallery, and the gallery's green photo is `cat.jpg`; `cardImage` makes the
+  tabby the listing photo too (cards, sticky bar, bundle cards, link
+  previews). The hosts' fallback for "no colour chosen" reads `leadDesign`
+  as well (`data.leadDesign` on both product pages), because the picker shows
+  that colour chosen: a buyer who leaves it and picks a size must get green,
+  and before that fallback they got the catalogue's first colour, red.
+  `one-page-checkout.mjs` and `checkout-recovery.mjs` drive exactly that.
 - **Colour fills the design slot.** The picker's `designLabel` reads "Colour",
   its codes are `red` and `green`, which both language packs already name,
   and `item_variant` reaches GA4 as `green / M`. SKUs are `CMP-XT-<COLOUR>-<SIZE>`
@@ -786,9 +804,12 @@ the menu leads instead. Things to know:
   `tree-theme.css`): the library's forms draw with the `fx` tokens, so the
   class swaps the tokens and the pay button's colour. Nothing about how the
   checkout behaves changed.
-- **The home page opens on a hero**: `duo.jpg` from the costume page, which
-  is AI-styled and captioned "AI-styled image" on the photo, as the costume
-  page captions its own. Keep the caption if the photo stays.
+- **The home page opens on a hero** of three photos, each linking to its
+  outfit: the tabby in the green costume (`cat.jpg`, AI-styled and captioned
+  "AI-styled image" on the photo, as the costume page captions its own), the
+  reindeer hoodie and the red costume. The two-dog scene (`duo.jpg`) that
+  stood there first was taken down on the owner's call, and is off the
+  costume's gallery too; it stays on disk only.
 - **Cards can show a treated photo** (`cardImage` in `pages.ts`). The life
   jacket's is `card-sailboat.jpg`: its catalogue photo, a cut-out on pure
   white, multiplied onto the warm backdrop of the Christmas studio shots so
@@ -844,6 +865,22 @@ contact, address and shipping blocks, then the same card fields and pay
 button. It is a second way in for an ad that should land on the form; the
 product page and `/checkout` are unchanged. Things to know:
 
+- **The costume's own URL lands here** (`landing: 'checkout'` in `pages.ts`,
+  2026-10-17). The Christmas costume ad links to
+  `/products/dog-christmas-costume`, and the owner wants one screen from the
+  ad to the card form, so that URL answers with a 302 to
+  `/products/dog-christmas-costume/checkout`, query string kept: `fbclid`
+  rides along, and the Parameter Builder writes `_fbc` on the redirect
+  itself (`one-page-checkout.mjs` checks both). The long page (story, size
+  guide, FAQ) is at `?details=1`, which the picker's Size guide links to;
+  `tests/dog-christmas-costume.mjs` drives it there. `check-live.js` follows
+  redirects for this reason. The one-page checkouts now carry their
+  product's `theme` and `festive`, so the costume's is in its Christmas
+  colours with the strip above the header.
+- **An empty cart says so in the payment box.** Stripe's fields mount only
+  for an amount above zero, and with nothing in the cart the box used to
+  read "Loading secure payment…" forever (an owner's phone found it). It now
+  reads `checkout.paymentEmpty`, or `paymentPick` on a one-page checkout.
 - **Composed, not authored.** `onePageCheckout()` in
   `$lib/store/one-page-checkout.ts` takes the strip, gallery, h1 and picker
   from the product's manifest and the fields from `CHECKOUT_PAGE`, so copy,

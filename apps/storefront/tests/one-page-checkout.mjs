@@ -36,7 +36,7 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
-	check('the product title is the h1', /<h1[^>]*>[\s\S]{0,200}?Dog Christmas Tree Costume/.test(html));
+	check('the product title is the h1', /<h1[^>]*>[\s\S]{0,200}?Pet Christmas Tree Costume/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('SSR shows the photos', html.includes('class="gallery'));
 	check('SSR offers both colours', html.includes('>Red<') && html.includes('>Green<'));
@@ -44,7 +44,8 @@ function check(label, cond, detail) {
 	check('no size is pre-selected', !/name="size"[^>]*checked/.test(html));
 	const picker = /id="variant-picker"[\s\S]*?<\/fieldset>\s*(?:<\/div>|<p)/.exec(html)?.[0] ?? '';
 	check('the picker has no button of its own', picker.length > 0 && !html.includes('class="cta'));
-	check('the size guide link goes to the product page', html.includes(`href="/products/${SLUG}#size-guide"`));
+	// The long page, past the redirect that sends the bare URL back here.
+	check('the size guide link goes to the product page', html.includes(`href="/products/${SLUG}?details=1#size-guide"`));
 	check('SSR asks for contact and address', html.includes('id="contact-email"') && /id="shipping-/.test(html));
 	check('SSR has the pay section', /Payment/.test(html));
 	check('the page is not indexed', /name="robots" content="noindex/.test(html));
@@ -138,6 +139,22 @@ await page.reload({ waitUntil: 'networkidle' });
 	check('no product menu on a checkout', !(await page.locator('header nav > ul').isVisible()));
 	check('no order box at the top: the product is the top', (await page.locator('section[aria-label="Your order"]').count()) === 0);
 	await page.setViewportSize({ width: 390, height: 844 });
+}
+
+// --- the ad's URL lands here --------------------------------------------------
+// The costume ad links to /products/dog-christmas-costume, and the owner wants
+// one screen from the ad to the card form: the product URL answers with a
+// redirect here, keeping the whole query string (fbclid is how Meta ties the
+// click to the sale) and setting _fbc from it on that first response.
+{
+	const res = await fetch(`${BASE}/products/${SLUG}?fbclid=IwARtest123&utm_source=facebook`, {
+		redirect: 'manual',
+		headers: { 'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS]' }
+	});
+	check('the ad’s URL sends the buyer to the one-page checkout', res.status === 302 && res.headers.get('location') === `/products/${SLUG}/checkout?fbclid=IwARtest123&utm_source=facebook`, `${res.status} ${res.headers.get('location')}`);
+	check('and keeps the click id as _fbc on the way', /_fbc=fb\.\d\.\d+\.IwARtest123/.test(res.headers.get('set-cookie') ?? ''), res.headers.get('set-cookie') ?? '');
+	const details = await fetch(`${BASE}/products/${SLUG}?details=1`);
+	check('the long page is still there, at ?details=1', details.status === 200 && /id="size-guide"/.test(await details.text()));
 }
 
 // --- arriving --------------------------------------------------------------------

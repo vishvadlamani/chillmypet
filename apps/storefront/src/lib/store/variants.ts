@@ -63,10 +63,15 @@ export function variantEntries(product: Product): VariantEntry[] {
 	});
 }
 
-export function loadVariantPicker(product: Product, locale: Locale): VariantPicker {
+export function loadVariantPicker(product: Product, locale: Locale, lead?: string): VariantPicker {
 	const entries = variantEntries(product);
+	// The lead design first (`leadDesign` in pages.ts), the rest in catalogue
+	// order: the picker and the gallery both open on the first one.
+	const values = [...(product.options[0]?.values ?? [])].sort(
+		(a, b) => Number(b.value === lead) - Number(a.value === lead)
+	);
 	return {
-		designs: (product.options[0]?.values ?? []).map((d) => {
+		designs: values.map((d) => {
 			const photo = product.media.find((m) => m.optionValue === d.value);
 			return {
 				code: d.value,
