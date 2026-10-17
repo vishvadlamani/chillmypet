@@ -2,6 +2,7 @@ import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { CheckoutError, DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 import { isCountryCode } from '$lib/countries';
 import { attributionFrom, purchaseEventId, sendPurchase } from '$lib/server/purchase';
+import { rememberBuyer } from '$lib/server/meta-identity';
 
 /**
  * Placing an order, shared by both checkouts.
@@ -128,6 +129,19 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 
 	// The order is committed from here on. Nothing below may turn a placed
 	// order into an error response.
+
+	// Before payment, not after: the receipt Stripe returns them to is the
+	// next PageView, and it should already know who they are.
+	await rememberBuyer(event.cookies, url, {
+		email,
+		phone: value('phone') || undefined,
+		firstName,
+		lastName,
+		city: named.city,
+		state: value('province') || undefined,
+		zip: named.postalCode,
+		country
+	});
 
 	// With payments on, the sale is not a sale until Stripe says so, so hand
 	// the customer to the hosted page and let the webhook report the

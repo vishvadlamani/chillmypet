@@ -1,5 +1,6 @@
 import type { Commerce, Store } from 'ecomwithai';
 import type { Locale } from '$lib/i18n';
+import type { MatchKeys } from 'ecomwithai/marketing';
 import type { MetaBrowserIds } from '$lib/server/meta-browser-ids';
 
 declare global {
@@ -16,6 +17,8 @@ declare global {
 			stripePaymentMethodConfiguration: string;
 			/** `fbc`/`fbp` from Meta's Parameter Builder, already written back as cookies. */
 			metaBrowserIds: MetaBrowserIds;
+			/** Hashed name, email and address of a visitor who has ordered before; else empty. */
+			metaMatchKeys: MatchKeys;
 		}
 
 		interface PageData {

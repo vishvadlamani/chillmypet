@@ -92,7 +92,12 @@ export const POST: RequestHandler = async ({ request, locals, url, platform, get
 			eventSourceUrl: str(body.eventSourceUrl) ?? url.href,
 			// Never taken from the body. Cookies, IP and user agent are what this
 			// request actually carries, and a page cannot claim to be someone else.
-			user: attributionFrom(locals.metaBrowserIds, request.headers, getClientAddress()),
+			// Match keys come from the httpOnly cookie the checkout set, which no
+			// page script can write.
+			user: {
+				...attributionFrom(locals.metaBrowserIds, request.headers, getClientAddress()),
+				matchKeys: locals.metaMatchKeys
+			},
 			customData: cleanCustomData(body.customData)
 		})
 		.then((result) => {

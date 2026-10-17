@@ -56,12 +56,37 @@ export type CapiUserInput = {
 	clientUserAgent?: string;
 	fbp?: string;
 	fbc?: string;
+	/**
+	 * Keys hashed on an earlier request, such as a buyer's details remembered
+	 * from their order so the events after it can be matched too. A raw field
+	 * above wins over its key here: it is what this event actually knows.
+	 */
+	matchKeys?: MatchKeys;
 };
 
-export type HashedUserData = Record<string, string[] | string>;
+/** The hashed advanced-matching fields, by the names Meta gives them. */
+export const MATCH_KEYS = ['em', 'ph', 'fn', 'ln', 'ct', 'st', 'zp', 'country'] as const;
+export type MatchKey = (typeof MATCH_KEYS)[number];
+export type MatchKeys = Partial<Record<MatchKey, string>>;
 
-export async function buildUserData(input: CapiUserInput): Promise<HashedUserData> {
-	const fields: [string, string | undefined][] = [
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+
+/** True for a key Meta reads and a value shaped like the hash it expects. */
+export function isMatchKey(key: string, value: unknown): key is MatchKey {
+	return (
+		(MATCH_KEYS as readonly string[]).includes(key) &&
+		typeof value === 'string' &&
+		SHA256_HEX.test(value)
+	);
+}
+
+/**
+ * Normalizes and hashes whichever customer fields are present. The result is
+ * safe to keep — it is what Meta receives anyway — and can be handed back later
+ * as `matchKeys`.
+ */
+export async function hashMatchKeys(input: CapiUserInput): Promise<MatchKeys> {
+	const fields: [MatchKey, string | undefined][] = [
 		['em', input.email && normalize.email(input.email)],
 		['ph', input.phone && normalize.phone(input.phone)],
 		['fn', input.firstName && normalize.name(input.firstName)],
@@ -72,13 +97,26 @@ export async function buildUserData(input: CapiUserInput): Promise<HashedUserDat
 		['country', input.country && normalize.country(input.country)]
 	];
 
-	const userData: HashedUserData = {};
-
+	const keys: MatchKeys = {};
 	for (const [key, value] of fields) {
 		// Omit empty keys rather than sending `[null]` — a null entry carries no
 		// signal and drags down the reported match quality.
 		if (!value) continue;
-		userData[key] = [await sha256Hex(value)];
+		keys[key] = await sha256Hex(value);
+	}
+	return keys;
+}
+
+export type HashedUserData = Record<string, string[] | string>;
+
+export async function buildUserData(input: CapiUserInput): Promise<HashedUserData> {
+	const userData: HashedUserData = {};
+
+	for (const [key, value] of Object.entries(input.matchKeys ?? {})) {
+		if (isMatchKey(key, value)) userData[key] = [value];
+	}
+	for (const [key, value] of Object.entries(await hashMatchKeys(input))) {
+		userData[key] = [value];
 	}
 
 	if (input.clientIpAddress) userData.client_ip_address = input.clientIpAddress;

@@ -148,6 +148,22 @@ intact. Send its values verbatim: no re-minting from `fbclid`, no
 percent-encoding (the cookie is written with an identity `encode`), and keep
 `url.search` on any redirect a landing URL can hit.
 
+**A buyer stays matchable after their order.** Only Purchase carries a name,
+email or address, so every PageView from someone who had already bought went to
+Meta with cookies alone, and Events Manager flagged Last Name coverage on
+PageView at 4.55%. `placeOrder` now calls `rememberBuyer` (in
+`$lib/server/meta-identity.ts`) once the order commits and before payment, so
+the receipt is already covered. It writes the SHA-256 match keys into the
+httpOnly `cmp_mk` cookie. `hooks.server.ts` reads them into
+`locals.metaMatchKeys`, passes them to `fbq('init', id, keys)` (the pixel
+accepts hashes as-is) and to the server PageView, and `/api/track` adds them
+to every mirrored event. They go to the CAPI layer as `matchKeys`. A raw field
+on the same event wins over its key, so Purchase still matches on the order
+itself. Hashes only: never put a raw value in that cookie. And the keys are
+validated as 64 hex characters before they reach the inline script, which is
+the only thing keeping a forged cookie from becoming markup. Coverage cannot
+reach 100%: a visitor who has never ordered has no name to send.
+
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires
 from the Stripe webhook and the browser event from the success page, two requests

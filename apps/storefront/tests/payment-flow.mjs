@@ -12,7 +12,7 @@
  * `npm run test:payments`.
  */
 import { createServer } from 'node:http';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
 // Event ids are deduped forever in the payments table, so a fixed id would make
@@ -103,6 +103,17 @@ const capiPurchases = () =>
 		})
 		.filter((e) => e?.event_name === 'Purchase');
 
+const capiPageViews = () =>
+	capiEvents
+		.map((e) => {
+			try {
+				return JSON.parse(e.body).data?.[0] ?? null;
+			} catch {
+				return null;
+			}
+		})
+		.filter((e) => e?.event_name === 'PageView');
+
 const settle = () => new Promise((r) => setTimeout(r, 2000));
 
 // --- place an order --------------------------------------------------------
@@ -148,6 +159,49 @@ check(
 	redirectLocation === `${BASE}/__stripe-hosted-page`,
 	`got ${placed.status} ${redirectLocation ?? JSON.stringify(payload)?.slice(0, 200)}`
 );
+
+// --- the buyer is remembered for the events after the order ---------------
+// Only Purchase used to carry a name, so every PageView from someone who had
+// already bought went to Meta with cookies alone — the low Last Name coverage
+// Events Manager flags on PageView.
+const matchCookie = placed.headers
+	.getSetCookie()
+	.find((c) => c.startsWith('cmp_mk='));
+const lastNameHash = createHash('sha256').update('flow').digest('hex');
+check(
+	'placing an order remembers the buyer',
+	Boolean(matchCookie?.includes(lastNameHash)),
+	matchCookie ?? 'no cmp_mk cookie set'
+);
+check('the remembered buyer is httpOnly', /;\s*HttpOnly/i.test(matchCookie ?? ''));
+check(
+	'the remembered buyer holds hashes, never raw values',
+	!/payflow|flow%40|lisbon|1%20test/i.test(matchCookie ?? '')
+);
+
+if (matchCookie) {
+	const pageViewsBefore = capiPageViews().length;
+	const html = await fetch(`${BASE}/products/dog-life-jacket`, {
+		headers: { cookie: matchCookie.split(';')[0] }
+	}).then((r) => r.text());
+	check(
+		'the browser pixel is initialised with the remembered last name',
+		html.includes(`"ln":"${lastNameHash}"`),
+		'no advanced matching in the pixel snippet'
+	);
+	await settle();
+	const pageView = capiPageViews().slice(pageViewsBefore).at(-1);
+	check(
+		'the server PageView carries the remembered last name',
+		pageView?.user_data?.ln?.[0] === lastNameHash,
+		JSON.stringify(pageView?.user_data ?? null)
+	);
+
+	const forged = await fetch(`${BASE}/products/dog-life-jacket`, {
+		headers: { cookie: 'cmp_mk=ln:</script><script>alert(1)</script>' }
+	}).then((r) => r.text());
+	check('a forged cookie cannot reach the page as markup', !forged.includes('alert(1)'));
+}
 
 const sessionCall = seen.find((c) => c.path === '/v1/checkout/sessions');
 check('a checkout session was created', Boolean(sessionCall));
@@ -426,7 +480,9 @@ if (sessionCall) {
 		check('store id is in metadata for tenant routing', p.get('metadata[store_id]') === 'chillmypet');
 		check(
 			'the click identifier rides along for the webhook',
-			p.get('metadata[fbp]') === 'fb.1.1700000000000.1234567890'
+			// Tagged by the Parameter Builder, with the id itself untouched.
+			/^fb\.1\.1700000000000\.1234567890\.[A-Za-z0-9_-]{8}$/.test(p.get('metadata[fbp]') ?? ''),
+			p.get('metadata[fbp]')
 		);
 		check(
 			'the card statement carries a descriptor the buyer will recognise',

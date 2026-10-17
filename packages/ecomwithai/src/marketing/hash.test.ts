@@ -6,7 +6,7 @@
  *   npm test
  */
 import { createHash } from 'node:crypto';
-import { buildFbc, buildUserData, normalize, sha256Hex } from './hash.ts';
+import { buildFbc, buildUserData, hashMatchKeys, isMatchKey, normalize, sha256Hex } from './hash.ts';
 
 let failures = 0;
 
@@ -66,6 +66,27 @@ check('client ip is not hashed', userData.client_ip_address, '203.0.113.7');
 check('user agent is not hashed', userData.client_user_agent, 'Mozilla/5.0');
 check('fbp is not hashed', userData.fbp, 'fb.1.1558571054389.1098115397');
 check('fbc is not hashed', userData.fbc, 'fb.1.1554763741205.AbCdEfGh');
+
+// --- remembered match keys ---
+const remembered = await hashMatchKeys({ email: 'vish@example.com', lastName: 'Adlamani', state: 'Texas' });
+check('remembered keys are hashed, not raw', remembered.em, reference);
+check('remembered keys omit what would not match', 'st' in remembered, false);
+
+const later = await buildUserData({
+	matchKeys: { ...remembered, fn: 'not-a-hash', zz: reference } as never,
+	email: 'other@example.com',
+	fbp: 'fb.1.1558571054389.1098115397'
+});
+check('a remembered key reaches the payload', later.ln, [remembered.ln]);
+check(
+	'a raw field wins over its remembered key',
+	later.em,
+	[createHash('sha256').update('other@example.com').digest('hex')]
+);
+check('a remembered value that is not a hash is dropped', 'fn' in later, false);
+check('a key Meta does not read is dropped', 'zz' in later, false);
+check('a hash is a match key', isMatchKey('ln', reference), true);
+check('uppercase hex is not', isMatchKey('ln', reference.toUpperCase()), false);
 
 // --- fbc construction ---
 check('fbc format', buildFbc('AbCdEfGh', 1554763741205), 'fb.1.1554763741205.AbCdEfGh');
