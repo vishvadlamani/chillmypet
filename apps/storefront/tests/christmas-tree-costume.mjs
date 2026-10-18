@@ -236,13 +236,14 @@ await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click(
 check('the error clears once a size is chosen', (await page.locator('#size-error').innerText()).trim() === '');
 
 await page.locator('#variant-picker button', { hasText: /Add to cart/ }).click();
-await page.waitForURL('**/products/christmas-tree-costume/checkout?**', { timeout: 15000 });
+await page.waitForURL('**/products/christmas-tree-costume/checkout', { timeout: 15000 });
 {
-	// The payment page is a page of its own: the choice in the link, and
-	// `added=1` because the product page reported the add.
+	// The payment page is a page of its own. The link carried the choice and
+	// `added=1` (the product page reported the add), and the page took them
+	// out of the address bar once read: the buyer sees the plain address.
 	const url = new URL(page.url());
 	check('add to cart opens the costume’s payment page', url.pathname === '/products/christmas-tree-costume/checkout', page.url());
-	check('carrying the colour and size', url.searchParams.get('design') === 'green' && url.searchParams.get('size') === 'M' && url.searchParams.get('added') === '1', url.search);
+	check('at its plain address, with no choice in the link', url.search === '', url.search);
 	const line = await page.locator('.picker.folded').innerText().catch(() => 'not folded');
 	check('the choice is one line, with a way to change it', /Green[\s\S]*Size: M/.test(line) && /Change/.test(line), line);
 	check('none of the product page comes across: no photos, no title, no bundle cards', (await page.locator('.gallery').count()) === 0 && !(await page.locator('h1', { hasText: 'Christmas Tree Costume' }).count()) && (await page.locator('label.tier').count()) === 0);

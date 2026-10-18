@@ -151,7 +151,18 @@ await page.evaluate(() => {
 	sessionStorage.clear();
 });
 serverCopies.length = 0;
-await page.goto(`${BASE}${FROM_PRODUCT}`, { waitUntil: 'networkidle' });
+await page.goto(`${BASE}${FROM_PRODUCT}&fbclid=ad1&utm_source=fb`, { waitUntil: 'networkidle' });
+{
+	// The link's own choice is read, then taken out of the address bar; an
+	// ad's parameters stay.
+	const url = new URL(page.url());
+	check('the address bar drops the choice the link carried', !['design', 'size', 'bundle', 'added'].some((k) => url.searchParams.has(k)), url.search);
+	check('and keeps the ad’s parameters', url.searchParams.get('fbclid') === 'ad1' && url.searchParams.get('utm_source') === 'fb', url.search);
+	check('the choice is still made: green, size M', /Green[\s\S]*Size: M/.test(await page.locator('.picker.folded').innerText().catch(() => '')));
+	await page.reload({ waitUntil: 'networkidle' });
+	check('and a reload keeps it, from the session', /Green[\s\S]*Size: M/.test(await page.locator('.picker.folded').innerText().catch(() => '')));
+	check('a reload still knows the product page reported the view', (await browserEvent('ViewContent')).length === 0 && serverCopy('ViewContent').length === 0);
+}
 
 // --- the first screen ------------------------------------------------------------
 {
