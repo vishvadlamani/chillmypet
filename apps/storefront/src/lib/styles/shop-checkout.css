@@ -390,6 +390,10 @@
 		min-height: 236px;
 	}
 }
+/* A tab other than Card (Apple Pay is one line): the element's own height. */
+.shop-pay-box > div.compact {
+	min-height: 0;
+}
 .shop-pay-loading {
 	position: absolute;
 	top: 14px;
