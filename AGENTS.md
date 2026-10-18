@@ -699,6 +699,25 @@ Two things differ:
 - **The price is a placeholder too**: $27.99, the reference store's figure, no
   compare-at.
 
+`/products/santa-pet-costume` is the fifth: a red plush Santa suit with a
+matching hat and plush arms holding a wrapped present, for small dogs **and
+cats**, S–L, one colour, $27.99 (the owner's price, 2026-10-18; the owner's
+working name was "Christmas Pet Costume_2"). Built exactly like the reindeer
+hoodie, no size chart for the same reason, defined in
+`scripts/santa-pet-costume.js`, tested by `tests/santa-pet-costume.mjs` (in
+`test:store`). SKUs `CMP-SP-RED-<SIZE>`; its bundle tier lives in
+`santa_bundle`. It is last on `/christmas`.
+
+**An ad for it is expected.** Land it on `/products/santa-pet-costume`, the
+product the ad shows: the live Christmas ad showing a different product from
+its page is the first suspect above for clicks without AddToCart. The page's
+first screen holds the photo, price and all three sizes at 390×664, og:image
+is the dog photo (the link preview), and `/products/santa-pet-costume/checkout`
+answers for an ad that should open on the form. Optimise for AddToCart or
+Purchase, never AddPaymentInfo. The photos' rights for ads are unconfirmed
+(provenance, below), and the hat being included is from the photos only:
+confirm both with the owner before the ad runs.
+
 The picker's single-colour case gives the sizes the rest of the row
 (`.options.single`), and the bundle cards' saving line names its unit through
 `unitsNoun` ("with 2 hoodies"); it used to say "costumes" on every page.
@@ -1461,6 +1480,14 @@ are AI-styled, and the page says so under the photo pair, as theirs does. The
 older supplier treatments (`red.jpg`, `green.jpg`, `green-back.jpg`,
 `hood-detail.jpg`) stay on disk because catalogue media rows point at them. Nothing about the product was generated or altered: it
 is the real costume on a plain background. Its copy was written here.
+
+The Santa Pet Costume's two photos (`static/products/santa-pet-costume/`,
+`dog.jpg` a French bulldog, `cat.jpg` a ginger cat) were supplied by the
+owner in chat on 2026-10-18 as screenshots, with the instruction to add the
+product. Re-encoded as plain JPEGs with no metadata, otherwise untouched.
+They look AI-generated (the same staged room, identical props) and their
+source and licence were not stated: the same caveat as the hoodie's applies,
+so ask before treating them as cleared for ads. Its copy was written here.
 
 Don't add further third-party branding, photography, or marketing text without
 the owner confirming rights for that specific source.
