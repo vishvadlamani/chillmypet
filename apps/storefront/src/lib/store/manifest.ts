@@ -388,10 +388,12 @@ export const STORE_PAGE: FunnelDefinition = {
 			requires: ['reviews.photos'],
 			props: {
 				items: { $ref: 'reviews.photos' },
-				layout: 'masonry',
-				columns: 3,
-				mediaAspect: 'auto',
-				width: 'shell'
+				// One row to swipe, every photo square: as a three-column masonry
+				// the thirty photos ran three screens of uneven heights.
+				layout: 'carousel',
+				mediaAspect: 'square',
+				// The page's width, so the photos line up with their title.
+				width: 'page'
 			}
 		},
 		{

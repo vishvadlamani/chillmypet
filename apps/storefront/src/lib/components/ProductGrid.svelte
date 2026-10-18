@@ -9,6 +9,8 @@
 	 * than one product and every one with its price.
 	 */
 	let { products, eager = 2 }: { products: ProductCard[]; eager?: number } = $props();
+
+	const SWATCHES = 6;
 </script>
 
 <ul class="grid">
@@ -35,10 +37,15 @@
 					<p class="price">{product.price}</p>
 					<p class="meta">
 						<span class="swatches">
-							{#each product.colours as colour (colour.label)}
+							<!-- Six at most, then a count: the life jacket's ten crowded a
+							     phone's card. Every colour is still named for a reader. -->
+							{#each product.colours.slice(0, SWATCHES) as colour (colour.label)}
 								<span class="swatch" style:background={colour.hex ?? '#ccc'} title={colour.label}
 								></span>
 							{/each}
+							{#if product.colours.length > SWATCHES}
+								<span class="more" aria-hidden="true">+{product.colours.length - SWATCHES}</span>
+							{/if}
 							<span class="sr-only">
 								{product.colours.map((c) => c.label).join(', ')}
 							</span>
@@ -144,6 +151,12 @@
 	.swatches {
 		display: inline-flex;
 		gap: 4px;
+	}
+	.more {
+		font-size: 12px;
+		font-weight: 600;
+		line-height: 14px;
+		color: var(--tree-muted);
 	}
 	.swatch {
 		width: 14px;

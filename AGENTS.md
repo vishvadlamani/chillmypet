@@ -851,6 +851,28 @@ So:
     menu hover) stay teal `#0e8590`.
   - `static/size-chart.svg` (the life jacket's) is drawn in the same teal
     and navy.
+- **The creative pass of 2026-10-18** (the owner: "make it look like a
+  professional designer's"). Layout and finish, not colour; all in
+  `tree-theme.css` unless named, so the Christmas pages get the layout parts
+  too:
+  - a two-column row's left side is `position: sticky` from 768px (the
+    gallery beside the buy box, a section title beside its questions), so
+    there is no screen of empty page under the photos;
+  - headings `text-wrap: balance`, paragraphs `pretty` (no lone last word),
+    and a heading block's title has room before what it introduces;
+  - the brand skin draws the heading block's grey eyebrow in the orange, as
+    the home page's;
+  - the life jacket's photo wall is the reviews block's carousel with square
+    photos (manifest): a swipeable row with a peek on a phone, a grid of
+    eight from 768px (CSS, scoped to `ul.snap-x:has(> li > article)`; the
+    gallery's thumbnail strip is also a `ul.snap-x`, of buttons, and must
+    not match);
+  - the size chart picture keeps 720px on a phone and scrolls sideways, with
+    a "Swipe the chart" line under it;
+  - the brand skin's `/checkout` reads in DM Sans (its component sets Poppins);
+  - `Collection.svelte`'s promises are an icon row on a tinted panel;
+    `ProductGrid.svelte` shows six swatches then "+N"; the home label reads
+    "The Christmas collection"; the footer says "small pets".
 - **Christmas keeps the pine, cream and Poppins**: `/christmas` and the
   products `pages.ts` flags `christmas` (costume, reindeer hoodie) put
   `festive: true` in their data, and `+layout.svelte` leaves `.brand-skin`

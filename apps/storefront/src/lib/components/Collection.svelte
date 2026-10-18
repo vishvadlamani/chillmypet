@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import ProductGrid from '$lib/components/ProductGrid.svelte';
+	import { LINE_ICONS } from '$lib/line-icons';
 	import type { ProductCard } from '$lib/store/collection';
 
 	/**
@@ -45,10 +46,21 @@
 
 	{@render children?.()}
 
+	<!-- The three promises every order gets, each with its line icon, as the
+	     life jacket's trust band and benefit cards draw them. -->
 	<ul class="promises">
-		<li><strong>Free shipping</strong> to the US, with tracking</li>
-		<li><strong>30 days</strong> to return or swap a size</li>
-		<li><strong>A real inbox:</strong> <a href="/contact">contact us</a></li>
+		<li>
+			<svg viewBox="0 0 24 24" aria-hidden="true">{@html LINE_ICONS.truck}</svg>
+			<span><strong>Free US shipping</strong>With tracking on every order</span>
+		</li>
+		<li>
+			<svg viewBox="0 0 24 24" aria-hidden="true">{@html LINE_ICONS.return}</svg>
+			<span><strong>30-day returns</strong>Swapping a size is free</span>
+		</li>
+		<li>
+			<svg viewBox="0 0 24 24" aria-hidden="true">{@html LINE_ICONS.mail}</svg>
+			<span><strong>A real inbox</strong><a href="/contact">Contact us</a>, a person replies</span>
+		</li>
 	</ul>
 </div>
 
@@ -106,25 +118,51 @@
 	}
 	.promises {
 		list-style: none;
-		margin: 28px 0 0;
-		padding: 18px 0 0;
-		border-top: 1px solid var(--tree-rule);
+		margin: 32px 0 0;
+		padding: 20px;
+		border-radius: 16px;
+		background: var(--tree-tint);
 		display: grid;
-		gap: 8px;
+		gap: 16px;
 		font-size: 14px;
+		line-height: 1.45;
 		color: var(--tree-muted);
-		text-align: center;
+	}
+	.promises li {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+	}
+	.promises svg {
+		flex: none;
+		width: 44px;
+		height: 44px;
+		padding: 10px;
+		border-radius: 999px;
+		background: var(--tree-card);
+		color: var(--tree-green);
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.6;
+		stroke-linecap: round;
+		stroke-linejoin: round;
 	}
 	.promises strong {
+		display: block;
+		font-size: 15px;
 		color: var(--tree-ink);
 	}
 	.promises a {
 		color: var(--tree-green);
 		text-decoration: underline;
+		text-underline-offset: 3px;
 	}
 	@media (min-width: 640px) {
 		.promises {
 			grid-template-columns: repeat(3, 1fr);
+			gap: 24px;
+			padding: 24px 28px;
+			margin-top: 40px;
 		}
 	}
 </style>

@@ -176,6 +176,81 @@
 	--spacing-gutter: 0px;
 }
 
+/* On a wide screen a two-column row's left side stays in view while the
+   right side scrolls past: the photos beside the buy box (without this, a
+   screen of empty page beside the bundles and the size chart), and a
+   section's title beside its questions. */
+@media (min-width: 768px) {
+	.tree-theme main > .tree-row > div:first-child {
+		position: sticky;
+		top: 24px;
+		align-self: start;
+	}
+}
+
+/* A section's title gets room before what it introduces (cards, photos):
+   it sat on top of them. And no title or line ends on one word alone. */
+.tree-theme main > section:has(> h2):not(.closing) {
+	margin-bottom: 14px;
+}
+@media (min-width: 768px) {
+	.tree-theme main > section:has(> h2):not(.closing) {
+		margin-bottom: 22px;
+	}
+}
+
+/* The customer photos (the reviews block's carousel, whose items are
+   cards; the gallery's thumbnail strip is a row too, but of buttons): on a
+   phone a row to swipe, the next photo peeking in to say so; on a wide
+   screen eight of them in a tidy grid of four, where a row of two huge
+   photos to drag sideways read as unfinished. */
+.tree-theme ul.snap-x:has(> li > article) > li {
+	width: 72%;
+}
+@media (min-width: 768px) {
+	.tree-theme ul.snap-x:has(> li > article) {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 16px;
+		overflow: visible;
+	}
+	.tree-theme ul.snap-x:has(> li > article) > li {
+		width: auto;
+	}
+	.tree-theme ul.snap-x:has(> li > article) > li:nth-child(n + 9) {
+		display: none;
+	}
+}
+.tree-theme h1,
+.tree-theme h2,
+.tree-theme h3 {
+	text-wrap: balance;
+}
+.tree-theme p {
+	text-wrap: pretty;
+}
+
+/* The size chart is a wide table drawn as one picture: on a phone it shrank
+   to unreadable. There it keeps a readable width and scrolls sideways, and
+   says so. */
+@media (max-width: 639px) {
+	.tree-theme figure:has(img[src='/size-chart.svg']) > div {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+	.tree-theme img[src='/size-chart.svg'] {
+		width: 720px !important;
+		max-width: none;
+	}
+	.tree-theme figure:has(img[src='/size-chart.svg'])::after {
+		content: 'Swipe the chart to see every column →';
+		display: block;
+		margin-top: 8px;
+		font-size: 13px;
+		color: var(--tree-muted);
+	}
+}
+
 /* The lifted strip replaces this one (on the product page, and on its
    one-page checkout, which renders the same strip block). */
 .tree-theme aside[aria-label='Announcement'],
@@ -514,6 +589,17 @@
 }
 .brand-skin .tree-theme h2 {
 	color: var(--brand-navy);
+}
+/* The small label over a section's title, the same orange as the home
+   page's: the heading block draws it in grey. */
+.brand-skin .tree-theme section > p.tracking-eyebrow {
+	color: var(--tree-red);
+}
+/* The checkout's own stylesheet sets Poppins on its root, the Christmas
+   type; on the brand's pages it reads in the brand's DM Sans like the rest. */
+.brand-skin .storefront-type.tree-checkout {
+	--font-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+	font-family: var(--font-sans);
 }
 .brand-skin .tree-theme section.steps figure.photo {
 	background: var(--tree-tint);
