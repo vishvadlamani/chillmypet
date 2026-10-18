@@ -303,10 +303,15 @@
 		<div class="site-footer-inner">
 			<div class="site-footer-brand">
 				<a href="/" class="site-footer-name">
-					<!-- Light lettering for the dark tree and brand footers; the plain
-					     chrome's footer is light, and needs the navy logo. -->
+					<!-- All white on the brand's teal footer (teal lettering would vanish
+					     into it), light lettering on the Christmas pages' pine, and the
+					     navy logo on the plain chrome's light footer. -->
 					<img
-						src={treeChrome ? '/brand/logo-light.png' : '/brand/logo.png'}
+						src={brandSkin
+							? '/brand/logo-white.png'
+							: treeChrome
+								? '/brand/logo-light.png'
+								: '/brand/logo.png'}
 						alt={t('common.brand')}
 						width="449"
 						height="96"

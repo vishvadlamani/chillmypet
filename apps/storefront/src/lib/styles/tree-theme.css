@@ -425,9 +425,12 @@
  * It is the tree look with its colours re-pointed, not a second stylesheet:
  * the layout puts `.brand-skin` on its root (`+layout.svelte`), and every
  * rule above reads the `--tree-*` names, so the header, footer, cards,
- * product page and checkout all follow. Orange is the accent, not a text
- * colour: on white it is too light to read small, so eyebrows use a deeper
- * orange and the brand orange marks things (the cart count, icons, badges).
+ * product page and checkout all follow. Since 2026-10-18 ("Teal", the
+ * owner's pick from four previews): navy for what you press, prices and
+ * titles; the round logo's teal for the bands (home banner, trust band,
+ * footer); the logo's orange for the small headings over titles, the cart
+ * count and the home banner's button, which has navy lettering because
+ * white on that orange is too faint.
  */
 .brand-skin,
 .brand-skin .tree-theme,
@@ -437,18 +440,25 @@
 	--brand-teal: #14a3b0;
 	--brand-teal-deep: #0e8590;
 	--brand-orange: #ff6b2c;
+	/* The round teal logo's colour: the home banner, the trust band and the
+	   footer. */
+	--brand-teal-band: #12858f;
 	--tree-bg: #ffffff;
 	--tree-ink: #0b3c49;
-	--tree-green: #0e8590;
-	--tree-green-deep: #0b3c49;
+	/* What you press, prices and titles in navy; teal is the colour of the
+	   bands around them (the owner's choice of 2026-10-18, "Teal"). */
+	--tree-green: #0b3c49;
+	--tree-green-deep: #072a33;
 	--tree-muted: #4f6b73;
 	--tree-line: #cfdfe2;
 	--tree-rule: rgb(11 60 73 / 0.12);
 	--tree-card: #ffffff;
-	--tree-tint: #e8f5f6;
+	--tree-tint: #dff1f2;
 	--tree-sage: #eff7f8;
 	--tree-sage-cta: #e3f2f4;
-	--tree-red: #c9501a;
+	/* The small headings over titles ("The shop", "Catalog") in the logo's
+	   orange. */
+	--tree-red: #ff6b2c;
 	--tree-ribbon: #ff6b2c;
 	--tree-chip: #fff0e8;
 	--tree-chip-ink: #8a3a12;
@@ -468,16 +478,20 @@
 .brand-skin .tree-theme {
 	letter-spacing: 0.1px;
 }
-/* The strip and the footer in navy; teal is for things you press. */
+/* The strip in navy over a white header; the footer in the logo's teal. */
 .brand-skin .tree-strip {
 	background: var(--brand-navy);
 	letter-spacing: 0.8px;
 }
 .brand-skin > header {
 	--site-muted: rgb(11 60 73 / 0.72);
+	/* The header keeps teal for its own marks (the current page, menu
+	   hover), as the logo's "mypet" is teal. */
+	--site-accent: var(--brand-teal-deep);
+	--site-tint: #e6f4f5;
 }
 .brand-skin > footer {
-	--footer-bg: var(--brand-navy);
+	--footer-bg: var(--brand-teal-band);
 	--footer-muted: rgb(255 255 255 / 0.82);
 	--footer-rule: rgb(255 255 255 / 0.16);
 }
@@ -485,7 +499,7 @@
 	background: var(--brand-orange);
 }
 .brand-skin section.trust-strip {
-	background: var(--brand-navy);
+	background: var(--brand-teal-band);
 }
 .brand-skin section.trust-strip svg {
 	color: var(--brand-orange);

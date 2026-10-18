@@ -824,7 +824,8 @@ the menu leads instead. Things to know:
 **Two skins since 2026-10-17: the brand's, and Christmas.** The owner
 supplied the logo (`static/brand/`: `logo.png` paw and wordmark side by side
 for the header, `logo-light.png` with the navy turned white for the dark
-footers, `logo-stacked.png` as supplied, and the teal-circle paw as the tab
+Christmas footers, `logo-white.png` all white (the teal "mypet" turned
+white) for the brand's teal footer, `logo-stacked.png` as supplied, and the teal-circle paw as the tab
 and home-screen icons; the tab icon before that was SvelteKit's default
 logo) and asked for its colours everywhere except the Christmas pages.
 So:
@@ -832,9 +833,24 @@ So:
 - **The brand skin** is navy `#0b3c49`, teal `#14a3b0` (`#0e8590` under white
   text), orange `#ff6b2c` and white, set in DM Sans. It is the tree look
   with its `--tree-*` colours re-pointed (`.brand-skin` in `tree-theme.css`),
-  so every rule built on those names follows. Orange marks things (the
-  cart count, the trust strip's icons); text that has to be read small in
-  orange uses a deeper `#c9501a`.
+  so every rule built on those names follows.
+- **Its colours are "Teal"** (2026-10-18), the owner's pick from four
+  previews of the real pages, rendered by injecting each palette into the
+  dev server. Built to that preview exactly, and `tests/e2e.mjs` pins it:
+  - the round logo's teal `#12858f` (`--brand-teal-band`) for the bands:
+    the home banner (full width, white title and text, a peach `#ffd9c4`
+    eyebrow), the life jacket's trust band, and the footer with
+    `logo-white.png`;
+  - navy for what you press, prices and titles (`--tree-green` is navy
+    here, `--tree-green-deep` `#072a33` its hover), the life jacket's
+    manifest accents included;
+  - the orange for the small headings over titles (`--tree-red`), the cart
+    count, and the home banner's first button, which has navy lettering
+    because white on that orange is too faint (2.8:1);
+  - white header and a navy strip; the header's own marks (the current page,
+    menu hover) stay teal `#0e8590`.
+  - `static/size-chart.svg` (the life jacket's) is drawn in the same teal
+    and navy.
 - **Christmas keeps the pine, cream and Poppins**: `/christmas` and the
   products `pages.ts` flags `christmas` (costume, reindeer hoodie) put
   `festive: true` in their data, and `+layout.svelte` leaves `.brand-skin`
@@ -844,7 +860,7 @@ So:
   else.
 - The layout loads the font the skin needs (DM Sans or Poppins), so a page
   must not load its own. The life jacket's manifest accents are the brand
-  teal; the Christmas manifests keep pine.
+  navy; the Christmas manifests keep pine.
 - `tests/e2e.mjs` asserts the logo, the tab icon, and which pages wear which
   skin.
 
