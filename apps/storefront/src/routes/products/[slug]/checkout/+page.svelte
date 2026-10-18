@@ -185,7 +185,9 @@
 </script>
 
 <svelte:head>
-	<title>{data.seo.title} · {t('common.brand')}</title>
+	<!-- Not the product page's title: Google Analytics' page reports group by
+	     title, and the same one put the payment page inside the product's row. -->
+	<title>{t('checkout.title')} · {data.seo.title} · {t('common.brand')}</title>
 	<meta name="description" content={data.seo.description} />
 	<!-- Absolute: Facebook and Instagram resolve link previews from their own
 	     servers, not from this page. -->

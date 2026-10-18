@@ -77,12 +77,20 @@ src="https://www.facebook.com/tr?id=${id}&ev=PageView&noscript=1" /></noscript>`
 		)
 		.join('\n');
 
+	// `disablePushState`: the pixel would otherwise fire its own PageView on
+	// every client-side navigation (product page → payment page), under an
+	// event id of its own, and swallow the one `+layout.svelte` sends with the
+	// id its Conversions API copy carries, so the two never deduplicated and
+	// that page view counted twice. `allowDuplicatePageViews`: without its own
+	// history tracking the pixel takes the next page for the same one and drops
+	// our PageView as a repeat. Together: every PageView is ours, with our id.
 	return `<script>
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
 n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq.disablePushState=true;fbq.allowDuplicatePageViews=true;
 ${inits}
 fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
 </script>

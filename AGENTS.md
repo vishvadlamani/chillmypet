@@ -142,6 +142,25 @@ What the container holds, as published on 2026-10-08:
 - One **paused** custom-template tag. Leave it paused unless you know it is not
   a Meta tag.
 
+**Two faults in that container, found 2026-10-18 and fixed in GTM, not here**
+(the owner's to change; read off the published `gtm.js`):
+- The GA4 event tag also fires on the `gtm.dom` trigger, so GA4 receives an
+  event literally named `gtm.dom` on every page.
+- On its "all events" trigger it also catches the `page_view` the Google tag
+  emits, so every page view reaches GA4 twice (one copy with
+  `ep.event_name`/`ep.x-fb-ck-fbp`, one plain).
+The fix is the event tag's triggers: off `gtm.dom`, and an exception for
+`page_view` (or a trigger on the five ecommerce event names only).
+
+**The pixel leaves page views to the site** (`hooks.server.ts`,
+2026-10-18): `fbq.disablePushState=true;fbq.allowDuplicatePageViews=true;`
+before the inits. Without the first, the pixel fires its own PageView on a
+client-side navigation (costume page → payment page) under an id of its own
+and swallows ours, so browser and server copies never deduplicate; without
+the second, it drops our next PageView as a repeat. `tests/e2e.mjs` checks
+both. The payment page's `<title>` is "Checkout · …", not the product's, as
+GA4's page reports group by title.
+
 **Google tag gateway runs through Cloudflare on the path `/qndl`** (set up
 2026-10-08 in Vish's Cloudflare account). GA4 hits go first-party to
 `chillmypet.com/qndl/ga/g/c` instead of google-analytics.com, which ad

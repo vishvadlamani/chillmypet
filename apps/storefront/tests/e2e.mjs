@@ -124,6 +124,10 @@ function check(label, cond, detail) {
 	for (const id of REMOVED_PIXELS) {
 		check(`SSR no longer mentions the removed pixel ${id}`, !html.includes(id));
 	}
+	// Every PageView is ours, with the id its Conversions API copy carries: the
+	// pixel's own history PageView (an id of its own, never deduplicated) is off,
+	// and the next page's PageView is not dropped as a repeat of the first.
+	check('the pixel leaves page views to the site', html.includes('fbq.disablePushState=true') && html.includes('fbq.allowDuplicatePageViews=true') && html.indexOf('disablePushState') < html.indexOf("fbq('init'"));
 
 	// One visitor id on every init, the same one each Conversions API copy
 	// sends as external_id. Shaped like a SHA-256 digest so the pixel passes it
