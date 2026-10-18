@@ -10,10 +10,10 @@
  *   - /checkout: each line in the "Your order" box has − n +, Remove, and a
  *     Change link to its own product (not the first line's); the total is
  *     re-priced by the server after each change
- *   - the hoodie's shop checkout: a leftover from another product opens the
- *     phone summary by itself and can be removed there; the hoodie's own line
- *     has quantity buttons but no Remove (the picker owns it), and a count
- *     set there survives a change of size
+ *   - the costume's shop checkout: a leftover from another product opens the
+ *     phone summary by itself and can be removed there; the costume's own
+ *     line has neither (its bundle cards set the count), and a change of
+ *     size replaces it
  *   - the reindeer hoodie's one-page checkout: its own line has neither,
  *     because its bundle cards set the count; the leftover line has both
  *
@@ -135,28 +135,36 @@ await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
 	check('the pay button agrees', shown.includes(expected) || /Place order/.test(shown), shown);
 }
 
-// --- the hoodie's shop checkout, with a jacket left over ----------------------------------
+// --- the costume's shop checkout, with a jacket left over ---------------------------------
 await basket([JACKETS]);
-await page.goto(`${BASE}/products/christmas-pouch-hoodie/checkout?design=red_santa&size=M&added=1`, { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/products/dog-christmas-costume/checkout?design=green&size=M&added=1`, { waitUntil: 'networkidle' });
 {
 	const folded = page.locator('#shop-summary-folded');
 	check('a leftover from another product opens the phone summary by itself', await folded.isVisible());
 	check('so the buyer sees it before paying', /Dog Life Jacket/.test(await folded.innerText()));
-	const hoodieRow = folded.locator('li', { hasText: 'Christmas Pouch Hoodie' });
+	const ownRow = folded.locator('li', { hasText: 'Pet Christmas Tree Costume' });
 	const jacketRow = folded.locator('li', { hasText: 'Dog Life Jacket' });
-	check('the hoodie has quantity buttons', (await hoodieRow.getByRole('group').count()) === 1);
-	check('but no Remove: its picker is the way to change it', (await hoodieRow.getByRole('button', { name: 'Remove' }).count()) === 0);
+	check('the costume line has no quantity buttons or Remove: its bundle cards own it', (await ownRow.getByRole('group').count()) === 0 && (await ownRow.getByRole('button', { name: 'Remove' }).count()) === 0);
 	await jacketRow.getByRole('button', { name: 'Remove' }).click();
 	check('the jacket can be removed', (await cartLines()).every((l) => l.slug !== JACKETS.slug));
-	check('leaving the hoodie at its price', await shows(page.locator('button.shop-pay'), 'Pay $54.99'));
-
-	await hoodieRow.getByRole('button', { name: /^One more / }).click();
-	check('two hoodies', (await cartLines()).find((l) => l.slug === 'christmas-pouch-hoodie')?.quantity === 2);
+	check('leaving the costume at its price', await shows(page.locator('button.shop-pay'), 'Pay $27.99'));
 	await page.locator('#variant-picker button', { hasText: 'Change' }).click();
 	await page.locator('#size-picker label').filter({ hasText: /^\s*L\s*$/ }).click();
 	await page.waitForLoadState('networkidle');
 	const lines = await cartLines();
-	check('a change of size keeps the count', lines.length === 1 && lines[0].size === 'L' && lines[0].quantity === 2, JSON.stringify(lines));
+	check('a change of size replaces the line', lines.length === 1 && lines[0].size === 'L' && lines[0].quantity === 1, JSON.stringify(lines));
+}
+
+// --- a line for a product taken off sale, saved on an earlier visit ---------------------
+// The retired pouch hoodie's lines still sit in some browsers. The server no
+// longer prices them (an archived product, or any id it does not know), so
+// the checkout drops them from the cart rather than post an order that fails.
+await basket([{ ...COSTUME, variantId: 987654, slug: 'christmas-pouch-hoodie', colour: 'red_santa', unitPriceCents: 5499 }, COSTUME]);
+await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
+{
+	const lines = await cartLines();
+	check('a line the server no longer sells leaves the cart', lines.length === 1 && lines[0].variantId === COSTUME.variantId, JSON.stringify(lines));
+	check('and the total is the costume alone', await shows(page.locator('section[aria-label="Your order"]'), '$27.99'));
 }
 
 // --- the reindeer hoodie's one-page checkout: the bundle cards own its count ------------------

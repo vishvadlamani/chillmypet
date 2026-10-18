@@ -6,7 +6,7 @@
  * ones already selling. One writer keeps the two from producing differently
  * shaped products.
  *
- * Option *values* are stable codes ('red_santa'), not display text, so the
+ * Option *values* are stable codes ('green'), not display text, so the
  * storefront can translate them through its language packs while the framework
  * and any agent still get a readable `label`.
  *
@@ -202,6 +202,26 @@ export async function applyCopyChange(db, storeId, { slug, locale, field, from, 
 		      where store_id = ? and locale = ? and ${field} = ?
 		        and product_id = (select id from products where store_id = ? and slug = ?)`,
 		args: [to, storeId, locale, from, storeId, slug]
+	});
+	return result.rowsAffected;
+}
+
+/**
+ * Takes a product off sale: its row moves from `active` to `archived`, which
+ * the catalogue reads as gone (page, cart and checkout alike). Returns how
+ * many rows moved: 0 once it has applied, and 0 for a product set to another
+ * status by hand. Nothing is deleted, so orders keep their lines. See
+ * `retired-products.js`.
+ *
+ * @param {import('ecomwithai/db').Client} db
+ * @param {string} storeId
+ * @param {string} slug
+ * @returns {Promise<number>}
+ */
+export async function archiveProduct(db, storeId, slug) {
+	const result = await db.execute({
+		sql: `update products set status = 'archived' where store_id = ? and slug = ? and status = 'active'`,
+		args: [storeId, slug]
 	});
 	return result.rowsAffected;
 }

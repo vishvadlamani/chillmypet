@@ -167,6 +167,17 @@ function check(label, cond, detail) {
 	check('/contact answers', contact.status === 200);
 }
 {
+	// The Christmas Pouch Hoodie was taken off sale on 2026-10-18
+	// (scripts/retired-products.js): its links go to the costume, query kept
+	// but for the hoodie's own design and size, and the shop never shows it.
+	for (const path of ['/products/christmas-pouch-hoodie', '/products/christmas-pouch-hoodie/checkout']) {
+		const res = await fetch(`${BASE}${path}?design=red_santa&size=M&added=1&fbclid=abc`, { redirect: 'manual' });
+		check(`${path} redirects to the costume, fbclid kept`, res.status === 308 && res.headers.get('location') === '/products/dog-christmas-costume?fbclid=abc', `${res.status} ${res.headers.get('location')}`);
+	}
+	const pages = await Promise.all(['/', '/catalog', '/christmas'].map((path) => fetch(`${BASE}${path}`).then((r) => r.text())));
+	check('the hoodie is on no shop page', pages.every((html) => !html.includes('christmas-pouch-hoodie') && !/Pouch Hoodie/.test(html)));
+}
+{
 	// The brand's own look everywhere but Christmas (2026-10-17): the logo in
 	// the header, and the navy/teal skin on the shop's pages, while /christmas
 	// and the Christmas products keep the pine and cream.

@@ -1,4 +1,4 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { bindDefinition, createRefResolver } from '@funnel/core';
 import { loadBundles } from '$lib/store/bundles';
 import { loadChristmasDelivery } from '$lib/store/christmas';
@@ -9,13 +9,17 @@ import { loadReviews } from '$lib/store/reviews';
 import { loadFeaturedReviews, loadPhotoWall, loadSpotlightQuotes } from '$lib/store/reviews-wall';
 import { loadSizeChart } from '$lib/store/sizes';
 import { loadStock } from '$lib/store/stock';
-import { PRODUCT_PAGES } from '$lib/store/pages';
+import { PRODUCT_PAGES, retiredRedirect } from '$lib/store/pages';
 import { loadVariantPicker, variantEntries } from '$lib/store/variants';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const { commerce, locale, settings } = locals;
 	const slug = params.slug;
+
+	// A product taken off sale sends its links on (`scripts/retired-products.js`).
+	const movedTo = retiredRedirect(slug, url);
+	if (movedTo) redirect(308, movedTo);
 
 	const page = PRODUCT_PAGES[slug];
 	if (!page) error(404, `No page manifest for "${slug}" — add one in $lib/store/pages.ts`);

@@ -13,6 +13,7 @@ import { SCHEMA, applySchema, createDb, schemaStatements } from 'ecomwithai/db';
 import { COPY_CHANGES } from '../../../scripts/copy-changes.js';
 import { PRICE_CHANGES } from '../../../scripts/price-changes.js';
 import { PRODUCTS, STORE_ID } from '../../../scripts/products.js';
+import { RETIRED_PRODUCTS } from '../../../scripts/retired-products.js';
 import { insertProduct } from '../../../scripts/catalog.js';
 import { SCHEMA_OBJECTS, ensureCatalogue, resetCatalogueSync, syncCatalogue } from './catalogue.ts';
 
@@ -28,11 +29,11 @@ function check(label: string, actual: unknown, expected: unknown) {
 	}
 }
 
-const HOODIE = 'christmas-pouch-hoodie';
 const COSTUME = 'dog-christmas-costume';
 const REINDEER = 'reindeer-dog-hoodie';
+const RETIRED = 'christmas-pouch-hoodie';
 /** Every product the list carries, in order: what one sync adds and the next one skips. */
-const LISTED = [HOODIE, COSTUME, REINDEER];
+const LISTED = [COSTUME, REINDEER];
 const VARIANTS = PRODUCTS.reduce((n, p) => n + p.variants.length, 0);
 
 // A file, not `:memory:`: the libSQL client reopens its connection around a
@@ -67,9 +68,19 @@ check(
 	schemaStatements(SCHEMA).length
 );
 check(
-	'the hoodie, the costume and the reindeer hoodie are the products every deployment must have',
+	'the costume and the reindeer hoodie are the products every deployment must have',
 	PRODUCTS.map((p) => p.slug),
 	LISTED
+);
+check(
+	'the Christmas Pouch Hoodie is retired, to the costume',
+	RETIRED_PRODUCTS.map(({ slug, movedTo }) => [slug, movedTo]),
+	[[RETIRED, COSTUME]]
+);
+check(
+	'and no longer listed',
+	PRODUCTS.some((p) => p.slug === RETIRED),
+	false
 );
 
 // --- a store without the product gets it, once -----------------------------
@@ -85,6 +96,7 @@ check(
 		skipped: [],
 		repriced: [],
 		recopied: [],
+		archived: [],
 		storeMissing: false
 	});
 	check('one row per product', await count(db, 'select count(*) as n from products'), LISTED.length);
@@ -101,6 +113,7 @@ check(
 		skipped: LISTED,
 		repriced: [],
 		recopied: [],
+		archived: [],
 		storeMissing: false
 	});
 	check('still one row per product', await count(db, 'select count(*) as n from products'), LISTED.length);
@@ -199,7 +212,7 @@ check(
 	const change = PRICE_CHANGES.find((c) => c.slug === 'dog-life-jacket')!;
 	// The life jacket is seeded, not listed, so stand one in at its old row:
 	// any listed product's shape, under its slug, at the old price and "was".
-	const shape = PRODUCTS[1];
+	const shape = PRODUCTS[0];
 	await insertProduct(db, STORE_ID, {
 		...shape,
 		slug: change.slug,
@@ -213,6 +226,36 @@ check(
 		args: [change.slug]
 	});
 	check('and its struck-through price is gone', rows.rows.map((r) => [Number(r.p), r.c]), [[change.toCents, null]]);
+	close();
+}
+
+// --- a retired product still selling in a live store is archived, once ---------
+{
+	const { db, close } = openDb();
+	await applySchema(db);
+	await addStore(db);
+	// The live store still has it: stand one in under its slug.
+	const shape = PRODUCTS[0];
+	await insertProduct(db, STORE_ID, {
+		...shape,
+		slug: RETIRED,
+		variants: shape.variants.map((v) => ({ ...v, sku: `OLD-${v.sku}` }))
+	});
+	const status = async (slug: string) =>
+		String((await db.execute({ sql: 'select status from products where slug = ?', args: [slug] })).rows[0].status);
+
+	const first = await syncCatalogue(db);
+	check('the sync archives it', first.archived, [RETIRED]);
+	check('its row is archived, not deleted', await status(RETIRED), 'archived');
+	check('its variants stay, for the orders that name them', await count(db, "select count(*) as n from product_variants where sku like 'OLD-%'"), shape.variants.length);
+	check('the listed products are still active', [await status(COSTUME), await status(REINDEER)], ['active', 'active']);
+	const second = await syncCatalogue(db);
+	check('a second sync archives nothing', second.archived, []);
+
+	// A status set by hand since is left alone.
+	await db.execute({ sql: "update products set status = 'draft' where slug = ?", args: [RETIRED] });
+	await syncCatalogue(db);
+	check('a status set by hand is not overwritten', await status(RETIRED), 'draft');
 	close();
 }
 
@@ -249,6 +292,7 @@ check(
 		skipped: LISTED,
 		repriced: [],
 		recopied: [],
+		archived: [],
 		storeMissing: true
 	});
 	check('nothing was written', await count(db, 'select count(*) as n from products'), 0);

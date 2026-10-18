@@ -24,4 +24,5 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm test
+      - run: node landing/retired.test.mjs
       - run: npm run build

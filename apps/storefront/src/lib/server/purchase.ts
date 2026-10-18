@@ -54,22 +54,15 @@ export function visitorId(cookies: { get(name: string): string | undefined }): s
  * in the page itself. Call before `resolve()`, so the cookie rides on this
  * response and later reads in the same request see it.
  */
-export function ensureVisitorId(cookies: CookieJar, carried?: string | null): string {
+export function ensureVisitorId(cookies: CookieJar): string {
 	const existing = visitorId(cookies);
 	if (existing) return existing;
 
-	// A visitor arriving from the Christmas landing page brings that page's id
-	// (`?vid=`), the external_id on every event it sent: the ad click, the
-	// ViewContent, the AddToCart. Taking it keeps the Purchase reported here on
-	// the same person. Only on a first visit, never over an id this site gave,
-	// and only in the shape this site would have minted: a random string, so
-	// a link that carries someone else's id joins two browsing histories,
-	// never a name to an identity.
+	// Minted here only. A `?vid=` the retired Christmas landing page used to
+	// hand over is no longer taken: nothing sends one, and a link could carry
+	// someone else's.
 	const bytes = crypto.getRandomValues(new Uint8Array(32));
-	const id =
-		carried && VISITOR_ID.test(carried)
-			? carried
-			: [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+	const id = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 	cookies.set(VISITOR_COOKIE, id, {
 		path: '/',
 		httpOnly: true,

@@ -6,7 +6,7 @@ backend-for-frontend per storefront.
 ```
 packages/ecomwithai/   the open-source framework (edit here; sync out to publish)
 apps/storefront/       SvelteKit BFF: UI, language packs, routes that compose modules
-landing/               standalone product pages that sell through Stripe Payment Links
+landing/retired/       the redirect the two retired landing pages (pages.dev) serve
 ```
 
 This store runs on [ecomwithai](https://github.com/vishvadlamani/ecomwithai), the
@@ -338,11 +338,12 @@ copy `npm run meta:check` verifies in CI before a deploy is allowed through.
 Setting it there needs repo admin, not a Cloudflare login. Keep the two in sync:
 the CI check can only vouch for the copy it is given.
 
-The pages under `landing/` are not part of this Worker. Each is a Cloudflare
-Pages project on the business owner's account, published on merge by
-`deploy-christmas.yml` and `deploy-hoodie.yml` with the
-`OWNER_CLOUDFLARE_API_TOKEN` repository secret. Their READMEs cover what each
-one sells, its secrets and how to check it.
+`landing/retired/` is not part of this Worker. It is what the two retired
+landing pages, `chillmypet-christmas.pages.dev` and
+`chillmypet-hoodie.pages.dev`, serve: a redirect to the costume on
+chillmypet.com. Both are Cloudflare Pages projects on the business owner's
+account, published on merge by `deploy-retired-landing.yml` with the
+`OWNER_CLOUDFLARE_API_TOKEN` repository secret.
 
 ### Pointing a domain at the Worker
 

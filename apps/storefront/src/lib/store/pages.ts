@@ -1,9 +1,9 @@
 import type { FunnelDefinition } from '@funnel/core';
 import { CHRISTMAS_COSTUME_PAGE } from './christmas-costume-manifest';
-import { CHRISTMAS_HOODIE_PAGE } from './christmas-hoodie-manifest';
 import { STORE_PAGE } from './manifest';
 import { PRODUCT_SLUG } from './product';
 import { REINDEER_HOODIE_PAGE } from './reindeer-hoodie-manifest';
+import { RETIRED_PRODUCTS } from '../../../scripts/retired-products.js';
 
 export interface ProductPage {
 	manifest: FunnelDefinition;
@@ -14,12 +14,11 @@ export interface ProductPage {
 	 */
 	pickSize: boolean;
 	/**
-	 * A skin scoped to this page only. `christmas` is the hoodie's festive
-	 * layer over the brand; `tree` is the costume's quiet cream-and-pine
-	 * storefront look (see `$lib/styles/tree-theme.css`). Both carry the
+	 * A skin scoped to this page only: `tree` is the shop's quiet
+	 * cream-and-pine look (see `$lib/styles/tree-theme.css`), with the
 	 * Christmas delivery strip.
 	 */
-	theme?: 'christmas' | 'tree';
+	theme?: 'tree';
 	/**
 	 * Listed on `/christmas`, the page the Christmas ads can share. In this
 	 * map's order, so the first entry is the collection's lead product.
@@ -58,16 +57,13 @@ export interface ProductPage {
 	 * page in the shape shoppers know from hosted shop checkouts: contact,
 	 * delivery, shipping method and payment in one column, the order summary
 	 * beside it (folded into a bar on a phone), and the picker reduced to a
-	 * line once a design and size are chosen. It is where the Christmas
-	 * landing page sends its Buy button, and where the product page's own
-	 * Add to cart goes (with the design and size in the link) instead of
+	 * line once a design and size are chosen. It is where the product page's
+	 * own Add to cart goes (with the design and size in the link) instead of
 	 * `/checkout`; see `$lib/store/one-page-checkout.ts`.
 	 */
 	checkout?: 'shop';
 }
 
-/** Kept in step with `scripts/christmas-hoodie.js`. */
-export const CHRISTMAS_HOODIE_SLUG = 'christmas-pouch-hoodie';
 /** Kept in step with `scripts/dog-christmas-costume.js`. */
 export const DOG_CHRISTMAS_COSTUME_SLUG = 'dog-christmas-costume';
 /** Kept in step with `scripts/reindeer-dog-hoodie.js`. */
@@ -91,16 +87,6 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 		cardImage: '/products/dog-life-jacket/card-sailboat.jpg',
 		cardFit: 'contain'
 	},
-	[CHRISTMAS_HOODIE_SLUG]: {
-		manifest: CHRISTMAS_HOODIE_PAGE,
-		pickSize: true,
-		theme: 'christmas',
-		checkout: 'shop',
-		// A person's garment in a shop of dog clothes, and the Christmas landing
-		// page sells it straight to its own checkout, so the menu leaves it out
-		// for now (the owner's call, 2026-10-17). Delete this line to list it.
-		unlisted: true
-	},
 	[DOG_CHRISTMAS_COSTUME_SLUG]: {
 		manifest: CHRISTMAS_COSTUME_PAGE,
 		pickSize: true,
@@ -122,3 +108,30 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 		christmas: true
 	}
 };
+
+/**
+ * The product a retired product's links go to (`scripts/retired-products.js`):
+ * its page and its checkout both redirect there, never to a 404, so an old
+ * ad, bookmark or landing page link still reaches something on sale.
+ */
+const MOVED_TO: Record<string, string> = Object.fromEntries(
+	RETIRED_PRODUCTS.map(({ slug, movedTo }) => [slug, movedTo])
+);
+
+/** Choices that named the retired product's own designs and sizes. */
+const ITS_OWN_CHOICES = ['design', 'size', 'added'];
+
+/**
+ * Where `/products/<slug>` (or its checkout) should send the visitor, or
+ * null when the slug is not retired. The query string goes along, so an ad
+ * click's `fbclid` and utm tags still reach the pixel, less the choices that
+ * named the old product's options.
+ */
+export function retiredRedirect(slug: string, url: URL): string | null {
+	const target = MOVED_TO[slug];
+	if (!target) return null;
+	const query = new URLSearchParams(url.search);
+	for (const key of ITS_OWN_CHOICES) query.delete(key);
+	const search = query.toString();
+	return `/products/${target}${search ? `?${search}` : ''}`;
+}

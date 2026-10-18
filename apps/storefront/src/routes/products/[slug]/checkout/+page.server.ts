@@ -1,9 +1,9 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { bindDefinition, createRefResolver } from '@funnel/core';
 import { loadBundles } from '$lib/store/bundles';
 import { loadChristmasDelivery } from '$lib/store/christmas';
 import { onePageCheckout } from '$lib/store/one-page-checkout';
-import { PRODUCT_PAGES } from '$lib/store/pages';
+import { PRODUCT_PAGES, retiredRedirect } from '$lib/store/pages';
 import { loadProduct } from '$lib/store/product';
 import { loadVariantPicker, variantEntries } from '$lib/store/variants';
 import { placeOrder } from '$lib/server/checkout';
@@ -27,6 +27,10 @@ function pageFor(slug: string) {
 export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const { commerce, locale, settings } = locals;
 	const slug = params.slug;
+	// A product taken off sale sends its links on (`scripts/retired-products.js`):
+	// to the product page, where a size is chosen again, not to its checkout.
+	const movedTo = retiredRedirect(slug, url);
+	if (movedTo) redirect(308, movedTo);
 	const page = pageFor(slug);
 
 	const [product, bundles, catalogue] = await Promise.all([
@@ -43,8 +47,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 	const picker = page.manifest.blocks.find((b) => b.component === 'design_size_picker');
 	const tierField = String(picker?.props?.tierField ?? 'bundle');
-	// Whether the picker's bundle cards decide how many. When they don't (the
-	// hoodie), the count is the buyer's to set in the summary.
+	// Whether the picker's bundle cards decide how many. When they don't, the
+	// count is the buyer's to set in the summary.
 	const tiered = Boolean(picker?.props?.tiers);
 
 	const resolve = createRefResolver({

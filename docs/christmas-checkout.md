@@ -1,10 +1,14 @@
-# The Christmas hoodie's checkout
+# The shop checkout look
 
-Where the Christmas landing page's **Buy now** goes since 2026-10-17:
-`https://chillmypet.com/products/christmas-pouch-hoodie/checkout?design=…&size=…&added=1`,
-a checkout laid out like a hosted shop checkout. This file holds what the
-reference looked like, which way it was built and why, and where the build
-departs from the reference on purpose.
+`checkout: 'shop'` in `pages.ts`: a checkout laid out like a hosted shop
+checkout. Since 2026-10-18 it is the costume's,
+`https://chillmypet.com/products/dog-christmas-costume/checkout?design=…&size=…&added=1`,
+where the product page's **Add to cart** goes. It was built on 2026-10-17 for
+the Christmas Pouch Hoodie, whose landing page's Buy now sent buyers to it;
+that hoodie and its landing page were retired on 2026-10-18 (AGENTS.md, "The
+retired landing pages"), so the parts below about the landing page are
+history. This file holds what the reference looked like, which way it was
+built and why, and where the build departs from the reference on purpose.
 
 ## The reference, measured 2026-10-17
 
@@ -73,20 +77,20 @@ argued for.
 
 ## What was built
 
-`PRODUCT_PAGES['christmas-pouch-hoodie'].checkout = 'shop'` gives that one
-product's `/checkout` page the shop look; the costume's and the reindeer
-hoodie's are unchanged. In order:
+`PRODUCT_PAGES[slug].checkout = 'shop'` gives that product's
+`/products/<slug>/checkout` page the shop look (the costume today; the
+reindeer hoodie keeps the default look). In order:
 
-- **Header**: "ChillMyPet" centred in Fredoka (the landing page's
-  wordmark), a padlock with "Secure checkout" where the cart would be. No
+- **Header**: the logo centred, a padlock with "Secure checkout" where the
+  cart would be. No
   cart, language switch or site footer: a link out of a checkout is a way
   not to pay.
 - **Order summary**: on a phone a bar under the header ("Show order
   summary ⌄" and the total) that opens in place; on a desktop the right
   half, grey, sticky. Photo with quantity badge, design · size, price,
   subtotal, bundle discount when there is one, shipping, total with "USD".
-- **The choice**: the picker, folded to one line ("Santa Red · Your size:
-  M", Change) when the link carries a design and size. Arriving without
+- **The choice**: the picker, folded to one line ("Green · Size: M",
+  Change) when the link carries a colour and size. Arriving without
   one, the whole picker shows.
 - **Contact**: email, with the existing note under it (receipt, and the one
   reminder; that note is what makes the reminder fair to send).
@@ -99,7 +103,7 @@ hoodie's are unchanged. In order:
   cut-off line under it while it applies.
 - **Payment**: Stripe's Payment Element in the page's colours and type,
   inside a box that holds its final height while Stripe.js loads.
-- **Total by the button** (phone), **Pay $54.99**, then the policy links.
+- **Total by the button** (phone), **Pay $27.99**, then the policy links.
 
 **Errors** are the reference's pattern: nothing posts, each missing field
 turns red with its own message under it, focus goes to the first one and
@@ -138,9 +142,9 @@ The server's own verdict (`fieldErrors`) is listed there too.
   the payment fails, and it cannot be tested without a live charge.
 - **No discount field**, as in the reference. The bundle discount, when a
   buyer takes two, is a line in the summary.
-- **ChillMyPet colours**: the landing page's deep green `#173d2b` for the
-  button, links and selected states, its red `#b00020` for errors, cream
-  `#f6f3ee` for the summary panel. Inter for type, as on the landing page.
+- **ChillMyPet colours**: deep green `#173d2b` for the button, links and
+  selected states, red `#b00020` for errors, cream `#f6f3ee` for the summary
+  panel. Inter for type.
 
 ## The Payment Element does not move
 
@@ -155,39 +159,29 @@ and 1280 wide. `tests/shop-checkout.mjs` checks it when `PAYMENTS_BASE_URL`
 is given. Change `SHOP_APPEARANCE` and the numbers go stale: measure again.
 The test catches a box that grows while loading, not one reserved too tall.
 
-## Tracking across the two sites
+## Tracking
 
-- **AddToCart** stays on the landing page, sent when Buy is tapped (the
+- **AddToCart** is sent by the product page when Add to cart is tapped (the
   event the ad set optimises for). The link carries `added=1` and the
   checkout sends no AddToCart of its own for that page view, even if the
-  size is changed there. One tap, one add.
-- **InitiateCheckout** moved to the checkout, sent once the email or name
-  is typed. On the Payment Link page it fired in the same tap as AddToCart,
-  which taught Meta two things at once.
+  size is changed there. One tap, one add. The product page sent the
+  ViewContent too, so the checkout sends none.
+- **InitiateCheckout** is sent once the email or name is typed.
 - **AddPaymentInfo** fires when Pay is pressed, as on every chillmypet.com
-  checkout. The Payment Link page could never send it.
+  checkout.
 - **Purchase** fires from the Stripe webhook with the order-derived event
-  id, and from the receipt page under the same id. Unchanged.
-- **The visitor**: the link carries `vid`, the landing page's `cmp_vid`. On a
-  first visit chillmypet.com adopts it as its own `cmp_vid`, so every event
-  from the ad click to the Purchase has one `external_id`. `fbclid` and the
-  `utm_` tags ride along, so chillmypet.com's Parameter Builder builds
-  `_fbc` from the click, as it would for an ad landing there directly.
+  id, and from the receipt page under the same id.
+- **The visitor** is chillmypet.com's own `cmp_vid`. (The landing page used
+  to hand its id over as `?vid=`; since 2026-10-18 that is ignored.)
+  `fbclid` and the `utm_` tags ride along, so the Parameter Builder builds
+  `_fbc` from the click.
 
-## Still to do before the ad's money goes through it
+## Still to do
 
-AGENTS.md's three checks for pointing ads at chillmypet.com apply to this
-too, since Buy now sends every buyer there:
+**One real order placed and refunded on ChillMP: not done.** It is a real
+charge and a real Purchase in front of the ad set, so it is the owner's
+call. Until it is done the inline payment path on ChillMP is unproven end
+to end.
 
-1. The page answers 200 on chillmypet.com: yes.
-2. `/api/meta-status` reads `accepted`: yes, on 2026-10-17.
-3. **One real order placed and refunded on ChillMP: not done.** It is a real
-   charge and a real Purchase in front of the ad set, so it is the owner's
-   call. Until it is done the inline payment path on ChillMP is unproven
-   end to end. Merging this sends real buyers down it.
-
-Also: chillmypet.com has no quiet mode. A Buy from the landing page in test
-mode, or from a `pr-<n>` preview, lands on the live checkout. There it
-counts a real PageView, ViewContent and (once an email is typed)
-InitiateCheckout. The landing page's AddToCart is still held back in quiet
-mode.
+Also: chillmypet.com has no quiet mode. A test visit counts a real
+PageView, ViewContent and (once an email is typed) InitiateCheckout.

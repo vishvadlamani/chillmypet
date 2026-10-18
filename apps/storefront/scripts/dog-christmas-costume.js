@@ -20,7 +20,7 @@
  * Never type in another seller's numbers: a chart that is wrong is paid for
  * twice, once in postage each way.
  *
- * English only, like the hoodie. Other locales fall back to this row
+ * English only, like the reindeer hoodie. Other locales fall back to this row
  * (`catalog.translation()` tries the store default next).
  */
 
@@ -71,7 +71,7 @@ const TITLE = 'Pet Christmas Tree Costume';
 /** @type {import('./catalog.js').ProductDefinition} */
 export const DOG_CHRISTMAS_COSTUME = {
 	slug: DOG_CHRISTMAS_COSTUME_SLUG,
-	// After the life jacket (home hero) and the hoodie.
+	// After the life jacket (home hero).
 	position: 2,
 	translations: {
 		en: {
@@ -110,7 +110,7 @@ export const DOG_CHRISTMAS_COSTUME = {
 	],
 	// SKUs spell out colour and size, because they are the content ids Meta and
 	// GA4 receive: `CMP-XT-GREEN-M` reads as what was bought without a lookup.
-	// XT for "Xmas tree", beside the hoodie's XH.
+	// XT for "Xmas tree".
 	variants: COLOURS.flatMap((c) =>
 		SIZES.map(({ code }) => ({
 			sku: `CMP-XT-${c.sku}-${code}`,
