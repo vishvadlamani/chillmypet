@@ -134,23 +134,22 @@ runs with the same reach as this codebase, by whoever holds container access —
 and a Meta pixel published in it would double-count against the ones the
 snippet already initialises.
 
-What the container holds, as published on 2026-10-08:
-- A GA4 Google tag for `G-YCFPQ38SXP`, which sends page_view.
-- A GA4 event tag that forwards every dataLayer event and carries
+What the container holds, as published on 2026-10-18 (version 6):
+- A GA4 Google tag for `G-YCFPQ38SXP`, which sends page_view (DOM Ready).
+- A GA4 event tag on the "Shop events only" trigger: custom events matching
+  `view_item|add_to_cart|begin_checkout|add_payment_info|purchase`. It carries
   `transaction_id`, `event_id` and the `_fbp`/`_fbc` values. Its
   `transport_url` is empty, so there is no server-side GTM.
 - One **paused** custom-template tag. Leave it paused unless you know it is not
   a Meta tag.
 
-**Two faults in that container, found 2026-10-18 and fixed in GTM, not here**
-(the owner's to change; read off the published `gtm.js`):
-- The GA4 event tag also fires on the `gtm.dom` trigger, so GA4 receives an
-  event literally named `gtm.dom` on every page.
-- On its "all events" trigger it also catches the `page_view` the Google tag
-  emits, so every page view reaches GA4 twice (one copy with
-  `ep.event_name`/`ep.x-fb-ck-fbp`, one plain).
-The fix is the event tag's triggers: off `gtm.dom`, and an exception for
-`page_view` (or a trigger on the five ecommerce event names only).
+A new dataLayer event reaches GA4 only once its name is added to that trigger
+in GTM. Before version 6 the event tag fired on `gtm.dom` and on every event,
+so GA4 got a fake `gtm.dom` event and every page view twice; version 5 dropped
+the event tag entirely and with it every shop event. Verify a container change
+by reading the published `gtm.js` (its `version`, `predicates` and `rules`)
+and capturing the GA4 hits (route `/qndl/ga/` and `/g/collect`). GA4 batches,
+so wait ~10 s before reading them.
 
 **The pixel leaves page views to the site** (`hooks.server.ts`,
 2026-10-18): `fbq.disablePushState=true;fbq.allowDuplicatePageViews=true;`
@@ -206,6 +205,13 @@ server-only PageView matched on an IP and a user agent. The dataset showed it:
 ViewContent on every view, at a 3.2/10 match quality. `NON_BROWSER` must never
 match the Facebook and Instagram in-app browsers (`FBAN`, `Instagram`), which
 is where every ad click opens.
+
+**Testing the live pixel.** `fbevents.js` sends nothing in an automated or bot
+browser: launch Chromium with `--disable-blink-features=AutomationControlled`,
+and keep the browser's own user agent plain, because Meta's bot list matches
+`monitor` too. To stop the server's first PageView reaching Meta, add
+`monitor` only to the document request's `user-agent` (a Playwright route),
+and fulfil `facebook.com/tr` and `/api/track` locally.
 
 **Don't put `original_event_data` on a live event.** It describes the past
 acquisition a *delayed* event belongs to, and it has its own `event_id` that
