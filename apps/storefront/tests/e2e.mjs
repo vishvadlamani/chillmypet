@@ -90,7 +90,15 @@ function check(label, cond, detail) {
 	check('SSR carries a description for search and social', /name="description" content=".{40}/.test(html));
 	check('SSR quotes a price', /\$\d+\.\d{2}/.test(html));
 	check('SSR offers a way to buy', /Buy now/i.test(html) && !/Sold out/i.test(html));
-	check('SSR renders the bundle picker', /Bundle &amp; Save|Bundle & Save/.test(html));
+	check('SSR renders the bundle picker', /Choose your bundle/.test(html));
+	// The sales-page furniture went with the redesign (2026-10-17): no
+	// per-visitor countdown, no "today only", no scarcity bar, and no
+	// struck-through price the jacket never sold at.
+	const body = html.replace(/<style[\s\S]*?<\/style>/g, '');
+	check('no countdown, "today only" or "% sold" on the page', !/sale ends|today only|% sold|left in stock/i.test(body));
+	check('no was-price or strikethrough price', !/<s>|<del>|line-through/i.test(body));
+	check('the price is $44.99', body.includes('$44.99'));
+	check('the page wears the shop’s look', /class="tree-strip/.test(html) && /tree-theme/.test(html));
 
 	// The words are invented and the rating was never counted. They must not
 	// reach a shopper — see $lib/store/reviews-wall.ts.
@@ -116,6 +124,10 @@ function check(label, cond, detail) {
 	for (const id of REMOVED_PIXELS) {
 		check(`SSR no longer mentions the removed pixel ${id}`, !html.includes(id));
 	}
+	// Every PageView is ours, with the id its Conversions API copy carries: the
+	// pixel's own history PageView (an id of its own, never deduplicated) is off,
+	// and the next page's PageView is not dropped as a repeat of the first.
+	check('the pixel leaves page views to the site', html.includes('fbq.disablePushState=true') && html.includes('fbq.allowDuplicatePageViews=true') && html.indexOf('disablePushState') < html.indexOf("fbq('init'"));
 
 	// One visitor id on every init, the same one each Conversions API copy
 	// sends as external_id. Shaped like a SHA-256 digest so the pixel passes it
@@ -133,17 +145,110 @@ function check(label, cond, detail) {
 }
 
 {
-	// The header is built from the catalogue: one link per product that has
-	// both a row and a page manifest. Asserted on the raw HTML, because a nav a
-	// crawler cannot see is a nav nobody arriving cold can see either.
+	// The header is Home, Catalog (All products, Christmas) and Contact, and the
+	// catalogue is built from the store: one card per product with both a row
+	// and a page manifest, not unlisted. Asserted on the raw HTML, because a nav
+	// a crawler cannot see is a nav nobody arriving cold can see either.
 	const html = await fetch(BASE).then((r) => r.text());
 	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
 	check(
-		'the header links to every product page',
-		header.includes('href="/products/dog-life-jacket"') &&
-			header.includes('href="/products/christmas-pouch-hoodie"'),
+		'the header reads Home, Catalog, Contact',
+		['href="/"', 'href="/catalog"', 'href="/christmas"', 'href="/contact"'].every((h) => header.includes(h)) &&
+			!header.includes('href="/products/'),
 		header.slice(0, 400)
 	);
+	const catalog = await fetch(`${BASE}/catalog`).then((r) => r.text());
+	check(
+		'the catalogue links to every listed product page',
+		['dog-life-jacket', 'dog-christmas-costume', 'reindeer-dog-hoodie'].every((s) => catalog.includes(`href="/products/${s}"`))
+	);
+	check('and the home page does too', html.includes('href="/products/dog-life-jacket"') && html.includes('href="/products/dog-christmas-costume"'));
+	const contact = await fetch(`${BASE}/contact`);
+	check('/contact answers', contact.status === 200);
+}
+{
+	// The Christmas Pouch Hoodie was taken off sale on 2026-10-18
+	// (scripts/retired-products.js): its links go to the costume, query kept
+	// but for the hoodie's own design and size, and the shop never shows it.
+	for (const path of ['/products/christmas-pouch-hoodie', '/products/christmas-pouch-hoodie/checkout']) {
+		const res = await fetch(`${BASE}${path}?design=red_santa&size=M&added=1&fbclid=abc`, { redirect: 'manual' });
+		check(`${path} redirects to the costume, fbclid kept`, res.status === 308 && res.headers.get('location') === '/products/dog-christmas-costume?fbclid=abc', `${res.status} ${res.headers.get('location')}`);
+	}
+	const pages = await Promise.all(['/', '/catalog', '/christmas'].map((path) => fetch(`${BASE}${path}`).then((r) => r.text())));
+	check('the hoodie is on no shop page', pages.every((html) => !html.includes('christmas-pouch-hoodie') && !/Pouch Hoodie/.test(html)));
+}
+{
+	// The brand's own look everywhere but Christmas (2026-10-17): the logo in
+	// the header, and the navy/teal skin on the shop's pages, while /christmas
+	// and the Christmas products keep the pine and cream.
+	const skinned = async (path) => {
+		const html = await fetch(`${BASE}${path}`).then((r) => r.text());
+		return { html, brand: /class="[^"]*\bbrand-skin\b/.test(html) };
+	};
+	const home = await skinned('/');
+	check('the header shows the logo', /<header[\s\S]*?src="\/brand\/logo\.png"[\s\S]*?<\/header>/.test(home.html));
+	check('the tab icon is the brand paw, not SvelteKit’s', home.html.includes('/brand/favicon-32.png') && !home.html.includes('favicon.svg'));
+	for (const path of ['/', '/catalog', '/contact', '/checkout', '/products/dog-life-jacket']) {
+		check(`${path} wears the brand skin`, (await skinned(path)).brand);
+	}
+	for (const path of ['/christmas', '/products/dog-christmas-costume', '/products/reindeer-dog-hoodie']) {
+		check(`${path} keeps the Christmas colours`, !(await skinned(path)).brand);
+	}
+	check('the life jacket card shows its whole photo', /<figure class="[^"]*\bcontain\b[^"]*"[^>]*>(?:<!--[^>]*-->|\s)*<img[^>]*card-sailboat/.test(home.html));
+}
+{
+	// "Teal", the owner's pick of four previews (2026-10-18): the round logo's
+	// teal for the bands, navy for what you press and for prices, the orange
+	// for the small headings. The Christmas pages keep their own.
+	const p = await browser.newPage();
+	const look = (sel, prop) => p.locator(sel).first().evaluate((e, k) => getComputedStyle(e)[k], prop);
+	await p.goto(BASE, { waitUntil: 'load' });
+	check('teal: the home banner is the logo’s teal', (await look('.hero-band', 'backgroundColor')) === 'rgb(18, 133, 143)');
+	check('teal: its title is white', (await look('.hero-band h1', 'color')) === 'rgb(255, 255, 255)');
+	check('teal: its first button is orange with navy lettering', (await look('.hero-band .actions a', 'backgroundColor')) === 'rgb(255, 107, 44)' && (await look('.hero-band .actions a', 'color')) === 'rgb(11, 60, 73)');
+	check('teal: card buttons are navy', (await look('.card .cta', 'backgroundColor')) === 'rgb(11, 60, 73)');
+	check('teal: prices are navy', (await look('.card .price', 'color')) === 'rgb(11, 60, 73)');
+	check('teal: the small headings are the logo’s orange', (await look('.collection .eyebrow', 'color')) === 'rgb(255, 107, 44)');
+	check('teal: the footer is teal', (await look('footer.site-footer', 'backgroundColor')) === 'rgb(18, 133, 143)');
+	check('teal: with the all-white logo', (await p.locator('footer img').first().getAttribute('src')) === '/brand/logo-white.png');
+	await p.goto(`${BASE}/products/dog-life-jacket`, { waitUntil: 'load' });
+	check('teal: the life jacket’s trust band is teal', (await look('section.trust-strip', 'backgroundColor')) === 'rgb(18, 133, 143)');
+	check('teal: and its Buy now is navy', (await look('button:has-text("Buy now")', 'backgroundColor')) === 'rgb(11, 60, 73)');
+	await p.goto(`${BASE}/christmas`, { waitUntil: 'load' });
+	check('Christmas keeps its pine footer and light logo', (await look('footer.site-footer', 'backgroundColor')) !== 'rgb(18, 133, 143)' && (await p.locator('footer img').first().getAttribute('src')) === '/brand/logo-light.png');
+	await p.close();
+}
+{
+	// The Catalog menu is a disclosure: closed until tapped, shut by Escape.
+	const p = await browser.newPage();
+	await p.goto(BASE, { waitUntil: 'networkidle' });
+	const menu = p.locator('header .catalog-menu');
+	const allProducts = menu.locator('a[href="/catalog"]');
+	check('the Catalog menu starts closed', !(await allProducts.isVisible()));
+	await menu.locator('summary').click();
+	check('a tap opens it on All products', await allProducts.isVisible());
+	await p.keyboard.press('Escape');
+	check('and Escape shuts it', !(await allProducts.isVisible()));
+	await menu.locator('summary').click();
+	await menu.locator('a[href="/christmas"]').click();
+	await p.waitForURL('**/christmas');
+	check('following a link lands there with the menu shut', !(await menu.evaluate((d) => d.open)));
+	await p.close();
+}
+{
+	// On a phone the menu folds behind a button, and a checkout has none.
+	const ctxPhone = await browser.newContext({ viewport: { width: 390, height: 664 }, isMobile: true, hasTouch: true });
+	const p = await ctxPhone.newPage();
+	await p.goto(BASE, { waitUntil: 'networkidle' });
+	check('a phone gets the menu button, not the bar', (await p.locator('.phone-menu summary').isVisible()) && !(await p.locator('header nav > ul').isVisible()));
+	await p.locator('.phone-menu summary').tap();
+	check('which opens on the shop’s pages', await p.locator('.phone-menu a[href="/catalog"]').isVisible() && (await p.locator('.phone-menu a[href="/contact"]').isVisible()));
+	check('and on the language switch', await p.locator('.phone-menu button[value="es"]').isVisible());
+	check('the header keeps to one row on a phone', (await p.locator('header.site-header').evaluate((h) => h.getBoundingClientRect().height)) <= 64);
+	await p.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
+	check('a checkout has no menu button', (await p.locator('.phone-menu').count()) === 0);
+	check('but keeps the language switch', await p.locator('header button[value="es"]').isVisible());
+	await ctxPhone.close();
 }
 
 {
@@ -206,7 +311,7 @@ check('cart badge counts them', (await page.textContent('header a[href="/checkou
 	const calls = await fbqCalls();
 	const addToCart = tracked(calls, 'AddToCart');
 	check('AddToCart fired', Boolean(addToCart));
-	check('AddToCart is worth the whole bundle', addToCart?.[2]?.value === '134.91');
+	check('AddToCart is worth the whole bundle', addToCart?.[2]?.value === '134.97');
 	check('AddToCart carries variant skus', /^CMP-LJ-/.test(addToCart?.[2]?.content_ids?.[0] ?? ''));
 	check(
 		'one AddToCart per click, not one per unit',
@@ -217,8 +322,8 @@ check('cart badge counts them', (await page.textContent('header a[href="/checkou
 // --- checkout ---
 await page.waitForSelector('form dl');
 const summary = await page.textContent('form dl');
-check('subtotal is 3 x 44.97', summary?.includes('$134.91'));
-check('the 3-pack discount is applied', summary?.includes('$12.14'));
+check('subtotal is 3 x 44.99', summary?.includes('$134.97'));
+check('the 3-pack discount is applied', summary?.includes('$12.15'));
 
 {
 	const calls = await fbqCalls();
@@ -248,7 +353,7 @@ check('the 3-pack discount is applied', summary?.includes('$12.14'));
 
 	const initiate = tracked(calls, 'InitiateCheckout');
 	check('InitiateCheckout fired', Boolean(initiate));
-	check('InitiateCheckout value is subtotal', initiate?.[2]?.value === '134.91');
+	check('InitiateCheckout value is subtotal', initiate?.[2]?.value === '134.97');
 	check('InitiateCheckout counts the units', initiate?.[2]?.num_items === 3);
 }
 
@@ -279,7 +384,7 @@ check(
 // Client-side navigation must also record a PageView. fbq.queue survives here
 // because SvelteKit navigates without a document reload. The checkout has no
 // product menu, so the way back is the order box's own "Change" link.
-check('the checkout has no product menu', !(await page.locator('header nav ul').isVisible()));
+check('the checkout has no product menu', !(await page.locator('header nav > ul').isVisible()));
 await page.click('section[aria-label="Your order"] a[href="/products/dog-life-jacket"]');
 await page.waitForURL('**/products/dog-life-jacket', { timeout: 10000 });
 {

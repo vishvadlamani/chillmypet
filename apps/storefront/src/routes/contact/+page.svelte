@@ -15,7 +15,7 @@
 	<meta name="description" content={doc.intro} />
 </svelte:head>
 
-<div class="mx-auto max-w-3xl px-4 py-12">
+<div class="doc-page mx-auto max-w-3xl px-4 py-12">
 	<h1 class="text-3xl font-semibold tracking-tight">{doc.title}</h1>
 	<p class="mt-4 text-ink-600">{doc.intro}</p>
 

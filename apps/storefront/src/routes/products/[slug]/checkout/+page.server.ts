@@ -1,9 +1,9 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { bindDefinition, createRefResolver } from '@funnel/core';
 import { loadBundles } from '$lib/store/bundles';
 import { loadChristmasDelivery } from '$lib/store/christmas';
 import { onePageCheckout } from '$lib/store/one-page-checkout';
-import { PRODUCT_PAGES } from '$lib/store/pages';
+import { PRODUCT_PAGES, retiredRedirect } from '$lib/store/pages';
 import { loadProduct } from '$lib/store/product';
 import { loadVariantPicker, variantEntries } from '$lib/store/variants';
 import { placeOrder } from '$lib/server/checkout';
@@ -27,6 +27,10 @@ function pageFor(slug: string) {
 export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const { commerce, locale, settings } = locals;
 	const slug = params.slug;
+	// A product taken off sale sends its links on (`scripts/retired-products.js`):
+	// to the product page, where a size is chosen again, not to its checkout.
+	const movedTo = retiredRedirect(slug, url);
+	if (movedTo) redirect(308, movedTo);
 	const page = pageFor(slug);
 
 	const [product, bundles, catalogue] = await Promise.all([
@@ -35,16 +39,24 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		commerce.catalog.getProduct(slug, locale)
 	]);
 	if (!product || !catalogue) error(404, `No product at "${slug}"`);
+	// The product page's listing photo, as there (`cardImage` in pages.ts).
+	if (page.cardImage) {
+		product.image = page.cardImage;
+		bundles.tiers = bundles.tiers.map((tier) => ({ ...tier, image: page.cardImage }));
+	}
 
 	const picker = page.manifest.blocks.find((b) => b.component === 'design_size_picker');
 	const tierField = String(picker?.props?.tierField ?? 'bundle');
+	// Whether the picker's bundle cards decide how many. When they don't, the
+	// count is the buyer's to set in the summary.
+	const tiered = Boolean(picker?.props?.tiers);
 
 	const resolve = createRefResolver({
 		...checkoutSources(locals),
 		product,
 		// The same tiers the product page's cards show: no "was" total.
 		bundles: { ...bundles, plain: bundles.tiers.map(({ compareAt: _, ...tier }) => tier) },
-		variants: loadVariantPicker(catalogue, locale),
+		variants: loadVariantPicker(catalogue, locale, page.leadDesign),
 		christmas: page.theme ? loadChristmasDelivery(settings) : {}
 	});
 	// The composed manifest is authored, not data: it is the same for every
@@ -61,7 +73,14 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		...checkoutPayment(locals, url),
 		slug,
 		look: page.checkout ?? null,
+		// The product's own skin and colours (the layout reads both), so the
+		// Christmas costume's checkout looks like its product page.
+		theme: page.theme ?? null,
+		festive: Boolean(page.christmas),
+		// The colour the picker shows chosen before anyone chooses.
+		leadDesign: page.leadDesign ?? null,
 		tierField,
+		tiered,
 		// The host's lookup from the picker's codes to a variant. Never a prop:
 		// a block that carried variant ids would be coupled to this catalogue.
 		variantIndex: variantEntries(catalogue),

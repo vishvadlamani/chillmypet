@@ -8,6 +8,7 @@ import { sweepSoon } from '$lib/server/recovery';
 import { metaBrowserIds } from '$lib/server/meta-browser-ids';
 import { rememberedContact, type RememberedContact } from '$lib/server/identity';
 import { attributionFrom, ensureVisitorId } from '$lib/server/purchase';
+import { SHIPPING_RATES } from '$lib/store/shipping-rates';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
 export const LOCALE_COOKIE = 'locale';
@@ -76,12 +77,20 @@ src="https://www.facebook.com/tr?id=${id}&ev=PageView&noscript=1" /></noscript>`
 		)
 		.join('\n');
 
+	// `disablePushState`: the pixel would otherwise fire its own PageView on
+	// every client-side navigation (product page → payment page), under an
+	// event id of its own, and swallow the one `+layout.svelte` sends with the
+	// id its Conversions API copy carries, so the two never deduplicated and
+	// that page view counted twice. `allowDuplicatePageViews`: without its own
+	// history tracking the pixel takes the next page for the same one and drops
+	// our PageView as a repeat. Together: every PageView is ours, with our id.
 	return `<script>
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
 n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq.disablePushState=true;fbq.allowDuplicatePageViews=true;
 ${inits}
 fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
 </script>
@@ -217,6 +226,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 		db,
 		store,
 		orderNumberPrefix: 'CMP',
+		// The store's own table, so the order is priced against the rates the
+		// checkout offers and never against a framework default it doesn't.
+		shippingRates: SHIPPING_RATES,
 		// Buy-more-save-more. The storefront renders these; the server decides
 		// them, from the quantity it counts after merging duplicate lines.
 		quantityBreaks: [
@@ -284,7 +296,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const pageViewEventId = newEventId();
 	// Before resolve(), so the cookie is on this response and every read of it
 	// later in this request, PageView's server copy included, sees the same id.
-	const visitorId = ensureVisitorId(event.cookies, event.url.searchParams.get('vid'));
+	const visitorId = ensureVisitorId(event.cookies);
 	const isDocument = pixelIds.length > 0 && isDocumentRequest(event.request);
 	// Same reason as the visitor id: SvelteKit puts cookies on the response
 	// inside resolve(), and the document is where `_fbc` has to land to exist

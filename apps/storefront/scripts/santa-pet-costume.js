@@ -12,8 +12,8 @@
  * pick up.
  *
  * $27.99, the owner's decision on 2026-10-18 (the reindeer hoodie's price).
- * Changing it later needs a catalogue migration: `products.js` never rewrites
- * a row. There is no compare-at price on purpose: a struck-through "was" price
+ * Changing it later goes through `price-changes.js`: `products.js` never
+ * rewrites a row. There is no compare-at price on purpose: a struck-through "was" price
  * has to be one the product was actually offered at, and this one has never
  * been offered at all.
  *
@@ -88,8 +88,8 @@ export const SANTA_PET_COSTUME = {
 		}
 	],
 	// SKUs spell out colour and size, because they are the content ids Meta and
-	// GA4 receive. SP for "Santa pet costume", beside the costume's XT, the
-	// reindeer hoodie's RH and the pouch hoodie's XH.
+	// GA4 receive. SP for "Santa pet costume", beside the costume's XT
+	// and the reindeer hoodie's RH.
 	variants: COLOURS.flatMap((c) =>
 		SIZES.map(({ code }) => ({
 			sku: `CMP-SP-${c.sku}-${code}`,

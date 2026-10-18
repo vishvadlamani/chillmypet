@@ -22,7 +22,9 @@ import { chromium } from 'playwright';
 import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
-const SLUG = 'dog-christmas-costume';
+// The reindeer hoodie keeps this look; the costume's checkout is the shop
+// look's payment page (tests/dog-christmas-costume.mjs, shop-checkout.mjs).
+const SLUG = 'reindeer-dog-hoodie';
 const URL_ = `${BASE}/products/${SLUG}/checkout`;
 
 function check(label, cond, detail) {
@@ -36,11 +38,11 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
-	check('the product title is the h1', /<h1[^>]*>[\s\S]{0,200}?Dog Christmas Tree Costume/.test(html));
+	check('the product title is the h1', /<h1[^>]*>[\s\S]{0,200}?Reindeer Christmas Dog Hoodie/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('SSR shows the photos', html.includes('class="gallery'));
-	check('SSR offers both colours', html.includes('>Red<') && html.includes('>Green<'));
-	check('SSR offers the bundle cards at the server’s prices', html.includes('$53.01') && html.includes('$77.80'));
+	check('SSR offers its colour', html.includes('>Red<'));
+	check('SSR offers the bundle cards at the server’s prices', html.includes('$52.06') && html.includes('$76.41'));
 	check('no size is pre-selected', !/name="size"[^>]*checked/.test(html));
 	const picker = /id="variant-picker"[\s\S]*?<\/fieldset>\s*(?:<\/div>|<p)/.exec(html)?.[0] ?? '';
 	check('the picker has no button of its own', picker.length > 0 && !html.includes('class="cta'));
@@ -135,7 +137,7 @@ await page.reload({ waitUntil: 'networkidle' });
 	check('the price is on the first screen', (await bottom('#variant-picker .price')) <= 664);
 	const sizes = await bottom('#size-picker label');
 	check('and so are the size buttons', sizes <= 664, `they end at ${sizes}px`);
-	check('no product menu on a checkout', !(await page.locator('header nav ul').isVisible()));
+	check('no product menu on a checkout', !(await page.locator('header nav > ul').isVisible()));
 	check('no order box at the top: the product is the top', (await page.locator('section[aria-label="Your order"]').count()) === 0);
 	await page.setViewportSize({ width: 390, height: 844 });
 }
@@ -151,25 +153,24 @@ await page.reload({ waitUntil: 'networkidle' });
 }
 
 // --- choosing is adding -------------------------------------------------------------
-await page.locator('#variant-picker label', { hasText: 'Green' }).click();
-check('a colour alone adds nothing', (await cartLines()).length === 0);
+check('the colour it opens on adds nothing alone', (await cartLines()).length === 0);
 await page.locator('#size-picker label').filter({ hasText: /^\s*S\s*$/ }).click();
 await settle();
 {
 	const lines = await cartLines();
-	check('a size puts the chosen variant in the cart', lines.length === 1 && lines[0].colour === 'green' && lines[0].size === 'S' && lines[0].quantity === 1, JSON.stringify(lines));
-	check('the summary prices it', await shows(/Green · S[\s\S]*\$28\.50/), await summary());
+	check('a size puts the chosen variant in the cart', lines.length === 1 && lines[0].colour === 'red' && lines[0].size === 'S' && lines[0].quantity === 1, JSON.stringify(lines));
+	check('the summary prices it', await shows(/Red · S[\s\S]*\$27\.99/), await summary());
 }
 await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();
-await page.locator('#variant-picker label.tier', { hasText: 'Two costumes' }).click();
+await page.locator('#variant-picker label.tier', { hasText: 'Two hoodies' }).click();
 await settle();
 {
 	const lines = await cartLines();
 	check('a new size replaces the line, it doesn’t add one', lines.length === 1 && lines[0].size === 'M', JSON.stringify(lines));
 	check('the bundle sets the quantity', lines[0]?.quantity === 2, JSON.stringify(lines));
-	check('and the server’s bundle price is the total', await shows(/Total\s*\$53\.01/), await summary());
+	check('and the server’s bundle price is the total', await shows(/Total\s*\$52\.06/), await summary());
 	const add = await pairedOnce('AddToCart');
-	check('the one AddToCart is the first choice', JSON.stringify(add.content_ids) === '["CMP-XT-GREEN-S"]', JSON.stringify(add));
+	check('the one AddToCart is the first choice', JSON.stringify(add.content_ids) === '["CMP-RH-RED-S"]', JSON.stringify(add));
 	check('choosing does not start the checkout', (await browserEvent('InitiateCheckout')).length === 0);
 }
 
@@ -213,12 +214,12 @@ check('the confirmation sends them back to the product', await page.locator(`a[h
 	});
 	const row = rows.rows[0];
 	check(
-		'the order is two green M costumes at the bundle price',
+		'the order is two red M hoodies at the bundle price',
 		rows.rows.length === 1 &&
-			row.sku === 'CMP-XT-GREEN-M' &&
+			row.sku === 'CMP-RH-RED-M' &&
 			Number(row.quantity) === 2 &&
-			Number(row.unit_price_cents) === 2850 &&
-			Number(row.total_cents) === 5301,
+			Number(row.unit_price_cents) === 2799 &&
+			Number(row.total_cents) === 5206,
 		JSON.stringify(row)
 	);
 	db.close();

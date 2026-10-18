@@ -74,7 +74,7 @@ function check(label, cond, detail) {
 	const checkout = await fetch(`${URL_}/checkout`);
 	check('its one-page checkout answers, for an ad that should land on the form', checkout.status === 200, String(checkout.status));
 	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
-	check('the site header links to this page and to /christmas', header.includes(`href="/products/${SLUG}"`) && header.includes('href="/christmas"'));
+	check('the site header’s Catalog menu links to /christmas and /catalog', header.includes('href="/christmas"') && header.includes('href="/catalog"'));
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });

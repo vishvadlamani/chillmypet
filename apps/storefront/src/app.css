@@ -93,3 +93,399 @@ body {
 	outline-offset: 2px;
 	border-radius: 2px;
 }
+
+/* ---- The site header (`+layout.svelte`) -------------------------------------
+   Plain global CSS rather than the layout's own <style>: a scoped block stamps
+   a hash class on every element in the layout, and the tests match the
+   chrome's class names (`tree-strip`, `shop-header`) on the raw HTML.
+
+   One row, the way Little Tree Pups and most shops lay it out: the menu on the
+   left, the name in the middle, the language and the cart on the right. Below
+   768px the menu folds behind a button in the same left slot. The tree theme
+   only swaps the colours (`--site-*`). */
+.site-header {
+	--site-bg: var(--color-white);
+	--site-ink: var(--color-ink-900);
+	--site-accent: var(--color-tide-600);
+	--site-muted: var(--color-ink-600);
+	--site-rule: var(--color-ink-200);
+	--site-card: #fff;
+	--site-tint: var(--color-ink-50);
+	position: relative;
+	z-index: 20;
+	background: var(--site-bg);
+	color: var(--site-ink);
+}
+.site-nav {
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
+	align-items: center;
+	max-width: 1320px;
+	margin: 0 auto;
+	/* Slim on a phone: the costume page's sizes must end inside 664px. */
+	padding: 4px 16px;
+	min-height: 54px;
+}
+.site-brand {
+	grid-column: 2;
+	grid-row: 1;
+	font-size: 21px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	color: var(--site-ink);
+	white-space: nowrap;
+}
+.site-brand img {
+	display: block;
+	height: 30px;
+	width: auto;
+}
+@media (min-width: 768px) {
+	.site-brand img {
+		height: 38px;
+	}
+}
+.site-tools {
+	grid-column: 3;
+	grid-row: 1;
+	justify-self: end;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.site-menu,
+.phone-menu {
+	grid-column: 1;
+	grid-row: 1;
+	justify-self: start;
+}
+.site-menu {
+	align-items: center;
+	gap: 26px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	white-space: nowrap;
+	font-size: 14px;
+	color: var(--site-muted);
+}
+.site-menu a:hover,
+.site-menu summary:hover {
+	color: var(--site-accent);
+}
+@media (max-width: 767px) {
+	.site-menu {
+		display: none;
+	}
+}
+@media (min-width: 768px) {
+	.phone-menu {
+		display: none;
+	}
+	.site-nav {
+		padding: 18px 40px;
+		min-height: 76px;
+	}
+	.site-brand {
+		font-size: 26px;
+	}
+	.site-tools {
+		gap: 14px;
+	}
+}
+@media (min-width: 1100px) {
+	.site-nav {
+		padding-inline: 72px;
+	}
+}
+.site-lang-form {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+@media (max-width: 767px) {
+	.site-lang-form.in-bar:not(.keep) {
+		display: none;
+	}
+}
+.site-lang-form.lead {
+	grid-column: 1;
+	grid-row: 1;
+	justify-self: start;
+}
+.phone-menu-lang {
+	padding-top: 14px;
+}
+.site-lang {
+	min-width: 28px;
+	padding: 4px 6px;
+	border-radius: 6px;
+	font-size: 12px;
+	letter-spacing: 0.6px;
+	text-transform: uppercase;
+	color: var(--site-muted);
+	opacity: 0.8;
+}
+.site-lang:hover {
+	color: var(--site-ink);
+	opacity: 1;
+}
+.site-lang[aria-current='true'] {
+	background: var(--site-tint);
+	color: var(--site-ink);
+	font-weight: 600;
+	opacity: 1;
+}
+.site-cart {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	color: var(--site-ink);
+}
+.site-cart:hover {
+	color: var(--site-accent);
+}
+.site-cart svg {
+	width: 26px;
+	height: 26px;
+}
+.site-cart-count {
+	position: absolute;
+	top: 3px;
+	right: 1px;
+	min-width: 19px;
+	height: 19px;
+	padding: 0 5px;
+	border-radius: 999px;
+	background: var(--site-accent);
+	color: #fff;
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 19px;
+	text-align: center;
+	letter-spacing: 0;
+}
+
+/* The phone menu: a button that drops a panel the width of the screen. */
+.phone-menu summary {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	margin-left: -10px;
+	cursor: pointer;
+	list-style: none;
+	color: var(--site-ink);
+}
+.phone-menu summary::-webkit-details-marker {
+	display: none;
+}
+.phone-menu summary svg {
+	width: 26px;
+	height: 26px;
+}
+.phone-menu > ul {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 100%;
+	margin: 0;
+	padding: 8px 16px 18px;
+	list-style: none;
+	background: var(--site-bg);
+	border-bottom: 1px solid var(--site-rule);
+	box-shadow: 0 18px 30px rgb(36 59 49 / 0.12);
+}
+.phone-menu > ul a {
+	display: block;
+	padding: 14px 4px;
+	border-bottom: 1px solid var(--site-rule);
+	font-size: 17px;
+	font-weight: 500;
+	color: var(--site-ink);
+}
+.phone-menu > ul li:last-child a {
+	border-bottom: 0;
+}
+.phone-menu > ul a[aria-current='page'] {
+	color: var(--site-accent);
+}
+
+/* The Catalog menu. */
+.catalog-menu {
+	position: relative;
+}
+.catalog-menu summary {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	cursor: pointer;
+	list-style: none;
+	/* A thumb-sized target inside a 14px line. */
+	padding: 10px 0;
+	margin: -10px 0;
+}
+.catalog-menu summary::-webkit-details-marker {
+	display: none;
+}
+.catalog-menu summary svg {
+	width: 11px;
+	height: 11px;
+	transition: transform 0.15s ease;
+}
+.catalog-menu[open] summary svg {
+	transform: rotate(180deg);
+}
+.catalog-menu > ul {
+	position: absolute;
+	top: calc(100% + 14px);
+	left: -14px;
+	z-index: 30;
+	min-width: 200px;
+	margin: 0;
+	padding: 6px;
+	list-style: none;
+	background: var(--site-card);
+	border: 1px solid var(--site-rule);
+	border-radius: 10px;
+	box-shadow: 0 10px 30px rgb(36 59 49 / 0.14);
+	text-align: left;
+}
+.catalog-menu > ul a {
+	display: block;
+	padding: 11px 14px;
+	border-radius: 6px;
+}
+.catalog-menu > ul a:hover,
+.catalog-menu > ul a[aria-current='page'] {
+	background: var(--site-tint);
+}
+/* Where you are, in the bar itself. */
+.site-menu > li > a[aria-current='page'],
+.site-menu .active {
+	color: var(--site-ink);
+	text-decoration: underline;
+	text-underline-offset: 6px;
+	text-decoration-thickness: 1px;
+}
+
+/* ---- The site footer (`+layout.svelte`) -------------------------------------
+   Columns the way a shop's footer reads: the name and what it sells, then
+   Shop, Help and Legal, then the payment marks and the copyright. */
+.site-footer {
+	--footer-bg: var(--color-ink-50);
+	--footer-ink: var(--color-ink-900);
+	--footer-muted: var(--color-ink-600);
+	--footer-rule: var(--color-ink-200);
+	margin-top: 80px;
+	padding-inline: 20px;
+	background: var(--footer-bg);
+	color: var(--footer-muted);
+	font-size: 14px;
+	border-top: 1px solid var(--footer-rule);
+}
+.site-footer-inner {
+	max-width: 1176px;
+	margin: 0 auto;
+	padding: 44px 0 28px;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 28px 24px;
+}
+.site-footer-brand {
+	grid-column: 1 / -1;
+}
+.site-footer-name {
+	font-size: 20px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	color: var(--footer-ink);
+}
+.site-footer-name img {
+	display: block;
+	height: 34px;
+	width: auto;
+}
+.site-footer-brand p {
+	margin: 8px 0 0;
+	max-width: 30ch;
+	line-height: 1.6;
+}
+.site-footer h2 {
+	margin: 0 0 12px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 1.4px;
+	text-transform: uppercase;
+	color: var(--footer-ink);
+}
+.site-footer ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.site-footer-inner li + li {
+	margin-top: 4px;
+}
+.site-footer-inner a:not(.site-footer-name) {
+	display: inline-block;
+	padding: 6px 0;
+}
+.site-footer a:hover {
+	color: var(--footer-ink);
+	text-decoration: underline;
+	text-underline-offset: 4px;
+}
+.site-footer-base {
+	max-width: 1176px;
+	margin: 0 auto;
+	padding: 18px 0 28px;
+	border-top: 1px solid var(--footer-rule);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+	font-size: 13px;
+}
+.site-footer-base p {
+	margin: 0;
+}
+.site-footer-pay {
+	display: flex;
+	gap: 8px;
+}
+.site-footer-pay li {
+	display: block;
+	width: 38px;
+	height: 24px;
+}
+.site-footer-pay svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+@media (min-width: 768px) {
+	.site-footer {
+		padding-inline: 40px;
+	}
+	.site-footer-inner {
+		grid-template-columns: 2fr 1fr 1fr 1fr;
+		padding: 56px 0 36px;
+	}
+	.site-footer-brand {
+		grid-column: auto;
+	}
+	.site-footer-base {
+		flex-direction: row;
+		justify-content: space-between;
+	}
+}
+@media (min-width: 1100px) {
+	.site-footer {
+		padding-inline: 72px;
+	}
+}

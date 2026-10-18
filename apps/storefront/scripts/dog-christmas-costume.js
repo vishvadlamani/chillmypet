@@ -1,5 +1,5 @@
 /**
- * The Dog Christmas Tree Costume: a hooded fleece cape with three ruffled
+ * The Pet Christmas Tree Costume: a hooded fleece cape with three ruffled
  * tiers, pom-pom "baubles" and a glitter star on the hood, for small dogs and
  * cats. Red or green, sized by the PET'S weight, S–L.
  *
@@ -8,8 +8,9 @@
  * media row is the listing image the header and the home page pick up, and it
  * is the red colour's gallery photo, which is where the page opens.
  *
- * ⚠️ THE PRICE IS A PLACEHOLDER. $28.50 is the reference store's figure, not a
- * decision anyone here has made. There is no compare-at price on purpose: a
+ * The price is $27.99, the reindeer hoodie's, on the owner's instruction of
+ * 2026-10-17 (one price for the Christmas dog outfits; it was $28.50, the
+ * first reference store's figure). There is no compare-at price on purpose: a
  * struck-through "was" price has to be one the product was actually offered
  * at, and this one has never been offered at all.
  *
@@ -19,13 +20,14 @@
  * Never type in another seller's numbers: a chart that is wrong is paid for
  * twice, once in postage each way.
  *
- * English only, like the hoodie. Other locales fall back to this row
+ * English only, like the reindeer hoodie. Other locales fall back to this row
  * (`catalog.translation()` tries the store default next).
  */
 
 export const DOG_CHRISTMAS_COSTUME_SLUG = 'dog-christmas-costume';
 
-const PRICE_CENTS = 2850;
+// Kept in step with `price-changes.js`, which moves a live store here.
+const PRICE_CENTS = 2799;
 
 /**
  * Per-variant units. Stock is kept outside this system, so this is a ceiling
@@ -61,19 +63,22 @@ const SIZES = [
 	{ code: 'L', weightKg: [5, 7.5] }
 ];
 
-const TITLE = 'Dog Christmas Tree Costume';
+// "Pet", not "Dog", since 2026-10-17 (owner's call): it fits small dogs and
+// cats, and the page opens on a cat. The slug stays, so links and ads keep
+// working; a live store is renamed through `copy-changes.js`.
+const TITLE = 'Pet Christmas Tree Costume';
 
 /** @type {import('./catalog.js').ProductDefinition} */
 export const DOG_CHRISTMAS_COSTUME = {
 	slug: DOG_CHRISTMAS_COSTUME_SLUG,
-	// After the life jacket (home hero) and the hoodie.
+	// After the life jacket (home hero).
 	position: 2,
 	translations: {
 		en: {
 			title: TITLE,
 			subtitle: 'The cutest tree in the house',
 			description:
-				'A soft hooded cape that turns your dog into a little Christmas tree. Three ruffled tiers, colourful pom-pom baubles and a glitter gold star on the hood. It ties at the neck and closes with one button, so it goes on in seconds and comes off just as fast. For small dogs and cats, in red or green, sizes S to L by weight.'
+				'A soft hooded cape that turns your dog or cat into a little Christmas tree. Three ruffled tiers, colourful pom-pom baubles and a glitter gold star on the hood. It ties at the neck and closes with one button, so it goes on in seconds and comes off just as fast. For small dogs and cats, in red or green, sizes S to L by weight.'
 		}
 	},
 	// Positional, and the order matters: the cart, /api/cart and the checkout
@@ -105,7 +110,7 @@ export const DOG_CHRISTMAS_COSTUME = {
 	],
 	// SKUs spell out colour and size, because they are the content ids Meta and
 	// GA4 receive: `CMP-XT-GREEN-M` reads as what was bought without a lookup.
-	// XT for "Xmas tree", beside the hoodie's XH.
+	// XT for "Xmas tree".
 	variants: COLOURS.flatMap((c) =>
 		SIZES.map(({ code }) => ({
 			sku: `CMP-XT-${c.sku}-${code}`,

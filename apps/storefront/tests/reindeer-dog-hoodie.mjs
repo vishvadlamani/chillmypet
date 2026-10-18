@@ -41,7 +41,7 @@ function check(label, cond, detail) {
 	check('it lists the reindeer hoodie and the costume', html.includes(`href="/products/${SLUG}"`) && html.includes('href="/products/dog-christmas-costume"'));
 	check('the costume first, in catalogue order', html.indexOf('href="/products/dog-christmas-costume"') < html.indexOf(`href="/products/${SLUG}"`));
 	check('and not the life jacket or the pouch hoodie', !/<main[\s\S]*href="\/products\/(dog-life-jacket|christmas-pouch-hoodie)"[\s\S]*<\/main>/.test(html));
-	check('each card carries its price', html.includes(`$${PRICE}`) && html.includes('$28.50'));
+	check('each card carries its price, one price for both', html.split(`$${PRICE}`).length - 1 >= 2);
 	check('the reindeer hoodie runs S–XL', html.includes('Sizes S–XL'));
 	check('the tree chrome lifts the delivery strip above the header', /class="tree-strip"[^>]*>[^<]*Order by \w+day, Dec \d+/.test(html) && html.indexOf('tree-strip') < html.indexOf('<header'));
 	check('and the site’s promo strip stands down', !/% off sitewide/.test(html.slice(0, html.indexOf('<header'))));
@@ -69,7 +69,7 @@ function check(label, cond, detail) {
 	const main = /<main[\s\S]*?<\/main>/.exec(html)?.[0] ?? html;
 	check('no costume or life-jacket copy leaked in', !/chin rest|life jacket|pom-pom|ruffled/i.test(main));
 	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
-	check('the site header links to this page and to /christmas', header.includes(`href="/products/${SLUG}"`) && header.includes('href="/christmas"'));
+	check('the site header’s Catalog menu links to /christmas and /catalog', header.includes('href="/christmas"') && header.includes('href="/catalog"'));
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });

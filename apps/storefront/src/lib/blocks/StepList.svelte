@@ -27,7 +27,7 @@
 </script>
 
 {#if steps.length}
-	<section class="steps" aria-labelledby="{block.id}-title">
+	<section class="steps" class:solo={!p.image?.src} aria-labelledby="{block.id}-title">
 		{#if p.image?.src}
 			<figure class="photo">
 				<img src={p.image.src} alt={p.image.alt ?? ''} width="900" height="900" loading="lazy" />

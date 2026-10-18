@@ -49,7 +49,7 @@ const order: Order = {
 const config: EmailConfig = {
 	apiKey: 're_test',
 	from: 'ChillMyPet <orders@chillmypet.com>',
-	replyTo: 'contact@chillmypet.com',
+	replyTo: 'contact.chillmypet@gmail.com',
 	endpoint: 'http://mock.invalid/emails',
 	origin: 'https://chillmypet.com'
 };
@@ -84,7 +84,7 @@ const headers = sent.init.headers as Record<string, string>;
 check('to the configured endpoint', sent.url === config.endpoint);
 check('to the customer', body.to?.[0] === 'buyer@example.com');
 check('from the store address', body.from === config.from);
-check('replies go to support', body.reply_to === 'contact@chillmypet.com');
+check('replies go to support', body.reply_to === 'contact.chillmypet@gmail.com');
 check('authorised with the key', headers.authorization === 'Bearer re_test');
 check('idempotency key is the order number', headers['idempotency-key'] === 'order-confirmation/CMP-TEST1');
 
@@ -131,18 +131,18 @@ const reminder = {
 	currency: 'USD',
 	christmasMessage: '🎄 Order by Monday, Dec 7 for Christmas delivery to the US',
 	lines: [
-		{ title: 'Dog Christmas Tree Costume', options: ['Red', 'M'], quantity: 2, unitPriceCents: 2850, imageUrl: 'https://chillmypet.com/products/x.jpg?a=1&b=2' }
+		{ title: 'Pet Christmas Tree Costume', options: ['Red', 'M'], quantity: 2, unitPriceCents: 2850, imageUrl: 'https://chillmypet.com/products/x.jpg?a=1&b=2' }
 	]
 };
 const nudge = renderCheckoutReminder(reminder, config.origin);
 check('reminder greets by name, escaped', nudge.html.includes('Hi Holly &lt;i&gt;,') && !nudge.html.includes('Holly <i>'));
 check('reminder subject names the cart', nudge.subject === 'Your order is still in your cart 🎄');
-check('one item reads as its title', renderCheckoutReminder({ ...reminder, lines: [{ ...reminder.lines[0], quantity: 1 }] }, config.origin).subject === 'Dog Christmas Tree Costume is still in your cart 🎄');
+check('one item reads as its title', renderCheckoutReminder({ ...reminder, lines: [{ ...reminder.lines[0], quantity: 1 }] }, config.origin).subject === 'Pet Christmas Tree Costume is still in your cart 🎄');
 check('no Christmas line after the cut-off, and no tree in the subject', (() => {
 	const late = renderCheckoutReminder({ ...reminder, christmasMessage: null }, config.origin);
 	return !late.text.includes('Christmas delivery') && !late.subject.includes('🎄');
 })());
-check('reminder lists the line with options and total', nudge.text.includes('2 × Dog Christmas Tree Costume — Red — M  $57.00') && nudge.text.includes('Subtotal: $57.00'));
+check('reminder lists the line with options and total', nudge.text.includes('2 × Pet Christmas Tree Costume — Red — M  $57.00') && nudge.text.includes('Subtotal: $57.00'));
 check('restore link carries the token', nudge.text.includes(`https://chillmypet.com/checkout/restore/${token}`) && nudge.html.includes(`/checkout/restore/${token}`));
 check('unsubscribe link carries the token', nudge.text.includes(`https://chillmypet.com/email/unsubscribe/${token}`));
 check('image URL is attribute-escaped', nudge.html.includes('src="https://chillmypet.com/products/x.jpg?a=1&amp;b=2"'));

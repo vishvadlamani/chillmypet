@@ -1,4 +1,4 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { bindDefinition, createRefResolver } from '@funnel/core';
 import { loadBundles } from '$lib/store/bundles';
 import { loadChristmasDelivery } from '$lib/store/christmas';
@@ -9,13 +9,17 @@ import { loadReviews } from '$lib/store/reviews';
 import { loadFeaturedReviews, loadPhotoWall, loadSpotlightQuotes } from '$lib/store/reviews-wall';
 import { loadSizeChart } from '$lib/store/sizes';
 import { loadStock } from '$lib/store/stock';
-import { PRODUCT_PAGES } from '$lib/store/pages';
+import { PRODUCT_PAGES, retiredRedirect } from '$lib/store/pages';
 import { loadVariantPicker, variantEntries } from '$lib/store/variants';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const { commerce, locale, settings } = locals;
 	const slug = params.slug;
+
+	// A product taken off sale sends its links on (`scripts/retired-products.js`).
+	const movedTo = retiredRedirect(slug, url);
+	if (movedTo) redirect(308, movedTo);
 
 	const page = PRODUCT_PAGES[slug];
 	if (!page) error(404, `No page manifest for "${slug}" — add one in $lib/store/pages.ts`);
@@ -31,6 +35,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	]);
 
 	if (!product || !catalogue) error(404, `No product at "${slug}"`);
+
+	// A page with its own listing photo (`cardImage`) shows it wherever the
+	// catalogue's lead photo would go: the sticky bar, the bundle cards, the
+	// link preview.
+	if (page.cardImage) {
+		product.image = page.cardImage;
+		bundles.tiers = bundles.tiers.map((tier) => ({ ...tier, image: page.cardImage }));
+	}
 
 	// Sources compose — each one is a namespace a `$ref` path can start with.
 	const resolve = createRefResolver({
@@ -59,7 +71,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		// the supplier's figures are not in yet, which shows the guide's note.
 		sizes: page.pickSize ? (sizeGuideTable(catalogue) ?? {}) : sizeChart,
 		// The design and size pickers. Only a manifest that names them reads them.
-		variants: page.pickSize ? loadVariantPicker(catalogue, locale) : {},
+		variants: page.pickSize ? loadVariantPicker(catalogue, locale, page.leadDesign) : {},
 		// Config, not computation: see `$lib/store/christmas.ts`. Empty once the
 		// cut-off has passed, which drops the strip through `requires`.
 		christmas: page.theme ? loadChristmasDelivery(settings) : {},
@@ -111,6 +123,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		variantIndex,
 		pickSize: page.pickSize,
 		theme: page.theme ?? null,
+		// A Christmas product keeps the pine and cream; the rest wear the brand
+		// skin (`+layout.svelte`).
+		festive: Boolean(page.christmas),
+		// The colour the picker shows chosen before anyone chooses.
+		leadDesign: page.leadDesign ?? null,
+		// Where Add to cart sends the buyer: the product's own payment page
+		// when it has one (`checkout: 'shop'` in pages.ts), else the cart's.
+		payAt: page.checkout === 'shop' ? `/products/${slug}/checkout` : '/checkout',
 		slug,
 		currency: catalogue.currency,
 		// The manifest is content, not metadata: the title and description that

@@ -1,7 +1,6 @@
 /**
- * The Dog Christmas Tree Costume, product page to placed order, on a
- * phone-sized screen — the same shape as tests/christmas-hoodie.mjs, because
- * the page is built on the same blocks and makes the same promises.
+ * The Pet Christmas Tree Costume, product page to placed order, on a
+ * phone-sized screen.
  *
  *   node tests/dog-christmas-costume.mjs
  *
@@ -10,6 +9,8 @@
  *     guide from the catalogue, none of the things this page must never carry
  *     (countdown chips, was-prices, stock bars, ratings), and the header link
  *   - no size, no sale: buying without a size prompts and adds nothing
+ *   - the ad's URL is this page, with no card fields on it; Add to cart opens
+ *     the costume's own payment page with the choice in the link
  *   - the chosen colour AND size become the cart line, the checkout line, the
  *     order row and every tracking payload, re-priced by the server
  *   - tracking: ViewContent and AddToCart each reach Meta twice (browser +
@@ -21,8 +22,9 @@ import { chromium } from 'playwright';
 import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
+// Where the Christmas costume ad points.
 const URL_ = `${BASE}/products/dog-christmas-costume`;
-const PRICE = '28.50';
+const PRICE = '27.99';
 const SKU = 'CMP-XT-GREEN-M';
 
 function check(label, cond, detail) {
@@ -31,21 +33,36 @@ function check(label, cond, detail) {
 }
 
 // --- the first response, before any JavaScript --------------------------------
+// The ad's click: the product page itself, no redirect, and the click id
+// kept as _fbc on that first response (fbclid is how Meta ties it to a sale).
+{
+	const res = await fetch(`${URL_}?fbclid=IwARtest123&utm_source=facebook`, {
+		redirect: 'manual',
+		headers: { 'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS]' }
+	});
+	check('the ad’s URL is the product page, not a redirect', res.status === 200, `${res.status} ${res.headers.get('location') ?? ''}`);
+	check('and keeps the click id as _fbc', /_fbc=fb\.\d\.\d+\.IwARtest123/.test(res.headers.get('set-cookie') ?? ''), res.headers.get('set-cookie') ?? '');
+}
 {
 	const res = await fetch(URL_);
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
+	check('no payment on the product page: no card, email or address fields', !/id="contact-email"|id="shipping-|class="shop-pay/.test(html));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
-	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Dog Christmas Tree Costume/.test(html));
+	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Pet Christmas Tree Costume/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('the gallery comes before the h1', html.indexOf('class="gallery') > -1 && html.indexOf('class="gallery') < html.search(/<h1[\s>]/));
-	check('the gallery carries every angle, not only the colours', /aria-label="Show photo 5: A tabby cat wearing the green/.test(html));
-	check('and counts them under the photo', /Swipe to explore[\s\S]{0,200}?1 \/ 5/.test(html));
+	// The page opens on green, the tabby wearing it (`leadDesign` in pages.ts).
+	check('the gallery opens on the tabby in the green costume', /class="frame[\s\S]{0,600}?cat\.jpg/.test(html));
+	check('and green is the colour chosen', /name="design"[^>]*value="green"[^>]*checked|checked[^>]*name="design"[^>]*value="green"/.test(html) || /value="green"[^>]*checked/.test(html));
+	check('the gallery carries every angle, not only the colours', /aria-label="Show photo 4: The green costume worn, with close-ups/.test(html));
+	check('and counts them under the photo', /Swipe to explore[\s\S]{0,200}?1 \/ 4/.test(html));
+	check('the two-dog scene is gone', !html.includes('duo.jpg'));
 	check('the story section follows the buy box', /<h2[^>]*>[\s\S]{0,120}?steals the Christmas card/.test(html));
 	check('the closing band points back at the picker, under an h2', /<h2[^>]*>[\s\S]{0,120}?Every tree needs a little one/.test(html) && /href="#variant-picker"/.test(html));
-	check('SSR says the size goes by the dog’s weight', /Sized by weight: S 3–6 lb/.test(html));
+	check('SSR says the size goes by the dog’s weight, in kg and lb', /By weight: S 1\.5–2\.5 kg \(3–6 lb\)/.test(html));
 	// The store's own quantity breaks, priced by the server, said in words.
-	check('SSR offers the bundle cards at the server’s prices', html.includes('$53.01') && html.includes('$77.80') && /You save 7% with 2 costumes/.test(html));
+	check('SSR offers the bundle cards at the server’s prices', html.includes('$52.06') && html.includes('$76.41') && /You save 7% with 2 costumes/.test(html));
 	check('the theme lifts the delivery strip above the header', /class="tree-strip"[^>]*>[^<]*Order by \w+day, Dec \d+/.test(html) && html.indexOf('tree-strip') < html.indexOf('<header'));
 	check('SSR quotes the price', html.includes(`$${PRICE}`));
 	check('SSR offers both colours', html.includes('>Red<') && html.includes('>Green<'));
@@ -57,7 +74,7 @@ function check(label, cond, detail) {
 	check('no was-price or strikethrough price', !/compare|<s>|<del>/i.test(html.replace(/<style[\s\S]*?<\/style>/g, '')));
 	check('no countdown chips, stock bar or viewers', !/sale ends|left in stock|viewing|people are|% sold/i.test(html));
 	check('no ratings or reviews', !/★|Pet Parents|What owners are saying/.test(html));
-	// The page body only: the header names every product, the life jacket included.
+	// The page body only: the header's menu leads to the catalogue.
 	const main = /<main[\s\S]*?<\/main>/.exec(html)?.[0] ?? html;
 	check('no life-jacket copy leaked in', !/chin rest|life jacket/i.test(main));
 	check('og:image is absolute', /property="og:image" content="https?:\/\//.test(html));
@@ -67,8 +84,11 @@ function check(label, cond, detail) {
 	check('and not Discover, which Stripe does not offer a Czech account', !/aria-label="Discover"/.test(html));
 	check('SSR says who the shop is, in place of reviews', html.includes('Who you’re buying from') && html.includes('1–2 business days'));
 	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
-	check('the site header links to this page', header.includes('href="/products/dog-christmas-costume"'), header.slice(0, 400));
-	check('and still to the hoodie and the life jacket', header.includes('href="/products/christmas-pouch-hoodie"') && header.includes('href="/products/dog-life-jacket"'));
+	check('the site header leads to the catalogue', header.includes('href="/catalog"') && header.includes('href="/christmas"'), header.slice(0, 400));
+}
+{
+	const html = await fetch(`${BASE}/catalog`).then((r) => r.text());
+	check('and the catalogue links to this page', html.includes('href="/products/dog-christmas-costume"'));
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
@@ -177,45 +197,53 @@ await page.reload({ waitUntil: 'networkidle' });
 // must bring its photo back to the front.
 // On a phone the thumbnail strip gives way to arrows on the photo.
 check('a phone gets arrows on the photo, not a thumbnail strip', !(await page.locator('.gallery .thumbs').isVisible()) && (await page.getByRole('button', { name: 'Next photo' }).isVisible()));
-// Backwards from the first photo wraps to the extras without passing the
-// green costume's photo, which would choose green: landing on a colour's photo
-// chooses it, by design, so the frame and the picker never disagree.
-for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Previous photo' }).click();
+// Backwards from the first photo wraps to the extras without passing the red
+// costume's photo, which would choose red: landing on a colour's photo chooses
+// it, by design, so the frame and the picker never disagree.
+await page.getByRole('button', { name: 'Previous photo' }).click();
 check(
 	'the gallery shows a photo of the whole product',
 	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/details.jpg') &&
-		/3 \/ 5/.test(await page.locator('.gallery .count').innerText())
+		/4 \/ 4/.test(await page.locator('.gallery .count').innerText())
 );
 check(
 	'and browsing it leaves the colour alone',
-	(await page.locator('#variant-picker input[name="design"]:checked').getAttribute('value')) === 'red'
+	(await page.locator('#variant-picker input[name="design"]:checked').getAttribute('value')) === 'green'
 );
 
 // The bundle cards: picking two re-prices the button and the sticky bar, and
 // one puts it back. The order below is for one costume.
 await page.locator('#variant-picker label.tier', { hasText: 'Two costumes' }).click();
-check('two costumes re-price the button', (await page.locator('#variant-picker button.cta').innerText()).includes('$53.01'));
+check('two costumes re-price the button', (await page.locator('#variant-picker button.cta').innerText()).includes('$52.06'));
 await page.locator('#variant-picker label.tier', { hasText: 'One costume' }).click();
-check('and one costume puts it back', (await page.locator('#variant-picker button.cta').innerText()).includes('$28.50'));
-await page.locator('#variant-picker label', { hasText: 'Green' }).click();
+check('and one costume puts it back', (await page.locator('#variant-picker button.cta').innerText()).includes('$27.99'));
+await page.locator('#variant-picker label', { hasText: 'Red' }).click();
 check(
 	'the gallery follows the colour',
-	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/green-studio.jpg')
+	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/worn-red.jpg')
+);
+await page.locator('#variant-picker label', { hasText: 'Green' }).click();
+check(
+	'and back to the tabby for green',
+	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/cat.jpg')
 );
 await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();
 check('the error clears once a size is chosen', (await page.locator('#size-error').innerText()).trim() === '');
 
 await page.locator('#variant-picker button', { hasText: /Add to cart/ }).click();
-await page.waitForURL('**/checkout', { timeout: 15000 });
-check('add to cart lands on the checkout', new URL(page.url()).pathname === '/checkout');
+await page.waitForURL('**/products/dog-christmas-costume/checkout?**', { timeout: 15000 });
 {
-	const top = page.locator('section[aria-label="Your order"]');
-	await top.locator('img').waitFor({ timeout: 10000 }).catch(() => {});
-	const text = (await top.innerText().catch(() => '')) ?? '';
-	check('the checkout opens on what is being bought', /Dog Christmas Tree Costume[\s\S]*Green · M/.test(text), text);
-	check('with a small photo of it', (await top.locator('img').getAttribute('src').catch(() => ''))?.startsWith('/resized/200/'));
-	check('and a way back to change it', (await top.locator('a', { hasText: 'Change' }).getAttribute('href')) === '/products/dog-christmas-costume');
-	check('and no product menu to leave by', !(await page.locator('header nav ul').isVisible()));
+	// The payment page is a page of its own: the choice in the link, and
+	// `added=1` because the product page reported the add.
+	const url = new URL(page.url());
+	check('add to cart opens the costume’s payment page', url.pathname === '/products/dog-christmas-costume/checkout', page.url());
+	check('carrying the colour and size', url.searchParams.get('design') === 'green' && url.searchParams.get('size') === 'M' && url.searchParams.get('added') === '1', url.search);
+	const line = await page.locator('.picker.folded').innerText().catch(() => 'not folded');
+	check('the choice is one line, with a way to change it', /Green[\s\S]*Size: M/.test(line) && /Change/.test(line), line);
+	check('none of the product page comes across: no photos, no title, no bundle cards', (await page.locator('.gallery').count()) === 0 && !(await page.locator('h1', { hasText: 'Pet Christmas Tree Costume' }).count()) && (await page.locator('label.tier').count()) === 0);
+	// Google Analytics groups pages by title: the payment page needs its own.
+	check('the payment page has a title of its own', /^Checkout · Pet Christmas Tree Costume/.test(await page.title()), await page.title());
+	check('the shop chrome: logo and padlock, no menu', (await page.locator('header.shop-header img[src="/brand/logo.png"]').count()) === 1 && !(await page.locator('header nav').count()));
 }
 
 {
@@ -234,26 +262,29 @@ check('add to cart lands on the checkout', new URL(page.url()).pathname === '/ch
 	check('AddToCart is worth one costume', add.data.value === PRICE && add.data.num_items === 1, JSON.stringify(add.data));
 	check('AddToCart server copy matches', JSON.stringify(add.server.content_ids) === `["${SKU}"]` && add.server.value === PRICE, JSON.stringify(add.server));
 	const item = (await dataLayer()).find((e) => e.event === 'add_to_cart')?.ecommerce?.items?.[0];
-	check('add_to_cart names the variant for GA4', item?.item_id === SKU && item?.item_variant === 'green / M' && item?.price === 28.5, JSON.stringify(item));
+	check('add_to_cart names the variant for GA4', item?.item_id === SKU && item?.item_variant === 'green / M' && item?.price === 27.99, JSON.stringify(item));
 }
 
 // --- the checkout line, priced by the server ---------------------------------------
-await page.waitForSelector('form dl');
+await page.waitForSelector('button.shop-pay');
 {
-	const summary = await page.locator('form', { has: page.locator('dl') }).innerText();
-	check('checkout shows the product', summary.includes('Dog Christmas Tree Costume'), summary.slice(0, 300));
+	const summary = (await page.locator('.shop-aside').textContent()) ?? '';
+	check('checkout shows the product', summary.includes('Pet Christmas Tree Costume'), summary.slice(0, 300));
 	check('checkout shows colour and size', /Green · M/.test(summary), summary.slice(0, 300));
-	check('checkout charges $28.50', (await page.locator('form dl').innerText()).includes(`$${PRICE}`));
+	check('checkout charges $27.99', (await page.locator('button.shop-pay').innerText()).includes(`$${PRICE}`));
+	check('one ViewContent for the visit: the product page’s', (await browserEvent('ViewContent')).length === 1);
+	check('and one AddToCart', (await browserEvent('AddToCart')).length === 1);
 }
 
 // --- place the order --------------------------------------------------------------------
-await page.fill('#contact-fullName', 'Holly Ivy');
 await page.fill('#contact-email', 'tree@example.com');
-await page.fill('#shipping-lookup', '751');
-await page.waitForSelector('[role="option"]');
-await page.locator('[role="option"]').first().click();
-await page.waitForSelector('#shipping-city');
-await page.getByRole('button', { name: /^(Pay |Place order)/ }).click();
+await page.fill('#shipping-firstName', 'Holly');
+await page.fill('#shipping-lastName', 'Ivy');
+await page.fill('#shipping-address', '1 Evergreen Terrace');
+await page.fill('#shipping-city', 'Albany');
+await page.selectOption('#shipping-state', 'NY');
+await page.fill('#shipping-zip', '12207');
+await page.locator('button.shop-pay').click();
 await page
 	.getByRole('heading', { name: /order received/i })
 	.waitFor({ timeout: 20000 })
@@ -281,7 +312,7 @@ check('the order was accepted', Boolean(orderNumber), body.slice(0, 300));
 			row.sku === SKU &&
 			row.option1 === 'green' &&
 			row.option2 === 'M' &&
-			Number(row.unit_price_cents) === 2850 &&
+			Number(row.unit_price_cents) === 2799 &&
 			Number(row.quantity) === 1 &&
 			row.product_slug === 'dog-christmas-costume',
 		JSON.stringify(row)

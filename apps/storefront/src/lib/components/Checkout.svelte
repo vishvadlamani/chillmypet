@@ -7,15 +7,16 @@
 	import { countryForm } from '@funnel/blocks-dr/subdivisions';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { FunnelStateAdapter, SubmitFn, TrackFn } from '@funnel/core';
-	import { DEFAULT_SHIPPING_RATES } from 'ecomwithai';
 	import { toAmount } from 'ecomwithai/marketing';
 	import { track as pixel } from '$lib/analytics/pixel';
 	import { amount, pushEcommerce } from '$lib/analytics/datalayer';
 	import { countryOptions } from '$lib/countries';
 	import { createTranslator, defaultLocale, formatMoney } from '$lib/i18n';
 	import { PRODUCT_SLUG } from '$lib/store/product';
+	import { SHIPPING_RATES } from '$lib/store/shipping-rates';
 	import { cart } from '$lib/stores/cart.svelte';
 	import CardFields from '$lib/components/CardFields.svelte';
+	import QuantityStepper from '$lib/components/QuantityStepper.svelte';
 	import { resized } from '$lib/resized';
 	import { fieldProblem } from '$lib/checkout-fields';
 	import type { ActionData, PageData } from '../../routes/checkout/$types';
@@ -41,7 +42,9 @@
 		colClass = 'flex flex-col gap-5',
 		topSummary = true,
 		mainClass = 'flex flex-col gap-6 py-8',
-		look = 'default'
+		look = 'default',
+		pickerSlug,
+		pickerSetsQuantity = false
 	}: {
 		data: Pick<
 			PageData,
@@ -105,10 +108,41 @@
 		 * blocks, which ask for first and last name separately.
 		 */
 		look?: 'default' | 'shop';
+		/**
+		 * On a one-page checkout, the product whose picker sits above the
+		 * form. Its line is the picker's to change: it gets no Remove (the
+		 * picker would show a size the cart no longer holds), and when the
+		 * picker's bundle cards set the count (`pickerSetsQuantity`), no
+		 * quantity buttons either. Every other line in the cart can be changed
+		 * or removed here.
+		 */
+		pickerSlug?: string;
+		pickerSetsQuantity?: boolean;
 	} = $props();
 
 	let shop = $derived(look === 'shop');
 	let summaryOpen = $state(false);
+
+	const canStep = (line: { slug: string }) => !(pickerSetsQuantity && line.slug === pickerSlug);
+	const canRemove = (line: { slug: string }) => line.slug !== pickerSlug;
+	// The cart's count, not the priced one: the price follows a moment later,
+	// from /api/cart, and the number under the buyer's thumb must not lag.
+	const quantityOf = (line: { variantId: number; quantity: number }) =>
+		cart.lines.find((l) => l.variantId === line.variantId)?.quantity ?? line.quantity;
+
+	/**
+	 * A basket can hold more than this page's product: the cart outlives every
+	 * visit, so a life jacket added in the summer is still there under a
+	 * Christmas costume, and it is charged with it. On a phone the shop
+	 * look's summary starts folded, which would hide exactly that, so it
+	 * opens by itself, once, when the cart holds anything else.
+	 */
+	let summaryOpened = false;
+	$effect(() => {
+		if (summaryOpened || !shop || !pickerSlug || !priced) return;
+		summaryOpened = true;
+		if (priced.lines.some((l) => l.slug !== pickerSlug)) summaryOpen = true;
+	});
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let t = $derived(createTranslator(locale));
@@ -186,7 +220,15 @@
 		})
 			.then((res) => res.json())
 			.then((data) => {
-				if (!cancelled) priced = data;
+				if (cancelled) return;
+				priced = data;
+				// A line the server no longer prices is a product taken off sale
+				// (`scripts/retired-products.js`) still saved in this browser. It is
+				// already out of the total; drop it from the cart too, or the order
+				// would post it and fail as unavailable.
+				if (!Array.isArray(data?.lines)) return;
+				const sold = new Set(data.lines.map((l: { variantId: number }) => l.variantId));
+				for (const line of cart.lines) if (!sold.has(line.variantId)) cart.remove(line.variantId);
 			})
 			.catch(() => {
 				if (!cancelled) priced = EMPTY;
@@ -197,7 +239,7 @@
 		};
 	});
 
-	const rate = (id: string) => DEFAULT_SHIPPING_RATES.find((r) => r.id === id)?.priceCents;
+	const rate = (id: string) => SHIPPING_RATES.find((r) => r.id === id)?.priceCents;
 
 	// The method block writes its own default back to state on mount, so this
 	// follows whatever it chose rather than restating a default of its own.
@@ -318,6 +360,7 @@
 	// has mounted; null means it could not, and the submit falls through to the
 	// server's hosted-page path instead of stranding the customer.
 	let cardApi = $state<{
+		submit: () => Promise<{ error?: { message?: string } }>;
 		confirm: (i: { clientSecret: string; returnUrl: string }) => Promise<{ error?: { message?: string } }>;
 	} | null>(null);
 	let cardUnavailable = $state(false);
@@ -518,7 +561,7 @@
 
 	/**
 	 * GA4's `item_variant`, from the option codes rather than their translated
-	 * names: "red_santa / M" reads the same in every locale, so a report split
+	 * names: "green / M" reads the same in every locale, so a report split
 	 * by variant doesn't also split by language.
 	 */
 	function variantName(colour: string, size: string): string {
@@ -530,7 +573,7 @@
 	 * own fields and none of them has a button, so this is the only place the
 	 * whole form is checked.
 	 */
-	const submitOrder: SubmitFunction = ({ cancel }) => {
+	const submitOrder: SubmitFunction = async ({ cancel }) => {
 		showIssues = true;
 		if (issues.length > 0) {
 			cancel();
@@ -539,6 +582,19 @@
 		}
 		submitting = true;
 		payError = null;
+		// Stripe's submit before anything is posted, while this is still the
+		// buyer's tap: with Apple Pay chosen it opens the payment sheet, which
+		// Safari refuses once the tap has passed (CardFields.svelte). It also
+		// checks the card fields, so an incomplete card posts no order.
+		if (cardApi) {
+			const checked = await cardApi.submit();
+			if (checked.error) {
+				cancel();
+				payError = checked.error.message ?? t('checkout.errors.generic');
+				submitting = false;
+				return;
+			}
+		}
 		pixel('AddPaymentInfo', {
 			content_type: 'product',
 			content_ids: priced?.lines.map((l) => l.sku) ?? [],
@@ -612,6 +668,34 @@
 <!-- What the blocks wrote into host state, in the names the order takes.
      The mapping lives here because the block's job ends at "these are
      the fields"; what an address is called downstream is the host's. -->
+{#snippet lineControls(line: PricedLine, withChange: boolean)}
+	{#if canStep(line) || canRemove(line) || withChange}
+		<div
+			class={shop
+				? 'line-actions'
+				: 'text-15 text-fx-sub mt-1 flex flex-wrap items-center gap-x-4 gap-y-1'}
+		>
+			{#if canStep(line)}
+				<QuantityStepper variantId={line.variantId} quantity={quantityOf(line)} title={line.title} />
+			{/if}
+			{#if canRemove(line)}
+				<button
+					type="button"
+					onclick={() => cart.remove(line.variantId)}
+					class={shop ? 'line-link' : 'min-h-11 underline'}
+				>
+					{t('cart.remove')}
+				</button>
+			{/if}
+			{#if withChange}
+				<a href="/products/{line.slug}" class={shop ? 'line-link' : 'inline-flex min-h-11 items-center underline'}>
+					{t('checkout.changeOrder')}
+				</a>
+			{/if}
+		</div>
+	{/if}
+{/snippet}
+
 {#snippet hiddenFields()}
 	<!-- The shop look asks for the two names separately, and posts them
 	     that way, so "Mary Ann" stays a first name instead of being split
@@ -732,6 +816,7 @@
 					<span class="name">
 						{line.title}
 						<small>{colourName(line.colour)} · {line.size}</small>
+						{@render lineControls(line, false)}
 					</span>
 					<span class="amount">
 						{formatMoney(line.unitPriceCents * line.quantity, locale, currency)}
@@ -763,7 +848,7 @@
 {/snippet}
 
 {#if form && 'success' in form && form.success}
-	<div class="storefront-type bg-fx-bg min-h-svh pb-12" class:shop-type={shop}>
+	<div class="storefront-type tree-checkout bg-fx-bg min-h-svh pb-12" class:shop-type={shop}>
 		<section class="max-w-page px-gutter mx-auto flex flex-col gap-4 py-16 text-center">
 			<h1 class="text-33 tracking-display text-fx-ink font-bold">{t('checkout.successTitle')}</h1>
 			<p class="text-17 text-fx-sub">
@@ -831,7 +916,9 @@
 							<!-- Holds the height the card fields will take, so the button
 							     and everything under it stay put while Stripe.js loads. -->
 							<div class="shop-pay-box" class:ready={Boolean(cardApi)}>
-								{#if !cardApi}
+								{#if isEmpty && priced !== null}
+									<p class="shop-pay-loading">{t('checkout.paymentEmpty')}</p>
+								{:else if !cardApi}
 									<p class="shop-pay-loading">{t('checkout.paymentLoading')}</p>
 								{/if}
 								<CardFields
@@ -893,7 +980,7 @@
 		</div>
 	</div>
 {:else}
-	<div class="storefront-type bg-fx-bg min-h-svh pb-12">
+	<div class="storefront-type tree-checkout bg-fx-bg min-h-svh pb-12">
 		<!-- Contact, address and shipping method are blocks; everything below them
 		     is host chrome. Payment deliberately is not a block: unknown block
 		     types are skipped by design, which on a checkout would render a page
@@ -902,7 +989,7 @@
 			<section class="max-w-page px-gutter mx-auto w-full pt-6" aria-label={t('checkout.yourOrder')}>
 				<div class="rounded-field flex flex-col gap-3 border border-[#d8d5cf] bg-white p-3">
 					{#each priced.lines as line (line.variantId)}
-						<div class="flex items-center gap-3">
+						<div class="flex items-start gap-3">
 							{#if line.image}
 								<img
 									src={resized(line.image, 200)}
@@ -915,19 +1002,20 @@
 							<div class="min-w-0 flex-1">
 								<p class="text-15 text-fx-ink truncate font-medium">{line.title}</p>
 								<p class="text-13 text-fx-muted">
-									{colourName(line.colour)} · {line.size} · {t('cart.quantity')}
-									{line.quantity}
+									{colourName(line.colour)} · {line.size}{#if !canStep(line)}
+										· {t('cart.quantity')} {line.quantity}{/if}
 								</p>
+								<!-- Each line its own controls and its own way back: one
+								     "Change" for the whole box took the buyer to whichever
+								     product happened to be first. -->
+								{@render lineControls(line, true)}
 							</div>
-							<span class="text-15 text-fx-ink font-semibold whitespace-nowrap tabular-nums">
+							<span class="text-15 text-fx-ink self-start font-semibold whitespace-nowrap tabular-nums">
 								{formatMoney(line.unitPriceCents * line.quantity, locale, currency)}
 							</span>
 						</div>
 					{/each}
-					<div class="text-15 flex items-center justify-between border-t border-[#e2e0dc] pt-2">
-						<a href="/products/{priced.lines[0].slug}" class="text-fx-sub underline">
-							{t('checkout.changeOrder')}
-						</a>
+					<div class="text-15 flex items-center justify-end border-t border-[#e2e0dc] pt-2">
 						<span class="text-fx-ink font-semibold tabular-nums">
 							{t('checkout.total')}: {formatMoney(totalCents, locale, currency)}
 						</span>
@@ -965,7 +1053,14 @@
 						<!-- Stripe.js is a third-party script on a phone connection, and an
 						     empty bordered box reads as a broken checkout. Say what it is
 						     waiting for until the fields report themselves ready. -->
-						{#if !cardApi}
+						<!-- Stripe's fields mount only for an amount above zero, so with
+						     nothing in the cart they never come, and "Loading" would wait
+						     forever. Say what is missing instead. -->
+						{#if isEmpty && priced !== null}
+							<p class="text-15 text-fx-muted">
+								{emptyNote ? t('checkout.paymentPick') : t('checkout.paymentEmpty')}
+							</p>
+						{:else if !cardApi}
 							<p class="text-15 text-fx-muted">{t('checkout.paymentLoading')}</p>
 						{/if}
 						<CardFields
@@ -1005,16 +1100,10 @@
 									<div class="min-w-0">
 										<p class="text-15 text-fx-ink font-medium">{line.title}</p>
 										<p class="text-13 text-fx-muted">
-											{colourName(line.colour)} · {line.size} · {t('cart.quantity')}
-											{line.quantity}
+											{colourName(line.colour)} · {line.size}{#if !canStep(line)}
+												· {t('cart.quantity')} {line.quantity}{/if}
 										</p>
-										<button
-											type="button"
-											onclick={() => cart.remove(line.variantId)}
-											class="text-13 text-fx-muted mt-1 underline"
-										>
-											{t('cart.remove')}
-										</button>
+										{@render lineControls(line, false)}
 									</div>
 									<span class="text-15 text-fx-ink font-semibold whitespace-nowrap tabular-nums">
 										{formatMoney(line.unitPriceCents * line.quantity, locale, currency)}

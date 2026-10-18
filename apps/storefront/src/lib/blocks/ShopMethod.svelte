@@ -9,8 +9,8 @@
 	 * its time under its name and its price on the right.
 	 *
 	 * The reference keeps this empty until an address is typed, because its
-	 * rates depend on where the parcel goes. Ours don't (`DEFAULT_SHIPPING_RATES`
-	 * is the same everywhere), so they show from the start and the buyer can
+	 * rates depend on where the parcel goes. Ours don't (`SHIPPING_RATES` is
+	 * the same everywhere), so they show from the start and the buyer can
 	 * see delivery is free before typing anything. The rates are the ones the
 	 * order is priced against, bound from `shipping.rates`; the Christmas
 	 * cut-off is the same config value the product page's strip reads, and

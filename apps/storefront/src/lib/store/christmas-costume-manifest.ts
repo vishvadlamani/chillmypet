@@ -1,7 +1,7 @@
 import type { FunnelDefinition } from '@funnel/core';
 
 /**
- * The Dog Christmas Tree Costume page.
+ * The Pet Christmas Tree Costume page.
  *
  * Laid out and styled like littletreepups.com, on the owner's instruction
  * (2026-10-16): cream and pine, Poppins, pill pickers, bundle cards, an
@@ -27,7 +27,7 @@ import type { FunnelDefinition } from '@funnel/core';
  */
 export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 	id: 'dog-christmas-costume',
-	name: 'Dog Christmas Tree Costume — product page',
+	name: 'Pet Christmas Tree Costume — product page',
 	layout: 'page',
 	blocks: [
 		{
@@ -55,24 +55,24 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			requires: ['variants.designs'],
 			props: {
 				designs: { $ref: 'variants.designs' },
-				// Red is the catalogue's own photo (worn-red.jpg, the listing image
-				// everywhere else too). Green's catalogue photo is a flat-lay, so the
-				// page shows the green costume worn instead.
+				// Green leads (`leadDesign` in pages.ts) and opens on the tabby
+				// wearing it, the owner's pick for the page's main photo. Red is the
+				// catalogue's own photo (worn-red.jpg). Green's catalogue photo is a
+				// flat-lay, so the page shows the costume worn instead.
 				photos: {
 					green: {
-						src: '/products/dog-christmas-costume/green-studio.jpg',
-						alt: 'A small curly-haired dog wearing the green Christmas tree costume, hood up, gold star on top'
+						src: '/products/dog-christmas-costume/cat.jpg',
+						alt: 'A tabby cat wearing the green Christmas tree costume on a rug, hood up, gold star on top'
 					}
 				},
 				// The shots not tied to a colour, after the colours' own photos, so
 				// every angle is one swipe away on the first screen.
 				extras: [
-					{ src: '/products/dog-christmas-costume/details.jpg', alt: 'The green costume worn, with close-ups of the gold star topper, the pom-poms and the layered cape' },
-					{ src: '/products/dog-christmas-costume/duo.jpg', alt: 'Two small dogs by a Christmas tree, one in the green costume and one in the red' },
-					{ src: '/products/dog-christmas-costume/cat.jpg', alt: 'A tabby cat wearing the green Christmas tree costume on a rug' }
+					{ src: '/products/dog-christmas-costume/green-studio.jpg', alt: 'A small curly-haired dog wearing the green Christmas tree costume, hood up, gold star on top' },
+					{ src: '/products/dog-christmas-costume/details.jpg', alt: 'The green costume worn, with close-ups of the gold star topper, the pom-poms and the layered cape' }
 				],
 				hint: 'Swipe to explore',
-				title: 'Dog Christmas Tree Costume photos'
+				title: 'Pet Christmas Tree Costume photos'
 			}
 		},
 		{
@@ -102,7 +102,8 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				sizeLabel: 'Size',
 				// The same bands as the size guide's table, in pounds for a US buyer;
 				// the table carries kilograms too.
-				sizeNote: 'Sized by weight: S 3–6 lb · M 6–11 lb · L 11–17 lb. Between two? Go up.',
+				// Metric first, pounds beside it: the supplier's table is in kilograms.
+				sizeNote: 'By weight: S 1.5–2.5 kg (3–6 lb) · M 2.5–5 kg (6–11 lb) · L 5–7.5 kg (11–17 lb). Between two? Go up.',
 				sizeGuideHref: '#size-guide',
 				sizeGuideLabel: 'Size guide',
 				sizeMissing: 'Pick your dog’s size first, then we’re good to go.',
@@ -127,8 +128,8 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			component: 'payment_badges',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
-			// The same list as the hoodie and the life jacket: only what the
-			// checkout offers. Change all three together. Google Pay stays off
+			// The same list as the reindeer hoodie and the life jacket: only what
+			// the checkout offers. Change all three together. Google Pay stays off
 			// until it is on in Stripe, never before. No Discover: Stripe does not
 			// offer it to accounts in Czechia, which is where ChillMP is registered.
 			props: { methods: ['visa', 'mastercard', 'amex', 'applepay'], width: 'full' }
@@ -146,7 +147,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				items: [
 					{
 						label: 'Size & fit',
-						body: 'Sizes go by your pet’s weight: S for 3–6 lb, M for 6–11 lb, L for 11–17 lb.\n\nIt’s a cape with a hood, so nothing goes around the legs or the belly and it forgives a stocky build. Between two sizes, go up: the cord at the neck takes up the slack.',
+						body: 'Sizes go by your pet’s weight: S for 1.5–2.5 kg (3–6 lb), M for 2.5–5 kg (6–11 lb), L for 5–7.5 kg (11–17 lb).\n\nIt’s a cape with a hood, so nothing goes around the legs or the belly and it forgives a stocky build. Between two sizes, go up: the cord at the neck takes up the slack.',
 						link: { label: 'See the size guide', href: '#size-guide' }
 					},
 					{
@@ -156,13 +157,27 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					},
 					{
 						label: 'Returns & exchanges',
-						body: 'You get 30 days. Exchanges and returns are free, and we send the label.\n\nJust email contact@chillmypet.com with your order number.',
+						body: 'You get 30 days. Exchanges and returns are free, and we send the label.\n\nJust email contact.chillmypet@gmail.com with your order number.',
 						link: { label: 'Read our return policy', href: '/policies/refunds' }
 					},
 					{
 						label: 'What’s included & care',
 						body: 'One hooded cape in the colour and size you pick, with the glitter star on the hood and the pom-poms stitched on.\n\nHand wash in cool water and lay flat to dry. Keep the star away from heat and the washing machine.'
 					}
+				]
+			}
+		},
+		{
+			id: 'trust',
+			component: 'trust_strip',
+			version: 1,
+			// Promises the shipping and refund policies already make, nothing more.
+			props: {
+				items: [
+					{ icon: 'truck', text: 'Free US shipping' },
+					{ icon: 'return', text: '30-day returns' },
+					{ icon: 'lock', text: 'Secure checkout' },
+					{ icon: 'mail', text: 'Real people reply' }
 				]
 			}
 		},
@@ -183,9 +198,10 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					{ title: 'Red or green', body: 'Classic pine green or a bold Christmas red. Same cut, same star, same pom-poms.' },
 					{ title: 'Off as fast as it goes on', body: 'One cord and one button. Dress them for the photo, the party or the visit, then let them be a dog again.' }
 				],
+				// Not the tabby: it is the gallery's opening photo now.
 				image: {
-					src: '/products/dog-christmas-costume/cat.jpg',
-					alt: 'A tabby cat wearing the green Christmas tree costume on a rug'
+					src: '/products/dog-christmas-costume/green-studio.jpg',
+					alt: 'A small curly-haired dog wearing the green Christmas tree costume, hood up, gold star on top'
 				}
 			}
 		},
@@ -203,7 +219,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					{ src: '/products/dog-christmas-costume/shih-tzu.jpg', alt: 'A shih tzu in the green Christmas tree costume in front of a decorated tree', caption: 'Ready by the tree' },
 					{ src: '/products/dog-christmas-costume/schnauzer.jpg', alt: 'A miniature schnauzer in the green Christmas tree costume', caption: 'Ready for the photo' }
 				],
-				note: 'AI-styled images. For small dogs and cats up to 17 lb (7.5 kg); see the size guide below.'
+				note: 'For small dogs and cats up to 7.5 kg (17 lb); see the size guide below.'
 			}
 		},
 		{
@@ -249,22 +265,22 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			props: {
 				items: [
 					{
-						icon: '✉️',
+						icon: 'mail',
 						title: 'A real person answers',
-						body: 'Email contact@chillmypet.com about a size, an order or a return. We reply within 1–2 business days.'
+						body: 'Email contact.chillmypet@gmail.com about a size, an order or a return. We reply within 1–2 business days.'
 					},
 					{
-						icon: '📦',
+						icon: 'parcel',
 						title: 'Free shipping, with tracking',
 						body: 'Packed within 2–4 business days, and you get tracking when it ships. Lost on the way? We replace it or refund it.'
 					},
 					{
-						icon: '🔒',
+						icon: 'lock',
 						title: 'Secure checkout',
 						body: 'Payments are handled by Stripe. Your card number never touches our site.'
 					},
 					{
-						icon: '↩️',
+						icon: 'return',
 						title: '30 days to change your mind',
 						body: 'Send it back unworn within 30 days for a full refund. Swapping sizes is free, and the return label is on us.'
 					}
@@ -289,7 +305,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				columns: { $ref: 'sizes.columns' },
 				rows: { $ref: 'sizes.rows' },
 				contact:
-					'Not sure? Email contact@chillmypet.com with your dog’s weight and breed, and we’ll help you pick.'
+					'Not sure? Email contact.chillmypet@gmail.com with your dog’s weight and breed, and we’ll help you pick.'
 			}
 		},
 		{
@@ -318,7 +334,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					},
 					{
 						label: 'How do I pick the size?',
-						body: 'Go by weight: S for 3–6 lb (1.5–2.5 kg), M for 6–11 lb (2.5–5 kg), L for 11–17 lb (5–7.5 kg). The cord at the neck adjusts the fit.\n\nNot sure? Size up. A loose cape looks better than a tight one.'
+						body: 'Go by weight: S for 1.5–2.5 kg (3–6 lb), M for 2.5–5 kg (6–11 lb), L for 5–7.5 kg (11–17 lb). The cord at the neck adjusts the fit.\n\nNot sure? Size up. A loose cape looks better than a tight one.'
 					},
 					{
 						label: 'How do the bundles work?',

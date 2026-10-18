@@ -5,8 +5,11 @@
 		"currency": "USD"
 	},
 	"nav": {
+		"menu": "Menú",
 		"home": "Inicio",
 		"christmas": "Navidad",
+		"catalog": "Catálogo",
+		"allProducts": "Todos los productos",
 		"shop": "Tienda",
 		"contact": "Contacto",
 		"trackOrder": "Seguir pedido",
@@ -91,7 +94,10 @@
 		"remove": "Quitar",
 		"subtotal": "Subtotal",
 		"checkout": "Finalizar compra",
-		"quantity": "Cant."
+		"quantity": "Cant.",
+		"decrease": "Quitar uno: {item}",
+		"increase": "Añadir uno: {item}",
+		"quantityOf": "Cantidad de {item}"
 	},
 	"checkout": {
 		"title": "Finalizar compra",
@@ -150,6 +156,8 @@
 		"paymentStepTitle": "Pago",
 		"paymentBack": "Editar datos",
 		"paymentLoading": "Cargando el pago seguro…",
+		"paymentEmpty": "Añade algo al carrito y aquí aparecerá el formulario de pago.",
+		"paymentPick": "Elige un color y una talla arriba y aquí aparecerá el formulario de pago.",
 		"pickAbove": "Elige un color y una talla arriba para ver tu total.",
 		"yourOrder": "Tu pedido",
 		"changeOrder": "Cambiar",
@@ -180,6 +188,10 @@
 		}
 	},
 	"footer": {
+		"tagline": "Ropa pequeña para mascotas pequeñas, con envío gratis en EE. UU. y 30 días para cambiar de opinión.",
+		"shop": "Tienda",
+		"help": "Ayuda",
+		"legal": "Legal",
 		"shipping": "Política de envíos",
 		"refunds": "Política de reembolsos",
 		"contact": "Contacto",

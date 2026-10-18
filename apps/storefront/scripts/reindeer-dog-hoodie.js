@@ -85,8 +85,8 @@ export const REINDEER_DOG_HOODIE = {
 		}
 	],
 	// SKUs spell out colour and size, because they are the content ids Meta and
-	// GA4 receive. RH for "reindeer hoodie", beside the costume's XT and the
-	// pouch hoodie's XH.
+	// GA4 receive. RH for "reindeer hoodie", beside the costume's XT. (XH was
+	// the retired pouch hoodie's: never reuse it, old orders still carry it.)
 	variants: COLOURS.flatMap((c) =>
 		SIZES.map(({ code }) => ({
 			sku: `CMP-RH-${c.sku}-${code}`,

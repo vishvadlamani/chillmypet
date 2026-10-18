@@ -61,7 +61,7 @@
 			 */
 			button?: boolean;
 			/**
-			 * Shrink to one line ("Santa Red · Size M", Change) once both are
+			 * Shrink to one line ("Green · Size M", Change) once both are
 			 * chosen. The shop checkout sets it: a buyer who chose on the landing
 			 * page arrives with both, and the full picker above the email field
 			 * pushed the form a screen down to restate a choice already made.
@@ -143,6 +143,7 @@
 	// Opened by Change, and kept open for the rest of the visit: folding again
 	// the moment a size is tapped would move the page under the buyer's finger.
 	let unfolded = $state(false);
+	// Either look folds: the line is the same whichever layout it opens to.
 	const folded = $derived(Boolean(p.fold) && !unfolded && Boolean(size) && buyable(design, size));
 
 	function unfold() {
@@ -161,7 +162,7 @@
 	{/each}
 {/snippet}
 
-{#if pills}
+{#if pills && !folded}
 <div class="picker pills" id="variant-picker">
 	{#if p.price}
 		<p class="price">
@@ -270,7 +271,7 @@
 		{/if}
 		<p>
 			<strong>{designName}</strong>
-			<span>{p.sizeLabel ?? 'Size'}: {size}</span>
+			<span>{p.sizeLabel ?? 'Size'}: {size}{units > 1 ? ` · ${units} ${p.unitsNoun ?? 'items'}` : ''}</span>
 		</p>
 		<button type="button" onclick={unfold}>
 			{p.changeLabel ?? 'Change'}

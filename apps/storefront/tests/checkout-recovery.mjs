@@ -83,15 +83,19 @@ const newShopper = async () => {
 	const ctx = await newShopper();
 	const page = await ctx.newPage();
 	await page.goto(`${BASE}/products/dog-christmas-costume`, { waitUntil: 'networkidle' });
+	// No colour chosen: the page opens on green (`leadDesign`), and that is
+	// what goes in the cart.
 	await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();
 	await page.locator('#variant-picker button', { hasText: /Add to cart/ }).click();
-	await page.waitForURL('**/checkout', { timeout: 15000 });
-	await page.waitForSelector('form dl');
+	// The costume's own payment page (`checkout: 'shop'` in pages.ts).
+	await page.waitForURL('**/products/dog-christmas-costume/checkout?**', { timeout: 15000 });
+	await page.waitForSelector('button.shop-pay');
 
 	const hint = await page.textContent('body');
 	check('the email field says a reminder may follow', /we'll send one reminder/i.test(hint ?? ''));
 
-	await page.fill('#contact-fullName', 'Holly Ivy');
+	await page.fill('#shipping-firstName', 'Holly');
+	await page.fill('#shipping-lastName', 'Ivy');
 	await page.fill('#contact-email', ADDRESS.slice(0, 6));
 	await page.waitForTimeout(2500);
 	check('a half-typed email saves nothing', !(await draftRow()));
@@ -111,9 +115,9 @@ const result = await sweep();
 check('the sweep reports one reminder sent', result.sent >= 1, JSON.stringify(result));
 const reminder = await until(() => remindersTo(ADDRESS)[0]);
 check('one reminder reaches the address', remindersTo(ADDRESS).length === 1, String(remindersTo(ADDRESS).length));
-check('it names the costume in the subject', /Dog Christmas Tree Costume is still in your cart/.test(reminder?.subject ?? ''), reminder?.subject);
+check('it names the costume in the subject', /Pet Christmas Tree Costume is still in your cart/.test(reminder?.subject ?? ''), reminder?.subject);
 check('it greets them by name', reminder?.text?.startsWith('Hi Holly,'), reminder?.text?.slice(0, 40));
-check('it shows the line, with colour and size', /1 × Dog Christmas Tree Costume — Red — M/.test(reminder?.text ?? ''), reminder?.text);
+check('it shows the line, with colour and size', /1 × Pet Christmas Tree Costume — Green — M/.test(reminder?.text ?? ''), reminder?.text);
 check('it shows the product photo', /<img src="http:\/\/127\.0\.0\.1:5173\/products\/dog-christmas-costume\//.test(reminder?.html ?? '') || /<img src="http/.test(reminder?.html ?? ''));
 check('it carries a List-Unsubscribe header', /\/email\/unsubscribe\/[0-9a-f]{48}>$/.test(reminder?.headers?.['List-Unsubscribe'] ?? ''), JSON.stringify(reminder?.headers));
 check('the draft is marked reminded', Boolean((await draftRow())?.reminded_at));
@@ -132,8 +136,8 @@ check('the reminder links to a restore page', Boolean(restoreUrl?.includes('/che
 	await page.waitForSelector('form dl');
 	const summary = await page.locator('form', { has: page.locator('dl') }).innerText();
 	check('it lands on the checkout', new URL(page.url()).pathname === '/checkout');
-	check('with the costume back in the cart', summary.includes('Dog Christmas Tree Costume') && /Red · M/.test(summary), summary.slice(0, 200));
-	check('priced by the server', (await page.locator('form dl').innerText()).includes('$28.50'));
+	check('with the costume back in the cart', summary.includes('Pet Christmas Tree Costume') && /Green · M/.test(summary), summary.slice(0, 200));
+	check('priced by the server', (await page.locator('form dl').innerText()).includes('$27.99'));
 	check('and their email already filled in', (await page.inputValue('#contact-email')) === ADDRESS, await page.inputValue('#contact-email'));
 	await ctx.close();
 }

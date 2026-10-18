@@ -5,8 +5,11 @@
 		"currency": "USD"
 	},
 	"nav": {
+		"menu": "Menu",
 		"home": "Home",
 		"christmas": "Christmas",
+		"catalog": "Catalog",
+		"allProducts": "All products",
 		"shop": "Shop",
 		"contact": "Contact",
 		"trackOrder": "Track order",
@@ -91,7 +94,10 @@
 		"remove": "Remove",
 		"subtotal": "Subtotal",
 		"checkout": "Checkout",
-		"quantity": "Qty"
+		"quantity": "Qty",
+		"decrease": "One fewer {item}",
+		"increase": "One more {item}",
+		"quantityOf": "Quantity of {item}"
 	},
 	"checkout": {
 		"title": "Checkout",
@@ -150,6 +156,8 @@
 		"paymentStepTitle": "Payment",
 		"paymentBack": "Edit details",
 		"paymentLoading": "Loading secure payment…",
+		"paymentEmpty": "Add something to your cart and the card form appears here.",
+		"paymentPick": "Choose a colour and size above, and the card form appears here.",
 		"pickAbove": "Pick a colour and size above to see your total.",
 		"yourOrder": "Your order",
 		"changeOrder": "Change",
@@ -180,6 +188,10 @@
 		}
 	},
 	"footer": {
+		"tagline": "Little outfits for small pets, with free US shipping and 30 days to change your mind.",
+		"shop": "Shop",
+		"help": "Help",
+		"legal": "Legal",
 		"shipping": "Shipping policy",
 		"refunds": "Refund policy",
 		"contact": "Contact us",

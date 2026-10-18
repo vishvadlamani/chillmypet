@@ -6,12 +6,16 @@
  * workflow used to run `db:migrate` and `db:products` first, which needs the
  * database's token as a repository secret. The repository's owner does not
  * hold that token (the Turso account is someone else's), so the step never
- * ran, and /products/christmas-pouch-hoodie was a 404 on chillmypet.com for
- * days after the page had deployed. The Worker already holds the token: it
+ * ran, and a new product page was a 404 on chillmypet.com for days after
+ * it had deployed. The Worker already holds the token: it
  * serves every page from that database. So it does the job itself, once per
  * isolate, on the first request after a deploy, in the background.
  *
- * Both halves are additive and idempotent. The schema is `create ... if not
+ * Both halves are additive and idempotent, and so is the third: a listed price
+ * change (`scripts/price-changes.js`) moves only variants still at the old
+ * price, a copy change (`scripts/copy-changes.js`) only copy that still
+ * reads the old words, and a retirement (`scripts/retired-products.js`)
+ * only a product still active. The schema is `create ... if not
  * exists` throughout, and a product the store already has is skipped, never
  * rewritten, so prices, stock and order history survive. Two isolates racing
  * to add the same product is harmless: `unique (store_id, slug)` fails the
@@ -22,8 +26,11 @@
  * request retries it, rather than every request retrying.
  */
 import { SCHEMA, applySchema, schemaStatements, type Client } from 'ecomwithai/db';
-import { insertProduct, productExists } from '../../../scripts/catalog.js';
+import { applyCopyChange, applyPriceChange, archiveProduct, insertProduct, productExists } from '../../../scripts/catalog.js';
+import { COPY_CHANGES } from '../../../scripts/copy-changes.js';
+import { PRICE_CHANGES } from '../../../scripts/price-changes.js';
 import { PRODUCTS, STORE_ID } from '../../../scripts/products.js';
+import { RETIRED_PRODUCTS } from '../../../scripts/retired-products.js';
 
 /**
  * Every table and index the schema creates, by name. One read of
@@ -50,13 +57,20 @@ export type CatalogueSync = {
 	added: string[];
 	/** Products the store already had, left as they were. */
 	skipped: string[];
+	/** Products whose price moved on this run (`scripts/price-changes.js`). */
+	repriced: string[];
+	/** Products whose copy changed on this run (`scripts/copy-changes.js`). */
+	recopied: string[];
+	/** Products taken off sale on this run (`scripts/retired-products.js`). */
+	archived: string[];
 	/** The store row itself is absent: nothing to add products to. Seed first. */
 	storeMissing: boolean;
 };
 
 /**
- * Creates whatever the schema has that the database lacks, then adds whatever
- * `PRODUCTS` has that the store lacks. Safe to run any number of times.
+ * Creates whatever the schema has that the database lacks, adds whatever
+ * `PRODUCTS` has that the store lacks, applies the listed price and copy
+ * changes and archives the retired products. Safe to run any number of times.
  */
 export async function syncCatalogue(db: Client, storeId: string = STORE_ID): Promise<CatalogueSync> {
 	const schemaCreated = await missingSchemaObjects(db);
@@ -65,7 +79,7 @@ export async function syncCatalogue(db: Client, storeId: string = STORE_ID): Pro
 	const store = await db.execute({ sql: 'select 1 from stores where id = ?', args: [storeId] });
 	const slugs = PRODUCTS.map((def) => def.slug);
 	if (store.rows.length === 0) {
-		return { schemaCreated, added: [], skipped: slugs, storeMissing: true };
+		return { schemaCreated, added: [], skipped: slugs, repriced: [], recopied: [], archived: [], storeMissing: true };
 	}
 
 	const added: string[] = [];
@@ -85,7 +99,24 @@ export async function syncCatalogue(db: Client, storeId: string = STORE_ID): Pro
 			else throw error;
 		}
 	}
-	return { schemaCreated, added, skipped, storeMissing: false };
+
+	// After the adds, so a product added on this run at its script's (new)
+	// price is simply not matched by the guard.
+	const repriced: string[] = [];
+	for (const change of PRICE_CHANGES) {
+		if ((await applyPriceChange(db, storeId, change)) > 0) repriced.push(change.slug);
+	}
+	const recopied: string[] = [];
+	for (const change of COPY_CHANGES) {
+		if ((await applyCopyChange(db, storeId, change)) > 0 && !recopied.includes(change.slug)) {
+			recopied.push(change.slug);
+		}
+	}
+	const archived: string[] = [];
+	for (const { slug } of RETIRED_PRODUCTS) {
+		if ((await archiveProduct(db, storeId, slug)) > 0) archived.push(slug);
+	}
+	return { schemaCreated, added, skipped, repriced, recopied, archived, storeMissing: false };
 }
 
 const RETRY_AFTER_MS = 60_000;
@@ -113,7 +144,7 @@ export function ensureCatalogue(
 				return;
 			}
 			synced = true;
-			if (result.schemaCreated.length > 0 || result.added.length > 0) {
+			if (result.schemaCreated.length > 0 || result.added.length > 0 || result.repriced.length > 0 || result.recopied.length > 0 || result.archived.length > 0) {
 				console.log('catalogue sync', JSON.stringify(result));
 			}
 		})

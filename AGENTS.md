@@ -10,8 +10,8 @@ packages/ecomwithai/    the open-source framework — EDIT HERE
 packages/funnel-core/   block runtime: manifests, $ref binding, page layout
 packages/blocks-dr/     direct-response block library — A COPY, see below
 apps/storefront/        BFF: SvelteKit UI, language packs, routes
-landing/                static Payment Link pages on Cloudflare Pages, outside the store:
-                        christmas-pouch-hoodie (live), pouch-pet-hoodie (redirects to it)
+landing/retired/        the redirect both retired landing pages (pages.dev) serve:
+                        every request → chillmypet.com/products/dog-christmas-costume
 ```
 
 `packages/ecomwithai` is the editable copy of the framework, and the public repo
@@ -134,13 +134,31 @@ runs with the same reach as this codebase, by whoever holds container access —
 and a Meta pixel published in it would double-count against the ones the
 snippet already initialises.
 
-What the container holds, as published on 2026-10-08:
-- A GA4 Google tag for `G-YCFPQ38SXP`, which sends page_view.
-- A GA4 event tag that forwards every dataLayer event and carries
+What the container holds, as published on 2026-10-18 (version 6):
+- A GA4 Google tag for `G-YCFPQ38SXP`, which sends page_view (DOM Ready).
+- A GA4 event tag on the "Shop events only" trigger: custom events matching
+  `view_item|add_to_cart|begin_checkout|add_payment_info|purchase`. It carries
   `transaction_id`, `event_id` and the `_fbp`/`_fbc` values. Its
   `transport_url` is empty, so there is no server-side GTM.
 - One **paused** custom-template tag. Leave it paused unless you know it is not
   a Meta tag.
+
+A new dataLayer event reaches GA4 only once its name is added to that trigger
+in GTM. Before version 6 the event tag fired on `gtm.dom` and on every event,
+so GA4 got a fake `gtm.dom` event and every page view twice; version 5 dropped
+the event tag entirely and with it every shop event. Verify a container change
+by reading the published `gtm.js` (its `version`, `predicates` and `rules`)
+and capturing the GA4 hits (route `/qndl/ga/` and `/g/collect`). GA4 batches,
+so wait ~10 s before reading them.
+
+**The pixel leaves page views to the site** (`hooks.server.ts`,
+2026-10-18): `fbq.disablePushState=true;fbq.allowDuplicatePageViews=true;`
+before the inits. Without the first, the pixel fires its own PageView on a
+client-side navigation (costume page → payment page) under an id of its own
+and swallows ours, so browser and server copies never deduplicate; without
+the second, it drops our next PageView as a repeat. `tests/e2e.mjs` checks
+both. The payment page's `<title>` is "Checkout · …", not the product's, as
+GA4's page reports group by title.
 
 **Google tag gateway runs through Cloudflare on the path `/qndl`** (set up
 2026-10-08 in Vish's Cloudflare account). GA4 hits go first-party to
@@ -188,6 +206,13 @@ ViewContent on every view, at a 3.2/10 match quality. `NON_BROWSER` must never
 match the Facebook and Instagram in-app browsers (`FBAN`, `Instagram`), which
 is where every ad click opens.
 
+**Testing the live pixel.** `fbevents.js` sends nothing in an automated or bot
+browser: launch Chromium with `--disable-blink-features=AutomationControlled`,
+and keep the browser's own user agent plain, because Meta's bot list matches
+`monitor` too. To stop the server's first PageView reaching Meta, add
+`monitor` only to the document request's `user-agent` (a Playwright route),
+and fulfil `facebook.com/tr` and `/api/track` locally.
+
 **Don't put `original_event_data` on a live event.** It describes the past
 acquisition a *delayed* event belongs to, and it has its own `event_id` that
 Meta dedupes on. The framework sent it on every event, without that id, from
@@ -203,14 +228,13 @@ Meta's 7-day figures span both sides of it until about 2026-10-19.
 before the payload.** On 2026-10-11 it reported, for ViewContent on
 `1341978141149107`, 0% of server events with an event ID and 0% coverage. Every
 sender was checked against that: the storefront's `track()` → `/api/track`, the
-Christmas page's `xmasTrack` → `/api/event`, and the hoodie page's, all put the
-browser's `eventID` on the server copy as `event_id`, and the live Christmas
-files were byte-identical to the repo. Nothing else posts to the dataset: no
+landing pages' senders of the time (both retired since), all put the
+browser's `eventID` on the server copy as `event_id`. Nothing else posts to the dataset: no
 Zaraz, no server-side GTM (the container's GA4 tag carries an `event_id` for
 GA4 only). A correct payload reading as 0% means old events in the window, or
 server events not arriving at all. In that order:
 
-1. `GET /api/meta-status` on chillmypet.com and on the Christmas page. Each asks
+1. `GET /api/meta-status` on chillmypet.com. It asks
    Meta, with an empty batch, whether *that deployment's* token may post to its
    dataset, which is the token nobody can read back. `accepted` (200) or not
    (503, with Meta's reason, token redacted). Cached five minutes per isolate.
@@ -219,13 +243,10 @@ server events not arriving at all. In that order:
    the goals of 95% of server events with `event_id` and 75% coverage.
 3. Coverage is a 7-day average, so after a fix, wait the week.
 
-Coverage also counts browser events whose server copy never left. The
-Christmas page's `xmasTrack` holds each copy up to 3 s for `_fbp`, and a visitor
-who left in that window took it with them. Driven in Chromium with Meta's script
-blocked and the page left after 500 ms, that was 0 of 2 server copies for a
-PageView and ViewContent the pixel had fired. Waiting copies now go out on
-`pagehide`/`visibilitychange`, which gives 2 of 2 under the same event ids and
-still one copy each on a longer visit.
+Coverage also counts browser events whose server copy never left: a beacon
+held back (the retired Christmas landing page waited up to 3 s for `_fbp`)
+leaves with a visitor who closes the page in that window. Send waiting copies
+on `pagehide`/`visibilitychange`, never only on a timer.
 
 **`fbc` and `fbp` come from Meta's Parameter Builder, once per request.**
 `$lib/server/meta-browser-ids.ts` runs `capi-param-builder-nodejs` in
@@ -243,12 +264,6 @@ trimming, no percent-encoding (the cookie is written with an identity
 once resolved a merge by deleting this file in favour of the hand-built
 version; don't. `tests/payment-flow.mjs` replays a stale cookie against a new
 click through the page and a beacon.
-The Christmas page (`landing/christmas-pouch-hoodie`, dataset
-`1341978141149107`, where the 2026-10-04 diagnostic actually came from) has
-no server code on its documents, so it runs Meta's *client-side* builder
-instead: `param-builder.js`, loaded before `pixel.js`. Its worker sends the
-`_fbc`/`_fbp` cookies verbatim and never builds one from `fbclid`. Its README
-has the details.
 
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires
@@ -310,8 +325,8 @@ rule. Change the id to a UUID and the browser copy carries its hash while the
 server copy carries something else, and they stop matching without any error.
 The id is random, never derived from the person. Like `_fbp`, it is an
 advertising identifier: the consent gate (Not built, below) has to hold this
-cookie back too. The Christmas page (`landing/`) mints the same cookie in
-`pixel.js`.
+cookie back too. It is only ever minted here: a `?vid=` in a link is ignored
+(the retired Christmas landing page used to hand its own over that way).
 
 **The webhook's Purchase carries the buyer's address and user agent through
 Stripe.** The webhook is a request from Stripe, so it has none of the customer's
@@ -380,13 +395,10 @@ codebase, from the webhook, on `action === 'order_paid'`. If you find one of
 these connected, disconnect it at the Stripe end rather than filtering at the
 Meta end.
 
-**It applies to the Payment Link pages too.** `acct_1U3NewJOsB1nguzl`
-("ChillMP") is the storefront's account and also the Christmas page's, which
-charges through Payment Links and reports its own Purchase twice under one id,
-the Checkout Session id: from `landing/christmas-pouch-hoodie/thank-you.html`
-in the browser and from its `_worker.js` webhook on the server. An integration
-would mint a third id for the same sale, and nothing dedupes it. The hoodie
-page did the same until it went off sale on 2026-10-09.
+**No Payment Link sells anything any more.** The two hoodie landing pages
+that charged through ChillMP Payment Links were retired on 2026-10-18 (see
+"The retired landing pages"); every sale now goes through this app's
+checkout, so the storefront's webhook is the only Purchase source.
 
 **Don't delete `local.db` while the dev server is running.** It holds the file
 handle, keeps writing to the unlinked inode, and you'll chase phantom failures.
@@ -439,7 +451,9 @@ are the host's business, not the block's. `pages.ts` maps a slug to the manifest
 that renders it: a manifest is per-product (its FAQ, gallery and size chart are
 one product's), so an unmapped slug is a 404 even when the product exists.
 
-**The scarcity bar is a marketing number, not inventory.** Stock is maintained
+**The scarcity bar is a marketing number, not inventory, and no page shows it
+any more** (the life jacket's went with its redesign on 2026-10-17; see
+below). If one ever comes back: stock is maintained
 outside this system, so `loadStock` reads `stock_sold_pct` from store settings
 (default 70) rather than counting the `stock` column — a bar computed from this
 database reported 0% sold on a store that had sold units elsewhere. It is
@@ -548,10 +562,43 @@ locale too.
 variants, metafields), listed in `scripts/products.js`; a manifest in
 `$lib/store`, mapped in `pages.ts`; photos under `static/products/<slug>/`, then `npm run images` for their small copies
 (`christmas: true` on its `PRODUCT_PAGES` entry also lists it on `/christmas`);
-and a browser test like `tests/christmas-hoodie.mjs`. The seed writes it on a
+and a browser test like `tests/dog-christmas-costume.mjs`. The seed writes it on a
 fresh database, the Worker adds it to a live one, and `check-live.js` fails the
-deploy if its page does not answer. Nothing else to register: the header reads
-the catalogue.
+deploy if its page does not answer. Nothing else to register: `/catalog` and the home
+page read the catalogue.
+
+**Taking a product off sale:** delete its script, manifest, `pages.ts` entry,
+photos and test, and list it in `scripts/retired-products.js` with the slug
+its links should go to (`movedTo`). Deleting alone is not enough: `products.js`
+never removes a row, so the live store would keep selling it to an old link or
+a saved cart. Listed there, the Worker's sync archives the row (`status =
+'archived'`, which the catalogue, cart and checkout read as gone; orders keep
+their lines), `/products/<slug>` and its checkout answer 308 to the new
+product with the query string kept, a checkout drops the product's lines from
+a cart saved in the browser (`/api/cart` no longer prices them, and
+`Checkout.svelte` removes what it was not priced), and `check-live.js` checks
+the redirect after each deploy. The Christmas Pouch Hoodie went this way on 2026-10-18.
+Never reuse a retired product's slug or SKU prefix (`CMP-XH-`): old orders
+still carry them.
+
+**Renaming a product, or changing its description:** edit the product's script
+and add `{ slug, locale, field, from, to }` to `scripts/copy-changes.js` in
+the same commit (title, subtitle or description). The catalogue sync and
+`db:products` apply it where the field still reads `from` exactly, so it runs
+once and leaves copy edited by hand alone. Keep the slug: the URL is in ads and
+links. The costume became the **Pet** Christmas Tree Costume this way on
+2026-10-17 (owner's call: it fits small dogs and cats); its URL is still
+`/products/dog-christmas-costume`.
+
+**Changing a price:** set `PRICE_CENTS` in the product's script and add
+`{ slug, fromCents, toCents }` to `scripts/price-changes.js` in the same
+commit. The Worker's catalogue sync applies it on the first request after
+the deploy, and `npm run db:products` applies it by hand. Each change moves
+only variants still at `fromCents`, so it runs once, and a price someone set
+by hand in the meantime is left alone. Placed orders keep their unit price;
+carts are re-priced by the server, so nobody is charged the old price.
+Bundle cards and their savings follow on their own (they are the quantity
+breaks applied to the unit price). `catalogue.test.ts` pins the guard.
 
 **A store:** `SEED_STORE_ID=x SEED_STORE_DOMAIN=x.com npm run db:seed`, then add
 the domain to `apps/storefront/wrangler.toml`. One Worker serves all tenants;
@@ -603,31 +650,46 @@ page the campaign lands on and `/checkout` is where it pays. The bundle picker
 adds real cart lines, the checkout prices through `/api/cart`, the Payment
 Element mounts under the shipping method, and Place order runs `placeOrder`.
 
-`/products/christmas-pouch-hoodie` is the second product page, built the same
-way with three differences worth knowing:
+**The life jacket page wears the shop's look since 2026-10-17** (`theme:
+'tree'`), on the owner's instruction, and lost its sales-page furniture on the
+same day: the per-visitor 15-minute countdown, the "Today only: 30% off"
+strip, the "% sold" bar, the "Ironclad guarantee" seal and every struck-through
+price. A countdown that restarts for each visitor and a discount off a price
+the jacket never sold at ($63.97) are exactly what the FTC treats as
+deceptive. It is $44.99 with no compare-at (`seed.js`, and `price-changes.js`
+for the live row), its bundle cards read `bundles.plain` and say their saving
+in words, and below the hero it has the Christmas pages' trust strip, FAQ row,
+"real inbox" cards, photo wall and closing band. Its purchase mechanics did
+not change: the `bundles` picker with its colour select, Buy now, the sticky
+bar, the first size in stock (`pickSize: false`). `tests/e2e.mjs` asserts the
+countdown, "today only", "% sold" and was-prices stay gone. The size chart
+(`static/size-chart.svg`) is recoloured to the shop's pine; its numbers are
+unchanged.
+
+The Christmas products are built differently from the life jacket in three
+ways worth knowing:
 
 - **The buyer picks the size.** `PRODUCT_PAGES` entries carry `pickSize`. Off
   (the life jacket), the host buys the first size in stock in the chosen
-  colour; on (the hoodie, sized for the *wearer*), the host refuses to add
-  anything until a size is chosen and asks the picker to prompt instead. The
-  design fills option 1, the slot the cart and checkout call `colour`, so
-  nothing downstream changed. Its codes have entries under
-  `product.colors.<code>` in both language packs, or the checkout prints the key.
-- **Its blocks are the host's.** `design_size_picker`, `design_gallery`,
+  colour; on (the costume and the reindeer hoodie, sized for a particular
+  pet), the host refuses to add anything until a size is chosen and asks the
+  picker to prompt instead. The design fills option 1, the slot the cart and
+  checkout call `colour`, so nothing downstream changed. Its codes have
+  entries under `product.colors.<code>` in both language packs, or the
+  checkout prints the key. (`red_santa` and `green_stocking` stay there for
+  the retired pouch hoodie's past orders.)
+- **Their blocks are the host's.** `design_size_picker`, `design_gallery`,
   `size_guide` and `benefit_cards` live in `$lib/blocks` and are registered in
   `$lib/store/blocks.ts`, not in `packages/blocks-dr` (a copy). The picker and
   gallery share the choice through funnel state (`design`, `size`), and the
   host writes `size_prompt` when someone taps buy without a size.
-- **A Christmas skin, scoped to the page** (`theme: 'christmas'`): Fredoka,
-  the navy/teal/orange brand colours as working colours, red/pine/snow as
-  accents, snowfall that stops under `prefers-reduced-motion`. The "order by"
-  strip reads `CHRISTMAS_DELIVERY.cutoff` in `$lib/store/christmas.ts`, a
-  config value that `christmas.test.ts` re-derives from the shipping promise
-  (4 business days + 12 days, worst case) and that a `christmas_cutoff` store
-  setting overrides without a deploy. Once the date has passed the strip drops
-  out through `requires`.
+- **The "order by" strip** reads `CHRISTMAS_DELIVERY.cutoff` in
+  `$lib/store/christmas.ts`, a config value that `christmas.test.ts`
+  re-derives from the shipping promise (4 business days + 12 days, worst
+  case) and that a `christmas_cutoff` store setting overrides without a
+  deploy. Once the date has passed the strip drops out through `requires`.
 
-The product itself is `scripts/christmas-hoodie.js`, listed in
+A product is a script (`scripts/dog-christmas-costume.js`), listed in
 `scripts/products.js`. `db:seed` writes it on a fresh database. A live one
 gets it from **the Worker itself**: `$lib/server/catalogue.ts` runs once per
 isolate, on the first request after a deploy, handed to `waitUntil` so it
@@ -637,11 +699,11 @@ in `products.js` the store lacks, and never rewrites one it has.
 `npm run db:products` is the same list, run by hand. A new product goes on
 that list in the same change as its manifest in `pages.ts`.
 
-`/products/dog-christmas-costume` is the third product page: a hooded tree
-cape for small dogs and cats, red or green, S–L **by the pet's weight**. It is
-the hoodie's page with the hoodie's rules (`pickSize: true`, `theme:
-'christmas'`, the real delivery cut-off, no countdown chips, no stock bar, no
-was-price, no reviews), defined in `scripts/dog-christmas-costume.js` and
+`/products/dog-christmas-costume` is the product the Christmas ad sells: a
+hooded tree cape for small dogs and cats, red or green, S–L **by the pet's
+weight** (`pickSize: true`, `theme: 'tree'`, the real delivery cut-off, no
+countdown chips, no stock bar, no was-price, no reviews), defined in
+`scripts/dog-christmas-costume.js` and
 listed in `products.js`, so the Worker adds it to the live store on the first
 request after the deploy and `check-live.js` proves the page answers.
 `tests/dog-christmas-costume.mjs` drives it to a placed order. Three things to
@@ -654,10 +716,12 @@ know:
   moment a costume row carries `neckCm` or `backLengthCm`. The costume ships
   the supplier's weight bands and nothing else — never fill in another
   seller's measurements.
-- **The price is a placeholder.** $28.50 is the reference store's figure
-  (pawlidaypets.com, whose page has no copy and gave none). It has no
-  compare-at on purpose. Change it in the script and the live store needs a
-  catalogue migration — `products.js` is additive and never rewrites a row.
+- **The price is $27.99, the reindeer hoodie's** (owner's instruction,
+  2026-10-17: one price for the Christmas dog outfits). It was $28.50, the
+  first reference store's figure. It has no compare-at on purpose. A price
+  change is two edits in one commit: `PRICE_CENTS` in the product's script
+  (a fresh seed) and an entry in `scripts/price-changes.js` (a live store,
+  which `products.js` never rewrites). See "Changing a price" below.
 - **It looks like littletreepups.com, on the owner's instruction.** Done on
   2026-10-16 from that page's measured styles: the `tree` theme in
   `pages.ts` (not `christmas`), `$lib/styles/tree-theme.css` for the cream
@@ -666,8 +730,8 @@ know:
   above the header, hiding the in-page copy, so it stays one strip), plus
   opt-in looks on the shared blocks: `design_gallery` `hint` (plain frame,
   "Swipe to explore 1 / 5"), `design_size_picker` `look: 'pills'` (pills,
-  bundle cards, full-width pine button), `size_guide` `look: 'band'`. The
-  hoodie sets none of these and renders as before. `story`, `photo_pair` and
+  bundle cards, full-width pine button), `size_guide` `look: 'band'`. A
+  manifest that sets none of these gets the blocks' default looks. `story`, `photo_pair` and
   `closing_cta` are host blocks used only here. Only the look came across:
   none of that shop's words, photos, ratings, struck prices or pre-ticked
   add-ons.
@@ -679,12 +743,21 @@ know:
   lives in funnel state as `costume_bundle`, not `bundle`, so a 3-pack chosen
   on the life jacket cannot carry over, and the sticky bar reads the same
   field so it shows and buys what the cards show.
+- **It opens on green, on the tabby** (owner's call, 2026-10-17):
+  `leadDesign: 'green'` in `pages.ts` puts green first in the picker and the
+  gallery, and the gallery's green photo is `cat.jpg`; `cardImage` makes the
+  tabby the listing photo too (cards, sticky bar, bundle cards, link
+  previews). The hosts' fallback for "no colour chosen" reads `leadDesign`
+  as well (`data.leadDesign` on both product pages), because the picker shows
+  that colour chosen: a buyer who leaves it and picks a size must get green,
+  and before that fallback they got the catalogue's first colour, red.
+  `one-page-checkout.mjs` and `checkout-recovery.mjs` drive exactly that.
 - **Colour fills the design slot.** The picker's `designLabel` reads "Colour",
   its codes are `red` and `green`, which both language packs already name,
   and `item_variant` reaches GA4 as `green / M`. SKUs are `CMP-XT-<COLOUR>-<SIZE>`
-  (XT: Xmas tree), beside the hoodie's `CMP-XH-`.
+  (XT: Xmas tree).
 
-`/products/reindeer-dog-hoodie` is the fourth: a red plush hoodie with
+`/products/reindeer-dog-hoodie` is the other Christmas product: a red plush hoodie with
 antlers on the hood and a tree patch on the back, S–XL, one colour, built
 exactly like the costume (`tree` theme, same blocks and rules), defined in
 `scripts/reindeer-dog-hoodie.js` and tested by `tests/reindeer-dog-hoodie.mjs`.
@@ -694,33 +767,35 @@ Two things differ:
   on the owner's instruction, look only) sells S–L with its own figures; this
   listing is S–XL and the supplier's table has not arrived. The metafields are
   empty, so the size guide says how to measure and shows its `pending` note.
-  When the table arrives the live row needs a migration, like a price change:
-  `products.js` never rewrites a product it has.
+  When the table arrives the live row needs a migration: `products.js`
+  never rewrites a product it has. (A price change has its own path,
+  `scripts/price-changes.js`.)
 - **The price is a placeholder too**: $27.99, the reference store's figure, no
   compare-at.
-
-`/products/santa-pet-costume` is the fifth: a red plush Santa suit with a
-matching hat and plush arms holding a wrapped present, for small dogs **and
-cats**, S–L, one colour, $27.99 (the owner's price, 2026-10-18; the owner's
-working name was "Christmas Pet Costume_2"). Built exactly like the reindeer
-hoodie, no size chart for the same reason, defined in
-`scripts/santa-pet-costume.js`, tested by `tests/santa-pet-costume.mjs` (in
-`test:store`). SKUs `CMP-SP-RED-<SIZE>`; its bundle tier lives in
-`santa_bundle`. It is last on `/christmas`.
-
-**An ad for it is expected.** Land it on `/products/santa-pet-costume`, the
-product the ad shows: the live Christmas ad showing a different product from
-its page is the first suspect above for clicks without AddToCart. The page's
-first screen holds the photo, price and all three sizes at 390×664, og:image
-is the dog photo (the link preview), and `/products/santa-pet-costume/checkout`
-answers for an ad that should open on the form. Optimise for AddToCart or
-Purchase, never AddPaymentInfo. The photos' rights for ads are unconfirmed
-(provenance, below), and the hat being included is from the photos only:
-confirm both with the owner before the ad runs.
 
 The picker's single-colour case gives the sizes the rest of the row
 (`.options.single`), and the bundle cards' saving line names its unit through
 `unitsNoun` ("with 2 hoodies"); it used to say "costumes" on every page.
+
+`/products/santa-pet-costume` is the third Christmas product: a red plush
+Santa suit with a matching hat and plush arms holding a wrapped present, for
+small dogs **and cats**, S–L, one colour, $27.99 like the others (the owner's
+call, 2026-10-18; their working name was "Christmas Pet Costume_2"). Built
+exactly like the reindeer hoodie, no size chart for the same reason, defined
+in `scripts/santa-pet-costume.js`, tested by `tests/santa-pet-costume.mjs`
+(in `test:store`). SKUs `CMP-SP-RED-<SIZE>`; its bundle tier lives in
+`santa_bundle`. It is last on `/christmas`.
+
+**An ad for it is expected.** Land it on `/products/santa-pet-costume`, so
+the page shows the product the ad shows. The page's first screen holds the
+photo, price and all three sizes at 390×664, og:image is the dog photo (the
+link preview), and `/products/santa-pet-costume/checkout` answers for an ad
+that should open on the form. It has no `checkout: 'shop'`, so Add to cart
+goes to `/checkout`; set it, as the costume has, if the owner wants the ad's
+buyers on a payment page of its own. Optimise for AddToCart or Purchase,
+never AddPaymentInfo. The photos' rights for ads are unconfirmed
+(provenance, below), and the hat being included is read from the photos
+only: confirm both with the owner before the ad runs.
 
 **`/christmas` is the page the Christmas ads can share.** It lists every
 product whose `PRODUCT_PAGES` entry has `christmas: true` and which has a row
@@ -731,16 +806,170 @@ conversion path the tests pin is the only one. It wears the tree chrome (the
 layout reads `theme` and `announcement` off its data, since it has no
 manifest), hides the header links on a phone like a product page, and lays
 the cards out as rows on a phone so the first screen shows more than one
-product with its price. The header links to it once it has a product. The
-pouch hoodie (a person's garment, `christmas` theme) is not on it.
+product with its price. The header's Catalog menu links to it once it has a product.
+
+**The header is Home, Catalog and Contact** (since 2026-10-17, on the owner's
+instruction, after littletreepups.com's menu). Catalog is a `<details>`
+disclosure opening onto All products (`/catalog`) and Christmas
+(`/christmas`, once it has a product); a tap opens it, and a tap elsewhere,
+Escape or a navigation closes it. The products are no longer links in the
+bar: four names did not fit on one row, and the catalogue's cards are where
+the menu leads instead. Things to know:
+
+- **`unlisted` hides a product from the shop, not from the web.** A product
+  carrying it stays off the menu, `/`, `/catalog` and `/christmas`, while
+  its page, its checkout and any link straight to it keep working, and
+  `check-live.js` still fetches it. Nothing carries it today (the pouch
+  hoodie did, until it was retired). To take a product off the web too,
+  retire it (see "Taking a product off sale").
+- **One row, like a shop's.** The menu on the left, the name in the middle,
+  the language and the cart (a bag icon with the count) on the right. Below
+  768px the menu folds behind a ☰ button (`.phone-menu`, a `<details>` like
+  Catalog) that drops a panel with the pages and the language switch. A
+  checkout has neither: there the language switch takes the left slot so
+  the name stays centred. `tests/e2e.mjs` drives both menus.
+- **The whole site wears the tree chrome** (cream, pine, Poppins, the
+  delivery strip above the header, the green footer), except a product page
+  with a skin of its own (the life jacket's sales page) and the one-page
+  checkouts under `/products/`. The rule
+  is `treeChrome` in `+layout.svelte`; a page without its own strip gets
+  the layout load's `siteAnnouncement`, the Christmas delivery line.
+  `Collection.svelte` / `ProductGrid.svelte` are the cards for `/`,
+  `/catalog` and `/christmas`. Christmas products sort first.
+- **The footer** is the name and a line, then Shop, Help and Legal columns,
+  then the payment marks the checkout really offers (Visa, Mastercard, Amex,
+  Apple Pay; see Payments for why not Google Pay or Discover).
+- **The header and footer CSS is global, in `app.css`.** A `<style>` block in
+  `+layout.svelte` stamps a hash class on every element of the layout, and
+  the tests match chrome class names (`tree-strip`, `shop-header`) on the
+  raw HTML. Keep the layout free of scoped styles. `tree-theme.css` only
+  sets the `--site-*` and `--footer-*` colours for the tree look.
+- **`/checkout` is in the shop's colours too** (`.tree-checkout` in
+  `tree-theme.css`): the library's forms draw with the `fx` tokens, so the
+  class swaps the tokens and the pay button's colour. Nothing about how the
+  checkout behaves changed.
+- **The home page opens on a hero** of three photos, each linking to its
+  outfit: the tabby in the green costume (`cat.jpg`, AI-styled; its "AI-styled
+  image" label came off on the owner's call of 2026-10-18), the
+  reindeer hoodie and the red costume. The two-dog scene (`duo.jpg`) that
+  stood there first was taken down on the owner's call, and is off the
+  costume's gallery too; it stays on disk only.
+- **Cards can show a treated photo** (`cardImage` in `pages.ts`). The life
+  jacket's is `card-sailboat.jpg`: its catalogue photo, a cut-out on pure
+  white, multiplied onto the warm backdrop of the Christmas studio shots so
+  it no longer sits as a white tile among cream ones. Same photo, same
+  product, only the backdrop changed.
+- **Product pages carry a `trust_strip`** under the buy box (free US
+  shipping, 30-day returns, secure checkout, real people reply), and the
+  "who you're buying from" cards use line icons by name from
+  `$lib/line-icons.ts` instead of emoji. Only promises the policy pages
+  already make go in either.
+
+**Two skins since 2026-10-17: the brand's, and Christmas.** The owner
+supplied the logo (`static/brand/`: `logo.png` paw and wordmark side by side
+for the header, `logo-light.png` with the navy turned white for the dark
+Christmas footers, `logo-white.png` all white (the teal "mypet" turned
+white) for the brand's teal footer, `logo-stacked.png` as supplied, and the teal-circle paw as the tab
+and home-screen icons; the tab icon before that was SvelteKit's default
+logo) and asked for its colours everywhere except the Christmas pages.
+So:
+
+- **The brand skin** is navy `#0b3c49`, teal `#14a3b0` (`#0e8590` under white
+  text), orange `#ff6b2c` and white, set in DM Sans. It is the tree look
+  with its `--tree-*` colours re-pointed (`.brand-skin` in `tree-theme.css`),
+  so every rule built on those names follows.
+- **Its colours are "Teal"** (2026-10-18), the owner's pick from four
+  previews of the real pages, rendered by injecting each palette into the
+  dev server. Built to that preview exactly, and `tests/e2e.mjs` pins it:
+  - the round logo's teal `#12858f` (`--brand-teal-band`) for the bands:
+    the home banner (full width, white title and text, a peach `#ffd9c4`
+    eyebrow), the life jacket's trust band, and the footer with
+    `logo-white.png`;
+  - navy for what you press, prices and titles (`--tree-green` is navy
+    here, `--tree-green-deep` `#072a33` its hover), the life jacket's
+    manifest accents included;
+  - the orange for the small headings over titles (`--tree-red`), the cart
+    count, and the home banner's first button, which has navy lettering
+    because white on that orange is too faint (2.8:1);
+  - white header and a navy strip; the header's own marks (the current page,
+    menu hover) stay teal `#0e8590`.
+  - `static/size-chart.svg` (the life jacket's) is drawn in the same teal
+    and navy.
+- **The creative pass of 2026-10-18** (the owner: "make it look like a
+  professional designer's"). Layout and finish, not colour; all in
+  `tree-theme.css` unless named, so the Christmas pages get the layout parts
+  too:
+  - a two-column row's left side is `position: sticky` from 768px (the
+    gallery beside the buy box, a section title beside its questions), so
+    there is no screen of empty page under the photos;
+  - headings `text-wrap: balance`, paragraphs `pretty` (no lone last word),
+    and a heading block's title has room before what it introduces;
+  - the brand skin draws the heading block's grey eyebrow in the orange, as
+    the home page's;
+  - the life jacket's photo wall is the reviews block's carousel with square
+    photos (manifest): a swipeable row with a peek on a phone, a grid of
+    eight from 768px (CSS, scoped to `ul.snap-x:has(> li > article)`; the
+    gallery's thumbnail strip is also a `ul.snap-x`, of buttons, and must
+    not match);
+  - the size chart picture keeps 720px on a phone and scrolls sideways, with
+    a "Swipe the chart" line under it;
+  - the brand skin's `/checkout` reads in DM Sans (its component sets Poppins);
+  - `Collection.svelte`'s promises are an icon row on a tinted panel;
+    `ProductGrid.svelte` shows six swatches then "+N"; the home label reads
+    "The Christmas collection"; the footer says "small pets".
+  - the home banner's orange button has no outline (its fill is the edge),
+    and "All products" a half-pixel white line drawn as an inset
+    `box-shadow`, because Chrome rounds a border under 1px up to 1px.
+- **Christmas keeps the pine, cream and Poppins**: `/christmas` and the
+  products `pages.ts` flags `christmas` (costume, reindeer hoodie) put
+  `festive: true` in their data, and `+layout.svelte` leaves `.brand-skin`
+  off for them. Everything else in the tree chrome wears the brand: home,
+  `/catalog`, contact, policies, `/checkout`, the life jacket. A new
+  Christmas product is festive by setting its `christmas` flag; nothing
+  else.
+- The layout loads the font the skin needs (DM Sans or Poppins), so a page
+  must not load its own. The life jacket's manifest accents are the brand
+  navy; the Christmas manifests keep pine.
+- `tests/e2e.mjs` asserts the logo, the tab icon, and which pages wear which
+  skin.
+
+**Sizes read metric first, pounds beside.** The costume's size note and
+FAQ say `1.5–2.5 kg (3–6 lb)`, like its table; the tables in
+`garment-sizes.ts` and `sizes.ts` already print both units, and the life
+jacket's chart carries cm/in and kg/lb.
+
+**A card can show its whole photo** (`cardFit: 'contain'` in `pages.ts`).
+The life jacket's card photo is a side-on dog, and a phone's narrow card
+cropped its nose and tail; `card-sailboat.jpg` is now cropped square around
+the dog and shown whole, over its own backdrop colours.
 
 **Every sized product also has a one-page checkout** at
-`/products/<slug>/checkout` (`/products/dog-christmas-costume/checkout`):
+`/products/<slug>/checkout` (`/products/reindeer-dog-hoodie/checkout`):
 the product's delivery strip, photos, title and picker, then the checkout's
 contact, address and shipping blocks, then the same card fields and pay
 button. It is a second way in for an ad that should land on the form; the
-product page and `/checkout` are unchanged. Things to know:
+product page and `/checkout` are unchanged. A product with `checkout: 'shop'`
+(the costume) gets the payment-only `shop` look below instead.
+Things to know:
 
+- **The costume ad's URL is the product page, and paying is a page of its
+  own** (the owner's call, 2026-10-18). For one day (PR #68) the costume's
+  URL redirected to its one-page checkout; the owner wants two screens: the
+  product page with no card fields at `/products/dog-christmas-costume`,
+  and a payment page at `/products/dog-christmas-costume/checkout` that
+  does not look like the product page. So the redirect and its `landing`
+  flag are gone, and the costume has `checkout: 'shop'`. On a product with
+  that look, the product page's Add to cart opens
+  `/products/<slug>/checkout?design=&size=[&bundle=qty-N]&added=1` instead
+  of `/checkout` (`payAt` from the product page's load). The bundle-card
+  path (the life jacket) still goes to `/checkout`. `fbclid` still becomes
+  `_fbc` on the product page's first response
+  (`tests/dog-christmas-costume.mjs` checks it); `?details=1` means nothing
+  any more, and is harmless if an old link carries it.
+- **An empty cart says so in the payment box.** Stripe's fields mount only
+  for an amount above zero, and with nothing in the cart the box used to
+  read "Loading secure payment…" forever (an owner's phone found it). It now
+  reads `checkout.paymentEmpty`, or `paymentPick` on a one-page checkout.
 - **Composed, not authored.** `onePageCheckout()` in
   `$lib/store/one-page-checkout.ts` takes the strip, gallery, h1 and picker
   from the product's manifest and the fields from `CHECKOUT_PAGE`, so copy,
@@ -763,11 +992,15 @@ product page and `/checkout` are unchanged. Things to know:
   three checkouts started. Purchase is unchanged: the webhook, the order's
   derived id. `tests/one-page-checkout.mjs` pins all of it.
 
-**The Christmas hoodie's checkout has a look of its own, `shop`**, and it is
-where the Christmas landing page's Buy now goes (since 2026-10-17;
-`docs/christmas-checkout.md` has the reference it copies, the comparison
-that chose it, and every departure). `PRODUCT_PAGES[…].checkout = 'shop'`
-turns it on for that product only. Things to know:
+**The costume's checkout has a look of its own, `shop`** (built 2026-10-17
+for the since-retired pouch hoodie; `docs/christmas-checkout.md` has the
+reference it copies, the comparison that chose it, and every departure).
+`PRODUCT_PAGES[…].checkout = 'shop'` turns it on per product: since
+2026-10-18 the costume, whose product page's Add to cart opens it (above).
+So the ad's path is `/products/dog-christmas-costume` → Add to cart →
+`/products/dog-christmas-costume/checkout`; `/checkout` is the cart's own
+checkout, for a basket reached from the cart icon. The header there is the
+logo, centred, and a padlock. Things to know:
 
 - **Markup, not behaviour.** `Checkout.svelte` takes `look`; pricing, the
   cross-form check, the card fields, the events and the post are the same
@@ -785,15 +1018,31 @@ turns it on for that product only. Things to know:
   mounted, and the host focuses the first `aria-invalid` field.
 - **The link carries the choice.** `?design=&size=` is set into state before
   any block mounts (so the server renders the picker folded), and only codes
-  the product sells are taken. `added=1` means the sender reported the
-  AddToCart, and this page then reports none for the view. `?vid=` is
-  adopted as `cmp_vid` on a first visit only (`ensureVisitorId`), so the
-  landing page's events and the Purchase share one `external_id`.
+  the product sells are taken; `bundle=qty-N` sets the bundle too. The
+  picker folds in either layout (`pills` included) once both are chosen,
+  and the line says the count ("Size: M · 2 costumes"). `added=1` means
+  the sender reported the ViewContent and the AddToCart, and this page then
+  reports neither for the view. A `?vid=` in the link is ignored: the retired
+  Christmas landing page used it to hand over its visitor id, and since
+  2026-10-18 `ensureVisitorId` only mints its own.
 - **The Payment Element's box reserves its finished height** (316px stacked,
   236px from 440px wide, measured with `SHOP_APPEARANCE`), so the pay button
   does not move while Stripe.js loads. Change the appearance, measure again.
+  The reserve stays until the buyer picks a tab other than Card (Apple Pay
+  is one line of text and sat in a screen of empty box, 2026-10-18); it
+  can't end on Stripe's `ready`, which comes before the final height.
+- **Pay calls Stripe's `elements.submit()` first, before the order is
+  posted** (`submitOrder` in `Checkout.svelte`, `submit` from
+  `CardFields`). With Apple Pay chosen, `submit()` is what opens the
+  payment sheet, and Safari opens it only from the tap itself. Until
+  2026-10-18 it ran after the server's round trip, when the tap no longer
+  counted, so Apple Pay could not have worked. A failed submit (an
+  incomplete card, a closed sheet) cancels the post, so no order row is
+  made. `confirm` then only calls `confirmPayment`. Don't put an `await`
+  ahead of it. `shop-checkout.mjs` checks the order with a stand-in
+  Stripe.js.
   `CardFields` now also calls `elements.update({ amount })` when the total
-  changes after mounting (Express shipping, a second unit), on every
+  changes after mounting (a second unit, a bundle), on every
   checkout.
 - **Text 16px and up, fields 60px, every target 44px.** The test walks every
   visible text node and fails on anything smaller.
@@ -809,14 +1058,15 @@ fallback.
 open in the Facebook app, which leaves an iPhone about 390×664. Oct 3–16 sent
 175 landing-page views and got no AddToCart, from pages whose first screen was
 a three-row header, the strip and a photo, with the price and sizes below it.
-Now the costume page and its one-page checkout fit the price, the colours and
-the size buttons inside 664px, and `tests/dog-christmas-costume.mjs` and
+Now the product pages and the one-page checkout fit the price, the colours
+and the size buttons inside 664px, and `tests/dog-christmas-costume.mjs` and
 `tests/one-page-checkout.mjs` measure it. What pays for it, so nobody puts it
 back by accident:
 
-- **The header is one row on a phone.** Product pages hide the product links
-  below `sm`; both checkouts hide them everywhere (a link out of a checkout
-  is a way to not pay). The language switch shows `en`/`es` on a phone.
+- **The header is one row on a phone**: ☰, the name, the cart, at most 64px
+  (`tests/e2e.mjs`). Both checkouts drop the menu everywhere (a link out of
+  a checkout is a way to not pay). The language switch is in the ☰ panel on
+  a phone, and in the bar on a checkout.
 - **The `hint` gallery swaps its thumbnail strip for arrows and a counter on a
   phone**, and trims the frame to 1:0.92 (the costume photos have 3% of
   backdrop above the star and 8% below the paws). Arrows walk the colours'
@@ -824,8 +1074,26 @@ back by accident:
   frame and picker never disagree.
 - **The `pills` picker puts its tagline below the sizes on a phone**, and the
   costume's columns sit 12px apart there.
-- **`/checkout` opens on a "Your order" box** (photo, colour, size, total,
-  and a Change link back to the product) — `/api/cart` lines carry `image`.
+- **Shipping is Standard only, since 2026-10-17.** Express promised 2–3
+  business days that a dropshipped order cannot keep, so the owner took it
+  off. `SHIPPING_RATES` in `$lib/store/shipping-rates.ts` is the one table:
+  the checkout's options, its total, the method `placeOrder` accepts, and
+  `createCommerce({ shippingRates })` in hooks, so `orders.create()` prices
+  against it. A posted `method=express` is charged as Standard
+  (`test:payments` posts one). The framework's `DEFAULT_SHIPPING_RATES`
+  still lists Express; don't read rates from it in this app.
+- **`/checkout` opens on a "Your order" box** (photo, colour, size, total)
+  — `/api/cart` lines carry `image`. Each line has its own − n + buttons
+  (`QuantityStepper.svelte`), Remove, and Change back to *its* product. The
+  cart lives in localStorage for good, so a basket can arrive holding last
+  summer's life jackets under a Christmas costume; before 2026-10-17 the only
+  way to change that at checkout was a small Remove at the foot of the page,
+  and the box's single Change went to whichever product was first. On a
+  one-page checkout the picker's own line has no Remove (the picker owns it)
+  and, where bundle cards set the count (the costume, the reindeer hoodie),
+  no quantity buttons. The shop look opens its folded phone summary by itself when
+  the cart holds another product, because that line is charged too.
+  `tests/basket-edit.mjs` pins all of it.
 
 **Photos are served as small copies.** `static/resized/{200,800}/products/…`
 holds WebP copies of every product photo, made by `npm run images` (sharp)
@@ -835,9 +1103,9 @@ cards and the checkout box use the 200px copy, the main photo gets the 800px
 one through `srcset`. `resized.test.ts` fails when a photo has no copies.
 
 That was chillmypet.com's state on 2026-10-12: the live Worker answered `No
-product at "christmas-pouch-hoodie"` — the manifest's own 404 reads `No page
+product at "<slug>"` for a new product — the manifest's own 404 reads `No page
 manifest` — so the code had shipped and the row had not, and the ads kept
-landing on the Payment Link page instead. `deploy.yml` was meant to run
+landing on a Payment Link page instead. `deploy.yml` was meant to run
 `db:migrate` and `db:products` first, but that needs the database's token as
 a repository secret, and the repository's owner does not hold it: the Turso
 account is Vish's. So the step skipped, and once a token for another database
@@ -847,43 +1115,23 @@ that database, which is why the sync lives there now. Three things keep code
 and rows together. The Worker's sync. `deploy.yml`, which after the deploy
 runs `scripts/check-live.js` to fetch every product page on chillmypet.com
 and fails the run if one is not a 200 within four minutes, so code without a
-row is a red run rather than a quiet 404. And the site header, built from
-the catalogue (`+layout.server.ts`): it links to every product that has both
-a row and a manifest, so a product missing from the live database is a
-missing link, never a dead one — and a product reachable only by typing its
-URL, which is what the hoodie was, cannot happen again.
+row is a red run rather than a quiet 404. And the shop's own pages, built
+from the catalogue (`loadCollection` in `$lib/store/collection.ts`): `/`,
+`/catalog` and `/christmas` show a card for every product that has both a row
+and a manifest, so a product missing from the live database is a missing
+card, never a dead link. A product left out of them on purpose says so with
+`unlisted: true` in `pages.ts`; see "The header" below.
 
-**Where the Christmas ads should land, decided 2026-10-12:**
-`/products/christmas-pouch-hoodie` on chillmypet.com, once its row is in the
-live database. The reasons, in order of weight for an audience that is mostly
-women 55+ on the Facebook app: the brand's own domain in the address bar
-instead of `pages.dev`; a real cart, so AddToCart, InitiateCheckout,
-AddPaymentInfo and Purchase are four separate signals instead of two fired in
-the same tap; Apple Pay, Link and Klarna inline on the one checkout page; an
-order row, the admin queue and the confirmation email; and every fbc, dedupe
-and webhook guarantee in this file. The Payment Link page keeps selling until
-the owner changes the ad's destination in Ads Manager, and that change waits
-on three checks: the page answers 200 on chillmypet.com, `/api/meta-status`
-reads `accepted`, and one real order has been placed and refunded.
-
-Since 2026-10-17 the landing page no longer sells through Payment Links: its
-Buy now sends the buyer to `/products/christmas-pouch-hoodie/checkout` here,
-with the design and size chosen (the `shop` look above). So every sale from
-the ad gets an order row, the guarded stock decrement, the webhook Purchase
-and the confirmation email, while the ad keeps its destination. The same
-three checks apply to that: the first two passed on 2026-10-17, and the real
-order and refund has still not been run.
-
-**The Pouch Pet Hoodie has no product page here yet.** It sells from the
-landing page in `landing/pouch-pet-hoodie/` (chillmypet-hoodie.pages.dev,
-on the Cloudflare account its README names), through a Stripe Payment Link on
-ChillMP, so its orders never reach the database. The link has a required Size
-field but no colour field: the colour travels as `client_reference_id` (black,
-gray, pink, cream) and is only visible on the order in Stripe. An earlier
-`/products/pouch-pet-hoodie` built on the old colour-and-size dropdown was set
-aside when the design-and-size picker replaced it; it is in the history of
-`$lib/store/hoodie-manifest.ts` and `scripts/hoodie.js`. Rebuild it on the
-Christmas page's blocks, not from that.
+**Where the Christmas ad lands, since 2026-10-16:**
+`/products/dog-christmas-costume` on chillmypet.com, and its Add to cart opens
+`/products/dog-christmas-costume/checkout`. Nothing else is advertised. The
+reasons a storefront page beats a landing page, for an audience that is
+mostly women 55+ on the Facebook app: the brand's own domain in the address
+bar instead of `pages.dev`; a real cart, so AddToCart, InitiateCheckout,
+AddPaymentInfo and Purchase are four separate signals; Apple Pay, Link and
+Klarna inline on the one checkout page; an order row, the admin queue and
+the confirmation email; and every fbc, dedupe and webhook guarantee in this
+file. One real order and refund has still not been run end to end.
 
 ⚠️ **The invented reviews do not ship, and that is deliberate.** The 22
 testimonials that came with the block library are written words attributed to
@@ -906,22 +1154,32 @@ by the framework, `events_received: 1`, no warnings.
 ⚠️ **Whether each site's token is for this dataset has never been confirmed.**
 The config has pointed at dataset `1341978141149107` since 2026-09-16, but the
 token on the Workers was generated for the retired `1363695699271757`, and
-nothing records it being replaced; the Christmas page's token was only ever
-proven to *exist*. A token is scoped to one dataset, so a stale one means every
+nothing records it being replaced. A token is scoped to one dataset, so a stale one means every
 server event is refused, silently, into `console.error`, while browser events
 keep arriving. Check it, don't assume it: open
-`https://chillmypet.com/api/meta-status` and
-`https://chillmypet-christmas.pages.dev/api/meta-status` (see "When Events
+`https://chillmypet.com/api/meta-status` (see "When Events
 Manager says server events have no dedupe key" above). Anything but
 `"server_events": "accepted"` means: generate a token for `1341978141149107`
 (Events Manager → the dataset → Settings → Conversions API → Generate access
 token), `wrangler secret put META_CAPI_ACCESS_TOKEN` on `chillmypet` and
-`chillmypet-staging`, set it on the Pages project, and update the repository
+`chillmypet-staging`, and update the repository
 secret. Note the token's `debug_token` scopes read
 `read_ads_dataset_quality` only and a `GET /{pixel_id}` returns "Missing
 Permission"; that is expected. Posting to `/{dataset_id}/events` is a
 dataset-level grant, separate from the pixel-read scope, so don't take a failed
 metadata read as proof the token can't send.
+
+⚠️ **Never send a card number with the live publishable key**, test card
+included. The live key (`pk_live_…`, public, in `wrangler.toml`) is for the
+Payment Element and nothing else. On 2026-10-17 a measuring run called
+Stripe.js with it and `4242 4242 4242 4242`; Stripe refused the raw card
+(`invalid_request_error` on `POST /v1/payment_methods`, "unsupported for
+publishable key tokenization") and the owner found it in Workbench → Errors.
+Measuring the live Payment Element is fine; typing or posting a card into it
+is not. Leave raw card tokenization off in Stripe's integration settings,
+whatever the error message suggests: that refusal is a guard. Card tests go
+against the mock Stripe of `test:payments`, or a Stripe test-mode key, never ChillMP's live
+account.
 
 Payments are **live on production**, and checkout is one page: Stripe's Payment
 Element renders inline under the shipping method, and a single Place order
@@ -957,8 +1215,8 @@ instruction of 2026-10-17: a shopper signed into Link sees their own Link
 email at the top of the payment box, and the owner did not want it there. So
 the configuration still has Link on, and turning it on there will not bring it
 back to the inline checkout; delete the option for that. The hosted fallback
-page and the Payment Link pages read the configuration only, so they still
-offer Link until it is switched off in Stripe → Settings → Payment methods.
+page reads the configuration only, so it still offers Link until it is
+switched off in Stripe → Settings → Payment methods.
 
 A wallet needs the domain as well as the configuration. Read through the
 Stripe API on 2026-10-12: `chillmypet.com` and `www.chillmypet.com` are
@@ -966,7 +1224,7 @@ registered payment method domains on ChillMP with Apple Pay, Google Pay, Klarna
 and Link active, so Apple Pay really does render in the Payment Element on an
 iPhone, and Google Pay is off only because the configuration says so. The
 `payment_badges` row on both product pages shows Apple Pay beside the cards for
-that reason, and `tests/christmas-hoodie.mjs` asserts Google Pay's badge stays
+that reason, and `tests/dog-christmas-costume.mjs` asserts Google Pay's badge stays
 absent — add it to both manifests only after turning the method on in Stripe.
 
 Do **not** use `pmc_1UGKEnJOsB1nguzl8TDgEoLT`, even though the dashboard API
@@ -1137,7 +1395,10 @@ Not built, in rough priority order:
    checkout). Each runs once per sale, which is what keeps it to one email;
    `test:payments` counts them. It sends nothing until `RESEND_API_KEY` is a
    Worker secret, and the sending domain (`orders@chillmypet.com` by default)
-   must be verified in Resend first. The admin's "Mark shipped" sends a
+   must be verified in Resend first. Replies go to `EMAIL_REPLY_TO`
+   (`wrangler.toml`): contact.chillmypet@gmail.com, the support inbox every
+   page names (owner's confirmation, 2026-10-17). `contact@chillmypet.com`,
+   which the Christmas pages and landing pages used to show, is not read. The admin's "Mark shipped" sends a
    shipping notification the same way.
 5. ~~**Payments.**~~ Live, on ChillMyPet's own Stripe account since 2026-10-07
    — see above.
@@ -1200,8 +1461,7 @@ without paying. Built and tested; like every other email it sends nothing until
 | Database | Turso `chillmypet-vish.aws-us-west-2.turso.io` (group `default`) |
 | Payments | Stripe `acct_1U3NewJOsB1nguzl` ("ChillMP"), live since 2026-10-07 |
 | Meta dataset | `1341978141149107` (browser + CAPI), the only pixel. Removed 2026-10-11: `28272021345717397` (nobody could say whose it was) and `1363695699271757` (the retired CZK account's; nothing running used it) |
-| Hoodie landing page | `chillmypet-hoodie.pages.dev`, Cloudflare Pages, source in `landing/pouch-pet-hoodie/`, on a third Cloudflare account — see below. Off sale; redirects to the Christmas page since 2026-10-11 |
-| Christmas landing page | `chillmypet-christmas.pages.dev`, Cloudflare Pages on the same account, source in `landing/christmas-pouch-hoodie/`. Buy now goes to chillmypet.com's checkout for the hoodie (since 2026-10-17; its eight Payment Links are still active in Stripe, unlinked). Published on merge by `deploy-christmas.yml`, previewed per pull request at `pr-<n>.chillmypet-christmas.pages.dev` by `preview-christmas.yml`. `?test` puts a browser in quiet mode (nothing to Meta from this page; chillmypet.com has no quiet mode, so a test Buy counts there) |
+| Retired landing pages | `chillmypet-christmas.pages.dev` and `chillmypet-hoodie.pages.dev`, Cloudflare Pages on the owner's account (below). Since 2026-10-18 both serve `landing/retired/`: every request 302s to `/products/dog-christmas-costume` (query kept), `/api/*` answers 410, no pixel. Published on merge by `deploy-retired-landing.yml` |
 
 **Which Cloudflare account holds what.** Everything chillmypet.com runs on is
 in **Vish's** Cloudflare account, alongside many unrelated Workers. That covers
@@ -1211,12 +1471,12 @@ domain itself. chillmypet.com was registered through Cloudflare Registrar on
 newer Cloudflare account that serves nothing for chillmypet.com. Never add
 chillmypet.com there through "Connect your domain": it would issue new
 nameservers for a domain that is already live elsewhere. The
-`chillmypet-hoodie` Pages project is on neither: it is on account
-`5fef1d1dbb6eaee72fdfc2b26a61a386` (checked 2026-10-07 — the repo's
-`CLOUDFLARE_WORKERS` token lists Vish's account's Pages projects, and it is not
-among them). The Christmas page's project is on the same account, and the
-`OWNER_CLOUDFLARE_API_TOKEN` repository secret reaches it, so both pages now
-publish on merge (`deploy-christmas.yml`, `deploy-hoodie.yml`). Moving the store
+two retired landing page projects, `chillmypet-hoodie` and
+`chillmypet-christmas`, are on account `5fef1d1dbb6eaee72fdfc2b26a61a386`
+(checked 2026-10-07 — the repo's `CLOUDFLARE_WORKERS` token lists Vish's
+account's Pages projects, and they are not among them). The
+`OWNER_CLOUDFLARE_API_TOKEN` repository secret reaches it, so their redirect
+publishes on merge (`deploy-retired-landing.yml`). Moving the store
 into the owner's account is possible, but it is a planned migration (domain
 transfer between accounts, Worker and secrets re-created, custom domain
 re-bound), not a dashboard click. When in doubt about which account serves the
@@ -1226,110 +1486,73 @@ answers it in seconds.
 ### Ads, and the pages they land on
 
 All current advertising is in the Meta ad account **Vish Kanada**
-(`act_1550461850095009`, USD). Campaigns and ad sets as read through the
-Supermetrics connector on 2026-10-12 (the "- Copy" campaign has been renamed
-since the 11th):
+(`act_1550461850095009`, USD). As of 2026-10-18 one campaign runs:
 
 | Campaign | Ad set | Lands on | Optimises for | State |
 |---|---|---|---|---|
-| !Christmas Hoodie Campaign! (the "- Copy" campaign, renamed) | !Christmas Hoodie Ad Set!, ad "!Christmas Hoodie Ad!" | Christmas page | **AddToCart** on `1341978141149107` since 11 Oct (Purchase before) | **Live**, $10/day, 11–20 Oct, US 18+, Facebook placements only, Advantage audience |
-| !Christmas Hoodie Campaign! | Chritmas Hoodie Ad Set | Christmas page | Purchase | Paused |
-| Christmas Hoodie Campaign | Chritmas Hoodie Ad Set | Christmas page | ⚠️ AddPaymentInfo (as recorded 2026-10-11) | Paused |
-| Hoodie Campaign - Copy | Hoodie Ad | hoodie page | Purchase | Ended 8 Oct |
-| Hoodie Campaign | Hoodie Ad | hoodie page | ⚠️ AddPaymentInfo | Paused, ended 8 Oct |
-| New Traffic Campaign | New Traffic Ad | `/products/dog-life-jacket` | Landing page views | Ended 20 Sep |
-| Purchase Campaign, New Sales Campaign | none delivered | — | — | Ended 23 Sep, never served |
+| Christmas 2026 Campaign (`52545254634260`) | Christmas 2026 Ad Set, ad "Christmas Pet Costume Ad" | `/products/dog-christmas-costume` | **AddToCart** on `1341978141149107` | **Live** since 16 Oct, $5/day, no end date, US 18+, Advantage+ audience |
 
-What the live campaign did on 10–12 Oct, from the same read: $34.98 spent,
-2,635 impressions, 152 link clicks, 123 landing page views, 143 ViewContent,
-and no AddToCart, InitiateCheckout or Purchase. 91 of the 152 clicks were
-women 55+ (65+: 59, 55–64: 32), and 90 came from the Facebook app, 40 from
-Instagram, 18 from Audience Network — all on phones. So the ad set has been
-optimising for an event the page produced zero times, which leaves Meta
-nothing to learn from; and on a Payment Link page AddToCart and
-InitiateCheckout are the same tap, so even one sale would teach it two
-things at once. The storefront page separates them (see State of play).
+Everything else is paused or ended and stays off unless the owner asks: the
+four hoodie campaigns (!Christmas Hoodie Campaign!, Christmas Hoodie
+Campaign, Hoodie Campaign, Hoodie Campaign - Copy), which landed on the two
+retired landing pages, New Traffic Campaign (`/products/dog-life-jacket`,
+ended 20 Sep) and two that never served. The last hoodie campaign spent
+$34.98 on 10–12 Oct for 152 link clicks and no AddToCart; 91 of the clicks
+were women 55+, nearly all on phones in the Facebook app. Its Christmas page
+was optimised for AddToCart while selling through Payment Links, where the
+add and the checkout were the same tap — one reason the ad now lands on the
+storefront, where they are separate events.
 
 Earlier, the old ad account `act_1431226177195979` (CZK) ran four "Dog Vest"
 ads to `/products/dog-life-jacket`, optimising for Purchase or
 InitiateCheckout on `1363695699271757`. That pixel is no longer on any page,
 so don't restart those ads there.
 
-**The live Christmas ad does not show the Christmas hoodie.** Its video
-(checked 2026-10-12 through the Supermetrics connector) is a woman on a plane
-in a red fleece pouch hoodie with a puppy, captioned "Small dog owners this
-one's for you"; the page sells an embroidered Santa or stocking hoodie with a
-cat in a ring. That is the first thing to look at when the page's clicks
-produce no AddToCart, before the page itself. Details in the Christmas page's
-README.
-
 **Never optimise a Payment Link page for AddPaymentInfo.** The card is typed on
 Stripe's page, which reports nothing to the pixel, so the event can never fire
-and Meta spends against a goal nobody can reach. The two paused campaigns
-marked ⚠️ still have it, and the fix (conversion event → Purchase) is waiting
-on a decision to restart them. The "- Copy" campaigns were made to correct it.
+and Meta spends against a goal nobody can reach. Two of the paused hoodie
+campaigns still have it; they are not to be restarted.
 
 **A zero in Ads Manager is not evidence that tracking broke.** On 2026-10-11,
-17 clicks and no AddToCart looked like a fault and was not. The way to tell is
-in the Christmas page's README ("Checked on the live page"): drive the live
-page as an ad click with every pixel hit and server copy answered locally,
-then follow it to Stripe's real checkout and stop before paying. That run
-covered all three pages. The Christmas page and `/products/dog-life-jacket`
-reach a working payment form with PageView, ViewContent, AddToCart and
-InitiateCheckout sent. The hoodie page reached Stripe's inactive message, which
-is what led to its redirect. Payment itself has never been run live on any of
-them.
+17 clicks and no AddToCart looked like a fault and was not. The way to tell:
+drive the live page as an ad click with every pixel hit and server copy
+answered locally, follow it to the payment form and stop before paying.
 
 **Where to read the numbers.** The Supermetrics connector reads the Meta ad
 accounts and GA4 property `557080165` ("Chillmypet"). Its Meta access is
 **read-only**: write access is not enabled for this team, so campaign changes
 through it are refused, and those go through Ads Manager. GA4 runs only on
-chillmypet.com through GTM. The landing pages load no GA4, so their visitors
-appear in GA4 only when they click through to chillmypet.com, as a referral
-from `chillmypet-christmas.pages.dev`. The ads' `utm_*` tags are not read
-anywhere on the landing pages. Ads Manager and Stripe are the record there.
+chillmypet.com through GTM. A click on an old ad that still points at a
+retired landing page reaches chillmypet.com through its 302, with the
+`utm_*` tags and `fbclid` kept.
 
-### The hoodie landing page, a second shop now off sale
+### The retired landing pages
 
-`chillmypet-hoodie.pages.dev` ("Pouch Pet Hoodie · ChillMyPet") sold the cat
-pouch hoodie that the Hoodie campaigns (2–8 Oct 2026) featured. The Reels say "Link in bio",
-so that traffic does not necessarily land on chillmypet.com. It is a static
-page whose source is `landing/pouch-pet-hoodie/` (`config.js`, `pixel.js`,
-`_worker.js`), and it **shares none of this app's checkout**:
+Two static shops on Cloudflare Pages sold the hoodies outside this app,
+through Stripe Payment Links on ChillMP, with pixels and Conversions API
+workers of their own: `chillmypet-hoodie.pages.dev` (the Pouch Pet Hoodie,
+off sale since 2026-10-09) and `chillmypet-christmas.pages.dev` (the
+Christmas Pouch Hoodie). On the owner's call of 2026-10-18 both products
+were retired, so the costume is the only Christmas product an ad can lead
+to and only chillmypet.com reports to the dataset. Their sources, tests,
+deploy workflows and the hoodie ad's creative are gone from the repo
+(the history has them).
 
-- It loads the same three pixels. Since the upload of 2026-10-07 (four colours,
-  `_worker.js` running: `POST /api/event` answers 400 to a bad body) every
-  browser event is also posted to the worker under the same id, but the worker
-  only forwards it to Meta when the Pages project holds `META_CAPI_ACCESS_TOKEN`
-  — whether it does has not been checked. Without it, the page is browser-side
-  only.
-- It sold through a Stripe **Payment Link** on ChillMP
-  (`plink_1ULu2aJOsB1nguzlIzkLcmZG`, buy.stripe.com/fZu28sfbIgamgIe8tp1wY01),
-  which returns to `thank-you.html`. A hoodie sale creates **no order in
-  Turso** and is invisible to everything in the storefront. Its Purchase came
-  from that thank-you page's pixel, plus a server copy from `/api/purchase`
-  when the Pages project holds `STRIPE_SECRET_KEY` and the token, which was
-  never confirmed.
-- ⚠️ **The hoodie is off sale, and the page redirects to the Christmas page.**
-  Its Payment Link was deactivated from the Stripe Dashboard on 2026-10-09
-  (18:17 UTC), the day after the last hoodie campaign ended. After that, Buy
-  led to Stripe's inactive message, "now sold at
-  chillmypet.com/products/pouch-pet-hoodie", a page that is a 404 on
-  production. On 2026-10-11 the owner chose to send that traffic where it can
-  buy: `_worker.js` answers every page request with a 302 to
-  chillmypet-christmas.pages.dev, query string kept, and both hoodie Payment
-  Links' inactive messages name the Christmas page. **After Christmas the
-  owner decides** whether the plain hoodie returns as
-  `/products/pouch-pet-hoodie` here, which was the plan the old message
-  described. Until then, don't reactivate the link or remove the redirect.
-- The old webhook to `chillmypet-hoodie.pages.dev/api/stripe-webhook`
-  (`we_1UO1BAJOsB1nguzlCakDMBBI`) is gone. As of 2026-10-11 ChillMP has two
-  endpoints: chillmypet.com's and the Christmas page's.
+Both addresses now serve `landing/retired/`, published to both projects by
+`deploy-retired-landing.yml` on merge (`OWNER_CLOUDFLARE_API_TOKEN`): every
+page request 302s to `/products/dog-christmas-costume`, query string kept
+less `design`, `size` and `added`, and `/api/*` answers 410 Gone. No pixel
+runs there. A 302, not a 301, because a browser keeps a permanent redirect
+and the addresses may serve something else one day.
 
-So the fbc, dedupe and webhook guarantees in this file cover chillmypet.com
-only. Before judging the hoodie ads by their reported conversions, either move
-the hoodie into this store, where it gets the CAPI Purchase and an order row,
-or count its sales from ChillMP's Payments in the Stripe dashboard.
+⚠️ **Left to do in Stripe (ChillMP), by hand:** deactivate the Christmas
+page's eight Payment Links (`plink_1UOEWYJOsB1nguzlJXtjB3lf` …
+`plink_1UOEYtJOsB1nguzlezFxeKMv`; the Pouch Pet Hoodie's
+`plink_1ULu2aJOsB1nguzlIzkLcmZG` is already off), and delete the webhook
+endpoint that points at `chillmypet-christmas.pages.dev/api/stripe-webhook`,
+leaving chillmypet.com's `we_1UFU0bJOsB1nguzl4AwL0RK6` as the only one. Until
+then a buyer holding an old link can still pay for a hoodie with no order
+row here, and the endpoint's deliveries fail with 410.
 
 Both Workers hold `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` and
 `META_CAPI_ACCESS_TOKEN` as secrets, and **both point at the same database** — a
@@ -1388,8 +1611,8 @@ and www, which is where the paragraph that used to stand here — the secrets we
 missing and production shipped by hand — stopped being true. Two consequences.
 A merge is a release, so review a pull request as one. And the database has to
 keep up with the code: the Worker does that itself on its first request after
-the deploy (`$lib/server/catalogue.ts`; see the Christmas hoodie under State of
-play for why it is not a CI step), and the workflow then fetches every product
+the deploy (`$lib/server/catalogue.ts`; see "A product is a script" under
+State of play for why it is not a CI step), and the workflow then fetches every product
 page on the live site and fails if one does not answer 200. The fallback stays: if
 the Cloudflare secret ever goes missing the run posts a "chillmypet.com was NOT
 deployed" warning on its summary page instead of failing, and a green run with
@@ -1440,18 +1663,14 @@ no visible branding), the customer UGC in `static/reviews/` standing in for
 product photography, and `avatar-floatly.webp`, which only renders if the
 spotlight quotes are switched back on.
 
-The Christmas hoodie's two photos (`static/products/christmas-pouch-hoodie/`)
-were supplied by the owner in chat as screenshots, with the instruction to use
-them. Their original source and licence were not stated, and they look like
-generated lifestyle shots from a supplier listing. Ask before treating them as
-cleared for ads. Both designs have a photo; a design added without one renders
-a box labelled "Placeholder", never another design's picture.
+A design added without a photo renders a box labelled "Placeholder", never
+another design's picture.
 
 The Dog Christmas Tree Costume's five photos
 (`static/products/dog-christmas-costume/`) were supplied by the owner in chat on
 2026-10-12 as screenshots of a supplier listing, with the instruction to use
-them; the same caveat as the hoodie's applies — ask before treating them as
-cleared for ads. They carry no third-party branding and EXIF was stripped. What
+them. Their original source and licence were not stated: ask before treating
+them as cleared for ads. They carry no third-party branding and EXIF was stripped. What
 the page serves is a treatment of them, not the originals. On 2026-10-16 all
 five were redone from the originals in one pass (ca96a07 has them as supplied):
 cut out locally with rembg's BiRefNet-lite (run in the sandbox, so no photo
@@ -1476,7 +1695,8 @@ still the flat-lay), `details.jpg`, `duo.jpg`, `cat.jpg`, `living-room.jpg`,
 `shih-tzu.jpg`, `schnauzer.jpg`. Not taken: their size-guide graphic (their
 wordmark and their measurements) and their colour graphic (it promises a
 colour per pet inside a bundle, which ours does not do). Their lifestyle shots
-are AI-styled, and the page says so under the photo pair, as theirs does. The
+are AI-styled; the page said so under the photo pair until the owner had the
+line taken off (2026-10-18), and its note now gives only the size range. The
 older supplier treatments (`red.jpg`, `green.jpg`, `green-back.jpg`,
 `hood-detail.jpg`) stay on disk because catalogue media rows point at them. Nothing about the product was generated or altered: it
 is the real costume on a plain background. Its copy was written here.

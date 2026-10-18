@@ -52,12 +52,13 @@
 	background: #fff;
 }
 .shop-wordmark {
-	font-family: Fredoka, Inter, ui-sans-serif, sans-serif;
-	font-weight: 700;
-	font-size: 26px;
-	line-height: 1;
-	color: var(--shop-accent);
-	text-decoration: none;
+	display: block;
+	line-height: 0;
+}
+.shop-wordmark img {
+	display: block;
+	width: auto;
+	height: 36px;
 }
 .shop-secure {
 	justify-self: end;
@@ -389,6 +390,10 @@
 		min-height: 236px;
 	}
 }
+/* A tab other than Card (Apple Pay is one line): the element's own height. */
+.shop-pay-box > div.compact {
+	min-height: 0;
+}
 .shop-pay-loading {
 	position: absolute;
 	top: 14px;
@@ -418,8 +423,31 @@
 }
 .shop-lines li {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: 14px;
+}
+/* Quantity and Remove under a line (QuantityStepper.svelte). */
+.shop .line-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 16px;
+	margin-top: 8px;
+	font-size: 16px;
+	font-weight: 400;
+}
+.shop .line-link {
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	color: var(--shop-accent);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+	cursor: pointer;
 }
 .shop-lines .thumb {
 	position: relative;

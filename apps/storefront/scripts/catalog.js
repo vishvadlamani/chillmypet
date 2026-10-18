@@ -6,7 +6,7 @@
  * ones already selling. One writer keeps the two from producing differently
  * shaped products.
  *
- * Option *values* are stable codes ('red_santa'), not display text, so the
+ * Option *values* are stable codes ('green'), not display text, so the
  * storefront can translate them through its language packs while the framework
  * and any agent still get a readable `label`.
  *
@@ -150,4 +150,78 @@ export async function insertProduct(db, storeId, def) {
 	} finally {
 		tx.close();
 	}
+}
+
+/**
+ * Moves a product's variants from one price to another, but only the variants
+ * still at `fromCents`. Returns how many moved: 0 once it has applied, and 0
+ * for a variant someone priced by hand since. With `compareAtCents` in the
+ * change, the compare-at is written too. See `price-changes.js`.
+ *
+ * @param {import('ecomwithai/db').Client} db
+ * @param {string} storeId
+ * @param {{ slug: string, fromCents: number, toCents: number, compareAtCents?: number | null }} change
+ * @returns {Promise<number>}
+ */
+export async function applyPriceChange(db, storeId, change) {
+	const { slug, fromCents, toCents } = change;
+	const withCompare = 'compareAtCents' in change;
+	const result = await db.execute({
+		sql: `update product_variants set price_cents = ?${withCompare ? ', compare_at_cents = ?' : ''}
+		      where store_id = ? and price_cents = ?
+		        and product_id = (select id from products where store_id = ? and slug = ?)`,
+		args: [
+			toCents,
+			...(withCompare ? [change.compareAtCents ?? null] : []),
+			storeId,
+			fromCents,
+			storeId,
+			slug
+		]
+	});
+	return result.rowsAffected;
+}
+
+/** The translation columns a copy change may write. Never interpolated from input. */
+const COPY_FIELDS = new Set(['title', 'subtitle', 'description']);
+
+/**
+ * Rewrites one field of a product's translation, but only where it still reads
+ * `from`. Returns how many rows moved: 0 once it has applied, and 0 where the
+ * copy was edited by hand since. See `copy-changes.js`.
+ *
+ * @param {import('ecomwithai/db').Client} db
+ * @param {string} storeId
+ * @param {{ slug: string, locale: string, field: string, from: string, to: string }} change
+ * @returns {Promise<number>}
+ */
+export async function applyCopyChange(db, storeId, { slug, locale, field, from, to }) {
+	if (!COPY_FIELDS.has(field)) throw new Error(`not a copy field: ${field}`);
+	const result = await db.execute({
+		sql: `update product_translations set ${field} = ?
+		      where store_id = ? and locale = ? and ${field} = ?
+		        and product_id = (select id from products where store_id = ? and slug = ?)`,
+		args: [to, storeId, locale, from, storeId, slug]
+	});
+	return result.rowsAffected;
+}
+
+/**
+ * Takes a product off sale: its row moves from `active` to `archived`, which
+ * the catalogue reads as gone (page, cart and checkout alike). Returns how
+ * many rows moved: 0 once it has applied, and 0 for a product set to another
+ * status by hand. Nothing is deleted, so orders keep their lines. See
+ * `retired-products.js`.
+ *
+ * @param {import('ecomwithai/db').Client} db
+ * @param {string} storeId
+ * @param {string} slug
+ * @returns {Promise<number>}
+ */
+export async function archiveProduct(db, storeId, slug) {
+	const result = await db.execute({
+		sql: `update products set status = 'archived' where store_id = ? and slug = ? and status = 'active'`,
+		args: [storeId, slug]
+	});
+	return result.rowsAffected;
 }

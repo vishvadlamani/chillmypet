@@ -15,18 +15,7 @@
 	let { data }: { data: PageData } = $props();
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
-	let christmas = $derived(data.theme === 'christmas');
 	let tree = $derived(data.theme === 'tree');
-
-	// Fixed positions rather than Math.random(): the server and the browser have
-	// to render the same flakes, or hydration repaints them.
-	const FLAKES = Array.from({ length: 18 }, (_, i) => ({
-		x: (i * 37 + 11) % 100,
-		size: 10 + ((i * 7) % 12),
-		fall: 14 + ((i * 5) % 10),
-		delay: (i * 3.7) % 20,
-		y: (i * 23 + 5) % 95
-	}));
 	let t = $derived(createTranslator(locale));
 
 	/**
@@ -158,7 +147,7 @@
 	 */
 	function addChosenVariant(payload: Record<string, unknown>) {
 		const design =
-			String(payload.design ?? '') || bag.design || data.variantIndex[0]?.colourCode || '';
+			String(payload.design ?? '') || bag.design || data.leadDesign || data.variantIndex[0]?.colourCode || '';
 		const size = String(payload.size ?? '') || bag.size || '';
 		const entry = data.variantIndex.find((v) => v.colourCode === design && v.size === size);
 		if (!entry) {
@@ -183,7 +172,7 @@
 
 		// The same event_id scheme as every other event: `pixel()` mints one id
 		// and sends it with both the browser event and its /api/track copy. The
-		// SKU names the design and size (CMP-XH-SANTA-RED-M), so Events Manager
+		// SKU names the colour and size (CMP-XT-GREEN-M), so Events Manager
 		// and GA4 show what was chosen without a lookup table.
 		pixel('AddToCart', {
 			content_type: 'product',
@@ -207,7 +196,14 @@
 			]
 		});
 
-		goto('/checkout');
+		// A product with its own payment page (`checkout: 'shop'`) opens it on
+		// what was just chosen: the link carries it, so the page renders folded
+		// from the server, and `added=1` stops it reporting this add again.
+		if (data.payAt === '/checkout') return void goto('/checkout');
+		const link = new URLSearchParams({ design: entry.colourCode, size: entry.size });
+		if (units > 1) link.set('bundle', `qty-${units}`);
+		link.set('added', '1');
+		goto(`${data.payAt}?${link}`);
 	}
 
 	// Session-backed, because the top timer is evergreen: it writes its start on
@@ -261,22 +257,10 @@
 	<title>{data.seo.title} · {t('common.brand')}</title>
 	<meta name="description" content={data.seo.description} />
 	{#if tree}
-		<!-- The tree storefront sets everything in Poppins, like the storefront
-		     below, plus an absolute og:image for the same reason as the hoodie. -->
-		<link
-			href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
-			rel="stylesheet"
-		/>
-		<meta property="og:image" content={new URL(data.seo.image, page.url).href} />
-	{:else if christmas}
-		<!-- Fredoka for the Christmas page, scoped like Poppins below: only this
-		     page pays for it. -->
-		<link
-			href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap"
-			rel="stylesheet"
-		/>
-		<!-- Absolute: Instagram and Facebook resolve link previews from their own
-		     servers, not from this page. -->
+		<!-- The layout loads the font: Poppins for a Christmas page, the brand's
+		     DM Sans for the rest. The og:image is absolute: Instagram and
+		     Facebook resolve link previews from their own servers, not from
+		     this page. -->
 		<meta property="og:image" content={new URL(data.seo.image, page.url).href} />
 	{:else}
 		<!-- Poppins only on the storefront. Loaded here rather than in app.html so
@@ -288,22 +272,6 @@
 	{/if}
 </svelte:head>
 
-{#if christmas}
-	<!-- Decoration only: behind the content, never in the accessibility tree,
-	     and still under prefers-reduced-motion. -->
-	<div class="snowfall" aria-hidden="true">
-		{#each FLAKES as flake, i (i)}
-			<span
-				style:left="{flake.x}%"
-				style:font-size="{flake.size}px"
-				style:animation-duration="{flake.fall}s"
-				style:animation-delay="-{flake.delay}s"
-				style:--y="{flake.y}%">❄</span
-			>
-		{/each}
-	</div>
-{/if}
-
 <PageLayout
 	definition={data.definition}
 	version={data.version}
@@ -311,11 +279,7 @@
 	{track}
 	{submit}
 	state={funnelState}
-	rootClass={tree
-		? 'tree-theme min-h-svh'
-		: christmas
-			? 'xmas-theme relative z-[1] min-h-svh'
-			: 'storefront-type bg-fx-bg min-h-svh'}
+	rootClass={tree ? 'tree-theme min-h-svh' : 'storefront-type bg-fx-bg min-h-svh'}
 	rowClass={tree
 		? 'tree-row mx-auto grid w-full max-w-[1320px] gap-4 px-[18px] py-6 md:grid-cols-2 md:gap-14 md:px-[72px] md:py-12'
 		: 'mx-auto grid w-full max-w-shell gap-8 px-gutter py-6 md:grid-cols-[715fr_537fr] md:gap-12'}
@@ -340,76 +304,4 @@
 		font-family: var(--font-sans);
 	}
 
-	/*
-	 * The Christmas skin, layered on the brand rather than replacing it: navy,
-	 * teal and orange stay the working colours (text, selection, the buy
-	 * button), and red, pine and snow are accents. The `--color-fx-*` lines
-	 * re-point the library blocks' own tokens for this subtree only, the same
-	 * trick as `--font-sans` above.
-	 */
-	:global(.xmas-theme) {
-		--brand-navy: #0b3c49;
-		--brand-teal: #14a3b0;
-		--brand-orange: #ff6b2c;
-		--xmas-red: #b3202a;
-		--xmas-pine: #1f5f3f;
-		--xmas-snow: #fffdf8;
-		--color-fx-bg: transparent;
-		--color-fx-ink: #0b3c49;
-		--color-fx-sub: #24525e;
-		--color-fx-surface: #eaf5f6;
-		--color-fx-surface-hover: #dceff1;
-		--font-sans: 'Fredoka', ui-rounded, ui-sans-serif, system-ui, sans-serif;
-		font-family: var(--font-sans);
-		color: var(--brand-navy);
-		background:
-			radial-gradient(circle at 12% 8%, rgb(20 163 176 / 0.08), transparent 40%),
-			radial-gradient(circle at 88% 2%, rgb(179 32 42 / 0.07), transparent 35%),
-			var(--xmas-snow);
-	}
-	:global(.xmas-theme h1) {
-		color: var(--brand-navy);
-	}
-	/* A candy-cane rule under the delivery strip: the one loud festive line. */
-	:global(.xmas-theme aside[aria-label='Announcement']) {
-		border-bottom: 6px solid transparent;
-		border-image: repeating-linear-gradient(
-				-45deg,
-				var(--xmas-red) 0 10px,
-				var(--xmas-snow) 10px 20px
-			)
-			6;
-	}
-
-	.snowfall {
-		position: fixed;
-		inset: 0;
-		z-index: 0;
-		overflow: hidden;
-		pointer-events: none;
-	}
-	.snowfall span {
-		position: absolute;
-		top: -24px;
-		color: #9fd8de;
-		opacity: 0.55;
-		animation-name: fall;
-		animation-timing-function: linear;
-		animation-iteration-count: infinite;
-	}
-	@keyframes fall {
-		to {
-			transform: translate3d(24px, 110vh, 0) rotate(180deg);
-		}
-	}
-	/* Still flakes, not none: the page keeps its look without the motion. */
-	@media (prefers-reduced-motion: reduce) {
-		.snowfall span {
-			animation: none;
-			top: var(--y);
-		}
-		.snowfall span:nth-child(odd) {
-			display: none;
-		}
-	}
 </style>

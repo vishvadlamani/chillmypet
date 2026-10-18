@@ -3,16 +3,16 @@
  *
  * Read from the `specs.size_chart` metafield and nothing else. Two shapes of
  * row are understood, and the columns follow the rows rather than being fixed
- * here, because the two products that pick a size are measured differently:
+ * here, because garments are measured differently from pet outfits:
  *
  *   - a garment for a person: `{ size, chestCm, lengthCm }`
  *   - a costume for a pet:    `{ size, weightMinKg, weightMaxKg, neckCm?, backLengthCm? }`
  *
- * The Christmas hoodie has no rows yet: there are no supplier measurements,
- * and a chart made up to fill the section would be the one people order from.
- * Empty means the size guide shows its "measurements on the way" note instead
- * of a table. The costume has the supplier's weight bands and nothing else;
- * neck and back length appear the moment its rows carry them.
+ * A product with no rows (the reindeer hoodie, until the supplier's table
+ * arrives) shows the size guide's "measurements on the way" note instead of a
+ * table: a chart made up to fill the section would be the one people order
+ * from. The costume has the supplier's weight bands and nothing else; neck
+ * and back length appear the moment its rows carry them.
  */
 import type { Product } from 'ecomwithai';
 
