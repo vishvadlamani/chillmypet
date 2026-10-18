@@ -14,8 +14,8 @@
  *     phone summary by itself and can be removed there; the hoodie's own line
  *     has quantity buttons but no Remove (the picker owns it), and a count
  *     set there survives a change of size
- *   - the costume's one-page checkout: its own line has neither, because its
- *     bundle cards set the count; the leftover line has both
+ *   - the reindeer hoodie's one-page checkout: its own line has neither,
+ *     because its bundle cards set the count; the leftover line has both
  *
  * Expects a dev server with no STRIPE_SECRET_KEY, like tests/store-flow.mjs.
  */
@@ -159,19 +159,19 @@ await page.goto(`${BASE}/products/christmas-pouch-hoodie/checkout?design=red_san
 	check('a change of size keeps the count', lines.length === 1 && lines[0].size === 'L' && lines[0].quantity === 2, JSON.stringify(lines));
 }
 
-// --- the costume's one-page checkout: the bundle cards own its count -------------------------
+// --- the reindeer hoodie's one-page checkout: the bundle cards own its count ------------------
+// (Red is its one colour, chosen from the start.)
 await basket([JACKETS]);
-await page.goto(`${BASE}/products/${COSTUME.slug}/checkout`, { waitUntil: 'networkidle' });
-await page.locator('#variant-picker label', { hasText: 'Green' }).click();
+await page.goto(`${BASE}/products/${REINDEER.slug}/checkout`, { waitUntil: 'networkidle' });
 await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();
 await page.waitForLoadState('networkidle');
 {
 	const form = page.locator('form[method="POST"]:not([action])');
-	const costumeRow = form.locator('li', { hasText: 'Christmas Tree Costume' });
+	const ownRow = form.locator('li', { hasText: 'Reindeer Christmas Dog Hoodie' });
 	const jacketRow = form.locator('li', { hasText: 'Dog Life Jacket' });
-	await costumeRow.waitFor({ timeout: 5000 }).catch(() => {});
-	check('the costume line has no quantity buttons or Remove', (await costumeRow.getByRole('group').count()) === 0 && (await costumeRow.getByRole('button', { name: 'Remove' }).count()) === 0);
-	check('it says its count instead', /Qty 1/.test(await costumeRow.innerText()), await costumeRow.innerText());
+	await ownRow.waitFor({ timeout: 5000 }).catch(() => {});
+	check('the hoodie line has no quantity buttons or Remove', (await ownRow.getByRole('group').count()) === 0 && (await ownRow.getByRole('button', { name: 'Remove' }).count()) === 0);
+	check('it says its count instead', /Qty 1/.test(await ownRow.innerText()), await ownRow.innerText());
 	check('the leftover jackets have both', (await jacketRow.getByRole('group').count()) === 1 && (await jacketRow.getByRole('button', { name: 'Remove' }).count()) === 1);
 }
 

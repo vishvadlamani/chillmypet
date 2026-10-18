@@ -14,7 +14,7 @@
  *     first visit and only in the shape this site mints
  *   - the phone: the email on the first screen, nothing a buyer reads under
  *     16px, the summary as a bar that opens in place
- *   - tracking: ViewContent paired, NO AddToCart (the landing page sent it,
+ *   - tracking: NO ViewContent and NO AddToCart (the landing page sent both,
  *     added=1) even when the size is changed here, InitiateCheckout once the
  *     email is typed, each browser event mirrored to /api/track under its id
  *   - errors: pay with nothing filled marks each field, says why under it,
@@ -192,7 +192,7 @@ await settle();
 {
 	const lines = await cartLines();
 	check('the chosen hoodie is in the cart', lines.length === 1 && lines[0].colour === 'red_santa' && lines[0].size === 'M' && lines[0].quantity === 1, JSON.stringify(lines));
-	await pairedOnce('ViewContent');
+	check('no ViewContent: the landing page reported the view', (await browserEvent('ViewContent')).length === 0 && serverCopy('ViewContent').length === 0);
 	check('no AddToCart: the landing page reported it', (await browserEvent('AddToCart')).length === 0 && serverCopy('AddToCart').length === 0);
 	check('no InitiateCheckout before any detail is typed', (await browserEvent('InitiateCheckout')).length === 0);
 	check('the pay button names the total', /Pay \$54\.99/.test(await page.locator('button.shop-pay').innerText()));

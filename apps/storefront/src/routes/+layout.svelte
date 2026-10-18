@@ -170,7 +170,10 @@
 <div class="flex min-h-screen flex-col">
 	<header class="shop-header">
 		<span class="shop-header-side" aria-hidden="true"></span>
-		<a href="/" class="shop-wordmark">{t('common.brand')}</a>
+		<a href="/" class="shop-wordmark">
+			<!-- The owner's logo, as in the site header. -->
+			<img src="/brand/logo.png" alt={t('common.brand')} width="449" height="96" />
+		</a>
 		<span class="shop-header-side shop-secure">
 			<svg viewBox="0 0 24 24" aria-hidden="true">
 				<rect x="5" y="10.5" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.8" />

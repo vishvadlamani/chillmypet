@@ -22,7 +22,9 @@ import { chromium } from 'playwright';
 import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
-const SLUG = 'dog-christmas-costume';
+// The reindeer hoodie keeps this look; the costume's checkout is the shop
+// look's payment page (tests/dog-christmas-costume.mjs, shop-checkout.mjs).
+const SLUG = 'reindeer-dog-hoodie';
 const URL_ = `${BASE}/products/${SLUG}/checkout`;
 
 function check(label, cond, detail) {
@@ -36,16 +38,15 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
-	check('the product title is the h1', /<h1[^>]*>[\s\S]{0,200}?Pet Christmas Tree Costume/.test(html));
+	check('the product title is the h1', /<h1[^>]*>[\s\S]{0,200}?Reindeer Christmas Dog Hoodie/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('SSR shows the photos', html.includes('class="gallery'));
-	check('SSR offers both colours', html.includes('>Red<') && html.includes('>Green<'));
+	check('SSR offers its colour', html.includes('>Red<'));
 	check('SSR offers the bundle cards at the server’s prices', html.includes('$52.06') && html.includes('$76.41'));
 	check('no size is pre-selected', !/name="size"[^>]*checked/.test(html));
 	const picker = /id="variant-picker"[\s\S]*?<\/fieldset>\s*(?:<\/div>|<p)/.exec(html)?.[0] ?? '';
 	check('the picker has no button of its own', picker.length > 0 && !html.includes('class="cta'));
-	// The long page, past the redirect that sends the bare URL back here.
-	check('the size guide link goes to the product page', html.includes(`href="/products/${SLUG}?details=1#size-guide"`));
+	check('the size guide link goes to the product page', html.includes(`href="/products/${SLUG}#size-guide"`));
 	check('SSR asks for contact and address', html.includes('id="contact-email"') && /id="shipping-/.test(html));
 	check('SSR has the pay section', /Payment/.test(html));
 	check('the page is not indexed', /name="robots" content="noindex/.test(html));
@@ -141,22 +142,6 @@ await page.reload({ waitUntil: 'networkidle' });
 	await page.setViewportSize({ width: 390, height: 844 });
 }
 
-// --- the ad's URL lands here --------------------------------------------------
-// The costume ad links to /products/dog-christmas-costume, and the owner wants
-// one screen from the ad to the card form: the product URL answers with a
-// redirect here, keeping the whole query string (fbclid is how Meta ties the
-// click to the sale) and setting _fbc from it on that first response.
-{
-	const res = await fetch(`${BASE}/products/${SLUG}?fbclid=IwARtest123&utm_source=facebook`, {
-		redirect: 'manual',
-		headers: { 'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS]' }
-	});
-	check('the ad’s URL sends the buyer to the one-page checkout', res.status === 302 && res.headers.get('location') === `/products/${SLUG}/checkout?fbclid=IwARtest123&utm_source=facebook`, `${res.status} ${res.headers.get('location')}`);
-	check('and keeps the click id as _fbc on the way', /_fbc=fb\.\d\.\d+\.IwARtest123/.test(res.headers.get('set-cookie') ?? ''), res.headers.get('set-cookie') ?? '');
-	const details = await fetch(`${BASE}/products/${SLUG}?details=1`);
-	check('the long page is still there, at ?details=1', details.status === 200 && /id="size-guide"/.test(await details.text()));
-}
-
 // --- arriving --------------------------------------------------------------------
 {
 	const view = await pairedOnce('ViewContent');
@@ -168,17 +153,16 @@ await page.reload({ waitUntil: 'networkidle' });
 }
 
 // --- choosing is adding -------------------------------------------------------------
-await page.locator('#variant-picker label', { hasText: 'Green' }).click();
-check('a colour alone adds nothing', (await cartLines()).length === 0);
+check('the colour it opens on adds nothing alone', (await cartLines()).length === 0);
 await page.locator('#size-picker label').filter({ hasText: /^\s*S\s*$/ }).click();
 await settle();
 {
 	const lines = await cartLines();
-	check('a size puts the chosen variant in the cart', lines.length === 1 && lines[0].colour === 'green' && lines[0].size === 'S' && lines[0].quantity === 1, JSON.stringify(lines));
-	check('the summary prices it', await shows(/Green · S[\s\S]*\$27\.99/), await summary());
+	check('a size puts the chosen variant in the cart', lines.length === 1 && lines[0].colour === 'red' && lines[0].size === 'S' && lines[0].quantity === 1, JSON.stringify(lines));
+	check('the summary prices it', await shows(/Red · S[\s\S]*\$27\.99/), await summary());
 }
 await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();
-await page.locator('#variant-picker label.tier', { hasText: 'Two costumes' }).click();
+await page.locator('#variant-picker label.tier', { hasText: 'Two hoodies' }).click();
 await settle();
 {
 	const lines = await cartLines();
@@ -186,7 +170,7 @@ await settle();
 	check('the bundle sets the quantity', lines[0]?.quantity === 2, JSON.stringify(lines));
 	check('and the server’s bundle price is the total', await shows(/Total\s*\$52\.06/), await summary());
 	const add = await pairedOnce('AddToCart');
-	check('the one AddToCart is the first choice', JSON.stringify(add.content_ids) === '["CMP-XT-GREEN-S"]', JSON.stringify(add));
+	check('the one AddToCart is the first choice', JSON.stringify(add.content_ids) === '["CMP-RH-RED-S"]', JSON.stringify(add));
 	check('choosing does not start the checkout', (await browserEvent('InitiateCheckout')).length === 0);
 }
 
@@ -230,9 +214,9 @@ check('the confirmation sends them back to the product', await page.locator(`a[h
 	});
 	const row = rows.rows[0];
 	check(
-		'the order is two green M costumes at the bundle price',
+		'the order is two red M hoodies at the bundle price',
 		rows.rows.length === 1 &&
-			row.sku === 'CMP-XT-GREEN-M' &&
+			row.sku === 'CMP-RH-RED-M' &&
 			Number(row.quantity) === 2 &&
 			Number(row.unit_price_cents) === 2799 &&
 			Number(row.total_cents) === 5206,

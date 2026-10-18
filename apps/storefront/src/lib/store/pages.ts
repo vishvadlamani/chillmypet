@@ -53,21 +53,15 @@ export interface ProductPage {
 	 */
 	leadDesign?: string;
 	/**
-	 * `checkout`: the product's own URL opens its one-page checkout
-	 * (`/products/<slug>/checkout`), so an ad that links to the product lands
-	 * on photos, colour, size and the card form in one screen. The long page
-	 * (story, size guide, FAQ) stays at `?details=1`, which the picker's Size
-	 * guide links to. Query strings are kept, so `fbclid` and `utm_*` arrive.
-	 */
-	landing?: 'checkout';
-	/**
 	 * How `/products/<slug>/checkout` is laid out. Unset, it is the product
 	 * page's top over the checkout's fields. `shop` is a dedicated checkout
 	 * page in the shape shoppers know from hosted shop checkouts: contact,
 	 * delivery, shipping method and payment in one column, the order summary
 	 * beside it (folded into a bar on a phone), and the picker reduced to a
 	 * line once a design and size are chosen. It is where the Christmas
-	 * landing page sends its Buy button; see `$lib/store/one-page-checkout.ts`.
+	 * landing page sends its Buy button, and where the product page's own
+	 * Add to cart goes (with the design and size in the link) instead of
+	 * `/checkout`; see `$lib/store/one-page-checkout.ts`.
 	 */
 	checkout?: 'shop';
 }
@@ -116,9 +110,10 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 		// 2026-10-17: the product is for pets, not only dogs.
 		leadDesign: 'green',
 		cardImage: '/products/dog-christmas-costume/cat.jpg',
-		// The Christmas costume ad links here; the owner wants one screen from
-		// the ad to the card form (2026-10-17).
-		landing: 'checkout'
+		// The Christmas costume ad links to the product page; its Add to cart
+		// opens a payment page of its own, not the product page again (the
+		// owner's call, 2026-10-17).
+		checkout: 'shop'
 	},
 	[REINDEER_DOG_HOODIE_SLUG]: {
 		manifest: REINDEER_HOODIE_PAGE,

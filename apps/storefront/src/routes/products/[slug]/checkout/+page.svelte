@@ -26,7 +26,9 @@
 
 	/**
 	 * A choice made somewhere else and carried here in the link: the Christmas
-	 * landing page's Buy sends `?design=red_santa&size=M`. It wins over what
+	 * landing page's Buy sends `?design=red_santa&size=M`, and a product page
+	 * with this checkout sends `bundle=qty-2` with them when the buyer took
+	 * a bundle. It wins over what
 	 * the session remembers, because it is what the buyer just tapped, and it
 	 * is set before any block mounts, so the picker renders folded on the
 	 * server as well. Only codes this product sells are taken.
@@ -35,7 +37,8 @@
 	 * (the landing page does, under its own event id, the moment Buy is
 	 * tapped). Reporting it again here would count one add twice on the very
 	 * event the Christmas ad set optimises for, so this page stays quiet about
-	 * adds for the rest of the view, even if the buyer changes the size.
+	 * adds for the rest of the view, even if the buyer changes the size. The
+	 * sender reported the product view too, so this page skips its own.
 	 */
 	const linked = (() => {
 		const params = page.url.searchParams;
@@ -45,14 +48,18 @@
 		if (!entry) return null;
 		state.set('design', design);
 		state.set('size', size);
+		// The bundle the product page's cards showed, so the count is that one.
+		const bundle = params.get('bundle') ?? '';
+		if (data.tiered && /^qty-\d+$/.test(bundle)) state.set(data.tierField, bundle);
 		return { reported: params.get('added') === '1' };
 	})();
 
 	/**
 	 * An ad can land here, so this is a product view as much as the product
-	 * page is: the same ViewContent, once, with the same ids.
+	 * page is: the same ViewContent, once, with the same ids. Not when the
+	 * buyer came from a page that already counted the view (`added=1`).
 	 */
-	let viewTracked = false;
+	let viewTracked = linked?.reported ?? false;
 	$effect(() => {
 		if (viewTracked) return;
 		viewTracked = true;
@@ -189,11 +196,6 @@
 		<!-- The landing page's type, so the checkout reads as the same shop. -->
 		<link
 			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
-			rel="stylesheet"
-		/>
-		<!-- The wordmark only: ten letters, as the landing page loads it. -->
-		<link
-			href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&text=ChillMyPet&display=swap"
 			rel="stylesheet"
 		/>
 	{:else}

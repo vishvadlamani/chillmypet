@@ -28,10 +28,7 @@ for (const slug of slugs) {
 	let status = 'no response';
 	for (;;) {
 		try {
-			// Followed: a product whose URL lands on its one-page checkout
-			// (`landing` in pages.ts) answers with a redirect to it, and what
-			// matters is that the page the buyer ends on is there.
-			const response = await fetch(`${url}?check=${Date.now()}`, { cache: 'no-store', redirect: 'follow' });
+			const response = await fetch(`${url}?check=${Date.now()}`, { cache: 'no-store', redirect: 'manual' });
 			status = String(response.status);
 		} catch (error) {
 			status = `error: ${error.message}`;
