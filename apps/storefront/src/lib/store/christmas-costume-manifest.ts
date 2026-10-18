@@ -219,7 +219,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					{ src: '/products/dog-christmas-costume/shih-tzu.jpg', alt: 'A shih tzu in the green Christmas tree costume in front of a decorated tree', caption: 'Ready by the tree' },
 					{ src: '/products/dog-christmas-costume/schnauzer.jpg', alt: 'A miniature schnauzer in the green Christmas tree costume', caption: 'Ready for the photo' }
 				],
-				note: 'AI-styled images. For small dogs and cats up to 7.5 kg (17 lb); see the size guide below.'
+				note: 'For small dogs and cats up to 7.5 kg (17 lb); see the size guide below.'
 			}
 		},
 		{

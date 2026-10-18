@@ -13,16 +13,15 @@
 	/**
 	 * The shop window: the three outfits as they are worn, a large photo and
 	 * two small ones, rather than one staged scene. The tabby in the green
-	 * costume leads, as on the costume's page; it is AI-styled (see AGENTS.md,
-	 * Content and assets) and captioned as such, as it is there. The two-dog
-	 * scene that stood here was taken down on the owner's call (2026-10-17).
+	 * costume leads, as on the costume's page. Its "AI-styled image" label came
+	 * off on the owner's call (2026-10-18), as did the two-dog scene that stood
+	 * here first (2026-10-17).
 	 */
 	const HERO = [
 		{
 			src: '/products/dog-christmas-costume/cat.jpg',
 			href: '/products/dog-christmas-costume',
-			alt: 'A tabby cat wearing the green Christmas tree costume on a rug',
-			caption: 'AI-styled image'
+			alt: 'A tabby cat wearing the green Christmas tree costume on a rug'
 		},
 		{
 			src: '/products/reindeer-dog-hoodie/worn-red.jpg',
@@ -79,7 +78,6 @@
 						height="1254"
 						fetchpriority={i === 0 ? 'high' : undefined}
 					/>
-					{#if photo.caption}<span class="caption">{photo.caption}</span>{/if}
 				</a>
 			{/each}
 		</div>
@@ -145,17 +143,6 @@
 		outline: 2px solid #fff;
 		outline-offset: 3px;
 	}
-	.caption {
-		position: absolute;
-		right: 8px;
-		bottom: 8px;
-		padding: 2px 8px;
-		border-radius: 999px;
-		background: rgb(11 60 73 / 0.55);
-		color: #fff;
-		font-size: 11px;
-		letter-spacing: 0.4px;
-	}
 	.eyebrow {
 		margin: 0 0 6px;
 		font-size: 12px;
@@ -196,7 +183,8 @@
 		font-weight: 600;
 		font-size: 15px;
 		letter-spacing: 0.4px;
-		border: 1px solid #fff;
+		/* The orange button needs no line of its own: its fill is the edge. */
+		border: 1px solid transparent;
 	}
 	/* The logo's orange with navy lettering: white on this orange is too
 	   faint to read. */
@@ -209,8 +197,12 @@
 		background: #ff8550;
 		border-color: #ff8550;
 	}
-	.secondary {
+	/* A fine white line, half the old one: an inset shadow rather than the
+	   border, because Chrome rounds a border under 1px up to a whole one,
+	   and a shadow's half pixel it draws as it is, like Safari. */
+	.actions .secondary {
 		color: #fff;
+		box-shadow: inset 0 0 0 0.5px #fff;
 	}
 	.secondary:hover {
 		background: rgb(255 255 255 / 0.12);
