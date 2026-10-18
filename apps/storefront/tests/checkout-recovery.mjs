@@ -88,7 +88,7 @@ const newShopper = async () => {
 	await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();
 	await page.locator('#variant-picker button', { hasText: /Add to cart/ }).click();
 	// The costume's own payment page (`checkout: 'shop'` in pages.ts).
-	await page.waitForURL('**/products/christmas-tree-costume/checkout?**', { timeout: 15000 });
+	await page.waitForURL('**/products/christmas-tree-costume/checkout', { timeout: 15000 });
 	await page.waitForSelector('button.shop-pay');
 
 	const hint = await page.textContent('body');

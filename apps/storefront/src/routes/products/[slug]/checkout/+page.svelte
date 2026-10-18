@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { afterNavigate, replaceState } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import type { TrackFn } from '@funnel/core';
 	import { toAmount } from 'ecomwithai/marketing';
@@ -54,11 +56,62 @@
 	})();
 
 	/**
+	 * Then the link's own parameters leave the address bar, so the buyer sees,
+	 * copies and shares the page's plain address (the owner's call,
+	 * 2026-10-18). Nothing is lost: the choice is in the session state above,
+	 * which is what a reload restores from, and the server already rendered
+	 * the picker folded. An ad's `fbclid` and utm tags stay where they are.
+	 * `added=1` survives a reload in the session instead (`reported` below).
+	 *
+	 * On the next tick: on a page opened straight from a link, the router is
+	 * still starting when mount and even `afterNavigate` run, and
+	 * `replaceState` throws there, which stops the page hydrating at all.
+	 */
+	/**
+	 * Whether the product page already reported this view and add: `added=1`
+	 * in the link, or, once that has left the address bar, a reload of the
+	 * page it arrived on. The session remembers it per product, and only a
+	 * reload reads it back, so a later arrival without `added=1` (an ad
+	 * landing here) reports as it should.
+	 */
+	const reported = (() => {
+		const REPORTED_KEY = `checkout-reported:${data.slug}`;
+		if (linked?.reported) {
+			if (browser) {
+				try {
+					sessionStorage.setItem(REPORTED_KEY, '1');
+				} catch {
+					/* storage blocked: a reload simply reports again */
+				}
+			}
+			return true;
+		}
+		if (!browser) return false;
+		const load = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+		const reload = load?.type === 'reload' && new URL(load.name).pathname === page.url.pathname;
+		try {
+			// An arrival of its own (not a reload) starts the page's count afresh.
+			if (!reload) sessionStorage.removeItem(REPORTED_KEY);
+			return reload && sessionStorage.getItem(REPORTED_KEY) === '1';
+		} catch {
+			return false;
+		}
+	})();
+
+	const OWN_PARAMS = ['design', 'size', 'bundle', 'added'];
+	afterNavigate(() => {
+		const url = new URL(page.url);
+		if (!OWN_PARAMS.some((key) => url.searchParams.has(key))) return;
+		for (const key of OWN_PARAMS) url.searchParams.delete(key);
+		setTimeout(() => replaceState(url, page.state));
+	});
+
+	/**
 	 * An ad can land here, so this is a product view as much as the product
 	 * page is: the same ViewContent, once, with the same ids. Not when the
 	 * buyer came from a page that already counted the view (`added=1`).
 	 */
-	let viewTracked = linked?.reported ?? false;
+	let viewTracked = reported;
 	$effect(() => {
 		if (viewTracked) return;
 		viewTracked = true;
@@ -123,7 +176,7 @@
 	 * The cart is read untracked: this effect writes it, and reading what it
 	 * writes would re-run it.
 	 */
-	let addReported = linked?.reported ?? false;
+	let addReported = reported;
 	$effect(() => {
 		if (!cart.hydrated) return;
 		const want = wanted;

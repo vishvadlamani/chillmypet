@@ -1071,7 +1071,14 @@ logo, centred, and a padlock. Things to know:
   picker folds in either layout (`pills` included) once both are chosen,
   and the line says the count ("Size: M · 2 costumes"). `added=1` means
   the sender reported the ViewContent and the AddToCart, and this page then
-  reports neither for the view. A `?vid=` in the link is ignored: the retired
+  reports neither for the view. Once read, those four leave the address bar
+  (`replaceState` on the next tick after `afterNavigate`: on a page opened
+  straight from a link the router is still starting, and calling it any
+  sooner throws and stops the page hydrating), so the buyer sees the plain
+  `/products/<slug>/checkout`; an ad's `fbclid` and utm tags stay (the
+  owner's call, 2026-10-18). A reload restores the choice from the session,
+  and a `checkout-reported:<slug>` session flag, read back only on a reload,
+  keeps the page as quiet as `added=1` did. A `?vid=` in the link is ignored: the retired
   Christmas landing page used it to hand over its visitor id, and since
   2026-10-18 `ensureVisitorId` only mints its own.
 - **The Payment Element's box reserves its finished height** (316px stacked,
