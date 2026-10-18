@@ -28,7 +28,7 @@
  * (`catalog.translation()` tries the store default next).
  */
 
-export const PET_SANTA_COSTUME_SLUG = 'pet-santa-costume';
+export const SANTA_COSTUME_SLUG = 'santa-costume-with-gift';
 
 // The photos stay in the folder named for the slug they were added under: the
 // live store's media rows point at these paths (`slug-changes.js`).
@@ -60,19 +60,19 @@ const COLOURS = [
 // (or weight bands) when the supplier's table arrives.
 const SIZES = [{ code: 'S' }, { code: 'M' }, { code: 'L' }];
 
-const TITLE = 'Pet Santa Costume with Gift';
+const TITLE = 'Santa Costume with Gift';
 
 /** @type {import('./catalog.js').ProductDefinition} */
-export const PET_SANTA_COSTUME = {
-	slug: PET_SANTA_COSTUME_SLUG,
+export const SANTA_COSTUME = {
+	slug: SANTA_COSTUME_SLUG,
 	// After the reindeer hoodie.
 	position: 4,
 	translations: {
 		en: {
 			title: TITLE,
-			subtitle: 'Your pet, delivering the presents',
+			subtitle: 'Delivering the presents this year',
 			description:
-				'A soft red plush Santa suit with white fur trim and a black belt, and two little plush arms out front holding a wrapped present, so your pet looks like Santa making a delivery. Comes with a matching Santa hat. For small pets, sizes S to L.'
+				'A soft red plush Santa suit with white fur trim and a black belt, and two little plush arms out front holding a wrapped present, so it looks like Santa making a delivery. Comes with a matching Santa hat. Sizes S to L.'
 		}
 	},
 	// Positional, and the order matters: the cart, /api/cart and the checkout

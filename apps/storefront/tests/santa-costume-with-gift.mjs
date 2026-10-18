@@ -1,11 +1,11 @@
 /**
- * The Pet Santa Costume with Gift, product page to placed order on a phone,
+ * The Santa Costume with Gift, product page to placed order on a phone,
  * and its place on `/christmas`. The same shape as
- * tests/christmas-pet-hoodie.mjs: the page is built on the same blocks and
+ * tests/christmas-hoodie.mjs: the page is built on the same blocks and
  * makes the same promises. An ad for it is expected, so the first screen and
  * the one-page checkout an ad could land on are pinned too.
  *
- *   node tests/pet-santa-costume.mjs
+ *   node tests/santa-costume-with-gift.mjs
  *
  * What it pins down, because none of it is visible to a type check:
  *   - /christmas lists the costume after the other Christmas products, with
@@ -24,7 +24,7 @@ import { chromium } from 'playwright';
 import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
-const SLUG = 'pet-santa-costume';
+const SLUG = 'santa-costume-with-gift';
 const URL_ = `${BASE}/products/${SLUG}`;
 const PRICE = '27.99';
 const SKU = 'CMP-SP-RED-M';
@@ -40,8 +40,8 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('/christmas serves', res.status === 200, String(res.status));
 	check('it lists the Santa costume', html.includes(`href="/products/${SLUG}"`));
-	check('after the tree costume and the reindeer hoodie, in catalogue order', html.indexOf('href="/products/pet-christmas-costume"') < html.indexOf('href="/products/christmas-pet-hoodie"') && html.indexOf('href="/products/christmas-pet-hoodie"') < html.indexOf(`href="/products/${SLUG}"`));
-	check('and not the life jacket or the pouch hoodie', !/<main[\s\S]*href="\/products\/(dog-life-jacket|christmas-pouch-hoodie)"[\s\S]*<\/main>/.test(html));
+	check('after the tree costume and the reindeer hoodie, in catalogue order', html.indexOf('href="/products/christmas-tree-costume"') < html.indexOf('href="/products/christmas-hoodie"') && html.indexOf('href="/products/christmas-hoodie"') < html.indexOf(`href="/products/${SLUG}"`));
+	check('and not the life jacket or the pouch hoodie', !/<main[\s\S]*href="\/products\/(life-jacket|christmas-pouch-hoodie)"[\s\S]*<\/main>/.test(html));
 	check('its card carries its price', html.includes(`$${PRICE}`));
 	check('the Santa costume runs S–L', html.includes('Sizes S–L'));
 	check('the tree chrome lifts the delivery strip above the header', /class="tree-strip"[^>]*>[^<]*Order by \w+day, Dec \d+/.test(html) && html.indexOf('tree-strip') < html.indexOf('<header'));
@@ -50,13 +50,31 @@ function check(label, cond, detail) {
 	check('og:image is absolute', /property="og:image" content="https?:\/\//.test(html));
 }
 
-// --- the old URLs, renamed on 2026-10-18, still land ----------------------------
-// The tree costume's live ad links to its old URL: an ad click must reach the
-// same product with its fbclid, utm tags and any chosen size intact.
+// --- no "pet", "dog" or "cat" anywhere a shopper reads ---------------------------
+// The owner's rule since 2026-10-18, site-wide: page text, header, footer and
+// the tab title. Scripts, styles and attributes (photo alt text, file names)
+// aside; "ChillMyPet" has no word boundary before "Pet", so the brand passes.
+for (const path of ['/', '/christmas', '/catalog', '/products/life-jacket', '/products/christmas-tree-costume', '/products/christmas-hoodie', `/products/${SLUG}`, '/contact', '/policies/shipping', '/policies/refunds']) {
+	const res = await fetch(`${BASE}${path}`);
+	const words = (await res.text())
+		.replace(/<script[\s\S]*?<\/script>/g, ' ')
+		.replace(/<style[\s\S]*?<\/style>/g, ' ')
+		.replace(/<[^>]*>/g, ' ');
+	const hit = /.{0,40}\b(pets?|dogs?|cats?|puppy|kitten|perros?|gatos?|mascotas?)\b.{0,40}/i.exec(words)?.[0];
+	check(`${path} says no pet, dog or cat`, res.status === 200 && !hit, `${res.status} ${hit ?? ''}`);
+}
+
+// --- the old URLs, renamed twice on 2026-10-18, still land in one hop ----------
+// The tree costume's live ad links to its first URL: an ad click must reach
+// the same product with its fbclid, utm tags and any chosen size intact.
 for (const [from, to] of [
-	['dog-christmas-costume', 'pet-christmas-costume'],
-	['reindeer-dog-hoodie', 'christmas-pet-hoodie'],
-	['santa-pet-costume', SLUG]
+	['dog-christmas-costume', 'christmas-tree-costume'],
+	['pet-christmas-costume', 'christmas-tree-costume'],
+	['reindeer-dog-hoodie', 'christmas-hoodie'],
+	['christmas-pet-hoodie', 'christmas-hoodie'],
+	['santa-pet-costume', SLUG],
+	['pet-santa-costume', SLUG],
+	['dog-life-jacket', 'life-jacket']
 ]) {
 	for (const path of ['', '/checkout']) {
 		const res = await fetch(`${BASE}/products/${from}${path}?size=M&fbclid=ad1&utm_source=fb`, { redirect: 'manual' });
@@ -74,7 +92,7 @@ for (const [from, to] of [
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
-	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Pet Santa Costume with Gift/.test(html));
+	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Santa Costume with Gift/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('SSR quotes the price', html.includes(`$${PRICE}`));
 	check('SSR offers Red, and sizes S to L only', html.includes('>Red<') && ['S', 'M', 'L'].every((s) => html.includes(`value="${s}"`)) && !html.includes('value="XL"'));
@@ -87,12 +105,12 @@ for (const [from, to] of [
 	check('no countdown chips, stock bar or viewers', !/sale ends|left in stock|viewing|people are|% sold/i.test(html));
 	check('no ratings or reviews', !/★|Pet Parents|What owners are saying/.test(html));
 	const main = /<main[\s\S]*?<\/main>/.exec(html)?.[0] ?? html;
-	// The owner's rule since 2026-10-18: "pet", never dog or cat, in what a
-	// shopper reads. Tags and attributes (photo alt text, file names) aside.
+	// The owner's rule since 2026-10-18: no "pet", "dog" or "cat" in what a
+	// shopper reads. Tags and attributes (photo alt text, file names) aside;
+	// "ChillMyPet" has no word boundary before "Pet", so it passes.
 	const words = main.replace(/<style[\s\S]*?<\/style>/g, '').replace(/<[^>]*>/g, ' ');
-	check('the page says pet, never dog or cat', !/\b(dogs?|cats?|puppy|kitten)\b/i.test(words), /.{0,40}\b(dogs?|cats?|puppy|kitten)\b.{0,40}/i.exec(words)?.[0]);
+	check('the page says no pet, dog or cat', !/\b(pets?|dogs?|cats?|puppy|kitten)\b/i.test(words), /.{0,40}\b(pets?|dogs?|cats?|puppy|kitten)\b.{0,40}/i.exec(words)?.[0]);
 	check('no other product’s copy leaked in', !/chin rest|life jacket|ruffled|antler|reindeer/i.test(main));
-	check('it is for small pets', /small pets/.test(main));
 	const checkout = await fetch(`${URL_}/checkout`);
 	check('its one-page checkout answers, for an ad that should land on the form', checkout.status === 200, String(checkout.status));
 	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
@@ -172,7 +190,7 @@ await page.reload({ waitUntil: 'networkidle' });
 // --- no size, no sale -------------------------------------------------------------
 {
 	await page.locator('#variant-picker button.cta').click();
-	await page.locator('#size-error').filter({ hasText: /Pick your pet’s size first/ }).waitFor({ timeout: 5000 });
+	await page.locator('#size-error').filter({ hasText: /Pick a size first/ }).waitFor({ timeout: 5000 });
 	check('buying without a size stays on the page', page.url().startsWith(URL_));
 	check('nothing was added to the cart', (await cartLines()).length === 0);
 	check('and no AddToCart was reported', (await browserEvent('AddToCart')).length === 0 && serverCopy('AddToCart').length === 0);
@@ -207,7 +225,7 @@ await page.waitForURL('**/checkout', { timeout: 15000 });
 await page.waitForSelector('form dl');
 {
 	const summary = await page.locator('form', { has: page.locator('dl') }).innerText();
-	check('checkout shows the costume, red, size M', summary.includes('Pet Santa Costume with Gift') && /Red · M/.test(summary), summary.slice(0, 300));
+	check('checkout shows the costume, red, size M', summary.includes('Santa Costume with Gift') && /Red · M/.test(summary), summary.slice(0, 300));
 	check(`checkout charges $${PRICE}`, (await page.locator('form dl').innerText()).includes(`$${PRICE}`));
 }
 

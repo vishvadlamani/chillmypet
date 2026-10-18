@@ -23,8 +23,8 @@ import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
 // The reindeer hoodie keeps this look; the costume's checkout is the shop
-// look's payment page (tests/pet-christmas-costume.mjs, shop-checkout.mjs).
-const SLUG = 'christmas-pet-hoodie';
+// look's payment page (tests/christmas-tree-costume.mjs, shop-checkout.mjs).
+const SLUG = 'christmas-hoodie';
 const URL_ = `${BASE}/products/${SLUG}/checkout`;
 
 function check(label, cond, detail) {
@@ -38,7 +38,7 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
-	check('the product title is the h1', /<h1[^>]*>[\s\S]{0,200}?Christmas Pet Hoodie/.test(html));
+	check('the product title is the h1', /<h1[^>]*>[\s\S]{0,200}?Christmas Hoodie/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('SSR shows the photos', html.includes('class="gallery'));
 	check('SSR offers its colour', html.includes('>Red<'));
@@ -53,7 +53,7 @@ function check(label, cond, detail) {
 	check('og:image is absolute', /property="og:image" content="https?:\/\//.test(html));
 }
 {
-	const res = await fetch(`${BASE}/products/dog-life-jacket/checkout`);
+	const res = await fetch(`${BASE}/products/life-jacket/checkout`);
 	check('a product without a size picker has no one-page checkout', res.status === 404, String(res.status));
 	const missing = await fetch(`${BASE}/products/no-such-thing/checkout`);
 	check('nor does an unknown slug', missing.status === 404, String(missing.status));

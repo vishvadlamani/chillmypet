@@ -1,10 +1,10 @@
 /**
- * The Christmas Pet Hoodie, product page to placed order on a phone,
+ * The Christmas Hoodie, product page to placed order on a phone,
  * and `/christmas`, the page the Christmas ads share. The same shape as
- * tests/pet-christmas-costume.mjs: the page is built on the same blocks and
+ * tests/christmas-tree-costume.mjs: the page is built on the same blocks and
  * makes the same promises.
  *
- *   node tests/christmas-pet-hoodie.mjs
+ *   node tests/christmas-hoodie.mjs
  *
  * What it pins down, because none of it is visible to a type check:
  *   - /christmas: the first response lists the Christmas products and links
@@ -23,7 +23,7 @@ import { chromium } from 'playwright';
 import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
-const SLUG = 'christmas-pet-hoodie';
+const SLUG = 'christmas-hoodie';
 const URL_ = `${BASE}/products/${SLUG}`;
 const PRICE = '27.99';
 const SKU = 'CMP-RH-RED-M';
@@ -38,9 +38,9 @@ function check(label, cond, detail) {
 	const res = await fetch(`${BASE}/christmas`);
 	const html = await res.text();
 	check('/christmas serves', res.status === 200, String(res.status));
-	check('it lists the reindeer hoodie and the costume', html.includes(`href="/products/${SLUG}"`) && html.includes('href="/products/pet-christmas-costume"'));
-	check('the costume first, in catalogue order', html.indexOf('href="/products/pet-christmas-costume"') < html.indexOf(`href="/products/${SLUG}"`));
-	check('and not the life jacket or the pouch hoodie', !/<main[\s\S]*href="\/products\/(dog-life-jacket|christmas-pouch-hoodie)"[\s\S]*<\/main>/.test(html));
+	check('it lists the reindeer hoodie and the costume', html.includes(`href="/products/${SLUG}"`) && html.includes('href="/products/christmas-tree-costume"'));
+	check('the costume first, in catalogue order', html.indexOf('href="/products/christmas-tree-costume"') < html.indexOf(`href="/products/${SLUG}"`));
+	check('and not the life jacket or the pouch hoodie', !/<main[\s\S]*href="\/products\/(life-jacket|christmas-pouch-hoodie)"[\s\S]*<\/main>/.test(html));
 	check('each card carries its price, one price for both', html.split(`$${PRICE}`).length - 1 >= 2);
 	check('the reindeer hoodie runs S–XL', html.includes('Sizes S–XL'));
 	check('the tree chrome lifts the delivery strip above the header', /class="tree-strip"[^>]*>[^<]*Order by \w+day, Dec \d+/.test(html) && html.indexOf('tree-strip') < html.indexOf('<header'));
@@ -55,7 +55,7 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
-	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Christmas Pet Hoodie/.test(html));
+	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Christmas Hoodie/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('SSR quotes the price', html.includes(`$${PRICE}`));
 	check('SSR offers Red, and sizes S to XL', html.includes('>Red<') && ['S', 'M', 'L', 'XL'].every((s) => html.includes(`value="${s}"`)));
@@ -67,10 +67,11 @@ function check(label, cond, detail) {
 	check('no countdown chips, stock bar or viewers', !/sale ends|left in stock|viewing|people are|% sold/i.test(html));
 	check('no ratings or reviews', !/★|Pet Parents|What owners are saying/.test(html));
 	const main = /<main[\s\S]*?<\/main>/.exec(html)?.[0] ?? html;
-	// The owner's rule since 2026-10-18: "pet", never dog or cat, in what a
-	// shopper reads. Tags and attributes (photo alt text, file names) aside.
+	// The owner's rule since 2026-10-18: no "pet", "dog" or "cat" in what a
+	// shopper reads. Tags and attributes (photo alt text, file names) aside;
+	// "ChillMyPet" has no word boundary before "Pet", so it passes.
 	const words = main.replace(/<style[\s\S]*?<\/style>/g, '').replace(/<[^>]*>/g, ' ');
-	check('the page says pet, never dog or cat', !/\b(dogs?|cats?|puppy|kitten)\b/i.test(words), /.{0,40}\b(dogs?|cats?|puppy|kitten)\b.{0,40}/i.exec(words)?.[0]);
+	check('the page says no pet, dog or cat', !/\b(pets?|dogs?|cats?|puppy|kitten)\b/i.test(words), /.{0,40}\b(pets?|dogs?|cats?|puppy|kitten)\b.{0,40}/i.exec(words)?.[0]);
 	check('no costume or life-jacket copy leaked in', !/chin rest|life jacket|pom-pom|ruffled/i.test(main));
 	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
 	check('the site header’s Catalog menu links to /christmas and /catalog', header.includes('href="/christmas"') && header.includes('href="/catalog"'));
@@ -151,7 +152,7 @@ await page.reload({ waitUntil: 'networkidle' });
 // --- no size, no sale -------------------------------------------------------------
 {
 	await page.locator('#variant-picker button.cta').click();
-	await page.locator('#size-error').filter({ hasText: /Pick your pet’s size first/ }).waitFor({ timeout: 5000 });
+	await page.locator('#size-error').filter({ hasText: /Pick a size first/ }).waitFor({ timeout: 5000 });
 	check('buying without a size stays on the page', page.url().startsWith(URL_));
 	check('nothing was added to the cart', (await cartLines()).length === 0);
 	check('and no AddToCart was reported', (await browserEvent('AddToCart')).length === 0 && serverCopy('AddToCart').length === 0);
@@ -186,7 +187,7 @@ await page.waitForURL('**/checkout', { timeout: 15000 });
 await page.waitForSelector('form dl');
 {
 	const summary = await page.locator('form', { has: page.locator('dl') }).innerText();
-	check('checkout shows the hoodie, red, size M', summary.includes('Christmas Pet Hoodie') && /Red · M/.test(summary), summary.slice(0, 300));
+	check('checkout shows the hoodie, red, size M', summary.includes('Christmas Hoodie') && /Red · M/.test(summary), summary.slice(0, 300));
 	check(`checkout charges $${PRICE}`, (await page.locator('form dl').innerText()).includes(`$${PRICE}`));
 }
 

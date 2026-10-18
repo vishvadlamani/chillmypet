@@ -52,7 +52,7 @@ function check(label, cond, detail) {
 }
 
 // --- product page: a block states intent, the host routes it ---------------
-await page.goto(`${BASE}/products/dog-life-jacket`, { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/products/life-jacket`, { waitUntil: 'networkidle' });
 await page.getByRole('button', { name: /buy now/i }).first().click();
 await page.waitForURL('**/checkout**', { timeout: 15000 });
 check('buy now lands on the checkout', page.url().endsWith('/checkout'));

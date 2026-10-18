@@ -57,7 +57,7 @@ const COSTUME = await line('CMP-XT-GREEN-M', 1);
 const REINDEER = await line('CMP-XR-RED-M', 1).catch(async () => {
 	// The reindeer hoodie's SKU scheme, whatever its prefix: the first M.
 	const { rows } = await db.execute(
-		"select v.sku from product_variants v join products p on p.id = v.product_id where p.slug = 'christmas-pet-hoodie' and v.option2 = 'M' limit 1"
+		"select v.sku from product_variants v join products p on p.id = v.product_id where p.slug = 'christmas-hoodie' and v.option2 = 'M' limit 1"
 	);
 	return line(String(rows[0].sku), 1);
 });
@@ -97,7 +97,7 @@ await basket([JACKETS, COSTUME, REINDEER]);
 await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
 {
 	const box = page.locator('section[aria-label="Your order"]');
-	const jacketRow = box.locator('div.flex.items-start', { hasText: 'Dog Life Jacket' });
+	const jacketRow = box.locator('div.flex.items-start', { hasText: 'Life Jacket' });
 	check('every line has its own quantity buttons', (await box.getByRole('group', { name: /^Quantity of / }).count()) === 3);
 	check('and its own Remove', (await box.getByRole('button', { name: 'Remove' }).count()) === 3);
 	const changes = await box.locator('a', { hasText: 'Change' }).evaluateAll((as) => as.map((a) => a.getAttribute('href')));
@@ -137,13 +137,13 @@ await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
 
 // --- the costume's shop checkout, with a jacket left over ---------------------------------
 await basket([JACKETS]);
-await page.goto(`${BASE}/products/pet-christmas-costume/checkout?design=green&size=M&added=1`, { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/products/christmas-tree-costume/checkout?design=green&size=M&added=1`, { waitUntil: 'networkidle' });
 {
 	const folded = page.locator('#shop-summary-folded');
 	check('a leftover from another product opens the phone summary by itself', await folded.isVisible());
-	check('so the buyer sees it before paying', /Dog Life Jacket/.test(await folded.innerText()));
-	const ownRow = folded.locator('li', { hasText: 'Pet Christmas Tree Costume' });
-	const jacketRow = folded.locator('li', { hasText: 'Dog Life Jacket' });
+	check('so the buyer sees it before paying', /Life Jacket/.test(await folded.innerText()));
+	const ownRow = folded.locator('li', { hasText: 'Christmas Tree Costume' });
+	const jacketRow = folded.locator('li', { hasText: 'Life Jacket' });
 	check('the costume line has no quantity buttons or Remove: its bundle cards own it', (await ownRow.getByRole('group').count()) === 0 && (await ownRow.getByRole('button', { name: 'Remove' }).count()) === 0);
 	await jacketRow.getByRole('button', { name: 'Remove' }).click();
 	check('the jacket can be removed', (await cartLines()).every((l) => l.slug !== JACKETS.slug));
@@ -175,8 +175,8 @@ await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click(
 await page.waitForLoadState('networkidle');
 {
 	const form = page.locator('form[method="POST"]:not([action])');
-	const ownRow = form.locator('li', { hasText: 'Christmas Pet Hoodie' });
-	const jacketRow = form.locator('li', { hasText: 'Dog Life Jacket' });
+	const ownRow = form.locator('li', { hasText: 'Christmas Hoodie' });
+	const jacketRow = form.locator('li', { hasText: 'Life Jacket' });
 	await ownRow.waitFor({ timeout: 5000 }).catch(() => {});
 	check('the hoodie line has no quantity buttons or Remove', (await ownRow.getByRole('group').count()) === 0 && (await ownRow.getByRole('button', { name: 'Remove' }).count()) === 0);
 	check('it says its count instead', /Qty 1/.test(await ownRow.innerText()), await ownRow.innerText());

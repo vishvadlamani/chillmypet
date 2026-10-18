@@ -189,7 +189,7 @@ const tagged = (value, cookie) =>
 // change.
 const CLICK = 'IwAR2F4-dbP0l7Mn1IawQQGCINEz7PYXQvwjNwB_qa2ofrHyiLjcbCRxTDMgk';
 const staleClick = { cookie: '_fbc=fb.1.1600000000000.OlderClickId' };
-const landing = `${BASE}/products/dog-life-jacket?fbclid=${CLICK}&run=${RUN}`;
+const landing = `${BASE}/products/life-jacket?fbclid=${CLICK}&run=${RUN}`;
 
 // As a browser asks for a page: the server copy of PageView goes only to real
 // page loads, never to a bot or a script fetching the HTML.
@@ -281,7 +281,7 @@ const setCookies = (response) =>
 // that page has gone. The server mints it — and a visitor id — on the first
 // navigation, so even that PageView can be matched.
 {
-	const landing = await fetch(`${BASE}/products/dog-life-jacket?first=${RUN}`, {
+	const landing = await fetch(`${BASE}/products/life-jacket?first=${RUN}`, {
 		headers: { accept: 'text/html' }
 	});
 	await landing.text();
@@ -302,7 +302,7 @@ const setCookies = (response) =>
 		JSON.stringify(pageView?.user_data?.external_id)
 	);
 
-	const returning = await fetch(`${BASE}/products/dog-life-jacket`, {
+	const returning = await fetch(`${BASE}/products/life-jacket`, {
 		headers: { accept: 'text/html', cookie: `_fbp=${set._fbp}; cmp_vid=${set.cmp_vid}` }
 	});
 	await returning.text();
@@ -310,7 +310,7 @@ const setCookies = (response) =>
 }
 
 // --- place an order --------------------------------------------------------
-const product = await fetch(`${BASE}/products/dog-life-jacket`).then((r) => r.text());
+const product = await fetch(`${BASE}/products/life-jacket`).then((r) => r.text());
 // The page ships a variant index for the host's own submit handler — colour to
 // variant id — which is the only place a real id appears in the markup now.
 const variant = Number(/variantId["'\s:]+(\d+)/.exec(product)?.[1] ?? 0) || null;
@@ -796,7 +796,7 @@ if (sessionCall) {
 		...Object.keys(address).map((name) => `${name}=${remembered[name]}`)
 	].join('; ');
 
-	const page = await fetch(`${BASE}/products/dog-life-jacket?back=${RUN}`, {
+	const page = await fetch(`${BASE}/products/life-jacket?back=${RUN}`, {
 		headers: { accept: 'text/html', cookie }
 	});
 	const pageHtml = await page.text();
@@ -806,7 +806,7 @@ if (sessionCall) {
 		'no ln in the fbq init'
 	);
 
-	const forged = await fetch(`${BASE}/products/dog-life-jacket`, {
+	const forged = await fetch(`${BASE}/products/life-jacket`, {
 		headers: { accept: 'text/html', cookie: `cmp_ln='});alert(1);//` }
 	}).then((r) => r.text());
 	check('a forged match cookie cannot reach the page as script', !forged.includes('alert(1)'));

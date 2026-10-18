@@ -17,7 +17,7 @@ import type { FunnelDefinition } from '@funnel/core';
  *   - ratings and reviews: there are none yet, and `REVIEWS_ARE_REAL` is
  *     false.
  *   - size measurements: the supplier's table is not in hand (see
- *     `scripts/pet-santa-costume.js`). The guide says how to measure and
+ *     `scripts/santa-costume-with-gift.js`). The guide says how to measure and
  *     shows its pending note; the table appears once the catalogue has rows.
  *
  * Two photos so far, both the supplier's: a French bulldog (the red colour's
@@ -26,8 +26,8 @@ import type { FunnelDefinition } from '@funnel/core';
  * rule, 2026-10-18).
  */
 export const SANTA_COSTUME_PAGE: FunnelDefinition = {
-	id: 'pet-santa-costume',
-	name: 'Pet Santa Costume with Gift — product page',
+	id: 'santa-costume-with-gift',
+	name: 'Santa Costume with Gift — product page',
 	layout: 'page',
 	blocks: [
 		{
@@ -60,7 +60,7 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 					}
 				],
 				hint: 'Swipe to explore',
-				title: 'Pet Santa Costume with Gift photos'
+				title: 'Santa Costume with Gift photos'
 			}
 		},
 		{
@@ -89,10 +89,10 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 				sizeLabel: 'Size',
 				// No figures until the supplier's table is in: how to choose, not
 				// what to choose.
-				sizeNote: 'Sizes S to L for small pets. Measure chest, neck and back first; between two, go up.',
+				sizeNote: 'Sizes S to L. Measure chest, neck and back first; between two, go up.',
 				sizeGuideHref: '#size-guide',
 				sizeGuideLabel: 'Size guide',
-				sizeMissing: 'Pick your pet’s size first, then we’re good to go.',
+				sizeMissing: 'Pick a size first, then we’re good to go.',
 				// The store's real quantity breaks, priced by the server. Its own
 				// field, so a bundle chosen on another Christmas page does not
 				// carry over.
@@ -131,7 +131,7 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 				items: [
 					{
 						label: 'Size & fit',
-						body: 'Three sizes, S to L, for small pets. Measure around the widest part of the chest, around the neck, and along the back from the collar to the base of the tail, then choose by those numbers rather than by breed.\n\nBetween two sizes, go up: the cord at the neck takes up any slack.',
+						body: 'Three sizes, S to L. Measure around the widest part of the chest, around the neck, and along the back from the collar to the base of the tail, then choose by those numbers rather than by breed.\n\nBetween two sizes, go up: the cord at the neck takes up any slack.',
 						link: { label: 'See the size guide', href: '#size-guide' }
 					},
 					{
@@ -170,16 +170,16 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 			component: 'story',
 			version: 1,
 			props: {
-				eyebrow: 'Christmas, with the pet in it',
+				eyebrow: 'Christmas, with everyone in it',
 				title: 'Santa’s on his way. He’s a little shorter than you expected.',
 				body: [
-					'Every year there’s one photo everybody keeps. This is the one where your pet turns up with the presents.',
-					'Soft red plush with fluffy white trim and a black belt, a Santa hat with a pom-pom, and two little arms out front holding a wrapped gift. From the front it looks like your pet is carrying it in themselves.'
+					'Every year there’s one photo everybody keeps. This is the one where your little one turns up with the presents.',
+					'Soft red plush with fluffy white trim and a black belt, a Santa hat with a pom-pom, and two little arms out front holding a wrapped gift. From the front it looks like they are carrying it in themselves.'
 				],
 				points: [
-					{ title: 'A present in their paws', body: 'Plush arms hold a wrapped gift out front, so your pet looks like they’re making the delivery.' },
+					{ title: 'A present in their paws', body: 'Plush arms hold a wrapped gift out front, so it looks like they’re making the delivery.' },
 					{ title: 'The whole Santa look', body: 'Red suit, white trim, black belt and a matching hat with a pom-pom.' },
-					{ title: 'Made for small pets', body: 'Three sizes for small pets, with a cord at the neck to snug the fit.' }
+					{ title: 'Three sizes, snug fit', body: 'S, M and L, with a cord at the neck to snug the fit.' }
 				],
 				image: {
 					src: '/products/santa-pet-costume/cat.jpg',
@@ -200,7 +200,7 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 					{ title: 'Snug the neck', body: 'Slide the cord toggle up until it sits like a loose collar: two fingers’ room.' },
 					{ title: 'Hat on', body: 'For the photo. If they’d rather not, the suit and the present carry the look on their own.' }
 				],
-				note: 'Please stay with your pet while they wear it, and take it off before naps and play.'
+				note: 'Please stay close while they wear it, and take it off before naps and play.'
 			}
 		},
 		{
@@ -255,7 +255,7 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 				look: 'band',
 				eyebrow: 'Measure first, then pick',
 				title: 'Find their fit.',
-				lead: 'Sizes S to L, for small pets. Use a soft tape and go by the numbers, not the breed.',
+				lead: 'Sizes S to L. Use a soft tape and go by the numbers, not the breed.',
 				tips: [
 					'**Chest:** around the widest part, just behind the front legs.',
 					'**Neck:** around the base of the neck, where a collar sits.',
@@ -266,9 +266,9 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 				// stands in for it, and says so.
 				columns: { $ref: 'sizes.columns' },
 				rows: { $ref: 'sizes.rows' },
-				pending: 'Measurements for each size are on their way from our maker. Email us your pet’s chest, neck and back and we’ll tell you which size to pick.',
+				pending: 'Measurements for each size are on their way from our maker. Email us their chest, neck and back and we’ll tell you which size to pick.',
 				contact:
-					'Not sure? Email contact.chillmypet@gmail.com with your pet’s measurements and breed, and we’ll help you pick.'
+					'Not sure? Email contact.chillmypet@gmail.com with their measurements and breed, and we’ll help you pick.'
 			}
 		},
 		{
@@ -288,12 +288,12 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 				width: 'full',
 				items: [
 					{
-						label: 'Will it fit my pet?',
-						body: 'It’s made for small pets of every shape. Measure the three places in the size guide and go by the numbers, not the breed.'
+						label: 'Will it fit?',
+						body: 'It’s made for every shape. Measure the three places in the size guide and go by the numbers, not the breed.'
 					},
 					{
 						label: 'How do I pick the size?',
-						body: 'Measure your pet’s chest, neck and back (the size guide shows where), then email us the three numbers if you’re unsure: we’ll match them to the maker’s chart.\n\nBetween two sizes, go up.'
+						body: 'Measure their chest, neck and back (the size guide shows where), then email us the three numbers if you’re unsure: we’ll match them to the maker’s chart.\n\nBetween two sizes, go up.'
 					},
 					{
 						label: 'How do the bundles work?',
@@ -305,7 +305,7 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 					},
 					{
 						label: 'Is it safe to leave on?',
-						body: 'Please stay with your pet while they wear it. Take it off before naps, rough play, or any time you are not watching.'
+						body: 'Please stay close while they wear it. Take it off before naps, rough play, or any time you are not watching.'
 					},
 					{
 						label: 'Can I return or exchange it?',
@@ -319,7 +319,7 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 			component: 'closing_cta',
 			version: 1,
 			props: {
-				eyebrow: 'This Christmas, dress the pet too.',
+				eyebrow: 'This Christmas, dress the whole family.',
 				title: 'Let them deliver the presents this year.',
 				cta: 'Choose their size',
 				// An in-page anchor to the picker, not a route.

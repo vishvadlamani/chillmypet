@@ -1,8 +1,8 @@
 /**
- * The Pet Christmas Tree Costume, product page to placed order, on a
+ * The Christmas Tree Costume, product page to placed order, on a
  * phone-sized screen.
  *
- *   node tests/pet-christmas-costume.mjs
+ *   node tests/christmas-tree-costume.mjs
  *
  * What it pins down, because none of it is visible to a type check:
  *   - the first response: delivery strip, the pet's-size note, the weight
@@ -23,7 +23,7 @@ import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
 // Where the Christmas costume ad points.
-const URL_ = `${BASE}/products/pet-christmas-costume`;
+const URL_ = `${BASE}/products/christmas-tree-costume`;
 const PRICE = '27.99';
 const SKU = 'CMP-XT-GREEN-M';
 
@@ -49,7 +49,7 @@ function check(label, cond, detail) {
 	check('the page serves', res.status === 200, String(res.status));
 	check('no payment on the product page: no card, email or address fields', !/id="contact-email"|id="shipping-|class="shop-pay/.test(html));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
-	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Pet Christmas Tree Costume/.test(html));
+	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Christmas Tree Costume/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('the gallery comes before the h1', html.indexOf('class="gallery') > -1 && html.indexOf('class="gallery') < html.search(/<h1[\s>]/));
 	// The page opens on green, the tabby wearing it (`leadDesign` in pages.ts).
@@ -60,7 +60,7 @@ function check(label, cond, detail) {
 	check('the two-dog scene is gone', !html.includes('duo.jpg'));
 	check('the story section follows the buy box', /<h2[^>]*>[\s\S]{0,120}?steals the Christmas card/.test(html));
 	check('the closing band points back at the picker, under an h2', /<h2[^>]*>[\s\S]{0,120}?Every tree needs a little one/.test(html) && /href="#variant-picker"/.test(html));
-	check('SSR says the size goes by the dog’s weight, in kg and lb', /By weight: S 1\.5–2\.5 kg \(3–6 lb\)/.test(html));
+	check('SSR says the size goes by weight, in kg and lb', /By weight: S 1\.5–2\.5 kg \(3–6 lb\)/.test(html));
 	// The store's own quantity breaks, priced by the server, said in words.
 	check('SSR offers the bundle cards at the server’s prices', html.includes('$52.06') && html.includes('$76.41') && /You save 7% with 2 costumes/.test(html));
 	check('the theme lifts the delivery strip above the header', /class="tree-strip"[^>]*>[^<]*Order by \w+day, Dec \d+/.test(html) && html.indexOf('tree-strip') < html.indexOf('<header'));
@@ -76,10 +76,11 @@ function check(label, cond, detail) {
 	check('no ratings or reviews', !/★|Pet Parents|What owners are saying/.test(html));
 	// The page body only: the header's menu leads to the catalogue.
 	const main = /<main[\s\S]*?<\/main>/.exec(html)?.[0] ?? html;
-	// The owner's rule since 2026-10-18: "pet", never dog or cat, in what a
-	// shopper reads. Tags and attributes (photo alt text, file names) aside.
+	// The owner's rule since 2026-10-18: no "pet", "dog" or "cat" in what a
+	// shopper reads. Tags and attributes (photo alt text, file names) aside;
+	// "ChillMyPet" has no word boundary before "Pet", so it passes.
 	const words = main.replace(/<style[\s\S]*?<\/style>/g, '').replace(/<[^>]*>/g, ' ');
-	check('the page says pet, never dog or cat', !/\b(dogs?|cats?|puppy|kitten)\b/i.test(words), /.{0,40}\b(dogs?|cats?|puppy|kitten)\b.{0,40}/i.exec(words)?.[0]);
+	check('the page says no pet, dog or cat', !/\b(pets?|dogs?|cats?|puppy|kitten)\b/i.test(words), /.{0,40}\b(pets?|dogs?|cats?|puppy|kitten)\b.{0,40}/i.exec(words)?.[0]);
 	check('no life-jacket copy leaked in', !/chin rest|life jacket/i.test(main));
 	check('og:image is absolute', /property="og:image" content="https?:\/\//.test(html));
 	check('the Meta pixel is the dataset 1341978141149107', html.includes("fbq('init', '1341978141149107'"));
@@ -92,7 +93,7 @@ function check(label, cond, detail) {
 }
 {
 	const html = await fetch(`${BASE}/catalog`).then((r) => r.text());
-	check('and the catalogue links to this page', html.includes('href="/products/pet-christmas-costume"'));
+	check('and the catalogue links to this page', html.includes('href="/products/christmas-tree-costume"'));
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
@@ -178,10 +179,10 @@ await page.reload({ waitUntil: 'networkidle' });
 // --- ViewContent ----------------------------------------------------------------
 {
 	const view = await pairedOnce('ViewContent');
-	check('ViewContent names the product', JSON.stringify(view.data.content_ids) === '["pet-christmas-costume"]', JSON.stringify(view.data));
+	check('ViewContent names the product', JSON.stringify(view.data.content_ids) === '["christmas-tree-costume"]', JSON.stringify(view.data));
 	check('ViewContent is worth the price', view.data.value === PRICE && view.data.currency === 'USD', JSON.stringify(view.data));
 	const item = (await dataLayer()).find((e) => e.event === 'view_item')?.ecommerce?.items?.[0];
-	check('view_item reached the dataLayer', item?.item_id === 'pet-christmas-costume', JSON.stringify(item));
+	check('view_item reached the dataLayer', item?.item_id === 'christmas-tree-costume', JSON.stringify(item));
 }
 
 // --- no size, no sale -------------------------------------------------------------
@@ -190,7 +191,7 @@ await page.reload({ waitUntil: 'networkidle' });
 	const dock = page.locator('button', { hasText: /^\s*Add to cart\s*$/ }).last();
 	await dock.waitFor({ state: 'visible' });
 	await dock.click();
-	await page.locator('#size-error').filter({ hasText: /Pick your pet’s size first/ }).waitFor({ timeout: 5000 });
+	await page.locator('#size-error').filter({ hasText: /Pick a size first/ }).waitFor({ timeout: 5000 });
 	check('buying without a size stays on the page', page.url().startsWith(URL_));
 	check('nothing was added to the cart', (await cartLines()).length === 0);
 	check('and no AddToCart was reported', (await browserEvent('AddToCart')).length === 0 && serverCopy('AddToCart').length === 0);
@@ -235,18 +236,18 @@ await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click(
 check('the error clears once a size is chosen', (await page.locator('#size-error').innerText()).trim() === '');
 
 await page.locator('#variant-picker button', { hasText: /Add to cart/ }).click();
-await page.waitForURL('**/products/pet-christmas-costume/checkout?**', { timeout: 15000 });
+await page.waitForURL('**/products/christmas-tree-costume/checkout?**', { timeout: 15000 });
 {
 	// The payment page is a page of its own: the choice in the link, and
 	// `added=1` because the product page reported the add.
 	const url = new URL(page.url());
-	check('add to cart opens the costume’s payment page', url.pathname === '/products/pet-christmas-costume/checkout', page.url());
+	check('add to cart opens the costume’s payment page', url.pathname === '/products/christmas-tree-costume/checkout', page.url());
 	check('carrying the colour and size', url.searchParams.get('design') === 'green' && url.searchParams.get('size') === 'M' && url.searchParams.get('added') === '1', url.search);
 	const line = await page.locator('.picker.folded').innerText().catch(() => 'not folded');
 	check('the choice is one line, with a way to change it', /Green[\s\S]*Size: M/.test(line) && /Change/.test(line), line);
-	check('none of the product page comes across: no photos, no title, no bundle cards', (await page.locator('.gallery').count()) === 0 && !(await page.locator('h1', { hasText: 'Pet Christmas Tree Costume' }).count()) && (await page.locator('label.tier').count()) === 0);
+	check('none of the product page comes across: no photos, no title, no bundle cards', (await page.locator('.gallery').count()) === 0 && !(await page.locator('h1', { hasText: 'Christmas Tree Costume' }).count()) && (await page.locator('label.tier').count()) === 0);
 	// Google Analytics groups pages by title: the payment page needs its own.
-	check('the payment page has a title of its own', /^Checkout · Pet Christmas Tree Costume/.test(await page.title()), await page.title());
+	check('the payment page has a title of its own', /^Checkout · Christmas Tree Costume/.test(await page.title()), await page.title());
 	check('the shop chrome: logo and padlock, no menu', (await page.locator('header.shop-header img[src="/brand/logo.png"]').count()) === 1 && !(await page.locator('header nav').count()));
 }
 
@@ -273,7 +274,7 @@ await page.waitForURL('**/products/pet-christmas-costume/checkout?**', { timeout
 await page.waitForSelector('button.shop-pay');
 {
 	const summary = (await page.locator('.shop-aside').textContent()) ?? '';
-	check('checkout shows the product', summary.includes('Pet Christmas Tree Costume'), summary.slice(0, 300));
+	check('checkout shows the product', summary.includes('Christmas Tree Costume'), summary.slice(0, 300));
 	check('checkout shows colour and size', /Green · M/.test(summary), summary.slice(0, 300));
 	check('checkout charges $27.99', (await page.locator('button.shop-pay').innerText()).includes(`$${PRICE}`));
 	check('one ViewContent for the visit: the product page’s', (await browserEvent('ViewContent')).length === 1);
@@ -318,7 +319,7 @@ check('the order was accepted', Boolean(orderNumber), body.slice(0, 300));
 			row.option2 === 'M' &&
 			Number(row.unit_price_cents) === 2799 &&
 			Number(row.quantity) === 1 &&
-			row.product_slug === 'pet-christmas-costume',
+			row.product_slug === 'christmas-tree-costume',
 		JSON.stringify(row)
 	);
 	db.close();

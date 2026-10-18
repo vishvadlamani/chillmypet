@@ -63,7 +63,7 @@ const settle = () => new Promise((r) => setTimeout(r, 1500));
 }
 
 // --- an order to ship -------------------------------------------------------
-const product = await fetch(`${BASE}/products/dog-life-jacket`).then((r) => r.text());
+const product = await fetch(`${BASE}/products/life-jacket`).then((r) => r.text());
 const variant = Number(/variantId["'\s:]+(\d+)/.exec(product)?.[1] ?? 0) || null;
 check('found a variant to buy', Boolean(variant));
 

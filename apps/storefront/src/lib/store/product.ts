@@ -20,7 +20,7 @@ export interface Product {
 	alt: string;
 }
 
-export const PRODUCT_SLUG = 'dog-life-jacket';
+export const PRODUCT_SLUG = 'life-jacket';
 
 export async function loadProduct(
 	commerce: Commerce,

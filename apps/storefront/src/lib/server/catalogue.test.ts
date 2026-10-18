@@ -30,9 +30,9 @@ function check(label: string, actual: unknown, expected: unknown) {
 	}
 }
 
-const COSTUME = 'pet-christmas-costume';
-const REINDEER = 'christmas-pet-hoodie';
-const SANTA = 'pet-santa-costume';
+const COSTUME = 'christmas-tree-costume';
+const REINDEER = 'christmas-hoodie';
+const SANTA = 'santa-costume-with-gift';
 const RETIRED = 'christmas-pouch-hoodie';
 /** Every product the list carries, in order: what one sync adds and the next one skips. */
 const LISTED = [COSTUME, REINDEER, SANTA];
@@ -181,7 +181,7 @@ check(
 		);
 	const title = COPY_CHANGES.find((c) => c.slug === COSTUME && c.field === 'title')!;
 	check('a fresh store gets the costume under its new name', await field('title'), title.to);
-	check('which says Pet, not Dog', title.to.startsWith('Pet '), true);
+	check('which says no pet, dog or cat', !/\b(pets?|dogs?|cats?)\b/i.test(title.to), true);
 
 	// The live store: added before the rename.
 	for (const change of COPY_CHANGES) {
@@ -194,7 +194,7 @@ check(
 	const first = await syncCatalogue(db);
 	check('the sync recopies all three Christmas products', first.recopied, LISTED);
 	check('its title', await field('title'), title.to);
-	check('and its description, which says pet, never dog or cat', /your pet/.test(await field('description')) && !/\b(dogs?|cats?)\b/.test(await field('description')), true);
+	check('and its description, which says no pet, dog or cat', /little one/.test(await field('description')) && !/\b(pets?|dogs?|cats?)\b/i.test(await field('description')), true);
 	const second = await syncCatalogue(db);
 	check('a second sync changes nothing', second.recopied, []);
 
@@ -213,7 +213,7 @@ check(
 	const { db, close } = openDb();
 	await applySchema(db);
 	await addStore(db);
-	const change = PRICE_CHANGES.find((c) => c.slug === 'dog-life-jacket')!;
+	const change = PRICE_CHANGES.find((c) => c.slug === 'life-jacket')!;
 	// The life jacket is seeded, not listed, so stand one in at its old row:
 	// any listed product's shape, under its slug, at the old price and "was".
 	const shape = PRODUCTS[0];
@@ -233,26 +233,40 @@ check(
 	close();
 }
 
-// --- a live store's products under their old slugs are renamed in place, once ---
+// --- a live store's products under their first slugs are renamed in place, once ---
 {
 	const { db, close } = openDb();
 	await applySchema(db);
 	await addStore(db);
-	// The live store as it was: every renamed product under its old slug and
-	// its old title, as an earlier deploy added it.
-	const OLD_TITLES: Record<string, string> = {
-		[COSTUME]: 'Pet Christmas Tree Costume',
+	// The slug each product was first added under, walking the renames back.
+	const firstSlug = (slug: string) => {
+		for (let from = SLUG_CHANGES.find((c) => c.to === slug); from; from = SLUG_CHANGES.find((c) => c.to === slug)) {
+			slug = from.from;
+		}
+		return slug;
+	};
+	// The live store as it was: every product under its first slug and its
+	// first title, as the first deploy added it, and the life jacket too.
+	const FIRST_TITLES: Record<string, string> = {
+		[COSTUME]: 'Dog Christmas Tree Costume',
 		[REINDEER]: 'Reindeer Christmas Dog Hoodie',
 		[SANTA]: 'Santa Pet Costume with Gift'
 	};
-	for (const { from, to } of SLUG_CHANGES) {
-		const def = PRODUCTS.find((p) => p.slug === to)!;
+	for (const def of PRODUCTS) {
 		await insertProduct(db, STORE_ID, {
 			...def,
-			slug: from,
-			translations: { en: { ...def.translations.en, title: OLD_TITLES[to] } }
+			slug: firstSlug(def.slug),
+			translations: { en: { ...def.translations.en, title: FIRST_TITLES[def.slug] } }
 		});
 	}
+	const shape = PRODUCTS[0];
+	await insertProduct(db, STORE_ID, {
+		...shape,
+		slug: 'dog-life-jacket',
+		translations: { en: { title: 'Dog Life Jacket' } },
+		variants: shape.variants.map((v) => ({ ...v, sku: `DLJ-${v.sku}` }))
+	});
+	check('the first slugs are the old dog and pet ones', PRODUCTS.map((p) => firstSlug(p.slug)), ['dog-christmas-costume', 'reindeer-dog-hoodie', 'santa-pet-costume']);
 	const variantIds = async () =>
 		(await db.execute('select id from product_variants order by id')).rows.map((r) => Number(r.id));
 	const before = await variantIds();
@@ -268,19 +282,19 @@ check(
 		);
 
 	const first = await syncCatalogue(db);
-	check('the sync renames each product to its new slug', first.renamed, SLUG_CHANGES.map((c) => c.to));
+	check('the sync walks each product through every rename, in order', first.renamed, SLUG_CHANGES.map((c) => c.to));
 	check('and adds nothing beside them', first.added, []);
-	check('still one row per product', await count(db, 'select count(*) as n from products'), LISTED.length);
+	check('still one row per product, with the life jacket', await count(db, 'select count(*) as n from products'), LISTED.length + 1);
 	check('the same variants, so stock, SKUs and order lines carry over', await variantIds(), before);
 	check(
-		'no product is left at an old slug',
-		await count(db, `select count(*) as n from products where slug in (${SLUG_CHANGES.map((c) => `'${c.from}'`).join(', ')})`),
-		0
+		'every product is at its newest slug',
+		(await db.execute('select slug from products order by id')).rows.map((r) => String(r.slug)),
+		[...LISTED, 'life-jacket']
 	);
 	check(
-		'the copy changes find them under the new slugs',
-		[await title(REINDEER), await title(SANTA)],
-		['Christmas Pet Hoodie', 'Pet Santa Costume with Gift']
+		'and named with no pet, dog or cat',
+		[await title(COSTUME), await title(REINDEER), await title(SANTA), await title('life-jacket')],
+		['Christmas Tree Costume', 'Christmas Hoodie', 'Santa Costume with Gift', 'Life Jacket']
 	);
 	const second = await syncCatalogue(db);
 	check('a second sync renames nothing', second.renamed, []);
@@ -293,12 +307,12 @@ check(
 	const def = PRODUCTS.find((p) => p.slug === SANTA)!;
 	await insertProduct(db2, STORE_ID, {
 		...def,
-		slug: 'santa-pet-costume',
+		slug: 'pet-santa-costume',
 		variants: def.variants.map((v) => ({ ...v, sku: `OLD-${v.sku}` }))
 	});
 	const third = await syncCatalogue(db2);
 	check('a rename onto a slug already in use does nothing', third.renamed, []);
-	check('both rows stay', await count(db2, "select count(*) as n from products where slug in ('santa-pet-costume', 'pet-santa-costume')"), 2);
+	check('both rows stay', await count(db2, `select count(*) as n from products where slug in ('pet-santa-costume', '${SANTA}')`), 2);
 	close2();
 	close();
 }

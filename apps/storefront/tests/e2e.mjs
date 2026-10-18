@@ -15,7 +15,7 @@ import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
-const PRODUCT = `${BASE}/products/dog-life-jacket`;
+const PRODUCT = `${BASE}/products/life-jacket`;
 const shotDir = new URL('./screenshots/', import.meta.url);
 await mkdir(shotDir, { recursive: true });
 const shot = (name) => new URL(name, shotDir).pathname;
@@ -86,7 +86,7 @@ function check(label, cond, detail) {
 // connections and no-JS visitors got. Assert on the raw bytes.
 {
 	const html = await fetch(PRODUCT).then((r) => r.text());
-	check('SSR renders the product title', /<title>Dog Life Jacket/.test(html));
+	check('SSR renders the product title', /<title>Life Jacket/.test(html));
 	check('SSR carries a description for search and social', /name="description" content=".{40}/.test(html));
 	check('SSR quotes a price', /\$\d+\.\d{2}/.test(html));
 	check('SSR offers a way to buy', /Buy now/i.test(html) && !/Sold out/i.test(html));
@@ -160,9 +160,9 @@ function check(label, cond, detail) {
 	const catalog = await fetch(`${BASE}/catalog`).then((r) => r.text());
 	check(
 		'the catalogue links to every listed product page',
-		['dog-life-jacket', 'pet-christmas-costume', 'christmas-pet-hoodie'].every((s) => catalog.includes(`href="/products/${s}"`))
+		['life-jacket', 'christmas-tree-costume', 'christmas-hoodie'].every((s) => catalog.includes(`href="/products/${s}"`))
 	);
-	check('and the home page does too', html.includes('href="/products/dog-life-jacket"') && html.includes('href="/products/pet-christmas-costume"'));
+	check('and the home page does too', html.includes('href="/products/life-jacket"') && html.includes('href="/products/christmas-tree-costume"'));
 	const contact = await fetch(`${BASE}/contact`);
 	check('/contact answers', contact.status === 200);
 }
@@ -172,7 +172,7 @@ function check(label, cond, detail) {
 	// but for the hoodie's own design and size, and the shop never shows it.
 	for (const path of ['/products/christmas-pouch-hoodie', '/products/christmas-pouch-hoodie/checkout']) {
 		const res = await fetch(`${BASE}${path}?design=red_santa&size=M&added=1&fbclid=abc`, { redirect: 'manual' });
-		check(`${path} redirects to the costume, fbclid kept`, res.status === 308 && res.headers.get('location') === '/products/pet-christmas-costume?fbclid=abc', `${res.status} ${res.headers.get('location')}`);
+		check(`${path} redirects to the costume, fbclid kept`, res.status === 308 && res.headers.get('location') === '/products/christmas-tree-costume?fbclid=abc', `${res.status} ${res.headers.get('location')}`);
 	}
 	const pages = await Promise.all(['/', '/catalog', '/christmas'].map((path) => fetch(`${BASE}${path}`).then((r) => r.text())));
 	check('the hoodie is on no shop page', pages.every((html) => !html.includes('christmas-pouch-hoodie') && !/Pouch Hoodie/.test(html)));
@@ -188,10 +188,10 @@ function check(label, cond, detail) {
 	const home = await skinned('/');
 	check('the header shows the logo', /<header[\s\S]*?src="\/brand\/logo\.png"[\s\S]*?<\/header>/.test(home.html));
 	check('the tab icon is the brand paw, not SvelteKit’s', home.html.includes('/brand/favicon-32.png') && !home.html.includes('favicon.svg'));
-	for (const path of ['/', '/catalog', '/contact', '/checkout', '/products/dog-life-jacket']) {
+	for (const path of ['/', '/catalog', '/contact', '/checkout', '/products/life-jacket']) {
 		check(`${path} wears the brand skin`, (await skinned(path)).brand);
 	}
-	for (const path of ['/christmas', '/products/pet-christmas-costume', '/products/christmas-pet-hoodie']) {
+	for (const path of ['/christmas', '/products/christmas-tree-costume', '/products/christmas-hoodie']) {
 		check(`${path} keeps the Christmas colours`, !(await skinned(path)).brand);
 	}
 	check('the life jacket card shows its whole photo', /<figure class="[^"]*\bcontain\b[^"]*"[^>]*>(?:<!--[^>]*-->|\s)*<img[^>]*card-sailboat/.test(home.html));
@@ -211,7 +211,7 @@ function check(label, cond, detail) {
 	check('teal: the small headings are the logo’s orange', (await look('.collection .eyebrow', 'color')) === 'rgb(255, 107, 44)');
 	check('teal: the footer is teal', (await look('footer.site-footer', 'backgroundColor')) === 'rgb(18, 133, 143)');
 	check('teal: with the all-white logo', (await p.locator('footer img').first().getAttribute('src')) === '/brand/logo-white.png');
-	await p.goto(`${BASE}/products/dog-life-jacket`, { waitUntil: 'load' });
+	await p.goto(`${BASE}/products/life-jacket`, { waitUntil: 'load' });
 	check('teal: the life jacket’s trust band is teal', (await look('section.trust-strip', 'backgroundColor')) === 'rgb(18, 133, 143)');
 	check('teal: and its Buy now is navy', (await look('button:has-text("Buy now")', 'backgroundColor')) === 'rgb(11, 60, 73)');
 	await p.goto(`${BASE}/christmas`, { waitUntil: 'load' });
@@ -256,13 +256,13 @@ function check(label, cond, detail) {
 	check('the build URL redirects to the real one', moved.status === 308);
 	check(
 		'and lands on the product page',
-		(moved.headers.get('location') ?? '').endsWith('/products/dog-life-jacket')
+		(moved.headers.get('location') ?? '').endsWith('/products/life-jacket')
 	);
 }
 
 // --- product page ---
 await page.goto(PRODUCT, { waitUntil: 'networkidle' });
-check('title renders', (await page.textContent('h1'))?.includes('Dog Life Jacket'));
+check('title renders', (await page.textContent('h1'))?.includes('Life Jacket'));
 check('cart badge starts at 0', (await page.textContent('header a[href="/checkout"]'))?.includes('0'));
 
 // Gallery images are real files, not placeholders that 404.
@@ -287,7 +287,7 @@ check('gallery image actually loaded', heroOk);
 	);
 	check('PageView fired', Boolean(tracked(calls, 'PageView')));
 	check('ViewContent fired', Boolean(tracked(calls, 'ViewContent')));
-	check('ViewContent carries the product', tracked(calls, 'ViewContent')?.[2]?.content_ids?.[0] === 'dog-life-jacket');
+	check('ViewContent carries the product', tracked(calls, 'ViewContent')?.[2]?.content_ids?.[0] === 'life-jacket');
 }
 
 await page.screenshot({ path: shot('product.png'), fullPage: false });
@@ -385,8 +385,8 @@ check(
 // because SvelteKit navigates without a document reload. The checkout has no
 // product menu, so the way back is the order box's own "Change" link.
 check('the checkout has no product menu', !(await page.locator('header nav > ul').isVisible()));
-await page.click('section[aria-label="Your order"] a[href="/products/dog-life-jacket"]');
-await page.waitForURL('**/products/dog-life-jacket', { timeout: 10000 });
+await page.click('section[aria-label="Your order"] a[href="/products/life-jacket"]');
+await page.waitForURL('**/products/life-jacket', { timeout: 10000 });
 {
 	const calls = await fbqCalls();
 	check(
