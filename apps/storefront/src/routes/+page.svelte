@@ -53,7 +53,7 @@
 <div class="hero-band">
 	<section class="tree-theme hero">
 		<div class="hero-text">
-			<p class="eyebrow">{t('common.brand')} · Christmas</p>
+			<p class="eyebrow">The Christmas collection</p>
 			<h1>Little outfits for small pets.</h1>
 			<p class="lead">
 				Christmas costumes and hoodies for small dogs and cats, sized to fit. Free US shipping,
