@@ -48,39 +48,43 @@
 	<meta property="og:image" content={new URL(HERO[0].src, page.url).href} />
 </svelte:head>
 
-<section class="tree-theme hero">
-	<div class="hero-text">
-		<p class="eyebrow">{t('common.brand')} · Christmas</p>
-		<h1>Little outfits for small pets.</h1>
-		<p class="lead">
-			Christmas costumes and hoodies for small dogs and cats, sized to fit. Free US shipping,
-			and 30 days to change your mind.
-		</p>
-		<div class="actions">
-			{#if page.data.christmasShop}
-				<a class="primary" href="/christmas">{t('nav.christmas')}</a>
-			{/if}
-			<a class="secondary" href="/catalog">{t('nav.allProducts')}</a>
+<!-- The band runs the page's full width in the logo's teal; the hero inside
+     keeps the page's width. -->
+<div class="hero-band">
+	<section class="tree-theme hero">
+		<div class="hero-text">
+			<p class="eyebrow">{t('common.brand')} · Christmas</p>
+			<h1>Little outfits for small pets.</h1>
+			<p class="lead">
+				Christmas costumes and hoodies for small dogs and cats, sized to fit. Free US shipping,
+				and 30 days to change your mind.
+			</p>
+			<div class="actions">
+				{#if page.data.christmasShop}
+					<a class="primary" href="/christmas">{t('nav.christmas')}</a>
+				{/if}
+				<a class="secondary" href="/catalog">{t('nav.allProducts')}</a>
+			</div>
 		</div>
-	</div>
-	<!-- Each photo opens the outfit it shows. -->
-	<div class="mosaic">
-		{#each HERO as photo, i (photo.src)}
-			<a href={photo.href} class="tile" class:big={i === 0}>
-				<img
-					src={photo.src}
-					srcset={photoSrcset(photo.src, 1254)}
-					sizes={i === 0 ? '(min-width: 900px) 420px, 60vw' : '(min-width: 900px) 260px, 40vw'}
-					alt={photo.alt}
-					width="1254"
-					height="1254"
-					fetchpriority={i === 0 ? 'high' : undefined}
-				/>
-				{#if photo.caption}<span class="caption">{photo.caption}</span>{/if}
-			</a>
-		{/each}
-	</div>
-</section>
+		<!-- Each photo opens the outfit it shows. -->
+		<div class="mosaic">
+			{#each HERO as photo, i (photo.src)}
+				<a href={photo.href} class="tile" class:big={i === 0}>
+					<img
+						src={photo.src}
+						srcset={photoSrcset(photo.src, 1254)}
+						sizes={i === 0 ? '(min-width: 900px) 420px, 60vw' : '(min-width: 900px) 260px, 40vw'}
+						alt={photo.alt}
+						width="1254"
+						height="1254"
+						fetchpriority={i === 0 ? 'high' : undefined}
+					/>
+					{#if photo.caption}<span class="caption">{photo.caption}</span>{/if}
+				</a>
+			{/each}
+		</div>
+	</section>
+</div>
 
 <Collection
 	eyebrow="The shop"
@@ -92,10 +96,13 @@
 />
 
 <style>
+	.hero-band {
+		background: var(--brand-teal-band, #12858f);
+	}
 	.hero {
 		max-width: 1176px;
 		margin: 0 auto;
-		padding: 20px 16px 8px;
+		padding: 20px 16px 28px;
 		display: grid;
 		gap: 20px;
 		align-items: center;
@@ -135,7 +142,7 @@
 		transform: scale(1.03);
 	}
 	.tile:focus-visible {
-		outline: 2px solid var(--tree-green);
+		outline: 2px solid #fff;
 		outline-offset: 3px;
 	}
 	.caption {
@@ -155,7 +162,9 @@
 		font-weight: 600;
 		letter-spacing: 1.5px;
 		text-transform: uppercase;
-		color: var(--tree-red);
+		/* A pale peach of the logo's orange: on the teal band, the orange
+		   itself is too dark to read this small. */
+		color: #ffd9c4;
 	}
 	.hero-text h1 {
 		margin: 0;
@@ -163,13 +172,13 @@
 		line-height: 1.15;
 		font-weight: 700;
 		letter-spacing: -0.3px;
-		color: var(--tree-green);
+		color: #fff;
 	}
 	.lead {
 		margin: 10px 0 0;
 		font-size: 15px;
 		line-height: 1.6;
-		color: var(--tree-muted);
+		color: #fff;
 	}
 	.actions {
 		margin-top: 18px;
@@ -187,27 +196,35 @@
 		font-weight: 600;
 		font-size: 15px;
 		letter-spacing: 0.4px;
-		border: 1px solid var(--tree-green);
+		border: 1px solid #fff;
 	}
+	/* The logo's orange with navy lettering: white on this orange is too
+	   faint to read. */
 	.primary {
-		background: var(--tree-green);
-		color: #fff;
+		background: var(--brand-orange, #ff6b2c);
+		border-color: var(--brand-orange, #ff6b2c);
+		color: var(--brand-navy, #0b3c49);
 	}
 	.primary:hover {
-		background: var(--tree-green-deep);
+		background: #ff8550;
+		border-color: #ff8550;
 	}
 	.secondary {
-		color: var(--tree-green);
+		color: #fff;
 	}
 	.secondary:hover {
-		background: var(--tree-tint);
+		background: rgb(255 255 255 / 0.12);
+	}
+	.actions a:focus-visible {
+		outline: 2px solid #fff;
+		outline-offset: 3px;
 	}
 	@media (min-width: 900px) {
 		.hero {
 			grid-template-columns: 5fr 7fr;
 			gap: 56px;
 			padding-top: 48px;
-			padding-bottom: 24px;
+			padding-bottom: 28px;
 		}
 		.mosaic {
 			order: 0;

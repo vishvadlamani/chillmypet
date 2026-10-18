@@ -132,7 +132,7 @@ export const STORE_PAGE: FunnelDefinition = {
 				// — that's the host contract and the standard pixel event, and tying
 				// it to button copy would break attribution on the first copy test.
 				cta: 'Buy now',
-				accent: '#0e8590',
+				accent: '#0b3c49',
 				width: 'full'
 			}
 		},
@@ -433,7 +433,7 @@ export const STORE_PAGE: FunnelDefinition = {
 				title: { $ref: 'product.title' },
 				price: { $ref: 'product.price' },
 				cta: 'Buy now',
-				accent: '#0e8590'
+				accent: '#0b3c49'
 			}
 		}
 	]

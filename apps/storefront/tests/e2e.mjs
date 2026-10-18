@@ -182,6 +182,28 @@ function check(label, cond, detail) {
 	check('the life jacket card shows its whole photo', /<figure class="[^"]*\bcontain\b[^"]*"[^>]*>(?:<!--[^>]*-->|\s)*<img[^>]*card-sailboat/.test(home.html));
 }
 {
+	// "Teal", the owner's pick of four previews (2026-10-18): the round logo's
+	// teal for the bands, navy for what you press and for prices, the orange
+	// for the small headings. The Christmas pages keep their own.
+	const p = await browser.newPage();
+	const look = (sel, prop) => p.locator(sel).first().evaluate((e, k) => getComputedStyle(e)[k], prop);
+	await p.goto(BASE, { waitUntil: 'load' });
+	check('teal: the home banner is the logo’s teal', (await look('.hero-band', 'backgroundColor')) === 'rgb(18, 133, 143)');
+	check('teal: its title is white', (await look('.hero-band h1', 'color')) === 'rgb(255, 255, 255)');
+	check('teal: its first button is orange with navy lettering', (await look('.hero-band .actions a', 'backgroundColor')) === 'rgb(255, 107, 44)' && (await look('.hero-band .actions a', 'color')) === 'rgb(11, 60, 73)');
+	check('teal: card buttons are navy', (await look('.card .cta', 'backgroundColor')) === 'rgb(11, 60, 73)');
+	check('teal: prices are navy', (await look('.card .price', 'color')) === 'rgb(11, 60, 73)');
+	check('teal: the small headings are the logo’s orange', (await look('.collection .eyebrow', 'color')) === 'rgb(255, 107, 44)');
+	check('teal: the footer is teal', (await look('footer.site-footer', 'backgroundColor')) === 'rgb(18, 133, 143)');
+	check('teal: with the all-white logo', (await p.locator('footer img').first().getAttribute('src')) === '/brand/logo-white.png');
+	await p.goto(`${BASE}/products/dog-life-jacket`, { waitUntil: 'load' });
+	check('teal: the life jacket’s trust band is teal', (await look('section.trust-strip', 'backgroundColor')) === 'rgb(18, 133, 143)');
+	check('teal: and its Buy now is navy', (await look('button:has-text("Buy now")', 'backgroundColor')) === 'rgb(11, 60, 73)');
+	await p.goto(`${BASE}/christmas`, { waitUntil: 'load' });
+	check('Christmas keeps its pine footer and light logo', (await look('footer.site-footer', 'backgroundColor')) !== 'rgb(18, 133, 143)' && (await p.locator('footer img').first().getAttribute('src')) === '/brand/logo-light.png');
+	await p.close();
+}
+{
 	// The Catalog menu is a disclosure: closed until tapped, shut by Escape.
 	const p = await browser.newPage();
 	await p.goto(BASE, { waitUntil: 'networkidle' });
