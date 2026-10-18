@@ -805,8 +805,8 @@ the menu leads instead. Things to know:
   class swaps the tokens and the pay button's colour. Nothing about how the
   checkout behaves changed.
 - **The home page opens on a hero** of three photos, each linking to its
-  outfit: the tabby in the green costume (`cat.jpg`, AI-styled and captioned
-  "AI-styled image" on the photo, as the costume page captions its own), the
+  outfit: the tabby in the green costume (`cat.jpg`, AI-styled; its "AI-styled
+  image" label came off on the owner's call of 2026-10-18), the
   reindeer hoodie and the red costume. The two-dog scene (`duo.jpg`) that
   stood there first was taken down on the owner's call, and is off the
   costume's gallery too; it stays on disk only.
@@ -873,6 +873,9 @@ So:
   - `Collection.svelte`'s promises are an icon row on a tinted panel;
     `ProductGrid.svelte` shows six swatches then "+N"; the home label reads
     "The Christmas collection"; the footer says "small pets".
+  - the home banner's orange button has no outline (its fill is the edge),
+    and "All products" a half-pixel white line drawn as an inset
+    `box-shadow`, because Chrome rounds a border under 1px up to 1px.
 - **Christmas keeps the pine, cream and Poppins**: `/christmas` and the
   products `pages.ts` flags `christmas` (costume, reindeer hoodie) put
   `festive: true` in their data, and `+layout.svelte` leaves `.brand-skin`
@@ -1700,7 +1703,8 @@ still the flat-lay), `details.jpg`, `duo.jpg`, `cat.jpg`, `living-room.jpg`,
 `shih-tzu.jpg`, `schnauzer.jpg`. Not taken: their size-guide graphic (their
 wordmark and their measurements) and their colour graphic (it promises a
 colour per pet inside a bundle, which ours does not do). Their lifestyle shots
-are AI-styled, and the page says so under the photo pair, as theirs does. The
+are AI-styled; the page said so under the photo pair until the owner had the
+line taken off (2026-10-18), and its note now gives only the size range. The
 older supplier treatments (`red.jpg`, `green.jpg`, `green-back.jpg`,
 `hood-detail.jpg`) stay on disk because catalogue media rows point at them. Nothing about the product was generated or altered: it
 is the real costume on a plain background. Its copy was written here.
