@@ -72,7 +72,7 @@
 					<img
 						src={photo.src}
 						srcset={photoSrcset(photo.src, 1254)}
-						sizes={i === 0 ? '(min-width: 900px) 420px, 60vw' : '(min-width: 900px) 260px, 40vw'}
+						sizes={i === 0 ? '(min-width: 900px) 420px, 66vw' : '(min-width: 900px) 210px, 33vw'}
 						alt={photo.alt}
 						width="1254"
 						height="1254"
@@ -107,15 +107,16 @@
 		/* The section carries `.tree-theme` for its colours, not its page bg. */
 		background: transparent;
 	}
-	/* One large photo and two small ones stacked beside it. */
+	/* One large photo and two small ones stacked beside it. Every tile is
+	   square, like the photos: the small ones were 4:3, which cut the
+	   reindeer hoodie's antlers and both dogs' paws off, where the tabby
+	   kept its whole outfit and a margin round it. Square, each photo shows
+	   whole, its pet centred with the same room as the cat. */
 	.mosaic {
 		order: -1;
 		display: grid;
-		grid-template-columns: 3fr 2fr;
-		grid-template-rows: 1fr 1fr;
+		grid-template-columns: 2fr 1fr;
 		gap: 10px;
-		/* The lead tile is about square at 3/5 of the width. */
-		aspect-ratio: 5 / 3;
 	}
 	.tile {
 		position: relative;
@@ -124,6 +125,10 @@
 		overflow: hidden;
 		background: var(--tree-tint);
 	}
+	.tile:not(.big) {
+		aspect-ratio: 1;
+	}
+	/* Two small tiles and a gap tall, so a gap's width off square. */
 	.tile.big {
 		grid-row: 1 / 3;
 	}

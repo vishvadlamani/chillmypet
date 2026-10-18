@@ -3,6 +3,7 @@
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { track } from '$lib/analytics/pixel';
+	import CartDrawer from '$lib/components/CartDrawer.svelte';
 	import { createTranslator, defaultLocale, locales, localeName } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
 	import { PAYMENT_ICONS, type PaymentMethod } from '$lib/store/payment-icons';
@@ -102,6 +103,14 @@
 	$effect(() => {
 		cart.hydrate();
 	});
+
+	/** The bag opens the basket over the page; its href is the no-JS way. */
+	let cartDrawer = $state<CartDrawer>();
+	function openCart(event: MouseEvent) {
+		if (!cartDrawer || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+		event.preventDefault();
+		cartDrawer.open();
+	}
 
 	/** The header's two menus: shut after a navigation, a tap elsewhere or Escape. */
 	let catalogMenu = $state<HTMLDetailsElement>();
@@ -283,7 +292,7 @@
 				     so there it takes the menu's empty slot on the left instead. -->
 				{#if !onCheckout}{@render languageSwitch('in-bar')}{/if}
 
-				<a href="/checkout" class="site-cart">
+				<a href="/checkout" class="site-cart" aria-haspopup="dialog" onclick={openCart}>
 					<svg viewBox="0 0 24 24" aria-hidden="true">
 						<path d="M5 8h14l-1.2 11.2a1.5 1.5 0 0 1-1.5 1.3H7.7a1.5 1.5 0 0 1-1.5-1.3L5 8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
 						<path d="M9 10V6.5a3 3 0 0 1 6 0V10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
@@ -298,6 +307,8 @@
 	<main class="flex-1">
 		{@render children()}
 	</main>
+
+	<CartDrawer bind:this={cartDrawer} />
 
 	<footer class="site-footer">
 		<div class="site-footer-inner">
