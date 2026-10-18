@@ -160,9 +160,9 @@ function check(label, cond, detail) {
 	const catalog = await fetch(`${BASE}/catalog`).then((r) => r.text());
 	check(
 		'the catalogue links to every listed product page',
-		['dog-life-jacket', 'dog-christmas-costume', 'reindeer-dog-hoodie'].every((s) => catalog.includes(`href="/products/${s}"`))
+		['dog-life-jacket', 'pet-christmas-costume', 'christmas-pet-hoodie'].every((s) => catalog.includes(`href="/products/${s}"`))
 	);
-	check('and the home page does too', html.includes('href="/products/dog-life-jacket"') && html.includes('href="/products/dog-christmas-costume"'));
+	check('and the home page does too', html.includes('href="/products/dog-life-jacket"') && html.includes('href="/products/pet-christmas-costume"'));
 	const contact = await fetch(`${BASE}/contact`);
 	check('/contact answers', contact.status === 200);
 }
@@ -172,7 +172,7 @@ function check(label, cond, detail) {
 	// but for the hoodie's own design and size, and the shop never shows it.
 	for (const path of ['/products/christmas-pouch-hoodie', '/products/christmas-pouch-hoodie/checkout']) {
 		const res = await fetch(`${BASE}${path}?design=red_santa&size=M&added=1&fbclid=abc`, { redirect: 'manual' });
-		check(`${path} redirects to the costume, fbclid kept`, res.status === 308 && res.headers.get('location') === '/products/dog-christmas-costume?fbclid=abc', `${res.status} ${res.headers.get('location')}`);
+		check(`${path} redirects to the costume, fbclid kept`, res.status === 308 && res.headers.get('location') === '/products/pet-christmas-costume?fbclid=abc', `${res.status} ${res.headers.get('location')}`);
 	}
 	const pages = await Promise.all(['/', '/catalog', '/christmas'].map((path) => fetch(`${BASE}${path}`).then((r) => r.text())));
 	check('the hoodie is on no shop page', pages.every((html) => !html.includes('christmas-pouch-hoodie') && !/Pouch Hoodie/.test(html)));
@@ -191,7 +191,7 @@ function check(label, cond, detail) {
 	for (const path of ['/', '/catalog', '/contact', '/checkout', '/products/dog-life-jacket']) {
 		check(`${path} wears the brand skin`, (await skinned(path)).brand);
 	}
-	for (const path of ['/christmas', '/products/dog-christmas-costume', '/products/reindeer-dog-hoodie']) {
+	for (const path of ['/christmas', '/products/pet-christmas-costume', '/products/christmas-pet-hoodie']) {
 		check(`${path} keeps the Christmas colours`, !(await skinned(path)).brand);
 	}
 	check('the life jacket card shows its whole photo', /<figure class="[^"]*\bcontain\b[^"]*"[^>]*>(?:<!--[^>]*-->|\s)*<img[^>]*card-sailboat/.test(home.html));

@@ -23,8 +23,8 @@ import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
 // The reindeer hoodie keeps this look; the costume's checkout is the shop
-// look's payment page (tests/dog-christmas-costume.mjs, shop-checkout.mjs).
-const SLUG = 'reindeer-dog-hoodie';
+// look's payment page (tests/pet-christmas-costume.mjs, shop-checkout.mjs).
+const SLUG = 'christmas-pet-hoodie';
 const URL_ = `${BASE}/products/${SLUG}/checkout`;
 
 function check(label, cond, detail) {
@@ -38,7 +38,7 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
-	check('the product title is the h1', /<h1[^>]*>[\s\S]{0,200}?Reindeer Christmas Dog Hoodie/.test(html));
+	check('the product title is the h1', /<h1[^>]*>[\s\S]{0,200}?Christmas Pet Hoodie/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('SSR shows the photos', html.includes('class="gallery'));
 	check('SSR offers its colour', html.includes('>Red<'));

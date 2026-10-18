@@ -9,7 +9,7 @@ import { loadReviews } from '$lib/store/reviews';
 import { loadFeaturedReviews, loadPhotoWall, loadSpotlightQuotes } from '$lib/store/reviews-wall';
 import { loadSizeChart } from '$lib/store/sizes';
 import { loadStock } from '$lib/store/stock';
-import { PRODUCT_PAGES, retiredRedirect } from '$lib/store/pages';
+import { PRODUCT_PAGES, renamedRedirect, retiredRedirect } from '$lib/store/pages';
 import { loadVariantPicker, variantEntries } from '$lib/store/variants';
 import type { PageServerLoad } from './$types';
 
@@ -18,6 +18,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const slug = params.slug;
 
 	// A product taken off sale sends its links on (`scripts/retired-products.js`).
+	// A renamed product's old URL goes to its new one (`scripts/slug-changes.js`).
+	const renamedTo = renamedRedirect(slug, url);
+	if (renamedTo) redirect(308, renamedTo);
 	const movedTo = retiredRedirect(slug, url);
 	if (movedTo) redirect(308, movedTo);
 

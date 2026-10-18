@@ -15,7 +15,7 @@
 	<title>{t('nav.catalog')} · {t('common.brand')}</title>
 	<meta
 		name="description"
-		content="Every ChillMyPet product: Christmas costumes and hoodies for small dogs, and dog life jackets."
+		content="Every ChillMyPet product: Christmas costumes and hoodies for small pets, and dog life jackets."
 	/>
 </svelte:head>
 

@@ -57,7 +57,7 @@ const COSTUME = await line('CMP-XT-GREEN-M', 1);
 const REINDEER = await line('CMP-XR-RED-M', 1).catch(async () => {
 	// The reindeer hoodie's SKU scheme, whatever its prefix: the first M.
 	const { rows } = await db.execute(
-		"select v.sku from product_variants v join products p on p.id = v.product_id where p.slug = 'reindeer-dog-hoodie' and v.option2 = 'M' limit 1"
+		"select v.sku from product_variants v join products p on p.id = v.product_id where p.slug = 'christmas-pet-hoodie' and v.option2 = 'M' limit 1"
 	);
 	return line(String(rows[0].sku), 1);
 });
@@ -137,7 +137,7 @@ await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
 
 // --- the costume's shop checkout, with a jacket left over ---------------------------------
 await basket([JACKETS]);
-await page.goto(`${BASE}/products/dog-christmas-costume/checkout?design=green&size=M&added=1`, { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/products/pet-christmas-costume/checkout?design=green&size=M&added=1`, { waitUntil: 'networkidle' });
 {
 	const folded = page.locator('#shop-summary-folded');
 	check('a leftover from another product opens the phone summary by itself', await folded.isVisible());
@@ -175,7 +175,7 @@ await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click(
 await page.waitForLoadState('networkidle');
 {
 	const form = page.locator('form[method="POST"]:not([action])');
-	const ownRow = form.locator('li', { hasText: 'Reindeer Christmas Dog Hoodie' });
+	const ownRow = form.locator('li', { hasText: 'Christmas Pet Hoodie' });
 	const jacketRow = form.locator('li', { hasText: 'Dog Life Jacket' });
 	await ownRow.waitFor({ timeout: 5000 }).catch(() => {});
 	check('the hoodie line has no quantity buttons or Remove', (await ownRow.getByRole('group').count()) === 0 && (await ownRow.getByRole('button', { name: 'Remove' }).count()) === 0);

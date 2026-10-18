@@ -12,10 +12,10 @@
 </script>
 
 <svelte:head>
-	<title>Christmas for your dog · {t('common.brand')}</title>
+	<title>Christmas for your pet · {t('common.brand')}</title>
 	<meta
 		name="description"
-		content="Christmas costumes and hoodies for small dogs. Free US shipping and 30-day returns."
+		content="Christmas costumes and hoodies for small pets. Free US shipping and 30-day returns."
 	/>
 	{#if lead?.image}
 		<!-- Absolute: Facebook and Instagram resolve link previews from their own
@@ -26,8 +26,8 @@
 
 <Collection
 	eyebrow="The Christmas shop"
-	title="Christmas, with the dog in it."
-	lead="Costumes and hoodies for small dogs. Free US shipping, 30-day returns."
+	title="Christmas, with the pet in it."
+	lead="Costumes and hoodies for small pets. Free US shipping, 30-day returns."
 	products={data.products}
 	empty="The Christmas shop opens soon."
 />

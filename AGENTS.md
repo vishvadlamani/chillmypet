@@ -11,7 +11,7 @@ packages/funnel-core/   block runtime: manifests, $ref binding, page layout
 packages/blocks-dr/     direct-response block library — A COPY, see below
 apps/storefront/        BFF: SvelteKit UI, language packs, routes
 landing/retired/        the redirect both retired landing pages (pages.dev) serve:
-                        every request → chillmypet.com/products/dog-christmas-costume
+                        every request → chillmypet.com/products/pet-christmas-costume
 ```
 
 `packages/ecomwithai` is the editable copy of the framework, and the public repo
@@ -562,7 +562,7 @@ locale too.
 variants, metafields), listed in `scripts/products.js`; a manifest in
 `$lib/store`, mapped in `pages.ts`; photos under `static/products/<slug>/`, then `npm run images` for their small copies
 (`christmas: true` on its `PRODUCT_PAGES` entry also lists it on `/christmas`);
-and a browser test like `tests/dog-christmas-costume.mjs`. The seed writes it on a
+and a browser test like `tests/pet-christmas-costume.mjs`. The seed writes it on a
 fresh database, the Worker adds it to a live one, and `check-live.js` fails the
 deploy if its page does not answer. Nothing else to register: `/catalog` and the home
 page read the catalogue.
@@ -588,7 +588,7 @@ the same commit (title, subtitle or description). The catalogue sync and
 once and leaves copy edited by hand alone. Keep the slug: the URL is in ads and
 links. The costume became the **Pet** Christmas Tree Costume this way on
 2026-10-17 (owner's call: it fits small dogs and cats); its URL is still
-`/products/dog-christmas-costume`.
+`/products/pet-christmas-costume`.
 
 **Changing a price:** set `PRICE_CENTS` in the product's script and add
 `{ slug, fromCents, toCents }` to `scripts/price-changes.js` in the same
@@ -689,7 +689,7 @@ ways worth knowing:
   case) and that a `christmas_cutoff` store setting overrides without a
   deploy. Once the date has passed the strip drops out through `requires`.
 
-A product is a script (`scripts/dog-christmas-costume.js`), listed in
+A product is a script (`scripts/pet-christmas-costume.js`), listed in
 `scripts/products.js`. `db:seed` writes it on a fresh database. A live one
 gets it from **the Worker itself**: `$lib/server/catalogue.ts` runs once per
 isolate, on the first request after a deploy, handed to `waitUntil` so it
@@ -699,14 +699,14 @@ in `products.js` the store lacks, and never rewrites one it has.
 `npm run db:products` is the same list, run by hand. A new product goes on
 that list in the same change as its manifest in `pages.ts`.
 
-`/products/dog-christmas-costume` is the product the Christmas ad sells: a
+`/products/pet-christmas-costume` is the product the Christmas ad sells: a
 hooded tree cape for small dogs and cats, red or green, S–L **by the pet's
 weight** (`pickSize: true`, `theme: 'tree'`, the real delivery cut-off, no
 countdown chips, no stock bar, no was-price, no reviews), defined in
-`scripts/dog-christmas-costume.js` and
+`scripts/pet-christmas-costume.js` and
 listed in `products.js`, so the Worker adds it to the live store on the first
 request after the deploy and `check-live.js` proves the page answers.
-`tests/dog-christmas-costume.mjs` drives it to a placed order. Three things to
+`tests/pet-christmas-costume.mjs` drives it to a placed order. Three things to
 know:
 
 - **The size guide's columns follow the product.** `sizeGuideTable()` in
@@ -757,10 +757,11 @@ know:
   and `item_variant` reaches GA4 as `green / M`. SKUs are `CMP-XT-<COLOUR>-<SIZE>`
   (XT: Xmas tree).
 
-`/products/reindeer-dog-hoodie` is the other Christmas product: a red plush hoodie with
+`/products/christmas-pet-hoodie` is the other Christmas product, the **Christmas Pet
+Hoodie** (the "Reindeer Christmas Dog Hoodie" until 2026-10-18): a red plush hoodie with
 antlers on the hood and a tree patch on the back, S–XL, one colour, built
 exactly like the costume (`tree` theme, same blocks and rules), defined in
-`scripts/reindeer-dog-hoodie.js` and tested by `tests/reindeer-dog-hoodie.mjs`.
+`scripts/christmas-pet-hoodie.js` and tested by `tests/christmas-pet-hoodie.mjs`.
 Two things differ:
 
 - **It has no size chart, on purpose.** The reference store (littletreepups.com,
@@ -777,25 +778,48 @@ The picker's single-colour case gives the sizes the rest of the row
 (`.options.single`), and the bundle cards' saving line names its unit through
 `unitsNoun` ("with 2 hoodies"); it used to say "costumes" on every page.
 
-`/products/santa-pet-costume` is the third Christmas product: a red plush
-Santa suit with a matching hat and plush arms holding a wrapped present, for
-small dogs **and cats**, S–L, one colour, $27.99 like the others (the owner's
-call, 2026-10-18; their working name was "Christmas Pet Costume_2"). Built
-exactly like the reindeer hoodie, no size chart for the same reason, defined
-in `scripts/santa-pet-costume.js`, tested by `tests/santa-pet-costume.mjs`
+`/products/pet-santa-costume` is the third Christmas product, the **Pet Santa
+Costume with Gift**: a red plush Santa suit with a matching hat and plush
+arms holding a wrapped present, for small pets, S–L, one colour, $27.99 like
+the others (the owner's call, 2026-10-18; their working name was "Christmas
+Pet Costume_2"). Built exactly like the Christmas Pet Hoodie, no size chart for the same reason, defined
+in `scripts/pet-santa-costume.js`, tested by `tests/pet-santa-costume.mjs`
 (in `test:store`). SKUs `CMP-SP-RED-<SIZE>`; its bundle tier lives in
 `santa_bundle`. It is last on `/christmas`.
 
-**An ad for it is expected.** Land it on `/products/santa-pet-costume`, so
+**An ad for it is expected.** Land it on `/products/pet-santa-costume`, so
 the page shows the product the ad shows. The page's first screen holds the
 photo, price and all three sizes at 390×664, og:image is the dog photo (the
-link preview), and `/products/santa-pet-costume/checkout` answers for an ad
+link preview), and `/products/pet-santa-costume/checkout` answers for an ad
 that should open on the form. It has no `checkout: 'shop'`, so Add to cart
 goes to `/checkout`; set it, as the costume has, if the owner wants the ad's
 buyers on a payment page of its own. Optimise for AddToCart or Purchase,
 never AddPaymentInfo. The photos' rights for ads are unconfirmed
 (provenance, below), and the hat being included is read from the photos
 only: confirm both with the owner before the ad runs.
+
+**"Pet", never dog or cat (the owner's rule, 2026-10-18).** A Christmas
+product's name, its URL and every word a shopper reads on its page say
+"pet": the Pet Christmas Tree Costume (`pet-christmas-costume`), the
+Christmas Pet Hoodie (`christmas-pet-hoodie`) and the Pet Santa Costume with
+Gift (`pet-santa-costume`). Each product test checks its page's visible text
+for "dog", "cat", "puppy" and "kitten". Photo alt text still says what the
+photo shows (a poodle, a tabby): it describes the picture. The life jacket
+stays a dog's life jacket.
+
+**Renaming a product's URL** goes through `scripts/slug-changes.js`, never
+through its script alone (`products.js` adds by slug, so that would open a
+second, empty product beside the one selling). The sync renames the live row
+in place first, so stock, SKUs, photos and order lines carry over, and the
+old URL and its checkout answer 308 to the new ones with the whole query
+string: same product, same sizes, so `?size=`, `fbclid` and utm tags arrive.
+The three renames of 2026-10-18 are listed there: `dog-christmas-costume`,
+`reindeer-dog-hoodie` and `santa-pet-costume`. The live costume ad still
+links to `dog-christmas-costume` and lands through that redirect; point it
+at the new URL when the ad is next edited, to save the hop. Copy changes
+that ride with a rename name the new slug, because renames run first.
+Photos keep their folders (`static/products/<old slug>/`): the live media
+rows point there, and nobody reads a file path.
 
 **`/christmas` is the page the Christmas ads can share.** It lists every
 product whose `PRODUCT_PAGES` entry has `christmas: true` and which has a row
@@ -944,7 +968,7 @@ cropped its nose and tail; `card-sailboat.jpg` is now cropped square around
 the dog and shown whole, over its own backdrop colours.
 
 **Every sized product also has a one-page checkout** at
-`/products/<slug>/checkout` (`/products/reindeer-dog-hoodie/checkout`):
+`/products/<slug>/checkout` (`/products/christmas-pet-hoodie/checkout`):
 the product's delivery strip, photos, title and picker, then the checkout's
 contact, address and shipping blocks, then the same card fields and pay
 button. It is a second way in for an ad that should land on the form; the
@@ -955,8 +979,8 @@ Things to know:
 - **The costume ad's URL is the product page, and paying is a page of its
   own** (the owner's call, 2026-10-18). For one day (PR #68) the costume's
   URL redirected to its one-page checkout; the owner wants two screens: the
-  product page with no card fields at `/products/dog-christmas-costume`,
-  and a payment page at `/products/dog-christmas-costume/checkout` that
+  product page with no card fields at `/products/pet-christmas-costume`,
+  and a payment page at `/products/pet-christmas-costume/checkout` that
   does not look like the product page. So the redirect and its `landing`
   flag are gone, and the costume has `checkout: 'shop'`. On a product with
   that look, the product page's Add to cart opens
@@ -964,7 +988,7 @@ Things to know:
   of `/checkout` (`payAt` from the product page's load). The bundle-card
   path (the life jacket) still goes to `/checkout`. `fbclid` still becomes
   `_fbc` on the product page's first response
-  (`tests/dog-christmas-costume.mjs` checks it); `?details=1` means nothing
+  (`tests/pet-christmas-costume.mjs` checks it); `?details=1` means nothing
   any more, and is harmless if an old link carries it.
 - **An empty cart says so in the payment box.** Stripe's fields mount only
   for an amount above zero, and with nothing in the cart the box used to
@@ -997,8 +1021,8 @@ for the since-retired pouch hoodie; `docs/christmas-checkout.md` has the
 reference it copies, the comparison that chose it, and every departure).
 `PRODUCT_PAGES[…].checkout = 'shop'` turns it on per product: since
 2026-10-18 the costume, whose product page's Add to cart opens it (above).
-So the ad's path is `/products/dog-christmas-costume` → Add to cart →
-`/products/dog-christmas-costume/checkout`; `/checkout` is the cart's own
+So the ad's path is `/products/pet-christmas-costume` → Add to cart →
+`/products/pet-christmas-costume/checkout`; `/checkout` is the cart's own
 checkout, for a basket reached from the cart icon. The header there is the
 logo, centred, and a padlock. Things to know:
 
@@ -1059,7 +1083,7 @@ open in the Facebook app, which leaves an iPhone about 390×664. Oct 3–16 sent
 175 landing-page views and got no AddToCart, from pages whose first screen was
 a three-row header, the strip and a photo, with the price and sizes below it.
 Now the product pages and the one-page checkout fit the price, the colours
-and the size buttons inside 664px, and `tests/dog-christmas-costume.mjs` and
+and the size buttons inside 664px, and `tests/pet-christmas-costume.mjs` and
 `tests/one-page-checkout.mjs` measure it. What pays for it, so nobody puts it
 back by accident:
 
@@ -1123,8 +1147,8 @@ card, never a dead link. A product left out of them on purpose says so with
 `unlisted: true` in `pages.ts`; see "The header" below.
 
 **Where the Christmas ad lands, since 2026-10-16:**
-`/products/dog-christmas-costume` on chillmypet.com, and its Add to cart opens
-`/products/dog-christmas-costume/checkout`. Nothing else is advertised. The
+`/products/pet-christmas-costume` on chillmypet.com, and its Add to cart opens
+`/products/pet-christmas-costume/checkout`. Nothing else is advertised. The
 reasons a storefront page beats a landing page, for an audience that is
 mostly women 55+ on the Facebook app: the brand's own domain in the address
 bar instead of `pages.dev`; a real cart, so AddToCart, InitiateCheckout,
@@ -1224,7 +1248,7 @@ registered payment method domains on ChillMP with Apple Pay, Google Pay, Klarna
 and Link active, so Apple Pay really does render in the Payment Element on an
 iPhone, and Google Pay is off only because the configuration says so. The
 `payment_badges` row on both product pages shows Apple Pay beside the cards for
-that reason, and `tests/dog-christmas-costume.mjs` asserts Google Pay's badge stays
+that reason, and `tests/pet-christmas-costume.mjs` asserts Google Pay's badge stays
 absent — add it to both manifests only after turning the method on in Stripe.
 
 Do **not** use `pmc_1UGKEnJOsB1nguzl8TDgEoLT`, even though the dashboard API
@@ -1461,7 +1485,7 @@ without paying. Built and tested; like every other email it sends nothing until
 | Database | Turso `chillmypet-vish.aws-us-west-2.turso.io` (group `default`) |
 | Payments | Stripe `acct_1U3NewJOsB1nguzl` ("ChillMP"), live since 2026-10-07 |
 | Meta dataset | `1341978141149107` (browser + CAPI), the only pixel. Removed 2026-10-11: `28272021345717397` (nobody could say whose it was) and `1363695699271757` (the retired CZK account's; nothing running used it) |
-| Retired landing pages | `chillmypet-christmas.pages.dev` and `chillmypet-hoodie.pages.dev`, Cloudflare Pages on the owner's account (below). Since 2026-10-18 both serve `landing/retired/`: every request 302s to `/products/dog-christmas-costume` (query kept), `/api/*` answers 410, no pixel. Published on merge by `deploy-retired-landing.yml` |
+| Retired landing pages | `chillmypet-christmas.pages.dev` and `chillmypet-hoodie.pages.dev`, Cloudflare Pages on the owner's account (below). Since 2026-10-18 both serve `landing/retired/`: every request 302s to `/products/pet-christmas-costume` (query kept), `/api/*` answers 410, no pixel. Published on merge by `deploy-retired-landing.yml` |
 
 **Which Cloudflare account holds what.** Everything chillmypet.com runs on is
 in **Vish's** Cloudflare account, alongside many unrelated Workers. That covers
@@ -1490,7 +1514,7 @@ All current advertising is in the Meta ad account **Vish Kanada**
 
 | Campaign | Ad set | Lands on | Optimises for | State |
 |---|---|---|---|---|
-| Christmas 2026 Campaign (`52545254634260`) | Christmas 2026 Ad Set, ad "Christmas Pet Costume Ad" | `/products/dog-christmas-costume` | **AddToCart** on `1341978141149107` | **Live** since 16 Oct, $5/day, no end date, US 18+, Advantage+ audience |
+| Christmas 2026 Campaign (`52545254634260`) | Christmas 2026 Ad Set, ad "Christmas Pet Costume Ad" | `/products/dog-christmas-costume`, which 308s to `/products/pet-christmas-costume` since 2026-10-18 | **AddToCart** on `1341978141149107` | **Live** since 16 Oct, $5/day, no end date, US 18+, Advantage+ audience |
 
 Everything else is paused or ended and stays off unless the owner asks: the
 four hoodie campaigns (!Christmas Hoodie Campaign!, Christmas Hoodie
@@ -1540,7 +1564,7 @@ deploy workflows and the hoodie ad's creative are gone from the repo
 
 Both addresses now serve `landing/retired/`, published to both projects by
 `deploy-retired-landing.yml` on merge (`OWNER_CLOUDFLARE_API_TOKEN`): every
-page request 302s to `/products/dog-christmas-costume`, query string kept
+page request 302s to `/products/pet-christmas-costume`, query string kept
 less `design`, `size` and `added`, and `/api/*` answers 410 Gone. No pixel
 runs there. A 302, not a 301, because a browser keeps a permanent redirect
 and the addresses may serve something else one day.
@@ -1666,7 +1690,7 @@ spotlight quotes are switched back on.
 A design added without a photo renders a box labelled "Placeholder", never
 another design's picture.
 
-The Dog Christmas Tree Costume's five photos
+The Pet Christmas Tree Costume's five photos
 (`static/products/dog-christmas-costume/`) were supplied by the owner in chat on
 2026-10-12 as screenshots of a supplier listing, with the instruction to use
 them. Their original source and licence were not stated: ask before treating
@@ -1701,7 +1725,7 @@ older supplier treatments (`red.jpg`, `green.jpg`, `green-back.jpg`,
 `hood-detail.jpg`) stay on disk because catalogue media rows point at them. Nothing about the product was generated or altered: it
 is the real costume on a plain background. Its copy was written here.
 
-The Santa Pet Costume's two photos (`static/products/santa-pet-costume/`,
+The Pet Santa Costume's two photos (`static/products/santa-pet-costume/`,
 `dog.jpg` a French bulldog, `cat.jpg` a ginger cat) were supplied by the
 owner in chat on 2026-10-18 as screenshots, with the instruction to add the
 product. Re-encoded as plain JPEGs with no metadata, otherwise untouched.

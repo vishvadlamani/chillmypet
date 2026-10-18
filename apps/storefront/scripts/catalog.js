@@ -225,3 +225,26 @@ export async function archiveProduct(db, storeId, slug) {
 	});
 	return result.rowsAffected;
 }
+
+/**
+ * Moves a product to a new slug, keeping its row: id, variants, stock, media,
+ * copy and every order line stay as they are, so a rename is not a new
+ * product. Returns how many rows moved: 0 once it has applied, and 0 where
+ * the new slug is already taken, so it never collides with a product added
+ * under that name. Order lines keep the slug they were placed under
+ * (`order_items.product_slug`). See `slug-changes.js`.
+ *
+ * @param {import('ecomwithai/db').Client} db
+ * @param {string} storeId
+ * @param {{ from: string, to: string }} change
+ * @returns {Promise<number>}
+ */
+export async function renameProduct(db, storeId, { from, to }) {
+	const result = await db.execute({
+		sql: `update products set slug = ?
+		      where store_id = ? and slug = ?
+		        and not exists (select 1 from products where store_id = ? and slug = ?)`,
+		args: [to, storeId, from, storeId, to]
+	});
+	return result.rowsAffected;
+}

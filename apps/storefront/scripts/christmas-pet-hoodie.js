@@ -1,7 +1,8 @@
 /**
- * The Reindeer Christmas Dog Hoodie: a red plush hoodie with brown antlers on
- * the hood, white sherpa trim, snap buttons down the front and a Christmas
- * tree patch on the back. For small dogs. Red only, S–XL.
+ * The Christmas Pet Hoodie: a red plush hoodie with brown antlers on the hood,
+ * white sherpa trim, snap buttons down the front and a Christmas tree patch on
+ * the back. For small pets. Red only, S–XL. It was the "Reindeer Christmas Dog
+ * Hoodie" at `reindeer-dog-hoodie` until 2026-10-18 (`slug-changes.js`).
  *
  * Photos are the supplier's product shots, supplied by the owner in chat for
  * this listing on 2026-10-17 (AGENTS.md, provenance). `worn-red.jpg` is first:
@@ -24,7 +25,11 @@
  * (`catalog.translation()` tries the store default next).
  */
 
-export const REINDEER_DOG_HOODIE_SLUG = 'reindeer-dog-hoodie';
+export const CHRISTMAS_PET_HOODIE_SLUG = 'christmas-pet-hoodie';
+
+// The photos stay in the folder named for the slug they were added under: the
+// live store's media rows point at these paths (`slug-changes.js`).
+const PHOTOS = '/products/reindeer-dog-hoodie';
 
 const PRICE_CENTS = 2799;
 
@@ -52,11 +57,11 @@ const COLOURS = [
 // (or weight bands) when the supplier's table arrives.
 const SIZES = [{ code: 'S' }, { code: 'M' }, { code: 'L' }, { code: 'XL' }];
 
-const TITLE = 'Reindeer Christmas Dog Hoodie';
+const TITLE = 'Christmas Pet Hoodie';
 
 /** @type {import('./catalog.js').ProductDefinition} */
-export const REINDEER_DOG_HOODIE = {
-	slug: REINDEER_DOG_HOODIE_SLUG,
+export const CHRISTMAS_PET_HOODIE = {
+	slug: CHRISTMAS_PET_HOODIE_SLUG,
 	// After the costume.
 	position: 3,
 	translations: {
@@ -64,7 +69,7 @@ export const REINDEER_DOG_HOODIE = {
 			title: TITLE,
 			subtitle: 'Santa’s smallest reindeer',
 			description:
-				'A soft red plush hoodie that turns your dog into one of Santa’s reindeer. Brown antlers on the hood, fluffy white trim, white snap buttons down the front and a Christmas tree patch on the back. For small dogs, sizes S to XL.'
+				'A soft red plush hoodie that turns your pet into one of Santa’s reindeer. Brown antlers on the hood, fluffy white trim, white snap buttons down the front and a Christmas tree patch on the back. For small pets, sizes S to XL.'
 		}
 	},
 	// Positional, and the order matters: the cart, /api/cart and the checkout
@@ -75,12 +80,12 @@ export const REINDEER_DOG_HOODIE = {
 	],
 	media: [
 		...COLOURS.map((c) => ({
-			url: `/products/${REINDEER_DOG_HOODIE_SLUG}/${c.photo}`,
+			url: `${PHOTOS}/${c.photo}`,
 			alt: c.alt,
 			option: c.code
 		})),
 		{
-			url: `/products/${REINDEER_DOG_HOODIE_SLUG}/back.jpg`,
+			url: `${PHOTOS}/back.jpg`,
 			alt: 'The reindeer hoodie from behind: antlers on the hood and the Christmas tree patch on the back'
 		}
 	],

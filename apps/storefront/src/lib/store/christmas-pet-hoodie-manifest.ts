@@ -1,7 +1,7 @@
 import type { FunnelDefinition } from '@funnel/core';
 
 /**
- * The Reindeer Christmas Dog Hoodie page.
+ * The Christmas Pet Hoodie page.
  *
  * The costume's page, product for product: the same `tree` theme (cream and
  * pine, Poppins, pill pickers, bundle cards, hairline accordions), styled
@@ -17,15 +17,15 @@ import type { FunnelDefinition } from '@funnel/core';
  *   - ratings and reviews: there are none yet, and `REVIEWS_ARE_REAL` is
  *     false.
  *   - size measurements: the supplier's table is not in hand (see
- *     `scripts/reindeer-dog-hoodie.js`). The guide says how to measure and
+ *     `scripts/christmas-pet-hoodie.js`). The guide says how to measure and
  *     shows its pending note; the table appears once the catalogue has rows.
  *
  * Two photos so far, both the supplier's: the hoodie worn from the front
  * (the red colour's photo) and from behind. Each is used once.
  */
-export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
-	id: 'reindeer-dog-hoodie',
-	name: 'Reindeer Christmas Dog Hoodie — product page',
+export const CHRISTMAS_PET_HOODIE_PAGE: FunnelDefinition = {
+	id: 'christmas-pet-hoodie',
+	name: 'Christmas Pet Hoodie — product page',
 	layout: 'page',
 	blocks: [
 		{
@@ -58,7 +58,7 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 					}
 				],
 				hint: 'Swipe to explore',
-				title: 'Reindeer Christmas Dog Hoodie photos'
+				title: 'Christmas Pet Hoodie photos'
 			}
 		},
 		{
@@ -87,10 +87,10 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 				sizeLabel: 'Size',
 				// No figures until the supplier's table is in: how to choose, not
 				// what to choose.
-				sizeNote: 'Sizes S to XL for small dogs. Measure chest, neck and back first; between two, go up.',
+				sizeNote: 'Sizes S to XL for small pets. Measure chest, neck and back first; between two, go up.',
 				sizeGuideHref: '#size-guide',
 				sizeGuideLabel: 'Size guide',
-				sizeMissing: 'Pick your dog’s size first, then we’re good to go.',
+				sizeMissing: 'Pick your pet’s size first, then we’re good to go.',
 				// The store's real quantity breaks, priced by the server. Its own
 				// field, so a costume bundle chosen earlier does not carry over.
 				tiers: { $ref: 'bundles.plain' },
@@ -128,7 +128,7 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 				items: [
 					{
 						label: 'Size & fit',
-						body: 'Four sizes, S to XL, for small dogs. Measure around the widest part of the chest, around the neck, and along the back from the collar to the base of the tail, then choose by those numbers rather than by breed.\n\nBetween two sizes, go up: a hoodie that is a little loose looks better than one that pulls.',
+						body: 'Four sizes, S to XL, for small pets. Measure around the widest part of the chest, around the neck, and along the back from the collar to the base of the tail, then choose by those numbers rather than by breed.\n\nBetween two sizes, go up: a hoodie that is a little loose looks better than one that pulls.',
 						link: { label: 'See the size guide', href: '#size-guide' }
 					},
 					{
@@ -167,10 +167,10 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 			component: 'story',
 			version: 1,
 			props: {
-				eyebrow: 'Christmas, with the dog in it',
+				eyebrow: 'Christmas, with the pet in it',
 				title: 'One of Santa’s reindeer, at a quarter of the size.',
 				body: [
-					'Every year there’s one photo everybody keeps. This is how your dog ends up in the middle of it.',
+					'Every year there’s one photo everybody keeps. This is how your pet ends up in the middle of it.',
 					'Soft red plush with fluffy white trim, two brown antlers on the hood and a little Christmas tree on the back. It reads as a reindeer from the front and as Christmas from behind.'
 				],
 				points: [
@@ -197,7 +197,7 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 					{ title: 'Close the front', body: 'White snap buttons down the chest. No zips to catch fur.' },
 					{ title: 'Hood up', body: 'Antlers up for the photo, or leave the hood down on the back.' }
 				],
-				note: 'Please stay with your dog while they wear it, and take it off before naps and play.'
+				note: 'Please stay with your pet while they wear it, and take it off before naps and play.'
 			}
 		},
 		{
@@ -252,7 +252,7 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 				look: 'band',
 				eyebrow: 'Measure first, then pick',
 				title: 'Find their fit.',
-				lead: 'Sizes S to XL, for small dogs. Use a soft tape and go by the numbers, not the breed.',
+				lead: 'Sizes S to XL, for small pets. Use a soft tape and go by the numbers, not the breed.',
 				tips: [
 					'**Chest:** around the widest part, just behind the front legs.',
 					'**Neck:** around the base of the neck, where a collar sits.',
@@ -263,9 +263,9 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 				// stands in for it, and says so.
 				columns: { $ref: 'sizes.columns' },
 				rows: { $ref: 'sizes.rows' },
-				pending: 'Measurements for each size are on their way from our maker. Email us your dog’s chest, neck and back and we’ll tell you which size to pick.',
+				pending: 'Measurements for each size are on their way from our maker. Email us your pet’s chest, neck and back and we’ll tell you which size to pick.',
 				contact:
-					'Not sure? Email contact.chillmypet@gmail.com with your dog’s measurements and breed, and we’ll help you pick.'
+					'Not sure? Email contact.chillmypet@gmail.com with your pet’s measurements and breed, and we’ll help you pick.'
 			}
 		},
 		{
@@ -286,10 +286,10 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 				items: [
 					{
 						label: 'How do I pick the size?',
-						body: 'Measure your dog’s chest, neck and back (the size guide shows where), then email us the three numbers if you’re unsure: we’ll match them to the maker’s chart.\n\nBetween two sizes, go up.'
+						body: 'Measure your pet’s chest, neck and back (the size guide shows where), then email us the three numbers if you’re unsure: we’ll match them to the maker’s chart.\n\nBetween two sizes, go up.'
 					},
 					{
-						label: 'Will my dog keep the hood on?',
+						label: 'Will my pet keep the hood on?',
 						body: 'Most do for a photo. If yours doesn’t like it, leave the hood down: the antlers sit on the back and the tree patch still shows.'
 					},
 					{
@@ -302,7 +302,7 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 					},
 					{
 						label: 'Is it safe to leave on?',
-						body: 'Please stay with your dog while they wear it. Take it off before naps, rough play, or any time you are not watching, and keep the antlers away from chewing.'
+						body: 'Please stay with your pet while they wear it. Take it off before naps, rough play, or any time you are not watching, and keep the antlers away from chewing.'
 					},
 					{
 						label: 'Can I return or exchange it?',
@@ -316,7 +316,7 @@ export const REINDEER_HOODIE_PAGE: FunnelDefinition = {
 			component: 'closing_cta',
 			version: 1,
 			props: {
-				eyebrow: 'This Christmas, dress the dog too.',
+				eyebrow: 'This Christmas, dress the pet too.',
 				title: 'Every sleigh needs a little reindeer.',
 				cta: 'Choose their size',
 				// An in-page anchor to the picker, not a route.

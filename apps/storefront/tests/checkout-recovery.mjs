@@ -82,13 +82,13 @@ const newShopper = async () => {
 {
 	const ctx = await newShopper();
 	const page = await ctx.newPage();
-	await page.goto(`${BASE}/products/dog-christmas-costume`, { waitUntil: 'networkidle' });
+	await page.goto(`${BASE}/products/pet-christmas-costume`, { waitUntil: 'networkidle' });
 	// No colour chosen: the page opens on green (`leadDesign`), and that is
 	// what goes in the cart.
 	await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();
 	await page.locator('#variant-picker button', { hasText: /Add to cart/ }).click();
 	// The costume's own payment page (`checkout: 'shop'` in pages.ts).
-	await page.waitForURL('**/products/dog-christmas-costume/checkout?**', { timeout: 15000 });
+	await page.waitForURL('**/products/pet-christmas-costume/checkout?**', { timeout: 15000 });
 	await page.waitForSelector('button.shop-pay');
 
 	const hint = await page.textContent('body');

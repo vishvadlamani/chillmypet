@@ -1,7 +1,7 @@
 import type { FunnelDefinition } from '@funnel/core';
 
 /**
- * The Santa Pet Costume with Gift page.
+ * The Pet Santa Costume with Gift page.
  *
  * The reindeer hoodie's page, product for product: the same `tree` theme
  * (cream and pine, Poppins, pill pickers, bundle cards, hairline accordions),
@@ -17,16 +17,17 @@ import type { FunnelDefinition } from '@funnel/core';
  *   - ratings and reviews: there are none yet, and `REVIEWS_ARE_REAL` is
  *     false.
  *   - size measurements: the supplier's table is not in hand (see
- *     `scripts/santa-pet-costume.js`). The guide says how to measure and
+ *     `scripts/pet-santa-costume.js`). The guide says how to measure and
  *     shows its pending note; the table appears once the catalogue has rows.
  *
  * Two photos so far, both the supplier's: a French bulldog (the red colour's
  * photo, and the listing image an ad's link preview shows) and a ginger cat
- * in the same costume. The page says "dogs and cats" because the photos do.
+ * in the same costume. The words say "pet", never dog or cat (the owner's
+ * rule, 2026-10-18).
  */
 export const SANTA_COSTUME_PAGE: FunnelDefinition = {
-	id: 'santa-pet-costume',
-	name: 'Santa Pet Costume with Gift — product page',
+	id: 'pet-santa-costume',
+	name: 'Pet Santa Costume with Gift — product page',
 	layout: 'page',
 	blocks: [
 		{
@@ -59,7 +60,7 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 					}
 				],
 				hint: 'Swipe to explore',
-				title: 'Santa Pet Costume with Gift photos'
+				title: 'Pet Santa Costume with Gift photos'
 			}
 		},
 		{
@@ -88,7 +89,7 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 				sizeLabel: 'Size',
 				// No figures until the supplier's table is in: how to choose, not
 				// what to choose.
-				sizeNote: 'Sizes S to L for small dogs and cats. Measure chest, neck and back first; between two, go up.',
+				sizeNote: 'Sizes S to L for small pets. Measure chest, neck and back first; between two, go up.',
 				sizeGuideHref: '#size-guide',
 				sizeGuideLabel: 'Size guide',
 				sizeMissing: 'Pick your pet’s size first, then we’re good to go.',
@@ -130,7 +131,7 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 				items: [
 					{
 						label: 'Size & fit',
-						body: 'Three sizes, S to L, for small dogs and cats. Measure around the widest part of the chest, around the neck, and along the back from the collar to the base of the tail, then choose by those numbers rather than by breed.\n\nBetween two sizes, go up: the cord at the neck takes up any slack.',
+						body: 'Three sizes, S to L, for small pets. Measure around the widest part of the chest, around the neck, and along the back from the collar to the base of the tail, then choose by those numbers rather than by breed.\n\nBetween two sizes, go up: the cord at the neck takes up any slack.',
 						link: { label: 'See the size guide', href: '#size-guide' }
 					},
 					{
@@ -172,13 +173,13 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 				eyebrow: 'Christmas, with the pet in it',
 				title: 'Santa’s on his way. He’s a little shorter than you expected.',
 				body: [
-					'Every year there’s one photo everybody keeps. This is the one where your dog or cat turns up with the presents.',
+					'Every year there’s one photo everybody keeps. This is the one where your pet turns up with the presents.',
 					'Soft red plush with fluffy white trim and a black belt, a Santa hat with a pom-pom, and two little arms out front holding a wrapped gift. From the front it looks like your pet is carrying it in themselves.'
 				],
 				points: [
 					{ title: 'A present in their paws', body: 'Plush arms hold a wrapped gift out front, so your pet looks like they’re making the delivery.' },
 					{ title: 'The whole Santa look', body: 'Red suit, white trim, black belt and a matching hat with a pom-pom.' },
-					{ title: 'Dogs and cats', body: 'Three sizes for small dogs and cats, with a cord at the neck to snug the fit.' }
+					{ title: 'Made for small pets', body: 'Three sizes for small pets, with a cord at the neck to snug the fit.' }
 				],
 				image: {
 					src: '/products/santa-pet-costume/cat.jpg',
@@ -254,7 +255,7 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 				look: 'band',
 				eyebrow: 'Measure first, then pick',
 				title: 'Find their fit.',
-				lead: 'Sizes S to L, for small dogs and cats. Use a soft tape and go by the numbers, not the breed.',
+				lead: 'Sizes S to L, for small pets. Use a soft tape and go by the numbers, not the breed.',
 				tips: [
 					'**Chest:** around the widest part, just behind the front legs.',
 					'**Neck:** around the base of the neck, where a collar sits.',
@@ -287,8 +288,8 @@ export const SANTA_COSTUME_PAGE: FunnelDefinition = {
 				width: 'full',
 				items: [
 					{
-						label: 'Does it fit cats?',
-						body: 'Yes. It’s made for small dogs and cats alike. Measure the same three places for either, and go by the numbers.'
+						label: 'Will it fit my pet?',
+						body: 'It’s made for small pets of every shape. Measure the three places in the size guide and go by the numbers, not the breed.'
 					},
 					{
 						label: 'How do I pick the size?',

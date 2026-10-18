@@ -14,6 +14,7 @@ import { COPY_CHANGES } from '../../../scripts/copy-changes.js';
 import { PRICE_CHANGES } from '../../../scripts/price-changes.js';
 import { PRODUCTS, STORE_ID } from '../../../scripts/products.js';
 import { RETIRED_PRODUCTS } from '../../../scripts/retired-products.js';
+import { SLUG_CHANGES } from '../../../scripts/slug-changes.js';
 import { insertProduct } from '../../../scripts/catalog.js';
 import { SCHEMA_OBJECTS, ensureCatalogue, resetCatalogueSync, syncCatalogue } from './catalogue.ts';
 
@@ -29,9 +30,9 @@ function check(label: string, actual: unknown, expected: unknown) {
 	}
 }
 
-const COSTUME = 'dog-christmas-costume';
-const REINDEER = 'reindeer-dog-hoodie';
-const SANTA = 'santa-pet-costume';
+const COSTUME = 'pet-christmas-costume';
+const REINDEER = 'christmas-pet-hoodie';
+const SANTA = 'pet-santa-costume';
 const RETIRED = 'christmas-pouch-hoodie';
 /** Every product the list carries, in order: what one sync adds and the next one skips. */
 const LISTED = [COSTUME, REINDEER, SANTA];
@@ -93,6 +94,7 @@ check(
 	const first = await syncCatalogue(db);
 	check('first sync adds every listed product', first, {
 		schemaCreated: [],
+		renamed: [],
 		added: LISTED,
 		skipped: [],
 		repriced: [],
@@ -110,6 +112,7 @@ check(
 	const second = await syncCatalogue(db);
 	check('second sync adds nothing', second, {
 		schemaCreated: [],
+		renamed: [],
 		added: [],
 		skipped: LISTED,
 		repriced: [],
@@ -189,9 +192,9 @@ check(
 		});
 	}
 	const first = await syncCatalogue(db);
-	check('the sync renames the costume', first.recopied, [COSTUME]);
+	check('the sync recopies all three Christmas products', first.recopied, LISTED);
 	check('its title', await field('title'), title.to);
-	check('and its description', (await field('description')).includes('your dog or cat'), true);
+	check('and its description, which says pet, never dog or cat', /your pet/.test(await field('description')) && !/\b(dogs?|cats?)\b/.test(await field('description')), true);
 	const second = await syncCatalogue(db);
 	check('a second sync changes nothing', second.recopied, []);
 
@@ -227,6 +230,76 @@ check(
 		args: [change.slug]
 	});
 	check('and its struck-through price is gone', rows.rows.map((r) => [Number(r.p), r.c]), [[change.toCents, null]]);
+	close();
+}
+
+// --- a live store's products under their old slugs are renamed in place, once ---
+{
+	const { db, close } = openDb();
+	await applySchema(db);
+	await addStore(db);
+	// The live store as it was: every renamed product under its old slug and
+	// its old title, as an earlier deploy added it.
+	const OLD_TITLES: Record<string, string> = {
+		[COSTUME]: 'Pet Christmas Tree Costume',
+		[REINDEER]: 'Reindeer Christmas Dog Hoodie',
+		[SANTA]: 'Santa Pet Costume with Gift'
+	};
+	for (const { from, to } of SLUG_CHANGES) {
+		const def = PRODUCTS.find((p) => p.slug === to)!;
+		await insertProduct(db, STORE_ID, {
+			...def,
+			slug: from,
+			translations: { en: { ...def.translations.en, title: OLD_TITLES[to] } }
+		});
+	}
+	const variantIds = async () =>
+		(await db.execute('select id from product_variants order by id')).rows.map((r) => Number(r.id));
+	const before = await variantIds();
+	const title = async (slug: string) =>
+		String(
+			(
+				await db.execute({
+					sql: `select t.title from product_translations t join products p on p.id = t.product_id
+					      where p.slug = ? and t.locale = 'en'`,
+					args: [slug]
+				})
+			).rows[0]?.title
+		);
+
+	const first = await syncCatalogue(db);
+	check('the sync renames each product to its new slug', first.renamed, SLUG_CHANGES.map((c) => c.to));
+	check('and adds nothing beside them', first.added, []);
+	check('still one row per product', await count(db, 'select count(*) as n from products'), LISTED.length);
+	check('the same variants, so stock, SKUs and order lines carry over', await variantIds(), before);
+	check(
+		'no product is left at an old slug',
+		await count(db, `select count(*) as n from products where slug in (${SLUG_CHANGES.map((c) => `'${c.from}'`).join(', ')})`),
+		0
+	);
+	check(
+		'the copy changes find them under the new slugs',
+		[await title(REINDEER), await title(SANTA)],
+		['Christmas Pet Hoodie', 'Pet Santa Costume with Gift']
+	);
+	const second = await syncCatalogue(db);
+	check('a second sync renames nothing', second.renamed, []);
+
+	// A product someone added under a new slug by hand is never overwritten.
+	const { db: db2, close: close2 } = openDb();
+	await applySchema(db2);
+	await addStore(db2);
+	await syncCatalogue(db2);
+	const def = PRODUCTS.find((p) => p.slug === SANTA)!;
+	await insertProduct(db2, STORE_ID, {
+		...def,
+		slug: 'santa-pet-costume',
+		variants: def.variants.map((v) => ({ ...v, sku: `OLD-${v.sku}` }))
+	});
+	const third = await syncCatalogue(db2);
+	check('a rename onto a slug already in use does nothing', third.renamed, []);
+	check('both rows stay', await count(db2, "select count(*) as n from products where slug in ('santa-pet-costume', 'pet-santa-costume')"), 2);
+	close2();
 	close();
 }
 
@@ -289,6 +362,7 @@ check(
 	const result = await syncCatalogue(db);
 	check('a database with no store row gets no products', result, {
 		schemaCreated: [],
+		renamed: [],
 		added: [],
 		skipped: LISTED,
 		repriced: [],

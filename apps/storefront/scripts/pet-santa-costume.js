@@ -1,9 +1,10 @@
 /**
- * The Santa Pet Costume with Gift: a red plush Santa suit with white fur trim,
+ * The Pet Santa Costume with Gift: a red plush Santa suit with white fur trim,
  * a black belt and a pair of plush arms that hold a wrapped present out front,
  * so the pet looks like it is delivering it, plus a matching Santa hat. A cord
- * toggle at the neck takes up the slack. For small dogs and cats. Red only,
- * S–L. The owner's working name for it was "Christmas Pet Costume_2".
+ * toggle at the neck takes up the slack. For small pets. Red only, S–L. The
+ * owner's working name for it was "Christmas Pet Costume_2"; it was the
+ * "Santa Pet Costume with Gift" at `santa-pet-costume` on its first day.
  *
  * Photos are the supplier's lifestyle shots (a French bulldog and a ginger
  * cat), supplied by the owner in chat for this listing on 2026-10-18
@@ -27,7 +28,11 @@
  * (`catalog.translation()` tries the store default next).
  */
 
-export const SANTA_PET_COSTUME_SLUG = 'santa-pet-costume';
+export const PET_SANTA_COSTUME_SLUG = 'pet-santa-costume';
+
+// The photos stay in the folder named for the slug they were added under: the
+// live store's media rows point at these paths (`slug-changes.js`).
+const PHOTOS = '/products/santa-pet-costume';
 
 const PRICE_CENTS = 2799;
 
@@ -55,11 +60,11 @@ const COLOURS = [
 // (or weight bands) when the supplier's table arrives.
 const SIZES = [{ code: 'S' }, { code: 'M' }, { code: 'L' }];
 
-const TITLE = 'Santa Pet Costume with Gift';
+const TITLE = 'Pet Santa Costume with Gift';
 
 /** @type {import('./catalog.js').ProductDefinition} */
-export const SANTA_PET_COSTUME = {
-	slug: SANTA_PET_COSTUME_SLUG,
+export const PET_SANTA_COSTUME = {
+	slug: PET_SANTA_COSTUME_SLUG,
 	// After the reindeer hoodie.
 	position: 4,
 	translations: {
@@ -67,7 +72,7 @@ export const SANTA_PET_COSTUME = {
 			title: TITLE,
 			subtitle: 'Your pet, delivering the presents',
 			description:
-				'A soft red plush Santa suit with white fur trim and a black belt, and two little plush arms out front holding a wrapped present, so your pet looks like Santa making a delivery. Comes with a matching Santa hat. For small dogs and cats, sizes S to L.'
+				'A soft red plush Santa suit with white fur trim and a black belt, and two little plush arms out front holding a wrapped present, so your pet looks like Santa making a delivery. Comes with a matching Santa hat. For small pets, sizes S to L.'
 		}
 	},
 	// Positional, and the order matters: the cart, /api/cart and the checkout
@@ -78,12 +83,12 @@ export const SANTA_PET_COSTUME = {
 	],
 	media: [
 		...COLOURS.map((c) => ({
-			url: `/products/${SANTA_PET_COSTUME_SLUG}/${c.photo}`,
+			url: `${PHOTOS}/${c.photo}`,
 			alt: c.alt,
 			option: c.code
 		})),
 		{
-			url: `/products/${SANTA_PET_COSTUME_SLUG}/cat.jpg`,
+			url: `${PHOTOS}/cat.jpg`,
 			alt: 'A ginger cat in the same Santa costume and hat, holding the present'
 		}
 	],

@@ -25,7 +25,7 @@
  */
 export const PRICE_CHANGES = [
 	{
-		slug: 'dog-christmas-costume',
+		slug: 'pet-christmas-costume',
 		fromCents: 2850,
 		toCents: 2799,
 		// One price for the two Christmas dog outfits, the reindeer hoodie's.
