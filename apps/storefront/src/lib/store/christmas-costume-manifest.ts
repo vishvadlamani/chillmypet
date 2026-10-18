@@ -128,8 +128,8 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			component: 'payment_badges',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
-			// The same list as the hoodie and the life jacket: only what the
-			// checkout offers. Change all three together. Google Pay stays off
+			// The same list as the reindeer hoodie and the life jacket: only what
+			// the checkout offers. Change all three together. Google Pay stays off
 			// until it is on in Stripe, never before. No Discover: Stripe does not
 			// offer it to accounts in Czechia, which is where ChillMP is registered.
 			props: { methods: ['visa', 'mastercard', 'amex', 'applepay'], width: 'full' }

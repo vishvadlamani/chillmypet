@@ -71,11 +71,11 @@ export function onePageCheckout(
 /**
  * The `shop` look: a checkout page and nothing else, in the shape of a hosted
  * shop checkout (contact, delivery, shipping method, payment; the summary
- * beside it). The Christmas landing page's Buy sends the buyer here with the
- * design and size already chosen, so the product's photos, title and strip
+ * beside it). The product page's Add to cart sends the buyer here with the
+ * colour and size already chosen, so the product's photos, title and strip
  * stay behind: the picker is the one thing that comes across, folded to a
- * line ("Santa Red · Size M, Change") once both are chosen, and whole when
- * the buyer arrives without a size.
+ * line ("Green · Size M, Change") once both are chosen, and whole when the
+ * buyer arrives without a size.
  *
  * The fields are the shop blocks rather than the checkout's library blocks,
  * because they draw each field with its own message under it, and split the

@@ -32,8 +32,8 @@
 	/**
 	 * The shop's look, the tree storefront's cream and pine (after
 	 * littletreepups.com), is the site's: every page wears it except a product
-	 * page with a skin of its own (the life jacket's sales page, the pouch
-	 * hoodie's `christmas` page) and the one-page checkouts under `/products/`,
+	 * page with a skin of its own (the life jacket's sales page) and the
+	 * one-page checkouts under `/products/`,
 	 * which keep the product page's top and their own chrome.
 	 *
 	 * Its strip sits ABOVE the header, the way a shop's own bar does, so the

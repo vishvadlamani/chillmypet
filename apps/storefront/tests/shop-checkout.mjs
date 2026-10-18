@@ -1,8 +1,8 @@
 /**
- * The Christmas hoodie's shop checkout, `/products/christmas-pouch-hoodie/checkout`:
- * where the Christmas landing page's Buy now lands, laid out like a hosted
- * shop checkout and driven the way that page's visitors arrive, on an iPhone
- * inside the Facebook app (390×664).
+ * The costume's shop checkout, `/products/dog-christmas-costume/checkout`:
+ * where the product page's Add to cart lands, laid out like a hosted shop
+ * checkout and driven the way the Christmas ad's visitors arrive, on an
+ * iPhone inside the Facebook app (390×664).
  *
  *   node tests/shop-checkout.mjs
  *
@@ -10,11 +10,11 @@
  *   - the first response: the choice the link carries already chosen (folded
  *     picker), the shop chrome, the reference's sections in order, one h1,
  *     not indexed, no way off to buy.stripe.com; a link without a choice
- *     gets the whole picker; `?vid=` is adopted as the visitor id only on a
- *     first visit and only in the shape this site mints
+ *     gets the whole picker; a `?vid=` in the link is never taken as the
+ *     visitor id
  *   - the phone: the email on the first screen, nothing a buyer reads under
  *     16px, the summary as a bar that opens in place
- *   - tracking: NO ViewContent and NO AddToCart (the landing page sent both,
+ *   - tracking: NO ViewContent and NO AddToCart (the product page sent both,
  *     added=1) even when the size is changed here, InitiateCheckout once the
  *     email is typed, each browser event mirrored to /api/track under its id
  *   - errors: pay with nothing filled marks each field, says why under it,
@@ -37,9 +37,10 @@ import { chromium } from 'playwright';
 import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
-const SLUG = 'christmas-pouch-hoodie';
+const SLUG = 'dog-christmas-costume';
 const PATH = `/products/${SLUG}/checkout`;
-const FROM_LANDING = `${PATH}?design=red_santa&size=M&added=1`;
+// As the product page's Add to cart sends it.
+const FROM_PRODUCT = `${PATH}?design=green&size=M&added=1`;
 // The Facebook app's in-app browser on an iPhone, as the ads open the page.
 const FB_IPHONE =
 	'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/480.0.0.0;FBBV/1;FBDV/iPhone14,5;FBMD/iPhone;FBSN/iOS;FBSV/17.5;FBSS/3;FBID/phone;FBLC/en_US;FBOP/5]';
@@ -51,11 +52,11 @@ function check(label, cond, detail) {
 
 // --- the first response, before any JavaScript --------------------------------
 {
-	const res = await fetch(`${BASE}${FROM_LANDING}`);
+	const res = await fetch(`${BASE}${FROM_PRODUCT}`);
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('the shop chrome: the name, a padlock, no cart link', html.includes('class="shop-header"') && html.includes('Secure checkout') && !html.includes('href="/checkout"'));
-	check('the choice from the link is chosen on the server: the picker is folded', /class="picker folded[\s"]/.test(html) && />\s*Santa Red\s*</.test(html) && /Your size: M/.test(html));
+	check('the choice from the link is chosen on the server: the picker is folded', /class="picker folded[\s"]/.test(html) && />\s*Green\s*</.test(html) && /Size: M/.test(html));
 	check('no product photos or strip: this page is the checkout', !html.includes('class="gallery') && !html.includes('announcement'));
 	const order = ['shop-contact-title', 'shop-delivery-title', 'shop-method-title', 'shop-payment-title'].map((id) => html.indexOf(`id="${id}"`));
 	check('Contact, Delivery, Shipping method, Payment, in that order', order.every((i, n) => i > 0 && (n === 0 || i > order[n - 1])), JSON.stringify(order));
@@ -73,17 +74,16 @@ function check(label, cond, detail) {
 	const html = await (await fetch(`${BASE}${PATH}`)).text();
 	check('without a choice in the link, the whole picker shows', html.includes('id="size-picker"') && !/class="picker folded[\s"]/.test(html));
 	check('and no size is chosen for the buyer', !/name="size"[^>]*checked/.test(html));
-	const bogus = await (await fetch(`${BASE}${PATH}?design=red_santa&size=XXXL`)).text();
+	const bogus = await (await fetch(`${BASE}${PATH}?design=green&size=XXXL`)).text();
 	check('a size this product does not sell is ignored', !/class="picker folded[\s"]/.test(bogus));
 }
 {
+	// The retired Christmas landing page handed its visitor id over in the
+	// link. Nothing sends one now, and a link could carry someone else's.
 	const vid = 'b'.repeat(64);
 	const fresh = await fetch(`${BASE}${PATH}?vid=${vid}`);
-	check('a first visit takes the landing page’s visitor id', (fresh.headers.get('set-cookie') ?? '').includes(`cmp_vid=${vid}`), fresh.headers.get('set-cookie'));
-	const known = await fetch(`${BASE}${PATH}?vid=${vid}`, { headers: { cookie: `cmp_vid=${'c'.repeat(64)}` } });
-	check('but never replaces an id this site gave', !(known.headers.get('set-cookie') ?? '').includes(`cmp_vid=${vid}`));
-	const odd = await fetch(`${BASE}${PATH}?vid=jane@example.com`);
-	check('and takes nothing that is not a random id', !(odd.headers.get('set-cookie') ?? '').includes('jane'));
+	const cookie = fresh.headers.get('set-cookie') ?? '';
+	check('a first visit gets a visitor id of its own, not the link’s', /cmp_vid=[a-f0-9]{64}/.test(cookie) && !cookie.includes(`cmp_vid=${vid}`), cookie);
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
@@ -151,14 +151,14 @@ await page.evaluate(() => {
 	sessionStorage.clear();
 });
 serverCopies.length = 0;
-await page.goto(`${BASE}${FROM_LANDING}`, { waitUntil: 'networkidle' });
+await page.goto(`${BASE}${FROM_PRODUCT}`, { waitUntil: 'networkidle' });
 
 // --- the first screen ------------------------------------------------------------
 {
 	const bottom = (sel) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().bottom);
 	const email = await bottom('#contact-email');
 	check('the email field is on the first screen', email <= 664, `it ends at ${email}px`);
-	check('the total is in the bar at the top', /\$54\.99/.test(await page.locator('.shop-bar').innerText()));
+	check('the total is in the bar at the top', /\$27\.99/.test(await page.locator('.shop-bar').innerText()));
 	check('the summary is folded on a phone', (await page.locator('.shop-bar button').getAttribute('aria-expanded')) === 'false' && !(await page.locator('.shop-aside').isVisible()));
 
 	// Text a buyer reads, anywhere outside Stripe's frame: 16px or more.
@@ -187,15 +187,15 @@ await page.goto(`${BASE}${FROM_LANDING}`, { waitUntil: 'networkidle' });
 	check('every button and link is 44px tall or more', target.every(([, h]) => h >= 44), JSON.stringify(target.filter(([, h]) => h < 44)));
 }
 
-// --- arriving from the landing page ---------------------------------------------------
+// --- arriving from the product page ---------------------------------------------------
 await settle();
 {
 	const lines = await cartLines();
-	check('the chosen hoodie is in the cart', lines.length === 1 && lines[0].colour === 'red_santa' && lines[0].size === 'M' && lines[0].quantity === 1, JSON.stringify(lines));
-	check('no ViewContent: the landing page reported the view', (await browserEvent('ViewContent')).length === 0 && serverCopy('ViewContent').length === 0);
-	check('no AddToCart: the landing page reported it', (await browserEvent('AddToCart')).length === 0 && serverCopy('AddToCart').length === 0);
+	check('the chosen costume is in the cart', lines.length === 1 && lines[0].colour === 'green' && lines[0].size === 'M' && lines[0].quantity === 1, JSON.stringify(lines));
+	check('no ViewContent: the product page reported the view', (await browserEvent('ViewContent')).length === 0 && serverCopy('ViewContent').length === 0);
+	check('no AddToCart: the product page reported it', (await browserEvent('AddToCart')).length === 0 && serverCopy('AddToCart').length === 0);
 	check('no InitiateCheckout before any detail is typed', (await browserEvent('InitiateCheckout')).length === 0);
-	check('the pay button names the total', /Pay \$54\.99/.test(await page.locator('button.shop-pay').innerText()));
+	check('the pay button names the total', /Pay \$27\.99/.test(await page.locator('button.shop-pay').innerText()));
 }
 
 // --- the summary bar opens in place ---------------------------------------------------
@@ -204,7 +204,7 @@ await page.locator('.shop-bar button').click();
 	const folded = page.locator('#shop-summary-folded');
 	check('the bar opens the summary', (await page.locator('.shop-bar button').getAttribute('aria-expanded')) === 'true' && (await folded.isVisible()));
 	const text = await folded.innerText();
-	check('it shows the item, its design and size, and the totals', /Christmas Pouch Hoodie/.test(text) && /Santa Red · M/.test(text) && /Shipping\s*Free/.test(text) && /Total\s*USD\s*\$54\.99/.test(text), text);
+	check('it shows the item, its colour and size, and the totals', /Pet Christmas Tree Costume/.test(text) && /Green · M/.test(text) && /Shipping\s*Free/.test(text) && /Total\s*USD\s*\$27\.99/.test(text), text);
 	await page.locator('.shop-bar button').click();
 	check('and folds again', !(await folded.isVisible()));
 }
@@ -286,7 +286,7 @@ check('the page stayed this one', new URL(page.url()).pathname === PATH, page.ur
 	const row = rows.rows[0] ?? {};
 	check('the names are stored as typed: "Mary Ann" stays a first name', row.first_name === 'Mary Ann' && row.last_name === 'Smith', JSON.stringify(row));
 	check('the address is stored with ISO codes', row.province === 'NY' && row.postal_code === '12207' && row.country === 'US', JSON.stringify(row));
-	check('the order is one Santa Red L at the server’s price, free shipping', rows.rows.length === 1 && row.sku === 'CMP-XH-SANTA-RED-L' && Number(row.quantity) === 1 && Number(row.unit_price_cents) === 5499 && Number(row.total_cents) === 5499, JSON.stringify(row));
+	check('the order is one green L at the server’s price, free shipping', rows.rows.length === 1 && row.sku === 'CMP-XT-GREEN-L' && Number(row.quantity) === 1 && Number(row.unit_price_cents) === 2799 && Number(row.total_cents) === 2799, JSON.stringify(row));
 	db.close();
 }
 {
@@ -311,7 +311,7 @@ await ctx.close();
 		localStorage.clear();
 		sessionStorage.clear();
 	});
-	await p.goto(`${BASE}${FROM_LANDING}`, { waitUntil: 'networkidle' });
+	await p.goto(`${BASE}${FROM_PRODUCT}`, { waitUntil: 'networkidle' });
 	await p.selectOption('#shipping-country', { label: 'Czechia' });
 	check('Czechia: no state list, and the field says it is optional', (await p.locator('select#shipping-state').count()) === 0 && /optional/i.test(await p.locator('label[for="shipping-state"]').innerText()));
 	check('and the postcode is called a postal code', /Postal code/.test(await p.locator('label[for="shipping-zip"]').innerText()));
@@ -339,12 +339,12 @@ await ctx.close();
 	await quiet(desk);
 	const p = await desk.newPage();
 	pageErrors.push(...watch(p));
-	await p.goto(`${BASE}${PATH}?design=green_stocking&size=S&added=1`, { waitUntil: 'networkidle' });
+	await p.goto(`${BASE}${PATH}?design=red&size=S&added=1`, { waitUntil: 'networkidle' });
 	const main = await p.locator('.shop-main').boundingBox();
 	const aside = await p.locator('.shop-aside').boundingBox();
 	check('the summary sits beside the form', Boolean(main && aside) && aside.x >= main.x + main.width - 1 && aside.y < main.y + 50, JSON.stringify({ main, aside }));
 	check('no summary bar or second total on a desktop', !(await p.locator('.shop-bar').isVisible()) && !(await p.locator('.shop-due').isVisible()));
-	check('the summary names the choice', /Stocking Green · S/.test(await p.locator('.shop-aside').innerText()));
+	check('the summary names the choice', /Red · S/.test(await p.locator('.shop-aside').innerText()));
 	const row = await p.locator('#shipping-firstName').boundingBox();
 	const last = await p.locator('#shipping-lastName').boundingBox();
 	check('first and last name share a row', Boolean(row && last) && Math.abs(row.y - last.y) < 2 && last.x > row.x);
@@ -361,7 +361,7 @@ if (process.env.PAYMENTS_BASE_URL) {
 		const c = await browser.newContext({ viewport, isMobile: label === 'phone', hasTouch: label === 'phone' });
 		await quiet(c);
 		const p = await c.newPage();
-		await p.goto(`${PAY}${PATH}?design=red_santa&size=M&added=1`);
+		await p.goto(`${PAY}${PATH}?design=green&size=M&added=1`);
 		const tops = new Set();
 		const deadline = Date.now() + 15000;
 		let ready = false;
@@ -400,7 +400,7 @@ if (process.env.PAYMENTS_BASE_URL) {
 	await quiet(blocked);
 	await blocked.route('**/js.stripe.com/**', (route) => route.abort());
 	const p = await blocked.newPage();
-	await p.goto(`${PAY}${PATH}?design=red_santa&size=M&added=1`);
+	await p.goto(`${PAY}${PATH}?design=green&size=M&added=1`);
 	const note = await p
 		.locator('.shop-notice', { hasText: /Stripe/ })
 		.waitFor({ timeout: 15000 })
@@ -436,7 +436,7 @@ if (process.env.PAYMENTS_BASE_URL) {
 		};
 	});
 	const s = await stubbed.newPage();
-	await s.goto(`${PAY}${PATH}?design=red_santa&size=M&added=1`, { waitUntil: 'networkidle' });
+	await s.goto(`${PAY}${PATH}?design=green&size=M&added=1`, { waitUntil: 'networkidle' });
 	await s.locator('.shop-pay-box.ready').waitFor({ timeout: 15000 });
 	// The Apple Pay tab is one line; the box gives up the card form's height
 	// for it, and takes it back for Card.

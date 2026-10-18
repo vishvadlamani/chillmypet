@@ -61,7 +61,7 @@
 			 */
 			button?: boolean;
 			/**
-			 * Shrink to one line ("Santa Red · Size M", Change) once both are
+			 * Shrink to one line ("Green · Size M", Change) once both are
 			 * chosen. The shop checkout sets it: a buyer who chose on the landing
 			 * page arrives with both, and the full picker above the email field
 			 * pushed the form a screen down to restate a choice already made.

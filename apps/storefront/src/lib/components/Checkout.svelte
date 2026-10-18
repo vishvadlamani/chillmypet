@@ -133,7 +133,7 @@
 	/**
 	 * A basket can hold more than this page's product: the cart outlives every
 	 * visit, so a life jacket added in the summer is still there under a
-	 * Christmas hoodie, and it is charged with it. On a phone the shop
+	 * Christmas costume, and it is charged with it. On a phone the shop
 	 * look's summary starts folded, which would hide exactly that, so it
 	 * opens by itself, once, when the cart holds anything else.
 	 */
@@ -220,7 +220,15 @@
 		})
 			.then((res) => res.json())
 			.then((data) => {
-				if (!cancelled) priced = data;
+				if (cancelled) return;
+				priced = data;
+				// A line the server no longer prices is a product taken off sale
+				// (`scripts/retired-products.js`) still saved in this browser. It is
+				// already out of the total; drop it from the cart too, or the order
+				// would post it and fail as unavailable.
+				if (!Array.isArray(data?.lines)) return;
+				const sold = new Set(data.lines.map((l: { variantId: number }) => l.variantId));
+				for (const line of cart.lines) if (!sold.has(line.variantId)) cart.remove(line.variantId);
 			})
 			.catch(() => {
 				if (!cancelled) priced = EMPTY;
@@ -553,7 +561,7 @@
 
 	/**
 	 * GA4's `item_variant`, from the option codes rather than their translated
-	 * names: "red_santa / M" reads the same in every locale, so a report split
+	 * names: "green / M" reads the same in every locale, so a report split
 	 * by variant doesn't also split by language.
 	 */
 	function variantName(colour: string, size: string): string {

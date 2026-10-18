@@ -149,7 +149,7 @@ export const STORE_PAGE: FunnelDefinition = {
 			// domain. A badge for a method that isn't there promises a button the
 			// next page doesn't have, so change this list and that configuration
 			// together, never one without the other, and keep it identical to the
-			// Christmas hoodie page's. Rendered with real artwork by
+			// Christmas pages'. Rendered with real artwork by
 			// $lib/components/PaymentIcons.svelte.
 			// No Discover: Stripe does not offer it to accounts in Czechia (ChillMP).
 			props: {

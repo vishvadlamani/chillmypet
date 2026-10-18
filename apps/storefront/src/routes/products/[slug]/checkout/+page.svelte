@@ -25,17 +25,16 @@
 	});
 
 	/**
-	 * A choice made somewhere else and carried here in the link: the Christmas
-	 * landing page's Buy sends `?design=red_santa&size=M`, and a product page
-	 * with this checkout sends `bundle=qty-2` with them when the buyer took
-	 * a bundle. It wins over what
+	 * A choice made somewhere else and carried here in the link: the product
+	 * page's Add to cart sends `?design=green&size=M`, with `bundle=qty-2`
+	 * when the buyer took a bundle. It wins over what
 	 * the session remembers, because it is what the buyer just tapped, and it
 	 * is set before any block mounts, so the picker renders folded on the
 	 * server as well. Only codes this product sells are taken.
 	 *
 	 * `added=1` says the page that sent them already reported the AddToCart
-	 * (the landing page does, under its own event id, the moment Buy is
-	 * tapped). Reporting it again here would count one add twice on the very
+	 * (the product page does, under its own event id, the moment Add to cart
+	 * is tapped). Reporting it again here would count one add twice on the very
 	 * event the Christmas ad set optimises for, so this page stays quiet about
 	 * adds for the rest of the view, even if the buyer changes the size. The
 	 * sender reported the product view too, so this page skips its own.
@@ -195,7 +194,7 @@
 	<!-- The product page is the one to index; this is its checkout. -->
 	<meta name="robots" content="noindex, nofollow" />
 	{#if data.look === 'shop'}
-		<!-- The landing page's type, so the checkout reads as the same shop. -->
+		<!-- Inter, the type of the hosted shop checkouts this look follows. -->
 		<link
 			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
 			rel="stylesheet"

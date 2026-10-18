@@ -1,7 +1,6 @@
 /**
  * The Pet Christmas Tree Costume, product page to placed order, on a
- * phone-sized screen — the same shape as tests/christmas-hoodie.mjs, because
- * the page is built on the same blocks and makes the same promises.
+ * phone-sized screen.
  *
  *   node tests/dog-christmas-costume.mjs
  *

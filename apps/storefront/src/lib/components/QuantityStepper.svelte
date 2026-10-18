@@ -7,7 +7,7 @@
 	 * − 2 + for one cart line, on the checkouts' order summaries.
 	 *
 	 * The cart lives in the browser for good, so a basket can still hold what
-	 * was added on an earlier visit (a life jacket under a Christmas hoodie).
+	 * was added on an earlier visit (a life jacket under a Christmas costume).
 	 * Before this, the only way to change it at checkout was a small "Remove"
 	 * at the bottom of the page, and no way at all to buy two. It writes the
 	 * cart and nothing else: the checkout re-prices every change through
