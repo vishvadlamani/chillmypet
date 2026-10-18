@@ -207,7 +207,14 @@
 			]
 		});
 
-		goto('/checkout');
+		// A product with its own payment page (`checkout: 'shop'`) opens it on
+		// what was just chosen: the link carries it, so the page renders folded
+		// from the server, and `added=1` stops it reporting this add again.
+		if (data.payAt === '/checkout') return void goto('/checkout');
+		const link = new URLSearchParams({ design: entry.colourCode, size: entry.size });
+		if (units > 1) link.set('bundle', `qty-${units}`);
+		link.set('added', '1');
+		goto(`${data.payAt}?${link}`);
 	}
 
 	// Session-backed, because the top timer is evergreen: it writes its start on

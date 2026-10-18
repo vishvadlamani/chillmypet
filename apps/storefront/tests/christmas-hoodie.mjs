@@ -169,8 +169,16 @@ await page.locator('#size-picker label').filter({ hasText: /^\s*L\s*$/ }).click(
 check('the error clears once a size is chosen', (await page.locator('#size-error').innerText()).trim() === '');
 
 await page.locator('#variant-picker button', { hasText: /Add to cart/ }).click();
-await page.waitForURL('**/checkout', { timeout: 15000 });
-check('add to cart lands on the checkout', new URL(page.url()).pathname === '/checkout');
+await page.waitForURL('**/products/christmas-pouch-hoodie/checkout?**', { timeout: 15000 });
+{
+	// Its own payment page, as the landing page's Buy opens it: the choice in
+	// the link, and `added=1` because this page reported the add.
+	const url = new URL(page.url());
+	check('add to cart opens the hoodie’s payment page', url.pathname === '/products/christmas-pouch-hoodie/checkout', page.url());
+	check('carrying the design and size', url.searchParams.get('design') === 'green_stocking' && url.searchParams.get('size') === 'L' && url.searchParams.get('added') === '1', url.search);
+	const line = await page.locator('.picker.folded').innerText().catch(() => 'not folded');
+	check('the choice is one folded line', /Stocking Green[\s\S]*: L\b/.test(line), line);
+}
 
 {
 	const lines = await cartLines();
@@ -193,15 +201,19 @@ check('add to cart lands on the checkout', new URL(page.url()).pathname === '/ch
 }
 
 // --- the checkout line, priced by the server ---------------------------------------
-await page.waitForSelector('form dl');
+await page.waitForSelector('button.shop-pay');
 {
-	const summary = await page.locator('form', { has: page.locator('dl') }).innerText();
+	const summary = (await page.locator('.shop-aside').textContent()) ?? '';
 	check('checkout shows the product', summary.includes('Christmas Pouch Hoodie'), summary.slice(0, 300));
 	check('checkout shows design and size', /Stocking Green · L/.test(summary), summary.slice(0, 300));
-	check('checkout charges $54.99', (await page.locator('form dl').innerText()).includes(`$${PRICE}`));
+	check('checkout charges $54.99', (await page.locator('button.shop-pay').innerText()).includes(`$${PRICE}`));
+	check('one ViewContent for the visit: the product page’s', (await browserEvent('ViewContent')).length === 1);
 }
 
 // --- InitiateCheckout -----------------------------------------------------------------
+// This checkout starts once the buyer starts on their details.
+await page.fill('#contact-email', 'christmas@example.com');
+await page.locator('#contact-email').blur();
 {
 	await page.waitForFunction(() => (window.fbq?.queue ?? []).some((c) => c[1] === 'InitiateCheckout'));
 	// keepalive beacons can trail the browser event by a tick
@@ -221,19 +233,20 @@ await page.waitForSelector('form dl');
 		localStorage.setItem('chillmypet.cart.v1', JSON.stringify(lines));
 	});
 	await page.reload({ waitUntil: 'networkidle' });
-	await page.waitForSelector('form dl');
-	const dl = await page.locator('form dl').innerText();
-	check('the server re-prices a tampered cart', dl.includes(`$${PRICE}`) && !dl.includes('$0.01'), dl);
+	await page.waitForSelector('button.shop-pay');
+	const total = (await page.locator('.shop-aside').textContent()) ?? '';
+	check('the server re-prices a tampered cart', total.includes(`$${PRICE}`) && !total.includes('$0.01'), total);
 }
 
 // --- place the order --------------------------------------------------------------------
-await page.fill('#contact-fullName', 'Holly Ivy');
 await page.fill('#contact-email', 'christmas@example.com');
-await page.fill('#shipping-lookup', '751');
-await page.waitForSelector('[role="option"]');
-await page.locator('[role="option"]').first().click();
-await page.waitForSelector('#shipping-city');
-await page.getByRole('button', { name: /^(Pay |Place order)/ }).click();
+await page.fill('#shipping-firstName', 'Holly');
+await page.fill('#shipping-lastName', 'Ivy');
+await page.fill('#shipping-address', '1 Evergreen Terrace');
+await page.fill('#shipping-city', 'Albany');
+await page.selectOption('#shipping-state', 'NY');
+await page.fill('#shipping-zip', '12207');
+await page.locator('button.shop-pay').click();
 await page
 	.getByRole('heading', { name: /order received/i })
 	.waitFor({ timeout: 20000 })

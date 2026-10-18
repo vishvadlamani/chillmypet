@@ -82,18 +82,20 @@ const newShopper = async () => {
 {
 	const ctx = await newShopper();
 	const page = await ctx.newPage();
-	await page.goto(`${BASE}/products/dog-christmas-costume?details=1`, { waitUntil: 'networkidle' });
+	await page.goto(`${BASE}/products/dog-christmas-costume`, { waitUntil: 'networkidle' });
 	// No colour chosen: the page opens on green (`leadDesign`), and that is
 	// what goes in the cart.
 	await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();
 	await page.locator('#variant-picker button', { hasText: /Add to cart/ }).click();
-	await page.waitForURL('**/checkout', { timeout: 15000 });
-	await page.waitForSelector('form dl');
+	// The costume's own payment page (`checkout: 'shop'` in pages.ts).
+	await page.waitForURL('**/products/dog-christmas-costume/checkout?**', { timeout: 15000 });
+	await page.waitForSelector('button.shop-pay');
 
 	const hint = await page.textContent('body');
 	check('the email field says a reminder may follow', /we'll send one reminder/i.test(hint ?? ''));
 
-	await page.fill('#contact-fullName', 'Holly Ivy');
+	await page.fill('#shipping-firstName', 'Holly');
+	await page.fill('#shipping-lastName', 'Ivy');
 	await page.fill('#contact-email', ADDRESS.slice(0, 6));
 	await page.waitForTimeout(2500);
 	check('a half-typed email saves nothing', !(await draftRow()));

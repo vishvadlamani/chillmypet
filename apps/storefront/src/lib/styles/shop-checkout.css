@@ -52,12 +52,13 @@
 	background: #fff;
 }
 .shop-wordmark {
-	font-family: Fredoka, Inter, ui-sans-serif, sans-serif;
-	font-weight: 700;
-	font-size: 26px;
-	line-height: 1;
-	color: var(--shop-accent);
-	text-decoration: none;
+	display: block;
+	line-height: 0;
+}
+.shop-wordmark img {
+	display: block;
+	width: auto;
+	height: 36px;
 }
 .shop-secure {
 	justify-self: end;

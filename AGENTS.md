@@ -859,24 +859,28 @@ cropped its nose and tail; `card-sailboat.jpg` is now cropped square around
 the dog and shown whole, over its own backdrop colours.
 
 **Every sized product also has a one-page checkout** at
-`/products/<slug>/checkout` (`/products/dog-christmas-costume/checkout`):
+`/products/<slug>/checkout` (`/products/reindeer-dog-hoodie/checkout`):
 the product's delivery strip, photos, title and picker, then the checkout's
 contact, address and shipping blocks, then the same card fields and pay
 button. It is a second way in for an ad that should land on the form; the
-product page and `/checkout` are unchanged. Things to know:
+product page and `/checkout` are unchanged. A product with `checkout: 'shop'`
+(the hoodie, the costume) gets the payment-only `shop` look below instead.
+Things to know:
 
-- **The costume's own URL lands here** (`landing: 'checkout'` in `pages.ts`,
-  2026-10-17). The Christmas costume ad links to
-  `/products/dog-christmas-costume`, and the owner wants one screen from the
-  ad to the card form, so that URL answers with a 302 to
-  `/products/dog-christmas-costume/checkout`, query string kept: `fbclid`
-  rides along, and the Parameter Builder writes `_fbc` on the redirect
-  itself (`one-page-checkout.mjs` checks both). The long page (story, size
-  guide, FAQ) is at `?details=1`, which the picker's Size guide links to;
-  `tests/dog-christmas-costume.mjs` drives it there. `check-live.js` follows
-  redirects for this reason. The one-page checkouts now carry their
-  product's `theme` and `festive`, so the costume's is in its Christmas
-  colours with the strip above the header.
+- **The costume ad's URL is the product page, and paying is a page of its
+  own** (the owner's call, 2026-10-18). For one day (PR #68) the costume's
+  URL redirected to its one-page checkout; the owner wants two screens: the
+  product page with no card fields at `/products/dog-christmas-costume`,
+  and a payment page at `/products/dog-christmas-costume/checkout` that
+  does not look like the product page. So the redirect and its `landing`
+  flag are gone, and the costume has `checkout: 'shop'`. On a product with
+  that look, the product page's Add to cart opens
+  `/products/<slug>/checkout?design=&size=[&bundle=qty-N]&added=1` instead
+  of `/checkout` (`payAt` from the product page's load). The bundle-card
+  path (the life jacket) still goes to `/checkout`. `fbclid` still becomes
+  `_fbc` on the product page's first response
+  (`tests/dog-christmas-costume.mjs` checks it); `?details=1` means nothing
+  any more, and is harmless if an old link carries it.
 - **An empty cart says so in the payment box.** Stripe's fields mount only
   for an amount above zero, and with nothing in the cart the box used to
   read "Loading secure payment…" forever (an owner's phone found it). It now
@@ -907,7 +911,9 @@ product page and `/checkout` are unchanged. Things to know:
 where the Christmas landing page's Buy now goes (since 2026-10-17;
 `docs/christmas-checkout.md` has the reference it copies, the comparison
 that chose it, and every departure). `PRODUCT_PAGES[…].checkout = 'shop'`
-turns it on for that product only. Things to know:
+turns it on per product: the hoodie, and since 2026-10-18 the costume,
+whose product page's Add to cart opens it (above). The header there is the
+logo, centred, and a padlock. Things to know:
 
 - **Markup, not behaviour.** `Checkout.svelte` takes `look`; pricing, the
   cross-form check, the card fields, the events and the post are the same
@@ -925,8 +931,11 @@ turns it on for that product only. Things to know:
   mounted, and the host focuses the first `aria-invalid` field.
 - **The link carries the choice.** `?design=&size=` is set into state before
   any block mounts (so the server renders the picker folded), and only codes
-  the product sells are taken. `added=1` means the sender reported the
-  AddToCart, and this page then reports none for the view. `?vid=` is
+  the product sells are taken; `bundle=qty-N` sets the bundle too. The
+  picker folds in either layout (`pills` included) once both are chosen,
+  and the line says the count ("Size: M · 2 costumes"). `added=1` means
+  the sender reported the ViewContent and the AddToCart, and this page then
+  reports neither for the view. `?vid=` is
   adopted as `cmp_vid` on a first visit only (`ensureVisitorId`), so the
   landing page's events and the Purchase share one `external_id`.
 - **The Payment Element's box reserves its finished height** (316px stacked,
@@ -949,8 +958,8 @@ fallback.
 open in the Facebook app, which leaves an iPhone about 390×664. Oct 3–16 sent
 175 landing-page views and got no AddToCart, from pages whose first screen was
 a three-row header, the strip and a photo, with the price and sizes below it.
-Now the costume page and its one-page checkout fit the price, the colours and
-the size buttons inside 664px, and `tests/dog-christmas-costume.mjs` and
+Now the product pages and the one-page checkout fit the price, the colours
+and the size buttons inside 664px, and `tests/dog-christmas-costume.mjs` and
 `tests/one-page-checkout.mjs` measure it. What pays for it, so nobody puts it
 back by accident:
 
