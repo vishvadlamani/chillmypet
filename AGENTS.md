@@ -877,6 +877,14 @@ the menu leads instead. Things to know:
   Catalog) that drops a panel with the pages and the language switch. A
   checkout has neither: there the language switch takes the left slot so
   the name stays centred. `tests/e2e.mjs` drives both menus.
+- **The bag opens the basket, not the checkout** (since 2026-10-18).
+  `CartDrawer.svelte` is a `<dialog>` from the right with each line's
+  photo, − + stepper (`QuantityStepper`, the checkout's), Remove and price,
+  the subtotal and bundle discount from `/api/cart`, and Checkout. The bag
+  is still `<a href="/checkout">`, so it works without JavaScript and the
+  tests that read its count keep finding it; the click handler opens the
+  drawer instead. Before, the only − + were under the address and card
+  fields on `/checkout`.
 - **The whole site wears the tree chrome** (cream, pine, Poppins, the
   delivery strip above the header, the green footer), except a product page
   with a skin of its own (the life jacket's sales page) and the one-page
@@ -900,7 +908,9 @@ the menu leads instead. Things to know:
 - **The home page opens on a hero** of three photos, each linking to its
   outfit: the tabby in the green costume (`cat.jpg`, AI-styled; its "AI-styled
   image" label came off on the owner's call of 2026-10-18), the
-  reindeer hoodie and the red costume. The two-dog scene (`duo.jpg`) that
+  reindeer hoodie and the red costume. All three tiles are square, like the
+  photos (2026-10-18): the two small ones were 4:3 and cut the antlers and
+  paws off. The two-dog scene (`duo.jpg`) that
   stood there first was taken down on the owner's call, and is off the
   costume's gallery too; it stays on disk only.
 - **Cards can show a treated photo** (`cardImage` in `pages.ts`). The life
