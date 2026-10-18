@@ -13,19 +13,34 @@ import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
 export const LOCALE_COOKIE = 'locale';
 
-// The libSQL client is cheap to hold and not free to rebuild, so the directory
-// is memoized per isolate rather than per request.
-let directory: ReturnType<typeof createDirectory> | undefined;
 const settingsCache = new Map<string, Record<string, string>>();
 
+/**
+ * One libSQL client per request, never one per isolate.
+ *
+ * On Workers the client speaks plain HTTP, so building it is object setup with
+ * no network call, while sharing it is a hazard: it runs every query through
+ * one in-memory queue of 20 slots (`concurrency`), and the runtime cancels a
+ * request's outstanding I/O when that request ends, a visitor tapping away
+ * mid-load included. A cancelled query's promise never settles, its slot is
+ * never handed back, and once enough leak, every later request on that
+ * isolate waits forever on another request's promise. Cloudflare answers those
+ * with Error 1101 ("Worker threw exception"), page after page, until the
+ * isolate is replaced. That is the likely cause of the 1101s a visitor got on
+ * 2026-10-18 at 20:08 UTC, minutes after a deploy, while the same pages
+ * answered normally from elsewhere (no Worker logs were read to confirm it).
+ * Settings (plain data, not promises) stay cached per isolate.
+ *
+ * A local `file:` database (dev, tests) is the exception: there the client is
+ * a SQLite handle in one Node process, with no request cancelling anything,
+ * and a fresh one per request would leak a file handle each time.
+ */
+let localDirectory: ReturnType<typeof createDirectory> | undefined;
+
 function getDirectory() {
-	if (!directory) {
-		directory = createDirectory({
-			url: env.TURSO_DATABASE_URL ?? 'file:local.db',
-			authToken: env.TURSO_AUTH_TOKEN
-		});
-	}
-	return directory;
+	const url = env.TURSO_DATABASE_URL ?? 'file:local.db';
+	if (url.startsWith('file:')) return (localDirectory ??= createDirectory({ url }));
+	return createDirectory({ url, authToken: env.TURSO_AUTH_TOKEN });
 }
 
 /**
