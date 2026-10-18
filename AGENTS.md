@@ -777,6 +777,26 @@ The picker's single-colour case gives the sizes the rest of the row
 (`.options.single`), and the bundle cards' saving line names its unit through
 `unitsNoun` ("with 2 hoodies"); it used to say "costumes" on every page.
 
+`/products/santa-pet-costume` is the third Christmas product: a red plush
+Santa suit with a matching hat and plush arms holding a wrapped present, for
+small dogs **and cats**, S–L, one colour, $27.99 like the others (the owner's
+call, 2026-10-18; their working name was "Christmas Pet Costume_2"). Built
+exactly like the reindeer hoodie, no size chart for the same reason, defined
+in `scripts/santa-pet-costume.js`, tested by `tests/santa-pet-costume.mjs`
+(in `test:store`). SKUs `CMP-SP-RED-<SIZE>`; its bundle tier lives in
+`santa_bundle`. It is last on `/christmas`.
+
+**An ad for it is expected.** Land it on `/products/santa-pet-costume`, so
+the page shows the product the ad shows. The page's first screen holds the
+photo, price and all three sizes at 390×664, og:image is the dog photo (the
+link preview), and `/products/santa-pet-costume/checkout` answers for an ad
+that should open on the form. It has no `checkout: 'shop'`, so Add to cart
+goes to `/checkout`; set it, as the costume has, if the owner wants the ad's
+buyers on a payment page of its own. Optimise for AddToCart or Purchase,
+never AddPaymentInfo. The photos' rights for ads are unconfirmed
+(provenance, below), and the hat being included is read from the photos
+only: confirm both with the owner before the ad runs.
+
 **`/christmas` is the page the Christmas ads can share.** It lists every
 product whose `PRODUCT_PAGES` entry has `christmas: true` and which has a row
 in the store, in catalogue order, each card linking to its product page. A new
@@ -1680,6 +1700,14 @@ line taken off (2026-10-18), and its note now gives only the size range. The
 older supplier treatments (`red.jpg`, `green.jpg`, `green-back.jpg`,
 `hood-detail.jpg`) stay on disk because catalogue media rows point at them. Nothing about the product was generated or altered: it
 is the real costume on a plain background. Its copy was written here.
+
+The Santa Pet Costume's two photos (`static/products/santa-pet-costume/`,
+`dog.jpg` a French bulldog, `cat.jpg` a ginger cat) were supplied by the
+owner in chat on 2026-10-18 as screenshots, with the instruction to add the
+product. Re-encoded as plain JPEGs with no metadata, otherwise untouched.
+They look AI-generated (the same staged room, identical props) and their
+source and licence were not stated: the same caveat as the hoodie's applies,
+so ask before treating them as cleared for ads. Its copy was written here.
 
 Don't add further third-party branding, photography, or marketing text without
 the owner confirming rights for that specific source.

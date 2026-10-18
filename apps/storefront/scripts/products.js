@@ -21,8 +21,9 @@
  */
 import { DOG_CHRISTMAS_COSTUME } from './dog-christmas-costume.js';
 import { REINDEER_DOG_HOODIE } from './reindeer-dog-hoodie.js';
+import { SANTA_PET_COSTUME } from './santa-pet-costume.js';
 
 /** The store these products belong to. The seed's default; one tenant today. */
 export const STORE_ID = 'chillmypet';
 
-export const PRODUCTS = [DOG_CHRISTMAS_COSTUME, REINDEER_DOG_HOODIE];
+export const PRODUCTS = [DOG_CHRISTMAS_COSTUME, REINDEER_DOG_HOODIE, SANTA_PET_COSTUME];

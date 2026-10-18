@@ -4,6 +4,7 @@ import { STORE_PAGE } from './manifest';
 import { PRODUCT_SLUG } from './product';
 import { REINDEER_HOODIE_PAGE } from './reindeer-hoodie-manifest';
 import { RETIRED_PRODUCTS } from '../../../scripts/retired-products.js';
+import { SANTA_COSTUME_PAGE } from './santa-costume-manifest';
 
 export interface ProductPage {
 	manifest: FunnelDefinition;
@@ -68,6 +69,8 @@ export interface ProductPage {
 export const DOG_CHRISTMAS_COSTUME_SLUG = 'dog-christmas-costume';
 /** Kept in step with `scripts/reindeer-dog-hoodie.js`. */
 export const REINDEER_DOG_HOODIE_SLUG = 'reindeer-dog-hoodie';
+/** Kept in step with `scripts/santa-pet-costume.js`. */
+export const SANTA_PET_COSTUME_SLUG = 'santa-pet-costume';
 
 /**
  * Which manifest renders which product.
@@ -103,6 +106,12 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 	},
 	[REINDEER_DOG_HOODIE_SLUG]: {
 		manifest: REINDEER_HOODIE_PAGE,
+		pickSize: true,
+		theme: 'tree',
+		christmas: true
+	},
+	[SANTA_PET_COSTUME_SLUG]: {
+		manifest: SANTA_COSTUME_PAGE,
 		pickSize: true,
 		theme: 'tree',
 		christmas: true
