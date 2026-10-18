@@ -352,6 +352,7 @@
 	// has mounted; null means it could not, and the submit falls through to the
 	// server's hosted-page path instead of stranding the customer.
 	let cardApi = $state<{
+		submit: () => Promise<{ error?: { message?: string } }>;
 		confirm: (i: { clientSecret: string; returnUrl: string }) => Promise<{ error?: { message?: string } }>;
 	} | null>(null);
 	let cardUnavailable = $state(false);
@@ -564,7 +565,7 @@
 	 * own fields and none of them has a button, so this is the only place the
 	 * whole form is checked.
 	 */
-	const submitOrder: SubmitFunction = ({ cancel }) => {
+	const submitOrder: SubmitFunction = async ({ cancel }) => {
 		showIssues = true;
 		if (issues.length > 0) {
 			cancel();
@@ -573,6 +574,19 @@
 		}
 		submitting = true;
 		payError = null;
+		// Stripe's submit before anything is posted, while this is still the
+		// buyer's tap: with Apple Pay chosen it opens the payment sheet, which
+		// Safari refuses once the tap has passed (CardFields.svelte). It also
+		// checks the card fields, so an incomplete card posts no order.
+		if (cardApi) {
+			const checked = await cardApi.submit();
+			if (checked.error) {
+				cancel();
+				payError = checked.error.message ?? t('checkout.errors.generic');
+				submitting = false;
+				return;
+			}
+		}
 		pixel('AddPaymentInfo', {
 			content_type: 'product',
 			content_ids: priced?.lines.map((l) => l.sku) ?? [],

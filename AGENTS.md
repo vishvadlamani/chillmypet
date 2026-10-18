@@ -941,6 +941,19 @@ logo, centred, and a padlock. Things to know:
 - **The Payment Element's box reserves its finished height** (316px stacked,
   236px from 440px wide, measured with `SHOP_APPEARANCE`), so the pay button
   does not move while Stripe.js loads. Change the appearance, measure again.
+  The reserve stays until the buyer picks a tab other than Card (Apple Pay
+  is one line of text and sat in a screen of empty box, 2026-10-18); it
+  can't end on Stripe's `ready`, which comes before the final height.
+- **Pay calls Stripe's `elements.submit()` first, before the order is
+  posted** (`submitOrder` in `Checkout.svelte`, `submit` from
+  `CardFields`). With Apple Pay chosen, `submit()` is what opens the
+  payment sheet, and Safari opens it only from the tap itself. Until
+  2026-10-18 it ran after the server's round trip, when the tap no longer
+  counted, so Apple Pay could not have worked. A failed submit (an
+  incomplete card, a closed sheet) cancels the post, so no order row is
+  made. `confirm` then only calls `confirmPayment`. Don't put an `await`
+  ahead of it. `shop-checkout.mjs` checks the order with a stand-in
+  Stripe.js.
   `CardFields` now also calls `elements.update({ amount })` when the total
   changes after mounting (a second unit, a bundle), on every
   checkout.

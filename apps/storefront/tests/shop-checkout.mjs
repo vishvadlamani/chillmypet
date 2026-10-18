@@ -409,6 +409,64 @@ if (process.env.PAYMENTS_BASE_URL) {
 	check('Stripe.js blocked: the hosted page is offered instead of dead card fields', note);
 	check('and the form tells the server the card fields are not there', (await p.locator('input[name="cardReady"]').inputValue()) === '0');
 	await blocked.close();
+
+	// Pay's order of work, with a stand-in Stripe.js that logs its calls.
+	// Stripe's submit has to come first, while it is still the buyer's tap:
+	// with Apple Pay chosen it opens the payment sheet, and Safari refuses that
+	// after the server's round trip. A failed submit (an incomplete card, a
+	// closed sheet) posts no order at all.
+	const STUB = `window.Stripe = () => ({
+		elements: () => ({
+			create: () => ({ mount(el) { el.textContent = 'stub card'; }, on(e, cb) { (window.__on ??= {})[e] = cb; if (e === 'ready') setTimeout(cb, 0); }, unmount() {} }),
+			submit: async () => { window.__calls.push('submit'); return window.__submitError ? { error: { message: window.__submitError } } : {}; },
+			update() {},
+			getElement() { return null; }
+		}),
+		confirmPayment: async () => { window.__calls.push('confirm'); return {}; }
+	});`;
+	const stubbed = await browser.newContext({ viewport: { width: 390, height: 664 } });
+	await quiet(stubbed);
+	await stubbed.route('**/js.stripe.com/**', (route) => route.fulfill({ contentType: 'text/javascript', body: STUB }));
+	await stubbed.addInitScript(() => {
+		window.__calls = [];
+		const fetch0 = window.fetch;
+		window.fetch = (input, init) => {
+			if ((init?.method ?? 'GET').toUpperCase() === 'POST' && String(input).includes('/checkout')) window.__calls.push('post');
+			return fetch0(input, init);
+		};
+	});
+	const s = await stubbed.newPage();
+	await s.goto(`${PAY}${PATH}?design=red_santa&size=M&added=1`, { waitUntil: 'networkidle' });
+	await s.locator('.shop-pay-box.ready').waitFor({ timeout: 15000 });
+	// The Apple Pay tab is one line; the box gives up the card form's height
+	// for it, and takes it back for Card.
+	const reserve = () => s.locator('.shop-pay-box > div').evaluate((e) => getComputedStyle(e).minHeight);
+	await s.evaluate(() => window.__on.change({ value: { type: 'apple_pay' } }));
+	check('the Apple Pay tab leaves no empty box under it', (await reserve()) === '0px', await reserve());
+	await s.evaluate(() => window.__on.change({ value: { type: 'card' } }));
+	check('and Card has its height back', (await reserve()) === '316px', await reserve());
+	await s.fill('#contact-email', 'sheet@example.com');
+	await s.fill('#shipping-firstName', 'Holly');
+	await s.fill('#shipping-lastName', 'Ivy');
+	await s.fill('#shipping-address', '1 Evergreen Terrace');
+	await s.fill('#shipping-city', 'Albany');
+	await s.selectOption('#shipping-state', 'NY');
+	await s.fill('#shipping-zip', '12207');
+	await s.evaluate(() => (window.__submitError = 'Your card number is incomplete.'));
+	await s.locator('button.shop-pay').click();
+	await s.waitForTimeout(800);
+	check('Pay: a failed Stripe submit posts no order', JSON.stringify(await s.evaluate(() => window.__calls)) === '["submit"]', JSON.stringify(await s.evaluate(() => window.__calls)));
+	check('and says why', /card number is incomplete/.test(await s.locator('.shop-form').innerText()));
+	check('and the button is free again', await s.locator('button.shop-pay').isEnabled());
+	await s.evaluate(() => {
+		window.__submitError = '';
+		window.__calls = [];
+	});
+	await s.locator('button.shop-pay').click();
+	await s.waitForFunction(() => window.__calls.includes('post'), null, { timeout: 15000 }).catch(() => {});
+	const calls = await s.evaluate(() => window.__calls);
+	check('Pay: Stripe’s submit comes before the order is posted (Apple Pay opens from the tap)', calls[0] === 'submit' && calls[1] === 'post', JSON.stringify(calls));
+	await stubbed.close();
 }
 
 if (pageErrors.length) {

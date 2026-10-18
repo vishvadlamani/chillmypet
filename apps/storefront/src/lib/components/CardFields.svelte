@@ -32,8 +32,12 @@
 		appearance?: Record<string, unknown>;
 		/** Web fonts the appearance names; Stripe loads them inside its frame. */
 		fonts?: { cssSrc: string }[];
-		/** Hands the parent a confirm function, or reports that Stripe is unusable. */
-		onready: (api: { confirm: ConfirmFn } | null) => void;
+		/**
+		 * Hands the parent `submit` and `confirm`, or reports that Stripe is
+		 * unusable. `submit` must be the first thing the Pay tap does (see
+		 * below); `confirm` comes once the server has made the intent.
+		 */
+		onready: (api: { submit: SubmitFn; confirm: ConfirmFn } | null) => void;
 	} = $props();
 
 	export type ConfirmFn = (input: {
@@ -41,8 +45,15 @@
 		returnUrl: string;
 	}) => Promise<{ error?: { message?: string } }>;
 
+	export type SubmitFn = () => Promise<{ error?: { message?: string } }>;
+
 	let container = $state<HTMLDivElement | null>(null);
 	let mounted = $state(false);
+	// A tab other than Card is chosen. The box reserves the card form's height
+	// so nothing below jumps while Stripe loads (Stripe's `ready` comes before
+	// its final height, so the reserve can't simply end there); Apple Pay is a
+	// line of text, and under the reserve it left a screen of empty box.
+	let compact = $state(false);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let stripe: any = null;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -124,16 +135,22 @@
 					layout: 'tabs',
 					wallets: { link: 'never' }
 				});
+				element.on('change', (event: { value?: { type?: string } }) => {
+					compact = Boolean(event.value?.type) && event.value?.type !== 'card';
+				});
 				element.mount(container!);
 				mounted = true;
 
 				onready({
+					// Validates the fields and collects what a wallet needs, before
+					// the intent exists; Stripe requires it before confirmPayment in
+					// deferred mode. For Apple Pay this is what opens the payment
+					// sheet, and Safari opens it only from the tap itself, so the host
+					// calls it first in the Pay handler, before the order is posted.
+					// After the server's round trip the tap no longer counts and the
+					// sheet fails (Stripe's own sample orders it the same way).
+					submit: () => elements.submit(),
 					confirm: async ({ clientSecret, returnUrl }) => {
-						// Validates the fields and collects them before the intent
-						// exists. Stripe requires this call before confirmPayment in
-						// deferred mode.
-						const submitted = await elements.submit();
-						if (submitted.error) return { error: submitted.error };
 						return stripe.confirmPayment({
 							elements,
 							clientSecret,
@@ -177,4 +194,4 @@
 	});
 </script>
 
-<div bind:this={container} class="min-h-[12rem]"></div>
+<div bind:this={container} class={compact ? 'compact' : 'min-h-[12rem]'}></div>
