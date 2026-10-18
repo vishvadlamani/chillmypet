@@ -3,7 +3,7 @@ import { bindDefinition, createRefResolver } from '@funnel/core';
 import { loadBundles } from '$lib/store/bundles';
 import { loadChristmasDelivery } from '$lib/store/christmas';
 import { onePageCheckout } from '$lib/store/one-page-checkout';
-import { PRODUCT_PAGES, retiredRedirect } from '$lib/store/pages';
+import { PRODUCT_PAGES, renamedRedirect, retiredRedirect } from '$lib/store/pages';
 import { loadProduct } from '$lib/store/product';
 import { loadVariantPicker, variantEntries } from '$lib/store/variants';
 import { placeOrder } from '$lib/server/checkout';
@@ -29,6 +29,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const slug = params.slug;
 	// A product taken off sale sends its links on (`scripts/retired-products.js`):
 	// to the product page, where a size is chosen again, not to its checkout.
+	// A renamed product's old URL goes to its new one (`scripts/slug-changes.js`).
+	const renamedTo = renamedRedirect(slug, url);
+	if (renamedTo) redirect(308, renamedTo);
 	const movedTo = retiredRedirect(slug, url);
 	if (movedTo) redirect(308, movedTo);
 	const page = pageFor(slug);

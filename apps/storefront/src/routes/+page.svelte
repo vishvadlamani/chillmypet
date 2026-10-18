@@ -20,17 +20,17 @@
 	const HERO = [
 		{
 			src: '/products/dog-christmas-costume/cat.jpg',
-			href: '/products/dog-christmas-costume',
+			href: '/products/pet-christmas-costume',
 			alt: 'A tabby cat wearing the green Christmas tree costume on a rug'
 		},
 		{
 			src: '/products/reindeer-dog-hoodie/worn-red.jpg',
-			href: '/products/reindeer-dog-hoodie',
+			href: '/products/christmas-pet-hoodie',
 			alt: 'A small grey dog in the red reindeer hoodie by a Christmas tree'
 		},
 		{
 			src: '/products/dog-christmas-costume/worn-red.jpg',
-			href: '/products/dog-christmas-costume',
+			href: '/products/pet-christmas-costume',
 			alt: 'A small dog wearing the red Christmas tree costume'
 		}
 	];
@@ -55,7 +55,7 @@
 			<p class="eyebrow">The Christmas collection</p>
 			<h1>Little outfits for small pets.</h1>
 			<p class="lead">
-				Christmas costumes and hoodies for small dogs and cats, sized to fit. Free US shipping,
+				Christmas costumes and hoodies for small pets, sized to fit. Free US shipping,
 				and 30 days to change your mind.
 			</p>
 			<div class="actions">

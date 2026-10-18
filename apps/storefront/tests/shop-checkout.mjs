@@ -1,5 +1,5 @@
 /**
- * The costume's shop checkout, `/products/dog-christmas-costume/checkout`:
+ * The costume's shop checkout, `/products/pet-christmas-costume/checkout`:
  * where the product page's Add to cart lands, laid out like a hosted shop
  * checkout and driven the way the Christmas ad's visitors arrive, on an
  * iPhone inside the Facebook app (390×664).
@@ -37,7 +37,7 @@ import { chromium } from 'playwright';
 import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
-const SLUG = 'dog-christmas-costume';
+const SLUG = 'pet-christmas-costume';
 const PATH = `/products/${SLUG}/checkout`;
 // As the product page's Add to cart sends it.
 const FROM_PRODUCT = `${PATH}?design=green&size=M&added=1`;

@@ -1,11 +1,11 @@
 /**
- * The Santa Pet Costume with Gift, product page to placed order on a phone,
+ * The Pet Santa Costume with Gift, product page to placed order on a phone,
  * and its place on `/christmas`. The same shape as
- * tests/reindeer-dog-hoodie.mjs: the page is built on the same blocks and
+ * tests/christmas-pet-hoodie.mjs: the page is built on the same blocks and
  * makes the same promises. An ad for it is expected, so the first screen and
  * the one-page checkout an ad could land on are pinned too.
  *
- *   node tests/santa-pet-costume.mjs
+ *   node tests/pet-santa-costume.mjs
  *
  * What it pins down, because none of it is visible to a type check:
  *   - /christmas lists the costume after the other Christmas products, with
@@ -24,7 +24,7 @@ import { chromium } from 'playwright';
 import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
-const SLUG = 'santa-pet-costume';
+const SLUG = 'pet-santa-costume';
 const URL_ = `${BASE}/products/${SLUG}`;
 const PRICE = '27.99';
 const SKU = 'CMP-SP-RED-M';
@@ -40,7 +40,7 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('/christmas serves', res.status === 200, String(res.status));
 	check('it lists the Santa costume', html.includes(`href="/products/${SLUG}"`));
-	check('after the tree costume and the reindeer hoodie, in catalogue order', html.indexOf('href="/products/dog-christmas-costume"') < html.indexOf('href="/products/reindeer-dog-hoodie"') && html.indexOf('href="/products/reindeer-dog-hoodie"') < html.indexOf(`href="/products/${SLUG}"`));
+	check('after the tree costume and the reindeer hoodie, in catalogue order', html.indexOf('href="/products/pet-christmas-costume"') < html.indexOf('href="/products/christmas-pet-hoodie"') && html.indexOf('href="/products/christmas-pet-hoodie"') < html.indexOf(`href="/products/${SLUG}"`));
 	check('and not the life jacket or the pouch hoodie', !/<main[\s\S]*href="\/products\/(dog-life-jacket|christmas-pouch-hoodie)"[\s\S]*<\/main>/.test(html));
 	check('its card carries its price', html.includes(`$${PRICE}`));
 	check('the Santa costume runs S–L', html.includes('Sizes S–L'));
@@ -50,13 +50,31 @@ function check(label, cond, detail) {
 	check('og:image is absolute', /property="og:image" content="https?:\/\//.test(html));
 }
 
+// --- the old URLs, renamed on 2026-10-18, still land ----------------------------
+// The tree costume's live ad links to its old URL: an ad click must reach the
+// same product with its fbclid, utm tags and any chosen size intact.
+for (const [from, to] of [
+	['dog-christmas-costume', 'pet-christmas-costume'],
+	['reindeer-dog-hoodie', 'christmas-pet-hoodie'],
+	['santa-pet-costume', SLUG]
+]) {
+	for (const path of ['', '/checkout']) {
+		const res = await fetch(`${BASE}/products/${from}${path}?size=M&fbclid=ad1&utm_source=fb`, { redirect: 'manual' });
+		check(
+			`/products/${from}${path} moves to /products/${to}${path}, query kept`,
+			res.status === 308 && res.headers.get('location') === `/products/${to}${path}?size=M&fbclid=ad1&utm_source=fb`,
+			`${res.status} ${res.headers.get('location')}`
+		);
+	}
+}
+
 // --- the product page's first response ------------------------------------------
 {
 	const res = await fetch(URL_);
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
-	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Santa Pet Costume with Gift/.test(html));
+	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Pet Santa Costume with Gift/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('SSR quotes the price', html.includes(`$${PRICE}`));
 	check('SSR offers Red, and sizes S to L only', html.includes('>Red<') && ['S', 'M', 'L'].every((s) => html.includes(`value="${s}"`)) && !html.includes('value="XL"'));
@@ -69,8 +87,12 @@ function check(label, cond, detail) {
 	check('no countdown chips, stock bar or viewers', !/sale ends|left in stock|viewing|people are|% sold/i.test(html));
 	check('no ratings or reviews', !/★|Pet Parents|What owners are saying/.test(html));
 	const main = /<main[\s\S]*?<\/main>/.exec(html)?.[0] ?? html;
+	// The owner's rule since 2026-10-18: "pet", never dog or cat, in what a
+	// shopper reads. Tags and attributes (photo alt text, file names) aside.
+	const words = main.replace(/<style[\s\S]*?<\/style>/g, '').replace(/<[^>]*>/g, ' ');
+	check('the page says pet, never dog or cat', !/\b(dogs?|cats?|puppy|kitten)\b/i.test(words), /.{0,40}\b(dogs?|cats?|puppy|kitten)\b.{0,40}/i.exec(words)?.[0]);
 	check('no other product’s copy leaked in', !/chin rest|life jacket|ruffled|antler|reindeer/i.test(main));
-	check('it is for dogs and cats', /small dogs and cats/.test(main));
+	check('it is for small pets', /small pets/.test(main));
 	const checkout = await fetch(`${URL_}/checkout`);
 	check('its one-page checkout answers, for an ad that should land on the form', checkout.status === 200, String(checkout.status));
 	const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
@@ -185,7 +207,7 @@ await page.waitForURL('**/checkout', { timeout: 15000 });
 await page.waitForSelector('form dl');
 {
 	const summary = await page.locator('form', { has: page.locator('dl') }).innerText();
-	check('checkout shows the costume, red, size M', summary.includes('Santa Pet Costume with Gift') && /Red · M/.test(summary), summary.slice(0, 300));
+	check('checkout shows the costume, red, size M', summary.includes('Pet Santa Costume with Gift') && /Red · M/.test(summary), summary.slice(0, 300));
 	check(`checkout charges $${PRICE}`, (await page.locator('form dl').innerText()).includes(`$${PRICE}`));
 }
 

@@ -24,7 +24,11 @@
  * (`catalog.translation()` tries the store default next).
  */
 
-export const DOG_CHRISTMAS_COSTUME_SLUG = 'dog-christmas-costume';
+export const PET_CHRISTMAS_COSTUME_SLUG = 'pet-christmas-costume';
+
+// The photos stay in the folder named for the slug they were added under: the
+// live store's media rows point at these paths (`slug-changes.js`).
+const PHOTOS = '/products/dog-christmas-costume';
 
 // Kept in step with `price-changes.js`, which moves a live store here.
 const PRICE_CENTS = 2799;
@@ -69,8 +73,8 @@ const SIZES = [
 const TITLE = 'Pet Christmas Tree Costume';
 
 /** @type {import('./catalog.js').ProductDefinition} */
-export const DOG_CHRISTMAS_COSTUME = {
-	slug: DOG_CHRISTMAS_COSTUME_SLUG,
+export const PET_CHRISTMAS_COSTUME = {
+	slug: PET_CHRISTMAS_COSTUME_SLUG,
 	// After the life jacket (home hero).
 	position: 2,
 	translations: {
@@ -78,7 +82,7 @@ export const DOG_CHRISTMAS_COSTUME = {
 			title: TITLE,
 			subtitle: 'The cutest tree in the house',
 			description:
-				'A soft hooded cape that turns your dog or cat into a little Christmas tree. Three ruffled tiers, colourful pom-pom baubles and a glitter gold star on the hood. It ties at the neck and closes with one button, so it goes on in seconds and comes off just as fast. For small dogs and cats, in red or green, sizes S to L by weight.'
+				'A soft hooded cape that turns your pet into a little Christmas tree. Three ruffled tiers, colourful pom-pom baubles and a glitter gold star on the hood. It ties at the neck and closes with one button, so it goes on in seconds and comes off just as fast. For small pets, in red or green, sizes S to L by weight.'
 		}
 	},
 	// Positional, and the order matters: the cart, /api/cart and the checkout
@@ -90,21 +94,21 @@ export const DOG_CHRISTMAS_COSTUME = {
 	media: [
 		// One per colour, tied to its swatch: what the gallery shows for it.
 		...COLOURS.map((c) => ({
-			url: `/products/${DOG_CHRISTMAS_COSTUME_SLUG}/${c.photo}`,
+			url: `${PHOTOS}/${c.photo}`,
 			alt: c.alt,
 			option: c.code
 		})),
 		// The rest show the product as a whole; the page's "closer look" grid.
 		{
-			url: `/products/${DOG_CHRISTMAS_COSTUME_SLUG}/red.jpg`,
+			url: `${PHOTOS}/red.jpg`,
 			alt: 'The red Christmas tree costume laid flat'
 		},
 		{
-			url: `/products/${DOG_CHRISTMAS_COSTUME_SLUG}/green-back.jpg`,
+			url: `${PHOTOS}/green-back.jpg`,
 			alt: 'The green costume from behind: three ruffled tiers shaped like a tree, star on top'
 		},
 		{
-			url: `/products/${DOG_CHRISTMAS_COSTUME_SLUG}/hood-detail.jpg`,
+			url: `${PHOTOS}/hood-detail.jpg`,
 			alt: 'Close-up of the hood opening, the tie cord and the button'
 		}
 	],

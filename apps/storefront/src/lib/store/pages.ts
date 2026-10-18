@@ -2,8 +2,9 @@ import type { FunnelDefinition } from '@funnel/core';
 import { CHRISTMAS_COSTUME_PAGE } from './christmas-costume-manifest';
 import { STORE_PAGE } from './manifest';
 import { PRODUCT_SLUG } from './product';
-import { REINDEER_HOODIE_PAGE } from './reindeer-hoodie-manifest';
+import { CHRISTMAS_PET_HOODIE_PAGE } from './christmas-pet-hoodie-manifest';
 import { RETIRED_PRODUCTS } from '../../../scripts/retired-products.js';
+import { SLUG_CHANGES } from '../../../scripts/slug-changes.js';
 import { SANTA_COSTUME_PAGE } from './santa-costume-manifest';
 
 export interface ProductPage {
@@ -65,12 +66,12 @@ export interface ProductPage {
 	checkout?: 'shop';
 }
 
-/** Kept in step with `scripts/dog-christmas-costume.js`. */
-export const DOG_CHRISTMAS_COSTUME_SLUG = 'dog-christmas-costume';
-/** Kept in step with `scripts/reindeer-dog-hoodie.js`. */
-export const REINDEER_DOG_HOODIE_SLUG = 'reindeer-dog-hoodie';
-/** Kept in step with `scripts/santa-pet-costume.js`. */
-export const SANTA_PET_COSTUME_SLUG = 'santa-pet-costume';
+/** Kept in step with `scripts/pet-christmas-costume.js`. */
+export const PET_CHRISTMAS_COSTUME_SLUG = 'pet-christmas-costume';
+/** Kept in step with `scripts/christmas-pet-hoodie.js`. */
+export const CHRISTMAS_PET_HOODIE_SLUG = 'christmas-pet-hoodie';
+/** Kept in step with `scripts/pet-santa-costume.js`. */
+export const PET_SANTA_COSTUME_SLUG = 'pet-santa-costume';
 
 /**
  * Which manifest renders which product.
@@ -90,7 +91,7 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 		cardImage: '/products/dog-life-jacket/card-sailboat.jpg',
 		cardFit: 'contain'
 	},
-	[DOG_CHRISTMAS_COSTUME_SLUG]: {
+	[PET_CHRISTMAS_COSTUME_SLUG]: {
 		manifest: CHRISTMAS_COSTUME_PAGE,
 		pickSize: true,
 		theme: 'tree',
@@ -104,13 +105,13 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 		// owner's call, 2026-10-17).
 		checkout: 'shop'
 	},
-	[REINDEER_DOG_HOODIE_SLUG]: {
-		manifest: REINDEER_HOODIE_PAGE,
+	[CHRISTMAS_PET_HOODIE_SLUG]: {
+		manifest: CHRISTMAS_PET_HOODIE_PAGE,
 		pickSize: true,
 		theme: 'tree',
 		christmas: true
 	},
-	[SANTA_PET_COSTUME_SLUG]: {
+	[PET_SANTA_COSTUME_SLUG]: {
 		manifest: SANTA_COSTUME_PAGE,
 		pickSize: true,
 		theme: 'tree',
@@ -143,4 +144,18 @@ export function retiredRedirect(slug: string, url: URL): string | null {
 	for (const key of ITS_OWN_CHOICES) query.delete(key);
 	const search = query.toString();
 	return `/products/${target}${search ? `?${search}` : ''}`;
+}
+
+const RENAMED_TO: Record<string, string> = Object.fromEntries(SLUG_CHANGES.map(({ from, to }) => [from, to]));
+
+/**
+ * Where a renamed product's old URL goes (`scripts/slug-changes.js`), or null
+ * when the slug was never renamed. Same product, same sizes: the page and its
+ * checkout keep their place and the whole query string, so an ad's `fbclid`,
+ * its utm tags and a chosen design and size all arrive.
+ */
+export function renamedRedirect(slug: string, url: URL): string | null {
+	const target = RENAMED_TO[slug];
+	if (!target) return null;
+	return url.pathname.replace(`/products/${slug}`, `/products/${target}`) + url.search;
 }

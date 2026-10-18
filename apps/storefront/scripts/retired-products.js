@@ -27,7 +27,7 @@ export const RETIRED_PRODUCTS = [
 		// call of 2026-10-18, with both of its landing pages, so the costume is
 		// the only Christmas product an ad can lead to.
 		slug: 'christmas-pouch-hoodie',
-		movedTo: 'dog-christmas-costume',
+		movedTo: 'pet-christmas-costume',
 		date: '2026-10-18'
 	}
 ];

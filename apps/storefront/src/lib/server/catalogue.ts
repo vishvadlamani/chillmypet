@@ -11,7 +11,8 @@
  * serves every page from that database. So it does the job itself, once per
  * isolate, on the first request after a deploy, in the background.
  *
- * Both halves are additive and idempotent, and so is the third: a listed price
+ * Both halves are additive and idempotent, and so is the rest: a listed rename
+ * (`scripts/slug-changes.js`) moves only a row still at its old slug, a listed price
  * change (`scripts/price-changes.js`) moves only variants still at the old
  * price, a copy change (`scripts/copy-changes.js`) only copy that still
  * reads the old words, and a retirement (`scripts/retired-products.js`)
@@ -26,11 +27,12 @@
  * request retries it, rather than every request retrying.
  */
 import { SCHEMA, applySchema, schemaStatements, type Client } from 'ecomwithai/db';
-import { applyCopyChange, applyPriceChange, archiveProduct, insertProduct, productExists } from '../../../scripts/catalog.js';
+import { applyCopyChange, applyPriceChange, archiveProduct, insertProduct, productExists, renameProduct } from '../../../scripts/catalog.js';
 import { COPY_CHANGES } from '../../../scripts/copy-changes.js';
 import { PRICE_CHANGES } from '../../../scripts/price-changes.js';
 import { PRODUCTS, STORE_ID } from '../../../scripts/products.js';
 import { RETIRED_PRODUCTS } from '../../../scripts/retired-products.js';
+import { SLUG_CHANGES } from '../../../scripts/slug-changes.js';
 
 /**
  * Every table and index the schema creates, by name. One read of
@@ -53,6 +55,8 @@ async function missingSchemaObjects(db: Client): Promise<string[]> {
 export type CatalogueSync = {
 	/** Tables and indexes that were missing and have now been created. */
 	schemaCreated: string[];
+	/** Products moved to a new slug on this run (`scripts/slug-changes.js`), by their new slug. */
+	renamed: string[];
 	/** Products added to the store on this run. */
 	added: string[];
 	/** Products the store already had, left as they were. */
@@ -68,7 +72,8 @@ export type CatalogueSync = {
 };
 
 /**
- * Creates whatever the schema has that the database lacks, adds whatever
+ * Creates whatever the schema has that the database lacks, renames what
+ * `SLUG_CHANGES` lists, adds whatever
  * `PRODUCTS` has that the store lacks, applies the listed price and copy
  * changes and archives the retired products. Safe to run any number of times.
  */
@@ -79,7 +84,14 @@ export async function syncCatalogue(db: Client, storeId: string = STORE_ID): Pro
 	const store = await db.execute({ sql: 'select 1 from stores where id = ?', args: [storeId] });
 	const slugs = PRODUCTS.map((def) => def.slug);
 	if (store.rows.length === 0) {
-		return { schemaCreated, added: [], skipped: slugs, repriced: [], recopied: [], archived: [], storeMissing: true };
+		return { schemaCreated, renamed: [], added: [], skipped: slugs, repriced: [], recopied: [], archived: [], storeMissing: true };
+	}
+
+	// Before the adds: a product listed under its new slug must find its old
+	// row there, or the add would open a second, empty copy beside it.
+	const renamed: string[] = [];
+	for (const change of SLUG_CHANGES) {
+		if ((await renameProduct(db, storeId, change)) > 0) renamed.push(change.to);
 	}
 
 	const added: string[] = [];
@@ -116,7 +128,7 @@ export async function syncCatalogue(db: Client, storeId: string = STORE_ID): Pro
 	for (const { slug } of RETIRED_PRODUCTS) {
 		if ((await archiveProduct(db, storeId, slug)) > 0) archived.push(slug);
 	}
-	return { schemaCreated, added, skipped, repriced, recopied, archived, storeMissing: false };
+	return { schemaCreated, renamed, added, skipped, repriced, recopied, archived, storeMissing: false };
 }
 
 const RETRY_AFTER_MS = 60_000;
@@ -144,7 +156,7 @@ export function ensureCatalogue(
 				return;
 			}
 			synced = true;
-			if (result.schemaCreated.length > 0 || result.added.length > 0 || result.repriced.length > 0 || result.recopied.length > 0 || result.archived.length > 0) {
+			if (result.schemaCreated.length > 0 || result.renamed.length > 0 || result.added.length > 0 || result.repriced.length > 0 || result.recopied.length > 0 || result.archived.length > 0) {
 				console.log('catalogue sync', JSON.stringify(result));
 			}
 		})
