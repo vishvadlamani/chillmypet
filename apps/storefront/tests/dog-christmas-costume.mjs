@@ -242,6 +242,8 @@ await page.waitForURL('**/products/dog-christmas-costume/checkout?**', { timeout
 	const line = await page.locator('.picker.folded').innerText().catch(() => 'not folded');
 	check('the choice is one line, with a way to change it', /Green[\s\S]*Size: M/.test(line) && /Change/.test(line), line);
 	check('none of the product page comes across: no photos, no title, no bundle cards', (await page.locator('.gallery').count()) === 0 && !(await page.locator('h1', { hasText: 'Pet Christmas Tree Costume' }).count()) && (await page.locator('label.tier').count()) === 0);
+	// Google Analytics groups pages by title: the payment page needs its own.
+	check('the payment page has a title of its own', /^Checkout · Pet Christmas Tree Costume/.test(await page.title()), await page.title());
 	check('the shop chrome: logo and padlock, no menu', (await page.locator('header.shop-header img[src="/brand/logo.png"]').count()) === 1 && !(await page.locator('header nav').count()));
 }
 
