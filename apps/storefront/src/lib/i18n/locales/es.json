@@ -45,7 +45,7 @@
 		"selectSize": "Elige una talla",
 		"sizeChart": "Guía de tallas",
 		"sizeChartTitle": "Guía de tallas",
-		"sizeChartHint": "Si tu perro está entre dos tallas, recomendamos elegir la mayor para un ajuste más cómodo y seguro.",
+		"sizeChartHint": "Si está entre dos tallas, recomendamos elegir la mayor para un ajuste más cómodo y seguro.",
 		"sizeChartColumns": {
 			"size": "Talla",
 			"chest": "Contorno de pecho",
@@ -188,7 +188,7 @@
 		}
 	},
 	"footer": {
-		"tagline": "Ropa pequeña para mascotas pequeñas, con envío gratis en EE. UU. y 30 días para cambiar de opinión.",
+		"tagline": "Ropa pequeña para los más pequeños de casa, con envío gratis en EE. UU. y 30 días para cambiar de opinión.",
 		"shop": "Tienda",
 		"help": "Ayuda",
 		"legal": "Legal",
@@ -370,9 +370,9 @@
 				{
 					"heading": "Uso seguro del chaleco salvavidas",
 					"body": [
-						"Un chaleco salvavidas para perros es una ayuda a la flotación, no un dispositivo de salvamento, y no sustituye a la supervisión. Nunca dejes a un perro solo en el agua o cerca de ella, aunque lo lleve puesto.",
+						"Un chaleco salvavidas es una ayuda a la flotación, no un dispositivo de salvamento, y no sustituye a la supervisión. Nunca dejes solo en el agua o cerca de ella a quien lo lleve puesto.",
 						"Comprueba el ajuste antes de cada uso y revisa el chaleco, las cinchas y las hebillas. Deja de usarlo si algo está dañado.",
-						"Elige la talla con la tabla de medidas a partir de las medidas de tu perro, no solo de su raza o peso."
+						"Elige la talla con la tabla de medidas a partir de sus medidas, no solo de su raza o peso."
 					]
 				},
 				{
@@ -401,7 +401,7 @@
 		"include": [
 			"Tu número de pedido, si lo tienes",
 			"El correo que usaste al pagar",
-			"Para una duda de talla, el contorno de pecho y el peso de tu perro",
+			"Para una duda de talla, el contorno de pecho y el peso",
 			"Para un artículo dañado, una foto"
 		]
 	},

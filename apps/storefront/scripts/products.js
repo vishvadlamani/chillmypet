@@ -19,11 +19,11 @@
  * Imported by the Worker, so nothing in this file (or what it imports) may
  * touch `process`, the filesystem or the network.
  */
-import { PET_CHRISTMAS_COSTUME } from './pet-christmas-costume.js';
-import { CHRISTMAS_PET_HOODIE } from './christmas-pet-hoodie.js';
-import { PET_SANTA_COSTUME } from './pet-santa-costume.js';
+import { CHRISTMAS_TREE_COSTUME } from './christmas-tree-costume.js';
+import { CHRISTMAS_HOODIE } from './christmas-hoodie.js';
+import { SANTA_COSTUME } from './santa-costume-with-gift.js';
 
 /** The store these products belong to. The seed's default; one tenant today. */
 export const STORE_ID = 'chillmypet';
 
-export const PRODUCTS = [PET_CHRISTMAS_COSTUME, CHRISTMAS_PET_HOODIE, PET_SANTA_COSTUME];
+export const PRODUCTS = [CHRISTMAS_TREE_COSTUME, CHRISTMAS_HOODIE, SANTA_COSTUME];

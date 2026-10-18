@@ -25,7 +25,7 @@
  * (`catalog.translation()` tries the store default next).
  */
 
-export const CHRISTMAS_PET_HOODIE_SLUG = 'christmas-pet-hoodie';
+export const CHRISTMAS_HOODIE_SLUG = 'christmas-hoodie';
 
 // The photos stay in the folder named for the slug they were added under: the
 // live store's media rows point at these paths (`slug-changes.js`).
@@ -57,11 +57,11 @@ const COLOURS = [
 // (or weight bands) when the supplier's table arrives.
 const SIZES = [{ code: 'S' }, { code: 'M' }, { code: 'L' }, { code: 'XL' }];
 
-const TITLE = 'Christmas Pet Hoodie';
+const TITLE = 'Christmas Hoodie';
 
 /** @type {import('./catalog.js').ProductDefinition} */
-export const CHRISTMAS_PET_HOODIE = {
-	slug: CHRISTMAS_PET_HOODIE_SLUG,
+export const CHRISTMAS_HOODIE = {
+	slug: CHRISTMAS_HOODIE_SLUG,
 	// After the costume.
 	position: 3,
 	translations: {
@@ -69,7 +69,7 @@ export const CHRISTMAS_PET_HOODIE = {
 			title: TITLE,
 			subtitle: 'Santa’s smallest reindeer',
 			description:
-				'A soft red plush hoodie that turns your pet into one of Santa’s reindeer. Brown antlers on the hood, fluffy white trim, white snap buttons down the front and a Christmas tree patch on the back. For small pets, sizes S to XL.'
+				'A soft red plush hoodie that turns your little one into one of Santa’s reindeer. Brown antlers on the hood, fluffy white trim, white snap buttons down the front and a Christmas tree patch on the back. Sizes S to XL.'
 		}
 	},
 	// Positional, and the order matters: the cart, /api/cart and the checkout

@@ -24,7 +24,7 @@
  * (`catalog.translation()` tries the store default next).
  */
 
-export const PET_CHRISTMAS_COSTUME_SLUG = 'pet-christmas-costume';
+export const CHRISTMAS_TREE_COSTUME_SLUG = 'christmas-tree-costume';
 
 // The photos stay in the folder named for the slug they were added under: the
 // live store's media rows point at these paths (`slug-changes.js`).
@@ -70,11 +70,11 @@ const SIZES = [
 // "Pet", not "Dog", since 2026-10-17 (owner's call): it fits small dogs and
 // cats, and the page opens on a cat. The slug stays, so links and ads keep
 // working; a live store is renamed through `copy-changes.js`.
-const TITLE = 'Pet Christmas Tree Costume';
+const TITLE = 'Christmas Tree Costume';
 
 /** @type {import('./catalog.js').ProductDefinition} */
-export const PET_CHRISTMAS_COSTUME = {
-	slug: PET_CHRISTMAS_COSTUME_SLUG,
+export const CHRISTMAS_TREE_COSTUME = {
+	slug: CHRISTMAS_TREE_COSTUME_SLUG,
 	// After the life jacket (home hero).
 	position: 2,
 	translations: {
@@ -82,7 +82,7 @@ export const PET_CHRISTMAS_COSTUME = {
 			title: TITLE,
 			subtitle: 'The cutest tree in the house',
 			description:
-				'A soft hooded cape that turns your pet into a little Christmas tree. Three ruffled tiers, colourful pom-pom baubles and a glitter gold star on the hood. It ties at the neck and closes with one button, so it goes on in seconds and comes off just as fast. For small pets, in red or green, sizes S to L by weight.'
+				'A soft hooded cape that turns your little one into a Christmas tree. Three ruffled tiers, colourful pom-pom baubles and a glitter gold star on the hood. It ties at the neck and closes with one button, so it goes on in seconds and comes off just as fast. In red or green, sizes S to L by weight.'
 		}
 	},
 	// Positional, and the order matters: the cart, /api/cart and the checkout

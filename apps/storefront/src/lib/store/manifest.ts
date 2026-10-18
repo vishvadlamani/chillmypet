@@ -74,7 +74,7 @@ export const STORE_PAGE: FunnelDefinition = {
 				variant: 'inline',
 				average: { $ref: 'reviews.average' },
 				total: { $ref: 'reviews.count' },
-				caption: '{average} by {totalRaw}+ Pet Parents',
+				caption: '{average} from {totalRaw}+ reviews',
 				align: 'left',
 				width: 'full'
 			}
@@ -104,7 +104,7 @@ export const STORE_PAGE: FunnelDefinition = {
 				// Each line maps to an answer in the FAQ below — chin rest, handle,
 				// quick-dry — so the page makes one argument instead of four.
 				items: [
-					{ icon: '✓', text: 'Made for **non-swimmers and senior dogs**' },
+					{ icon: '✓', text: 'Made for **non-swimmers and seniors**' },
 					{ icon: '✓', text: 'Chin rest keeps their **head above water**' },
 					{ icon: '✓', text: 'Reinforced handle for **quick lift-outs**' },
 					{ icon: '✓', text: 'Quick-dry, ready again the next day' }
@@ -187,7 +187,7 @@ export const STORE_PAGE: FunnelDefinition = {
 						link: { label: 'Read our shipping policy', href: '/policies/shipping' }
 					},
 					{
-						label: 'What if the size doesn’t fit my dog?',
+						label: 'What if the size doesn’t fit?',
 						body: 'You have 30 days to return it or swap the size, and the return label is on us.\n\nTo begin an exchange, email contact.chillmypet@gmail.com with your order number.',
 						link: { label: 'Read our return and exchange policy', href: '/policies/refunds' }
 					}
@@ -258,12 +258,12 @@ export const STORE_PAGE: FunnelDefinition = {
 				width: 'full',
 				items: [
 					{
-						label: 'Is the chin rest comfortable for smaller dogs?',
+						label: 'Is the chin rest comfortable for the smaller ones?',
 						body: 'Yes — the chin rest is designed to sit naturally under the jaw without restricting movement, and it’s proportioned across all sizes so smaller breeds get the same support as larger ones.'
 					},
 					{
-						label: 'Will this work for a dog who’s never worn a life vest before?',
-						body: 'Most dogs adjust within the first few minutes, especially once they’re in the water and feel the support. We recommend a quick 5-minute trial in shallow water before a big trip.'
+						label: 'Will this work if they’ve never worn a life vest before?',
+						body: 'Most adjust within the first few minutes, especially once they’re in the water and feel the support. We recommend a quick 5-minute trial in shallow water before a big trip.'
 					},
 					{
 						label: 'Can it get wet and dry quickly between uses?',
@@ -272,11 +272,11 @@ export const STORE_PAGE: FunnelDefinition = {
 					{
 						label: 'How do I know which size to order?',
 						// Blank line renders as a paragraph break (whitespace-pre-line).
-						body: 'Check our size chart based on chest girth and weight.\n\nIf your dog is between sizes, we recommend sizing up for a more comfortable, secure fit.'
+						body: 'Check our size chart based on chest girth and weight.\n\nIf they’re between sizes, we recommend sizing up for a more comfortable, secure fit.'
 					},
 					{
-						label: 'Is the handle strong enough to lift my dog out of water?',
-						body: 'Yes — the handle is reinforced and stitched to support a quick lift-assist, ideal for getting your dog back onto a dock, boat, or shore.'
+						label: 'Is the handle strong enough to lift them out of the water?',
+						body: 'Yes — the handle is reinforced and stitched to support a quick lift-assist, ideal for getting them back onto a dock, boat, or shore.'
 					},
 					{
 						label: 'What if the size doesn’t fit right when it arrives?',
@@ -379,7 +379,7 @@ export const STORE_PAGE: FunnelDefinition = {
 			component: 'heading',
 			version: 1,
 			requires: ['reviews.photos'],
-			props: { eyebrow: 'Small dogs, big water', text: 'Out on the water.', level: 2, width: 'page' }
+			props: { eyebrow: 'Little swimmers, big water', text: 'Out on the water.', level: 2, width: 'page' }
 		},
 		{
 			id: 'photo-wall',

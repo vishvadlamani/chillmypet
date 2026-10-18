@@ -26,8 +26,8 @@ import type { FunnelDefinition } from '@funnel/core';
  * weight guide).
  */
 export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
-	id: 'pet-christmas-costume',
-	name: 'Pet Christmas Tree Costume — product page',
+	id: 'christmas-tree-costume',
+	name: 'Christmas Tree Costume — product page',
 	layout: 'page',
 	blocks: [
 		{
@@ -72,7 +72,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					{ src: '/products/dog-christmas-costume/details.jpg', alt: 'The green costume worn, with close-ups of the gold star topper, the pom-poms and the layered cape' }
 				],
 				hint: 'Swipe to explore',
-				title: 'Pet Christmas Tree Costume photos'
+				title: 'Christmas Tree Costume photos'
 			}
 		},
 		{
@@ -106,7 +106,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				sizeNote: 'By weight: S 1.5–2.5 kg (3–6 lb) · M 2.5–5 kg (6–11 lb) · L 5–7.5 kg (11–17 lb). Between two? Go up.',
 				sizeGuideHref: '#size-guide',
 				sizeGuideLabel: 'Size guide',
-				sizeMissing: 'Pick your pet’s size first, then we’re good to go.',
+				sizeMissing: 'Pick a size first, then we’re good to go.',
 				// The store's real quantity breaks, priced by the server; the cards
 				// only add words. Every costume in a bundle is the colour and size
 				// picked above, and the copy says so.
@@ -147,7 +147,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				items: [
 					{
 						label: 'Size & fit',
-						body: 'Sizes go by your pet’s weight: S for 1.5–2.5 kg (3–6 lb), M for 2.5–5 kg (6–11 lb), L for 5–7.5 kg (11–17 lb).\n\nIt’s a cape with a hood, so nothing goes around the legs or the belly and it forgives a stocky build. Between two sizes, go up: the cord at the neck takes up the slack.',
+						body: 'Sizes go by weight: S for 1.5–2.5 kg (3–6 lb), M for 2.5–5 kg (6–11 lb), L for 5–7.5 kg (11–17 lb).\n\nIt’s a cape with a hood, so nothing goes around the legs or the belly and it forgives a stocky build. Between two sizes, go up: the cord at the neck takes up the slack.',
 						link: { label: 'See the size guide', href: '#size-guide' }
 					},
 					{
@@ -187,11 +187,11 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			version: 1,
 			// What the costume is for, after the buy box rather than in it.
 			props: {
-				eyebrow: 'Christmas, with the pet in it',
+				eyebrow: 'Christmas, with everyone in it',
 				title: 'The one who steals the Christmas card.',
 				body: [
-					'Every year there’s one photo everybody keeps. This is how your pet ends up in the middle of it.',
-					'A soft hooded cape that turns a small pet into a little Christmas tree: three ruffled tiers, bright pom-pom baubles and a glitter gold star on top.'
+					'Every year there’s one photo everybody keeps. This is how your little one ends up in the middle of it.',
+					'A soft hooded cape that turns your little one into a little Christmas tree: three ruffled tiers, bright pom-pom baubles and a glitter gold star on top.'
 				],
 				points: [
 					{ title: 'A tree from every side', body: 'Ruffled tiers down the back, baubles all round, the star on the hood. It reads as a tree from the front, the back and the sofa.' },
@@ -213,13 +213,13 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			// from, so the captions describe the costume, not a customer.
 			props: {
 				eyebrow: 'Every breed, one little tree.',
-				title: 'Small pets, big Christmas.',
-				sub: 'Fluffy, scruffy or sleek: it sits the same on every small pet. Choose by your pet’s weight, not their breed.',
+				title: 'Little ones, big Christmas.',
+				sub: 'Fluffy, scruffy or sleek: it sits the same on every little one. Choose by weight, not breed.',
 				photos: [
 					{ src: '/products/dog-christmas-costume/shih-tzu.jpg', alt: 'A shih tzu in the green Christmas tree costume in front of a decorated tree', caption: 'Ready by the tree' },
 					{ src: '/products/dog-christmas-costume/schnauzer.jpg', alt: 'A miniature schnauzer in the green Christmas tree costume', caption: 'Ready for the photo' }
 				],
-				note: 'For small pets up to 7.5 kg (17 lb); see the size guide below.'
+				note: 'Up to 7.5 kg (17 lb); see the size guide below.'
 			}
 		},
 		{
@@ -240,7 +240,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					{ title: 'Tie the cord', body: 'A soft bow at the neck sets the fit. Snug, never tight.' },
 					{ title: 'Close the button', body: 'One button at the chest and the cape sits flat over the back.' }
 				],
-				note: 'Nothing goes around the legs or the belly, which is why most pets forget they have it on.'
+				note: 'Nothing goes around the legs or the belly, which is why most forget they have it on.'
 			}
 		},
 		{
@@ -295,7 +295,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				look: 'band',
 				eyebrow: 'Weigh first, then pick',
 				title: 'Find their fit.',
-				lead: 'For small pets. Sizes go by weight, from the maker’s own table.',
+				lead: 'Sizes go by weight, from the maker’s own table.',
 				tips: [
 					'It’s a cape with a hood: nothing goes around the legs or the belly, so it is forgiving on shape.',
 					'Between two sizes? Go up. A loose cape looks better than a tight one, and the cord at the neck takes up the slack.'
@@ -305,7 +305,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				columns: { $ref: 'sizes.columns' },
 				rows: { $ref: 'sizes.rows' },
 				contact:
-					'Not sure? Email contact.chillmypet@gmail.com with your pet’s weight and breed, and we’ll help you pick.'
+					'Not sure? Email contact.chillmypet@gmail.com with their weight and breed, and we’ll help you pick.'
 			}
 		},
 		{
@@ -325,12 +325,12 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				width: 'full',
 				items: [
 					{
-						label: 'Will my pet keep it on?',
-						body: 'It is a light cape, not a full suit, so there is nothing around the legs or belly. Most pets forget it after a minute.\n\nIf yours does not like the hood, it can sit back on the neck like a collar, and the tree still reads from behind.'
+						label: 'Will they keep it on?',
+						body: 'It is a light cape, not a full suit, so there is nothing around the legs or belly. Most forget it after a minute.\n\nIf yours does not like the hood, it can sit back on the neck like a collar, and the tree still reads from behind.'
 					},
 					{
-						label: 'Will it fit my pet?',
-						body: 'It goes by weight, not by breed, so it fits small pets of every shape. Size S is for the tiniest. Check the weight guide, and pick the bigger size if your pet is between two.'
+						label: 'Will it fit?',
+						body: 'It goes by weight, not by breed, so it fits every shape. Size S is for the tiniest. Check the weight guide, and pick the bigger size if yours is between two.'
 					},
 					{
 						label: 'How do I pick the size?',
@@ -346,7 +346,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					},
 					{
 						label: 'Is it safe to leave on?',
-						body: 'Please stay with your pet while it is wearing any costume. The pom-poms are stitched on, but take the cape off before naps, play with other animals, or any time you are not watching.'
+						body: 'Please stay close while they are wearing any costume. The pom-poms are stitched on, but take the cape off before naps, play with other animals, or any time you are not watching.'
 					},
 					{
 						label: 'Can I return or exchange it?',
@@ -360,7 +360,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			component: 'closing_cta',
 			version: 1,
 			props: {
-				eyebrow: 'This Christmas, dress the pet too.',
+				eyebrow: 'This Christmas, dress the whole family.',
 				title: 'Every tree needs a little one beside it.',
 				cta: 'Choose their costume',
 				// An in-page anchor to the picker, not a route.

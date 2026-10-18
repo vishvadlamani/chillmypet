@@ -20,27 +20,27 @@
 	const HERO = [
 		{
 			src: '/products/dog-christmas-costume/cat.jpg',
-			href: '/products/pet-christmas-costume',
+			href: '/products/christmas-tree-costume',
 			alt: 'A tabby cat wearing the green Christmas tree costume on a rug'
 		},
 		{
 			src: '/products/reindeer-dog-hoodie/worn-red.jpg',
-			href: '/products/christmas-pet-hoodie',
+			href: '/products/christmas-hoodie',
 			alt: 'A small grey dog in the red reindeer hoodie by a Christmas tree'
 		},
 		{
 			src: '/products/dog-christmas-costume/worn-red.jpg',
-			href: '/products/pet-christmas-costume',
+			href: '/products/christmas-tree-costume',
 			alt: 'A small dog wearing the red Christmas tree costume'
 		}
 	];
 </script>
 
 <svelte:head>
-	<title>{t('common.brand')} · Clothes for small dogs</title>
+	<title>{t('common.brand')} · Little outfits for little ones</title>
 	<meta
 		name="description"
-		content="Christmas costumes, hoodies and life jackets for small dogs. Free US shipping and 30-day returns."
+		content="Christmas costumes, hoodies and life jackets. Free US shipping and 30-day returns."
 	/>
 	<!-- Absolute: Facebook and Instagram resolve link previews from their own
 	     servers, not from this page. -->
@@ -53,9 +53,9 @@
 	<section class="tree-theme hero">
 		<div class="hero-text">
 			<p class="eyebrow">The Christmas collection</p>
-			<h1>Little outfits for small pets.</h1>
+			<h1>Little outfits for little ones.</h1>
 			<p class="lead">
-				Christmas costumes and hoodies for small pets, sized to fit. Free US shipping,
+				Christmas costumes and hoodies, sized to fit. Free US shipping,
 				and 30 days to change your mind.
 			</p>
 			<div class="actions">

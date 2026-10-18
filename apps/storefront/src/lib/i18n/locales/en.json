@@ -45,7 +45,7 @@
 		"selectSize": "Select a size",
 		"sizeChart": "Size chart",
 		"sizeChartTitle": "Sizing Chart",
-		"sizeChartHint": "If your dog is between sizes, we recommend sizing up for a more comfortable, secure fit.",
+		"sizeChartHint": "If they’re between sizes, we recommend sizing up for a more comfortable, secure fit.",
 		"sizeChartColumns": {
 			"size": "Size",
 			"chest": "Chest girth",
@@ -67,7 +67,7 @@
 			"red_santa": "Santa Red",
 			"green_stocking": "Stocking Green"
 		},
-		"benefitsTitle": "Why dogs swim better in it",
+		"benefitsTitle": "Why they swim better in it",
 		"trustShipping": "Free shipping",
 		"trustReturns": "30-day free returns",
 		"trustSecure": "Secure checkout",
@@ -188,7 +188,7 @@
 		}
 	},
 	"footer": {
-		"tagline": "Little outfits for small pets, with free US shipping and 30 days to change your mind.",
+		"tagline": "Little outfits for little ones, with free US shipping and 30 days to change your mind.",
 		"shop": "Shop",
 		"help": "Help",
 		"legal": "Legal",
@@ -368,11 +368,11 @@
 					]
 				},
 				{
-					"heading": "Using a dog life jacket safely",
+					"heading": "Using a life jacket safely",
 					"body": [
-						"A dog life jacket is a buoyancy aid, not a lifesaving device, and it is not a substitute for supervision. Never leave a dog unattended in or near water, even wearing one.",
+						"A life jacket is a buoyancy aid, not a lifesaving device, and it is not a substitute for supervision. Never leave anyone wearing one unattended in or near water.",
 						"Check the fit before every use and inspect the jacket, straps and buckles for wear. Stop using it if anything is damaged.",
-						"Choose the size from the size chart using your dog's measurements, not their breed or weight alone."
+						"Choose the size from the size chart using their measurements, not their breed or weight alone."
 					]
 				},
 				{
@@ -401,7 +401,7 @@
 		"include": [
 			"Your order number, if you have one",
 			"The email address you used at checkout",
-			"For a sizing question, your dog's chest measurement and weight",
+			"For a sizing question, the chest measurement and weight",
 			"For a damaged item, a photo"
 		]
 	},

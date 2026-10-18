@@ -1,5 +1,5 @@
 /**
- * The costume's shop checkout, `/products/pet-christmas-costume/checkout`:
+ * The costume's shop checkout, `/products/christmas-tree-costume/checkout`:
  * where the product page's Add to cart lands, laid out like a hosted shop
  * checkout and driven the way the Christmas ad's visitors arrive, on an
  * iPhone inside the Facebook app (390×664).
@@ -37,7 +37,7 @@ import { chromium } from 'playwright';
 import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
-const SLUG = 'pet-christmas-costume';
+const SLUG = 'christmas-tree-costume';
 const PATH = `/products/${SLUG}/checkout`;
 // As the product page's Add to cart sends it.
 const FROM_PRODUCT = `${PATH}?design=green&size=M&added=1`;
@@ -204,7 +204,7 @@ await page.locator('.shop-bar button').click();
 	const folded = page.locator('#shop-summary-folded');
 	check('the bar opens the summary', (await page.locator('.shop-bar button').getAttribute('aria-expanded')) === 'true' && (await folded.isVisible()));
 	const text = await folded.innerText();
-	check('it shows the item, its colour and size, and the totals', /Pet Christmas Tree Costume/.test(text) && /Green · M/.test(text) && /Shipping\s*Free/.test(text) && /Total\s*USD\s*\$27\.99/.test(text), text);
+	check('it shows the item, its colour and size, and the totals', /Christmas Tree Costume/.test(text) && /Green · M/.test(text) && /Shipping\s*Free/.test(text) && /Total\s*USD\s*\$27\.99/.test(text), text);
 	await page.locator('.shop-bar button').click();
 	check('and folds again', !(await folded.isVisible()));
 }

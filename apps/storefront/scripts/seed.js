@@ -8,7 +8,7 @@
 import { createDb, createStoreService } from 'ecomwithai';
 import { insertProduct, orderLines } from './catalog.js';
 import { PRODUCTS } from './products.js';
-import { BENEFITS, EMAIL, FAQ, SIZE_CHART, SLUG, STORE, TRANSLATIONS } from './content.js';
+import { BENEFITS, EMAIL, FAQ, PHOTOS, SIZE_CHART, SLUG, STORE, TRANSLATIONS } from './content.js';
 
 const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
 const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -165,7 +165,7 @@ for (const [index, [code, label]] of COLOURS.entries()) {
 		args: [
 			STORE.id,
 			productId,
-			`/products/${SLUG}/${code}.jpg`,
+			`${PHOTOS}/${code}.jpg`,
 			`${TRANSLATIONS.en.title} in ${label}`,
 			index,
 			colourValueIds[code]

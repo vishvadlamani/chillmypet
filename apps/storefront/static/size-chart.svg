@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 980" role="img"
      aria-labelledby="sc-title sc-desc" font-family="Poppins, Helvetica, Arial, sans-serif">
-  <title id="sc-title">Dog life jacket size chart</title>
+  <title id="sc-title">Life jacket size chart</title>
   <desc id="sc-desc">Manufacturer sizing. XS: chest 13.0–17.7 in, neck 9.8–11.8 in, back 7.9 in,
     0–6 lb. S: chest 16.9–21.7 in, neck 11.8–13.8 in, back 9.8 in, 6–13 lb.
     M: chest 22.8–27.6 in, neck 15.7–21.7 in, back 12.2 in, 13–24 lb.
@@ -29,7 +29,7 @@
     <text x="530" y="296">NECK GIRTH</text>
     <text x="700" y="296">BACK LENGTH</text>
     <text x="850" y="296">WEIGHT</text>
-    <text x="1030" y="296">EXAMPLE DOGS</text>
+    <text x="1030" y="296">EXAMPLE BREEDS</text>
   </g>
 
   <g fill="#0b3c49" font-size="18" text-anchor="middle">
@@ -97,6 +97,6 @@
   <text x="641" y="909" font-size="18" fill="#12858f">a jacket that rides loose is safer than tight.</text>
 
   <text x="600" y="958" text-anchor="middle" font-size="15" fill="#5d757c">
-    Breed examples are a guide. Always measure your dog.
+    Breed examples are a guide. Always measure first.
   </text>
 </svg>

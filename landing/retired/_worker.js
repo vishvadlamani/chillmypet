@@ -23,7 +23,7 @@
  * delivery that still arrives should fail loudly in Stripe's Dashboard, not be
  * accepted and lost.
  */
-export const SELLING_INSTEAD = 'https://chillmypet.com/products/pet-christmas-costume';
+export const SELLING_INSTEAD = 'https://chillmypet.com/products/christmas-tree-costume';
 
 /** Choices the hoodie pages put in their links; they name nothing on the costume. */
 const THEIR_OWN_CHOICES = ['design', 'size', 'added'];

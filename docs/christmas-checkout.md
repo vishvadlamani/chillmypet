@@ -2,7 +2,7 @@
 
 `checkout: 'shop'` in `pages.ts`: a checkout laid out like a hosted shop
 checkout. Since 2026-10-18 it is the costume's,
-`https://chillmypet.com/products/pet-christmas-costume/checkout?design=…&size=…&added=1`,
+`https://chillmypet.com/products/christmas-tree-costume/checkout?design=…&size=…&added=1`,
 where the product page's **Add to cart** goes. It was built on 2026-10-17 for
 the Christmas Pouch Hoodie, whose landing page's Buy now sent buyers to it;
 that hoodie and its landing page were retired on 2026-10-18 (AGENTS.md, "The
