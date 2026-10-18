@@ -134,12 +134,26 @@ runs with the same reach as this codebase, by whoever holds container access —
 and a Meta pixel published in it would double-count against the ones the
 snippet already initialises.
 
-What the container holds, as published on 2026-10-18 (version 6):
+What the container holds, as published on 2026-10-18 (version 7):
 - A GA4 Google tag for `G-YCFPQ38SXP`, which sends page_view (DOM Ready).
 - A GA4 event tag on the "Shop events only" trigger: custom events matching
-  `view_item|add_to_cart|begin_checkout|add_payment_info|purchase`. It carries
-  `transaction_id`, `event_id` and the `_fbp`/`_fbc` values. Its
-  `transport_url` is empty, so there is no server-side GTM.
+  `view_item|add_to_cart|begin_checkout|add_payment_info|purchase`, with
+  **Send Ecommerce data** on (source: Data Layer), so `currency`, `value`,
+  `items` and `transaction_id` come from the push's `ecommerce` object. Its own
+  parameters are only `user_data`, `event_id`, `first_party_collection` and
+  the `_fbp`/`_fbc` values. Its `transport_url` is empty, so there is no
+  server-side GTM.
+
+**Never map ecommerce fields by hand in that tag.** It came from Meta's
+Conversions API gateway template, whose variables read `eventModel.value`,
+`eventModel.currency`, `eventModel.items` and `eventModel.transaction_id`:
+the shape of a gtag() call, not of this store's `ecommerce` pushes. Until
+version 7 the tag sent those, so every GA4 event had no value or items and
+every purchase had no order number. GA4 showed purchases at $0 revenue (on
+17–18 Oct: 17 purchases, $0) and could not dedupe a reloaded success page.
+The `eventModel.*` variables are still in the container, unused; a
+parameter row pointing at one of them brings the bug back. Verified on the
+live page: the `view_item` hit carries `cu=USD`, `epn.value` and `pr1`.
 - One **paused** custom-template tag. Leave it paused unless you know it is not
   a Meta tag.
 
