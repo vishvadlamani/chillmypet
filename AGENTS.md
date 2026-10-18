@@ -1789,3 +1789,9 @@ Commit messages: what changed and why it matters, not a file list.
 
 Verify before claiming done: `npm run check && npm test && npm run build`, plus
 `npm run test:e2e` for anything touching checkout, cart, or tracking.
+
+**Reporting to the owner, in chat and in the ChillMyPet Ads sheet's `Updates`
+rows: keep it simple, and always end with what we can fix or improve.** Plain
+words, a few short lines, no tables of event names or ids. Say what works in
+one line, then list the fixes and improvements, each with what it would take.
+The owner asked for this on 2026-10-18 and wants it kept.
