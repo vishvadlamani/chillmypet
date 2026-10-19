@@ -33,9 +33,12 @@ function check(label: string, actual: unknown, expected: unknown) {
 const COSTUME = 'christmas-tree-costume';
 const REINDEER = 'christmas-hoodie';
 const SANTA = 'santa-costume-with-gift';
+const OUTFIT = 'santa-outfit';
 const RETIRED = 'christmas-pouch-hoodie';
 /** Every product the list carries, in order: what one sync adds and the next one skips. */
-const LISTED = [COSTUME, REINDEER, SANTA];
+const LISTED = [COSTUME, REINDEER, SANTA, OUTFIT];
+/** The products the 2026-10-18 renames and copy changes reach: the outfit came after. */
+const RENAMED = [COSTUME, REINDEER, SANTA];
 const VARIANTS = PRODUCTS.reduce((n, p) => n + p.variants.length, 0);
 
 // A file, not `:memory:`: the libSQL client reopens its connection around a
@@ -70,7 +73,7 @@ check(
 	schemaStatements(SCHEMA).length
 );
 check(
-	'the costume, the reindeer hoodie and the Santa costume are the products every deployment must have',
+	'the costume, the reindeer hoodie, the Santa costume and the Santa outfit are the products every deployment must have',
 	PRODUCTS.map((p) => p.slug),
 	LISTED
 );
@@ -192,7 +195,7 @@ check(
 		});
 	}
 	const first = await syncCatalogue(db);
-	check('the sync recopies all three Christmas products', first.recopied, LISTED);
+	check('the sync recopies the three Christmas products it renamed', first.recopied, RENAMED);
 	check('its title', await field('title'), title.to);
 	check('and its description, which says no pet, dog or cat', /little one/.test(await field('description')) && !/\b(pets?|dogs?|cats?)\b/i.test(await field('description')), true);
 	const second = await syncCatalogue(db);
@@ -250,7 +253,8 @@ check(
 	const FIRST_TITLES: Record<string, string> = {
 		[COSTUME]: 'Dog Christmas Tree Costume',
 		[REINDEER]: 'Reindeer Christmas Dog Hoodie',
-		[SANTA]: 'Santa Pet Costume with Gift'
+		[SANTA]: 'Santa Pet Costume with Gift',
+		[OUTFIT]: 'Santa Outfit'
 	};
 	for (const def of PRODUCTS) {
 		await insertProduct(db, STORE_ID, {
@@ -266,7 +270,7 @@ check(
 		translations: { en: { title: 'Dog Life Jacket' } },
 		variants: shape.variants.map((v) => ({ ...v, sku: `DLJ-${v.sku}` }))
 	});
-	check('the first slugs are the old dog and pet ones', PRODUCTS.map((p) => firstSlug(p.slug)), ['dog-christmas-costume', 'reindeer-dog-hoodie', 'santa-pet-costume']);
+	check('the first slugs are the old dog and pet ones', PRODUCTS.map((p) => firstSlug(p.slug)), ['dog-christmas-costume', 'reindeer-dog-hoodie', 'santa-pet-costume', OUTFIT]);
 	const variantIds = async () =>
 		(await db.execute('select id from product_variants order by id')).rows.map((r) => Number(r.id));
 	const before = await variantIds();
@@ -293,8 +297,8 @@ check(
 	);
 	check(
 		'and named with no pet, dog or cat',
-		[await title(COSTUME), await title(REINDEER), await title(SANTA), await title('life-jacket')],
-		['Christmas Tree Costume', 'Christmas Hoodie', 'Santa Costume with Gift', 'Life Jacket']
+		[await title(COSTUME), await title(REINDEER), await title(SANTA), await title(OUTFIT), await title('life-jacket')],
+		['Christmas Tree Costume', 'Christmas Hoodie', 'Santa Costume with Gift', 'Santa Outfit', 'Life Jacket']
 	);
 	const second = await syncCatalogue(db);
 	check('a second sync renames nothing', second.renamed, []);

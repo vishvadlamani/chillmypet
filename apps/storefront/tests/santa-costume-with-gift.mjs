@@ -54,7 +54,7 @@ function check(label, cond, detail) {
 // The owner's rule since 2026-10-18, site-wide: page text, header, footer and
 // the tab title. Scripts, styles and attributes (photo alt text, file names)
 // aside; "ChillMyPet" has no word boundary before "Pet", so the brand passes.
-for (const path of ['/', '/christmas', '/catalog', '/products/life-jacket', '/products/christmas-tree-costume', '/products/christmas-hoodie', `/products/${SLUG}`, '/contact', '/policies/shipping', '/policies/refunds']) {
+for (const path of ['/', '/christmas', '/catalog', '/products/life-jacket', '/products/christmas-tree-costume', '/products/christmas-hoodie', `/products/${SLUG}`, '/products/santa-outfit', '/contact', '/policies/shipping', '/policies/refunds']) {
 	const res = await fetch(`${BASE}${path}`);
 	const words = (await res.text())
 		.replace(/<script[\s\S]*?<\/script>/g, ' ')

@@ -22,8 +22,9 @@
 import { CHRISTMAS_TREE_COSTUME } from './christmas-tree-costume.js';
 import { CHRISTMAS_HOODIE } from './christmas-hoodie.js';
 import { SANTA_COSTUME } from './santa-costume-with-gift.js';
+import { SANTA_OUTFIT } from './santa-outfit.js';
 
 /** The store these products belong to. The seed's default; one tenant today. */
 export const STORE_ID = 'chillmypet';
 
-export const PRODUCTS = [CHRISTMAS_TREE_COSTUME, CHRISTMAS_HOODIE, SANTA_COSTUME];
+export const PRODUCTS = [CHRISTMAS_TREE_COSTUME, CHRISTMAS_HOODIE, SANTA_COSTUME, SANTA_OUTFIT];

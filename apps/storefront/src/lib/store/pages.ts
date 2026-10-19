@@ -6,6 +6,7 @@ import { CHRISTMAS_HOODIE_PAGE } from './christmas-hoodie-manifest';
 import { RETIRED_PRODUCTS } from '../../../scripts/retired-products.js';
 import { SLUG_CHANGES } from '../../../scripts/slug-changes.js';
 import { SANTA_COSTUME_PAGE } from './santa-costume-manifest';
+import { SANTA_OUTFIT_PAGE } from './santa-outfit-manifest';
 
 export interface ProductPage {
 	manifest: FunnelDefinition;
@@ -72,6 +73,8 @@ export const CHRISTMAS_TREE_COSTUME_SLUG = 'christmas-tree-costume';
 export const CHRISTMAS_HOODIE_SLUG = 'christmas-hoodie';
 /** Kept in step with `scripts/santa-costume-with-gift.js`. */
 export const SANTA_COSTUME_SLUG = 'santa-costume-with-gift';
+/** Kept in step with `scripts/santa-outfit.js`. */
+export const SANTA_OUTFIT_SLUG = 'santa-outfit';
 
 /**
  * Which manifest renders which product.
@@ -113,6 +116,12 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 	},
 	[SANTA_COSTUME_SLUG]: {
 		manifest: SANTA_COSTUME_PAGE,
+		pickSize: true,
+		theme: 'tree',
+		christmas: true
+	},
+	[SANTA_OUTFIT_SLUG]: {
+		manifest: SANTA_OUTFIT_PAGE,
 		pickSize: true,
 		theme: 'tree',
 		christmas: true
