@@ -553,6 +553,22 @@ manually" link that only appeared after three characters. The country now
 starts on United States and can be changed; e2e and store tests run in dev, so
 they still drive the lookup path against the fixture.
 
+**A page from before a deploy has dead buttons, so pages are `no-store`.**
+Every build renames its script files and the deploy deletes the old ones
+(`/_app/immutable/entry/start.<hash>.js` answers 404 the moment the next
+build is live). A page the browser kept from before (an open tab, a restored
+tab, the back button's disk cache) renders, asks for those files, gets 404s,
+and never hydrates: no colour, size or bundle responds and Add to cart does
+nothing. The owner hit exactly that on 2026-10-19 after four deploys in a
+day, and every test passed because tests load fresh pages. Two guards:
+`hooks.server.ts` sends `Cache-Control: no-store` on every HTML response
+(a page also carries its request's PageView event id, which a kept copy
+would resend), and the first script in `app.html` reloads the page once when
+an `/_app/immutable/` file fails to load (at most once a minute; with storage
+blocked it marks the address `fresh=1` instead, keeping the rest of the
+query, so an ad's `fbclid` survives). If a page renders but nothing on it
+responds, check those files answer 200 before looking at the code.
+
 **Never touch `sessionStorage` or `localStorage` outside a try.** Where a
 browser blocks site data (Safari's "Block All Cookies", some in-app browsers)
 even `typeof sessionStorage` throws a SecurityError. Both block pages read

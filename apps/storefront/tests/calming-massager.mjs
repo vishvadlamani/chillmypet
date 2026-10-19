@@ -59,6 +59,9 @@ for (const path of ['/catalog', '/']) {
 	const res = await fetch(URL_);
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
+	// The page carries this request's event ids and this build's script names:
+	// a copy the browser keeps would resend one and, after a deploy, load none.
+	check('browsers are told not to keep the page', res.headers.get('cache-control') === 'no-store', String(res.headers.get('cache-control')));
 	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Calming Massager/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('it wears the brand skin, not Christmas', /class="[^"]*brand-skin/.test(html));
