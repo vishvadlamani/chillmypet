@@ -5,9 +5,11 @@
  *
  * Photos were supplied by the owner in chat for this listing on 2026-10-19
  * (AGENTS.md, provenance): a golden retriever wearing the khaki one, which is
- * `khaki.jpg` and the listing image; `black.jpg`, the black one cut from the
- * supplier's two-colour shot (the edge of the khaki one beside it painted
- * out); and `on-the-back.jpg`, a Labrador wearing the khaki one, cropped
+ * `khaki.jpg` and the listing image; `black.jpg`, the supplier's composite
+ * of the black one with its strap, box, manual and cable and a golden
+ * retriever wearing it, padded with white to the gallery's frame (sent the
+ * same day, after a blurry close-up came off the page); and
+ * `on-the-back.jpg`, a Labrador wearing the khaki one, cropped
  * clear of the supplier's "PET MASSAGER" lettering. They look AI-generated
  * and their source and licence were not stated: ask before an ad uses them.
  *
@@ -59,7 +61,7 @@ const COLOURS = [
 		hex: '#1f1f1f',
 		sku: 'BLACK',
 		photo: 'black.jpg',
-		alt: 'The black massager on its own: a round fabric body with two buttons on top and four soft silicone hands'
+		alt: 'The black massager with its strap, its box and manual, and a golden retriever wearing it'
 	}
 ];
 

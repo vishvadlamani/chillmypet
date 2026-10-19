@@ -857,10 +857,18 @@ hands that knead, in khaki or black, **one size**, $57.99 (the owner's price), n
   hand; the test fails on those words.
 - **Its photos were supplied by the owner in chat, look AI-generated, and
   their source and licence are unstated**: ask before an ad uses them.
-  `khaki.jpg` is the first image as sent; `black.jpg` is the black unit cut
-  from the second, with the edge of the khaki unit beside it painted out;
-  `on-the-back.jpg` is the second image's Labrador, cropped clear of the
-  supplier's "PET MASSAGER" lettering. All re-encoded with no metadata.
+  `khaki.jpg` is the first image as sent; `on-the-back.jpg` is the second
+  image's Labrador, cropped clear of the supplier's "PET MASSAGER"
+  lettering; `black.jpg` is the supplier's composite of the black one (with
+  strap, box, manual and cable, and a golden retriever wearing it), padded
+  with white to the gallery's 1100:985 frame. All re-encoded with no
+  metadata. `black.jpg` was first a close-up cut from the two-colour shot
+  and blown up 2.5x, which read as blurry on the page; it was replaced in
+  place, same path, so the live media row, the cart and the checkout
+  thumbnails followed with no catalogue migration. That is the way to
+  reshoot any product photo. (`photos: { <code>: { src: '' } }` on a
+  `design_gallery` takes a colour's photo off a page meanwhile and shows its
+  "coming soon" box.)
 - **It pays on a page of its own**, `/products/calming-massager/checkout`
   (`checkout: 'shop'`, like the costume; the owner's call, 2026-10-19), so
   its checkouts have their own address in GA4 and in URL-based custom
