@@ -99,7 +99,9 @@
 		"quantity": "Qty",
 		"decrease": "One fewer {item}",
 		"increase": "One more {item}",
-		"quantityOf": "Quantity of {item}"
+		"quantityOf": "Quantity of {item}",
+		"loadFailed": "We couldn't load your cart. Your items are still saved.",
+		"retry": "Try again"
 	},
 	"checkout": {
 		"title": "Checkout",
