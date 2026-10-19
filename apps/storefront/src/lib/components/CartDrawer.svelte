@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import QuantityStepper from '$lib/components/QuantityStepper.svelte';
@@ -16,9 +17,11 @@
 	 * Checkout goes on from it. Without JavaScript the bag is still the plain
 	 * link to `/checkout`.
 	 *
-	 * Prices are the server's, as on the checkout: the cart's own are
-	 * display-only, so every change is re-priced through `/api/cart`, which
-	 * also gives the title and photo a cart line doesn't carry.
+	 * The lines come from the cart in the browser, so they can be changed the
+	 * moment the panel opens, whatever the network is doing. Each change is
+	 * re-priced through `/api/cart`, which also gives the title and photo a
+	 * cart line doesn't carry; the cart's own prices are display-only and
+	 * stand in until it answers. The order is priced on the server either way.
 	 */
 	let dialog = $state<HTMLDialogElement>();
 	let isOpen = $state(false);
@@ -53,15 +56,51 @@
 	let t = $derived(createTranslator(page.data.locale ?? defaultLocale));
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let priced = $state<Priced | null>(null);
-	// Set when a re-price fails before anything was shown, so the panel offers
-	// Try again and the checkout instead of "Loading…" that never ends — which
-	// is what a timed-out request, an error page (a 1101 answers with HTML) or
-	// a dropped connection used to leave behind.
+	// The cart this answer priced, so a discount for 3 units never sits under 2.
+	let pricedKey = $state('');
+	// Set when the last re-price failed. The lines stay on screen and editable,
+	// with a note and Try again: a slow or broken /api/cart (a timeout, an
+	// error page such as a 1101, a dropped connection) once left nothing but
+	// "Loading…", so a full bag could not be changed at all.
 	let failed = $state(false);
 	let attempt = $state(0);
 
 	// A request that never settles counts as failed after this long.
 	const PRICE_TIMEOUT_MS = 10_000;
+
+	/**
+	 * What the server last said about each variant (title, photo), kept in
+	 * the browser, so the lines open with their names and photos at once on
+	 * any page rather than after the round trip. Display only, like the cart.
+	 */
+	const DESCRIBED_KEY = 'chillmypet.cart.described.v1';
+	type Described = Record<number, { title: string; image: string | null }>;
+	let described = $state<Described>(readDescribed());
+
+	function readDescribed(): Described {
+		if (!browser) return {};
+		try {
+			const parsed = JSON.parse(localStorage.getItem(DESCRIBED_KEY) ?? '{}');
+			return parsed && typeof parsed === 'object' ? parsed : {};
+		} catch {
+			return {};
+		}
+	}
+
+	function remember(pricedLines: PricedLine[]) {
+		const next: Described = {};
+		for (const line of cart.lines) if (described[line.variantId]) next[line.variantId] = described[line.variantId];
+		for (const line of pricedLines) next[line.variantId] = { title: line.title, image: line.image };
+		described = next;
+		try {
+			localStorage.setItem(DESCRIBED_KEY, JSON.stringify(next));
+		} catch {
+			// Private browsing or a full quota: the names come from the server instead.
+		}
+	}
+
+	const keyOf = (payload: { variantId: number; quantity: number }[]) =>
+		payload.map((l) => `${l.variantId}x${l.quantity}`).join(',');
 
 	// Priced only while open: the bag is on every page, and a fetch per page
 	// view for a panel nobody opened is not worth it.
@@ -69,10 +108,7 @@
 		if (!isOpen || !cart.hydrated) return;
 		void attempt;
 		const payload = cart.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity }));
-		if (payload.length === 0) {
-			priced = { lines: [], discountCents: 0, bundlePercentOff: 0, currency: 'USD' };
-			return;
-		}
+		if (payload.length === 0) return;
 
 		let cancelled = false;
 		failed = false;
@@ -92,6 +128,8 @@
 				if (cancelled) return;
 				if (!Array.isArray(data?.lines)) throw new Error('cart: no lines');
 				priced = data;
+				pricedKey = keyOf(payload);
+				remember(data.lines);
 				// A line the server no longer prices is a product taken off sale
 				// still saved in this browser. Drop it, as the checkout does, or
 				// the count says 10 over lines that add up to 7.
@@ -99,8 +137,8 @@
 				for (const line of cart.lines) if (!sold.has(line.variantId)) cart.remove(line.variantId);
 			})
 			.catch(() => {
-				// Lines already on screen stay; the checkout prices them again anyway.
-				if (!cancelled && priced === null) failed = true;
+				// The lines stay as they are; the checkout prices them again anyway.
+				if (!cancelled) failed = true;
 			})
 			.finally(() => clearTimeout(timer));
 		return () => {
@@ -110,16 +148,39 @@
 		};
 	});
 
-	// The cart's count, not the priced one, so the number and the line total
-	// follow the tap at once rather than when the re-price comes back.
-	const quantityOf = (variantId: number) =>
-		cart.lines.find((l) => l.variantId === variantId)?.quantity ?? 0;
-	let lines = $derived((priced?.lines ?? []).filter((l) => quantityOf(l.variantId) > 0));
-	let currency = $derived(priced?.currency ?? 'USD');
-	let subtotalCents = $derived(
-		lines.reduce((sum, l) => sum + l.unitPriceCents * quantityOf(l.variantId), 0)
+	/** "calming-massager" → "Calming massager", until the server names it. */
+	const titleFromSlug = (slug: string) => {
+		const words = slug.replace(/-/g, ' ');
+		return words.charAt(0).toUpperCase() + words.slice(1);
+	};
+
+	// Drawn from the cart itself, so the lines, their − + and Remove are there
+	// the moment the drawer opens and never wait on the network. The server's
+	// answer fills in the title, photo and price as it arrives; the count
+	// follows the tap at once rather than when the re-price comes back.
+	let lines = $derived(
+		cart.lines.map((line) => {
+			const fresh = priced?.lines.find((l) => l.variantId === line.variantId);
+			const known = fresh ?? described[line.variantId];
+			return {
+				variantId: line.variantId,
+				slug: line.slug,
+				title: known?.title ?? titleFromSlug(line.slug),
+				colour: line.colour,
+				size: line.size,
+				image: known?.image ?? null,
+				unitPriceCents: fresh?.unitPriceCents ?? line.unitPriceCents,
+				quantity: line.quantity
+			};
+		})
 	);
-	let discountCents = $derived(priced?.discountCents ?? 0);
+	let currency = $derived(priced?.currency ?? 'USD');
+	let subtotalCents = $derived(lines.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0));
+	// Only for the cart it was worked out on; after a tap it waits for the re-price.
+	let current = $derived(
+		priced !== null && pricedKey === keyOf(cart.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })))
+	);
+	let discountCents = $derived(current ? (priced?.discountCents ?? 0) : 0);
 
 	function colourName(code: string): string {
 		return t(`product.colors.${code}` as never);
@@ -152,14 +213,6 @@
 				<p>{t('cart.empty')}</p>
 				<a href="/catalog" class="go">{t('cart.emptyAction')}</a>
 			</div>
-		{:else if priced === null && failed}
-			<div class="empty" role="alert">
-				<p>{t('cart.loadFailed')}</p>
-				<a href="/checkout" class="go">{t('cart.checkout')}</a>
-				<button type="button" class="keep" onclick={() => attempt++}>{t('cart.retry')}</button>
-			</div>
-		{:else if priced === null}
-			<p class="loading">{t('common.loading')}</p>
 		{:else}
 			<ul class="lines">
 				{#each lines as line (line.variantId)}
@@ -175,7 +228,7 @@
 							<div class="controls">
 								<QuantityStepper
 									variantId={line.variantId}
-									quantity={quantityOf(line.variantId)}
+									quantity={line.quantity}
 									title={line.title}
 								/>
 								<button type="button" class="remove" onclick={() => cart.remove(line.variantId)}>
@@ -184,7 +237,7 @@
 							</div>
 						</div>
 						<span class="amount">
-							{formatMoney(line.unitPriceCents * quantityOf(line.variantId), locale, currency)}
+							{formatMoney(line.unitPriceCents * line.quantity, locale, currency)}
 						</span>
 					</li>
 				{/each}
@@ -198,11 +251,17 @@
 					</div>
 					{#if discountCents > 0}
 						<div class="saving">
-							<dt>{t('checkout.bundleDiscount')} ({priced.bundlePercentOff}%)</dt>
+							<dt>{t('checkout.bundleDiscount')} ({priced?.bundlePercentOff}%)</dt>
 							<dd>−{formatMoney(discountCents, locale, currency)}</dd>
 						</div>
 					{/if}
 				</dl>
+				{#if failed}
+					<p class="note" role="status">
+						{t('cart.priceFailed')}
+						<button type="button" class="retry" onclick={() => attempt++}>{t('cart.retry')}</button>
+					</p>
+				{/if}
 				<a href="/checkout" class="go">{t('cart.checkout')}</a>
 				<button type="button" class="keep" onclick={close}>{t('cart.emptyAction')}</button>
 			</footer>
@@ -287,8 +346,7 @@
 		stroke-width: 1.8;
 		stroke-linecap: round;
 	}
-	.empty,
-	.loading {
+	.empty {
 		padding: 32px 20px;
 		font-size: 16px;
 		color: #5b6b70;
@@ -381,6 +439,23 @@
 		font-size: 15px;
 		font-weight: 500;
 		color: #2f7d4f;
+	}
+	.note {
+		margin: -4px 0 14px;
+		font-size: 14px;
+		line-height: 1.4;
+		color: #5b6b70;
+	}
+	.retry {
+		/* Inline padding grows the tap area without spacing out the lines. */
+		margin: -10px -2px;
+		padding: 10px 2px;
+		border: 0;
+		background: none;
+		color: inherit;
+		font: inherit;
+		text-decoration: underline;
+		cursor: pointer;
 	}
 	dd {
 		margin: 0;

@@ -103,6 +103,7 @@
 		"increase": "One more {item}",
 		"quantityOf": "Quantity of {item}",
 		"loadFailed": "We couldn't load your cart. Your items are still saved.",
+		"priceFailed": "We couldn't check prices just now. The checkout shows the final total.",
 		"retry": "Try again"
 	},
 	"checkout": {
