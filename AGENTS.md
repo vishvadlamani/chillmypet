@@ -553,6 +553,20 @@ manually" link that only appeared after three characters. The country now
 starts on United States and can be changed; e2e and store tests run in dev, so
 they still drive the lookup path against the fixture.
 
+**One cart line per variant, always.** The cart drawer and the checkout
+list lines keyed by `variantId`, and a duplicate key makes Svelte throw
+`each_key_duplicate` from the layout, after which nothing on the page
+responds: colours, sizes, bundle cards and photos all go dead. The owner's
+browser held the costume twice on 2026-10-19, once under
+`dog-christmas-costume` (carted before the renames) and once under
+`christmas-tree-costume`, because the one-page checkout kept "other
+products" by slug and put the variant back. Now `cart.svelte.ts` merges
+lines by variant on load (saving the mended cart) and on `replace`, the
+one-page checkout counts a line as its own by variant as well as slug, and
+`/api/cart` answers one line per variant, as orders count them.
+`tests/cart-drawer.mjs` replays that cart. Never key a list by anything a
+cart can hold twice.
+
 **A page from before a deploy has dead buttons, so pages are `no-store`.**
 Every build renames its script files and the deploy deletes the old ones
 (`/_app/immutable/entry/start.<hash>.js` answers 404 the moment the next

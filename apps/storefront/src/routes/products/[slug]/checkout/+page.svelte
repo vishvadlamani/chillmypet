@@ -184,7 +184,12 @@
 		if (!cart.hydrated) return;
 		const want = wanted;
 		untrack(() => {
-			const mine = cart.lines.filter((l) => l.slug === data.slug);
+			// This product's lines by variant as well as by slug: a line carted
+			// before a rename still carries the old slug, and keeping it as
+			// "another product" put the same variant in the cart twice.
+			const own = new Set(data.variantIndex.map((v) => v.variantId));
+			const isMine = (l: { slug: string; variantId: number }) => l.slug === data.slug || own.has(l.variantId);
+			const mine = cart.lines.filter(isMine);
 			const units = want ? (want.units ?? mine[0]?.quantity ?? 1) : 0;
 			const unchanged = want
 				? mine.length === 1 &&
@@ -193,7 +198,7 @@
 				: mine.length === 0;
 			if (unchanged) return;
 
-			const others = cart.lines.filter((l) => l.slug !== data.slug);
+			const others = cart.lines.filter((l) => !isMine(l));
 			const next = want
 				? [
 						{

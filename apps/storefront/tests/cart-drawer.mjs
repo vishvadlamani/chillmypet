@@ -18,6 +18,8 @@
  *     the browser) leaves the cart, so the count matches the lines shown
  *   - /checkout says it couldn't load the cart, with Try again, rather than
  *     "Loading…" for good or an empty cart
+ *   - a cart holding one variant twice (an old slug and a new one) is mended
+ *     to one line, and the pages keep responding
  *
  * Expects a dev server with no STRIPE_SECRET_KEY, like tests/store-flow.mjs.
  */
@@ -156,6 +158,54 @@ async function visitor(lines, pricing) {
 	const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('chillmypet.cart.v1') ?? '[]'));
 	check('and the browser no longer saves it', saved.length === 1 && saved[0].variantId === COSTUME.variantId, JSON.stringify(saved));
 	await ctx.close();
+}
+
+// --- the same variant saved twice, under an old slug and the new one ------------------
+// What the owner's browser held on 2026-10-19: the costume carted before its
+// renames (`dog-christmas-costume`) and again since. Two lines with one
+// variant made every list keyed by variant throw `each_key_duplicate`, and the
+// throw left the product page's colours, sizes, bundles and photos dead.
+{
+	const OLD = { ...COSTUME, slug: 'dog-christmas-costume', quantity: 1 };
+	const NEW = { ...COSTUME, quantity: 1 };
+	const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+	for (const pattern of ['**/connect.facebook.net/**', '**/facebook.com/tr*', '**/google.com/g/collect*', '**/google-analytics.com/**', '**/googletagmanager.com/**', '**/api/track*'])
+		await ctx.route(pattern, (route) => route.abort());
+	await ctx.addInitScript((saved) => {
+		if (!sessionStorage.getItem('seeded')) {
+			localStorage.setItem('chillmypet.cart.v1', JSON.stringify(saved));
+			sessionStorage.setItem('seeded', '1');
+		}
+	}, [OLD, NEW]);
+	const page = await ctx.newPage();
+	const errors = [];
+	page.on('pageerror', (e) => errors.push(e.message));
+	await page.goto(`${BASE}/products/${COSTUME.slug}`, { waitUntil: 'networkidle' });
+	const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('chillmypet.cart.v1') ?? '[]'));
+	check('a cart holding one variant twice is mended to one line on load', saved.length === 1 && saved[0].quantity === 2, JSON.stringify(saved));
+	await page.locator('#variant-picker label', { hasText: 'Red' }).click();
+	await page.waitForTimeout(500);
+	check('the product page still responds: Red brings the red photo', (await page.locator('.gallery .frame img').getAttribute('src'))?.includes('red'), await page.locator('.gallery .frame img').getAttribute('src'));
+	await page.locator('header.site-header a[href="/checkout"]').first().click();
+	const drawer = page.locator('dialog.cart-drawer');
+	await drawer.waitFor({ state: 'visible' });
+	check('the bag shows it once, as two', (await drawer.locator('.lines li').count()) === 1 && /\(2\)/.test(await drawer.locator('h2').innerText()));
+	// Its one-page checkout must not put the variant back twice either.
+	await page.goto(`${BASE}/products/${COSTUME.slug}/checkout?design=${COSTUME.colour}&size=${COSTUME.size}`, { waitUntil: 'networkidle' });
+	await page.waitForTimeout(1500);
+	const after = await page.evaluate(() => JSON.parse(localStorage.getItem('chillmypet.cart.v1') ?? '[]'));
+	check('its payment page keeps one line for that variant', after.filter((l) => l.variantId === after[0]?.variantId).length === 1 && after.length === 1, JSON.stringify(after));
+	check('and nothing threw', errors.length === 0, errors.join(' | '));
+	await ctx.close();
+}
+{
+	const res = await fetch(`${BASE}/api/cart`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json', origin: BASE },
+		body: JSON.stringify({ lines: [{ variantId: COSTUME.variantId, quantity: 1 }, { variantId: COSTUME.variantId, quantity: 2 }] })
+	});
+	const body = await res.json();
+	check('/api/cart answers one line per variant, quantities added', body.lines?.length === 1 && body.lines[0].quantity === 3, JSON.stringify(body.lines));
 }
 
 await browser.close();
