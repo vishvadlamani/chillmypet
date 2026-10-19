@@ -24,44 +24,31 @@ export const STORE_PAGE: FunnelDefinition = {
 	blocks: [
 		{
 			id: 'gallery',
-			component: 'media',
+			component: 'design_gallery',
 			version: 1,
-			// Left column of the product hero; the buy column is beside it and the
-			// right half stays empty until `bundles` lands.
-			//
-			// No `span`: the row's own template carries the exact 715/537 all three
-			// reference storefronts run. Twelfths can't express 55/45.
+			// Left column of the product hero; the buy column is beside it.
 			layout: { row: 'hero', col: 'left' },
+			requires: ['variants.designs'],
 			props: {
-				// Real product photos now, picked for what each one shows: full view,
-				// side profile, in context, in use, then the build detail. Still
-				// customer UGC rather than studio shots — good enough to sell from,
-				// but a real launch wants proper photography here.
-				items: [
-					// The only real product shot there is — studio, on white, showing the
-					// handle, buckles and reflective strips. The rest are customer
-					// photos standing in until there's proper photography.
-					// The catalogue's sailboat photo on the Christmas shots' warm
-					// backdrop (`card-sailboat.jpg`), so the page opens on the shop's
-					// colours rather than a white tile.
-					{ src: '/products/dog-life-jacket/card-sailboat.jpg', alt: 'Dog life jacket in the Sailboat print, side view' },
-					{ src: '/product-floatly.webp', alt: 'Dog life jacket, side view' },
-					{ src: '/reviews/tile-bulldog.jpg', alt: 'Worn, full view in coral' },
-					{ src: '/reviews/indoor-purple.jpg', alt: 'Side profile showing the reflective strips' },
-					{ src: '/reviews/boat-merle.jpg', alt: 'Worn on a boat in ocean blue' },
-					{ src: '/reviews/kayak-fawn.jpg', alt: 'In use on a kayak' },
-					{ src: '/reviews/detail-zip.jpg', alt: 'Close-up of the zip and reinforced stitching' }
-				],
-				variant: 'gallery',
-				aspect: 'square',
-				thumbnails: true,
-				arrows: true,
-				// Fills its column — the hero row already sets the page width, and a
-				// second max-width inside it would inset the gallery for no reason.
-				width: 'full'
+				designs: { $ref: 'variants.designs' },
+				// Sailboat opens on the catalogue's photo set on the Christmas shots'
+				// warm backdrop (`card-sailboat.jpg`), so the page opens on the
+				// shop's colours rather than a white tile. Green is the catalogue's.
+				photos: {
+					sailboat: {
+						src: '/products/dog-life-jacket/card-sailboat.jpg',
+						alt: 'Dog life jacket in the Sailboat print, side view'
+					}
+				},
+				// The customer photos that ran here (coral, purple, merle, a kayak,
+				// the zip) came off on the owner's call of 2026-10-19: most showed
+				// colours the page no longer sells.
+				extras: [{ src: '/product-floatly.webp', alt: 'Dog life jacket in the Sailboat print, three-quarter view' }],
+				hint: 'Swipe to explore',
+				title: 'Life Jacket photos'
 			}
 		},
-		// ── Right half of the hero. `bundles` and `buy_box` land after these. ──
+		// ── Right half of the hero. ──
 		{
 			id: 'hero-rating',
 			component: 'rating_summary',
@@ -112,28 +99,41 @@ export const STORE_PAGE: FunnelDefinition = {
 			}
 		},
 		{
-			id: 'bundle-picker',
-			component: 'bundles',
+			id: 'picker',
+			component: 'design_size_picker',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
-			// No tiers, no picker — better than an empty box where the price goes.
-			requires: ['bundles.plain'],
+			// No variants in stock, no picker — better than an empty box where
+			// the price goes.
+			requires: ['variants.available'],
 			props: {
-				heading: 'Choose your bundle',
-				// The tiers without a "was" total: each card says its saving in
-				// words, as on the Christmas pages.
+				look: 'pills',
+				designs: { $ref: 'variants.designs' },
+				sizes: { $ref: 'variants.sizes' },
+				available: { $ref: 'variants.available' },
+				price: { $ref: 'variants.price' },
+				priceNote: 'Free shipping',
+				designLabel: 'Colour',
+				sizeLabel: 'Size',
+				// The chart is the next thing in this column.
+				sizeNote: 'Sized by chest and weight: the chart is just below. Between two, size up.',
+				sizeMissing: 'Pick a size first, then we’re good to go.',
+				// The store's real quantity breaks, priced by the server. Its own
+				// field, so a bundle chosen on another page does not carry over.
 				tiers: { $ref: 'bundles.plain' },
-				addons: { $ref: 'bundles.addons' },
-				options: { $ref: 'bundles.colours' },
-				optionLabel: 'Colour',
-				addonPlacement: 'below',
-				// "Buy now", not "Add to cart": this goes straight to /store/checkout
-				// and no cart page exists. The submitted ACTION stays `add_to_cart`
-				// — that's the host contract and the standard pixel event, and tying
-				// it to button copy would break attribution on the first copy test.
+				tierField: 'life_jacket_bundle',
+				tiersTitle: 'Choose your bundle',
+				unitsNoun: 'jackets',
+				tierCopy: [
+					{ units: 1, title: 'One jacket • 1', tag: 'Free US shipping', sub: 'One life jacket', ribbon: 'Just one' },
+					{ units: 2, title: 'Two jackets • 2', tag: 'Free US shipping', sub: 'Two, in the colour and size you pick', ribbon: 'Most popular' },
+					{ units: 3, title: 'Three jackets • 3', tag: 'Free US shipping + best value', sub: 'Three, for the whole pack', ribbon: 'Best value' }
+				],
+				// "Buy now", not "Add to cart": it goes straight to /checkout. The
+				// submitted ACTION stays `add_to_cart` — that's the host contract and
+				// the standard pixel event.
 				cta: 'Buy now',
-				accent: '#0b3c49',
-				width: 'full'
+				ctaNote: 'Secure checkout · Free standard US shipping · 30-day returns'
 			}
 		},
 		{
@@ -205,7 +205,7 @@ export const STORE_PAGE: FunnelDefinition = {
 			component: 'heading',
 			version: 1,
 			layout: { row: 'hero', col: 'right' },
-			props: { text: { $ref: 'sizes.title' }, level: 3, size: 'sm', width: 'full' }
+			props: { text: { $ref: 'sizeChart.title' }, level: 3, size: 'sm', width: 'full' }
 		},
 		{
 			id: 'size-chart',
@@ -404,8 +404,8 @@ export const STORE_PAGE: FunnelDefinition = {
 				eyebrow: 'Every dock, every boat, every lake.',
 				title: 'Let them be the adventurous one.',
 				cta: 'Choose their colour',
-				// An in-page anchor to the bundle picker's heading, not a route.
-				href: '#bundle-picker-label'
+				// An in-page anchor to the picker, not a route.
+				href: '#variant-picker'
 			}
 		},
 		{
@@ -428,7 +428,7 @@ export const STORE_PAGE: FunnelDefinition = {
 				// same state key — otherwise the dock quotes $93 while the picker
 				// above it sells the $85 tier.
 				tiers: { $ref: 'bundles.plain' },
-				selectionField: 'bundle',
+				selectionField: 'life_jacket_bundle',
 				// Fallbacks, used only if the picker is absent (single-SKU page).
 				image: { $ref: 'product.image' },
 				alt: { $ref: 'product.alt' },

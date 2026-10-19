@@ -295,8 +295,10 @@ await page.screenshot({ path: shot('product.png'), fullPage: false });
 // --- the sticky bar must buy what the picker chose ---
 // It sends a tier id and no quantity. Read that back wrong and someone who
 // picked the 3-pack, scrolled, and tapped the bar buys one.
-// The tiers are radio rows, so the label is the control.
-await page.locator('label').filter({ hasText: /3 ×/ }).first().click();
+// The tiers are radio rows, so the label is the control. The size is the
+// buyer's to choose, so the bar buys nothing until one is picked.
+await page.locator('#variant-picker label.tier', { hasText: 'Three jackets' }).click();
+await page.locator('#size-picker label').filter({ hasText: /^\s*S\s*$/ }).click();
 await page.waitForTimeout(400);
 await page.getByRole('button', { name: /buy now/i }).last().click();
 await page.waitForURL('**/checkout', { timeout: 15000 });

@@ -5,7 +5,7 @@ import { loadChristmasDelivery } from '$lib/store/christmas';
 import { onePageCheckout } from '$lib/store/one-page-checkout';
 import { PRODUCT_PAGES, renamedRedirect, retiredRedirect } from '$lib/store/pages';
 import { loadProduct } from '$lib/store/product';
-import { loadVariantPicker, variantEntries } from '$lib/store/variants';
+import { loadVariantPicker, offeredDesigns, variantEntries } from '$lib/store/variants';
 import { placeOrder } from '$lib/server/checkout';
 import { checkoutPayment, checkoutSources } from '$lib/server/checkout-page';
 import type { Actions, PageServerLoad } from './$types';
@@ -39,7 +39,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const [product, bundles, catalogue] = await Promise.all([
 		loadProduct(commerce, locale, slug),
 		loadBundles(commerce, locale, slug),
-		commerce.catalog.getProduct(slug, locale)
+		// Only the designs this page sells (`designs` in pages.ts).
+		commerce.catalog.getProduct(slug, locale).then((p) => p && offeredDesigns(p, page.designs))
 	]);
 	if (!product || !catalogue) error(404, `No product at "${slug}"`);
 	// The product page's listing photo, as there (`cardImage` in pages.ts).

@@ -12,11 +12,21 @@ import { CALMING_MASSAGER_PAGE } from './calming-massager-manifest';
 export interface ProductPage {
 	manifest: FunnelDefinition;
 	/**
-	 * Whether the buyer chooses the size. Off for the life jacket, where the
-	 * host picks the first size in stock in the chosen colour; on for anything
-	 * sized for a wearer the host cannot guess — a person, or a particular dog.
+	 * Whether the buyer chooses the size. On for anything sized for a wearer
+	 * the host cannot guess — a person, or a particular dog. Off, the host buys
+	 * the first size in stock in the chosen colour; no page runs that way now
+	 * (the life jacket did until 2026-10-19, and shipped whatever size came
+	 * first to buyers who never saw a size button).
 	 */
 	pickSize: boolean;
+	/**
+	 * The designs this page sells, by code, when it should not be every one
+	 * the catalogue has. The others stay in the catalogue, with their stock,
+	 * and a cart that already holds one still checks out; this page, its
+	 * one-page checkout and its collection card just stop offering them.
+	 * Unset, every design is offered.
+	 */
+	designs?: string[];
 	/**
 	 * A skin scoped to this page only: `tree` is the shop's quiet
 	 * cream-and-pine look (see `$lib/styles/tree-theme.css`), with the
@@ -90,7 +100,10 @@ export const CALMING_MASSAGER_SLUG = 'calming-massager';
 export const PRODUCT_PAGES: Record<string, ProductPage> = {
 	[PRODUCT_SLUG]: {
 		manifest: STORE_PAGE,
-		pickSize: false,
+		pickSize: true,
+		// Two colours, on the owner's call of 2026-10-19: Sailboat, the print
+		// both of the page's photos show, and Green, the one with every size.
+		designs: ['sailboat', 'green'],
 		// The shop's look since 2026-10-17, like the Christmas pages.
 		theme: 'tree',
 		// sailboat.jpg on the warm backdrop of the Christmas studio shots.

@@ -703,19 +703,32 @@ the jacket never sold at ($63.97) are exactly what the FTC treats as
 deceptive. It is $44.99 with no compare-at (`seed.js`, and `price-changes.js`
 for the live row), its bundle cards read `bundles.plain` and say their saving
 in words, and below the hero it has the Christmas pages' trust strip, FAQ row,
-"real inbox" cards, photo wall and closing band. Its purchase mechanics did
-not change: the `bundles` picker with its colour select, Buy now, the sticky
-bar, the first size in stock (`pickSize: false`). `tests/e2e.mjs` asserts the
+"real inbox" cards, photo wall and closing band. `tests/e2e.mjs` asserts the
 countdown, "today only", "% sold" and was-prices stay gone. The size chart
 (`static/size-chart.svg`) is recoloured to the shop's pine; its numbers are
 unchanged.
+
+**Since 2026-10-19 the life jacket is bought like everything else**: the
+`design_size_picker` (pills) and `design_gallery`, `pickSize: true`, Buy now
+still the button's word. Until then its `bundles` picker had a colour select
+and no size at all, and the host bought the first size in stock, so a buyer
+got S (or whatever came first) without ever seeing a size. On the owner's
+call of the same day it sells **two colours only**, Sailboat and Green
+(`designs` on its `PRODUCT_PAGES` entry): the other eight stay in the
+catalogue with their stock, and `offeredDesigns()` in `$lib/store/variants.ts`
+filters them out of the product page, its one-page checkout and its
+collection card. The gallery is Sailboat (`card-sailboat.jpg`), Green and the
+Sailboat three-quarter shot; the customer photos that ran in it came off.
+Sailboat has only S and L in stock, so its other sizes show crossed out. Its
+chart keeps its own heading through the `sizeChart` namespace, since `sizes`
+is the pickSize pages' table. The bundle choice is `life_jacket_bundle`.
 
 The Christmas products are built differently from the life jacket in three
 ways worth knowing:
 
 - **The buyer picks the size.** `PRODUCT_PAGES` entries carry `pickSize`. Off
-  (the life jacket), the host buys the first size in stock in the chosen
-  colour; on (the costume and the reindeer hoodie, sized for a particular
+  (the life jacket, until 2026-10-19), the host buys the first size in stock
+  in the chosen colour; on (the costume and the reindeer hoodie, sized for a particular
   pet), the host refuses to add anything until a size is chosen and asks the
   picker to prompt instead. The design fills option 1, the slot the cart and
   checkout call `colour`, so nothing downstream changed. Its codes have
@@ -1149,8 +1162,8 @@ Things to know:
   `$lib/store/one-page-checkout.ts` takes the strip, gallery, h1 and picker
   from the product's manifest and the fields from `CHECKOUT_PAGE`, so copy,
   sizes and bundle cards cannot drift from the product page. Only
-  `pickSize` products get one: the life jacket's picker doesn't name a
-  variant, so its URL is a 404.
+  `pickSize` products get one, which is every product since the life jacket
+  got its size picker on 2026-10-19.
 - **One checkout, two pages.** `$lib/components/Checkout.svelte` is the whole
   checkout (re-pricing, cross-form check, card fields, InitiateCheckout,
   AddPaymentInfo) and both pages render it; both actions are `placeOrder`.
