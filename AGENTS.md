@@ -812,6 +812,25 @@ never AddPaymentInfo. The photos' rights for ads are unconfirmed
 (provenance, below), and the hat being included is read from the photos
 only: confirm both with the owner before the ad runs.
 
+`/products/santa-outfit` is the fourth Christmas product, the **Santa Outfit**
+(2026-10-19, from two supplier photos the owner sent): a red Santa outfit in
+two styles, S–L, $27.99 like the others (the owner's call), no size chart
+yet. Built like the Santa Costume with Gift, defined in `scripts/santa-outfit.js`,
+tested by `tests/santa-outfit.mjs` (in `test:store`). Last on `/christmas`.
+**The design slot holds a style, not a colour:** the owner asked for one
+product, red, S/M/L, and the two photos are two different outfits, so the
+buyer picks `santa_suit` (hat, belted jacket, trousers) or `santa_dress`
+(collar, ruffled skirt, sash), both red. The picker's `designLabel` reads
+"Style", both codes are named under `product.colors.<code>` in both language
+packs, SKUs are `CMP-SO-<SUIT|DRESS>-<SIZE>`, and its bundle tier lives in
+`santa_outfit_bundle`. Both swatches are the same red: the label and the photo
+tell them apart. It was first built as the "Santa Cat Costume" on a branch
+that never reached `main`; that name broke the rule below, so it never went
+live and needs no slug change. Its photos (`static/products/santa-outfit/`,
+a ginger cat in the suit, a tabby in the dress) were supplied as screenshots,
+re-encoded with no metadata, and look AI-generated, with source and licence
+unstated: the same caveat as the Santa Costume's photos, so ask before an ad.
+
 **No "pet", "dog" or "cat" anywhere a shopper reads (the owner's rule,
 2026-10-18, tightened the same evening from "pet, never dog or cat").** That
 covers product names, URLs, descriptions, page copy, FAQs, the header, footer
