@@ -1,7 +1,8 @@
 /**
  * The Calming Massager, product page to placed order on a phone, and its place
- * in the shop. The first product with one size and the first non-Christmas
- * product on the Christmas pages' blocks, so this pins what those two change:
+ * in the shop. The first product with one size, and the first product that
+ * is not for Christmas built on the Christmas pages' blocks (the life jacket
+ * has blocks of its own), so this pins what those two change:
  * the picker shows no size buttons and Add to cart works without a size tap,
  * and the page wears the brand skin, not the Christmas one.
  *

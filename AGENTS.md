@@ -832,9 +832,9 @@ re-encoded with no metadata, and look AI-generated, with source and licence
 unstated: the same caveat as the Santa Costume's photos, so ask before an ad.
 
 `/products/calming-massager` is the **Calming Massager** (2026-10-19), the
-first product that is not for Christmas: a round fabric massager worn on the
-back on an adjustable strap, with four silicone hands that knead, in khaki or
-black, **one size**, $57.99 (the owner's price), no compare-at. Defined in
+second product that is not for Christmas, after the life jacket: a round
+fabric massager worn on the back on an adjustable strap, with four silicone
+hands that knead, in khaki or black, **one size**, $57.99 (the owner's price), no compare-at. Defined in
 `scripts/calming-massager.js`, tested by `tests/calming-massager.mjs` (in
 `test:store`). SKUs `CMP-MS-<KHAKI|BLACK>`; its bundle tier lives in
 `massager_bundle`. Things to know:
