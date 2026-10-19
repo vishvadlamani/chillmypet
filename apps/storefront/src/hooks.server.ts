@@ -373,6 +373,19 @@ export const handle: Handle = async ({ event, resolve }) => {
 		if (send && context && typeof context.waitUntil === 'function') context.waitUntil(send);
 	}
 
+	// A page is made for one request: it carries that request's PageView event
+	// id and the visitor's ids, and it names this build's script files, which
+	// the next deploy deletes. A copy the browser keeps and shows again resends
+	// the event id, and after a deploy it is a page whose buttons do nothing
+	// (the owner hit exactly that on 2026-10-19). `app.html` reloads such a
+	// page once; this stops browsers keeping one in the first place.
+	if (
+		response.headers.get('content-type')?.includes('text/html') &&
+		!response.headers.has('cache-control')
+	) {
+		response.headers.set('cache-control', 'no-store');
+	}
+
 	if (isAdmin) {
 		for (const [name, value] of Object.entries(ADMIN_HEADERS)) response.headers.set(name, value);
 	}

@@ -3,6 +3,43 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- A page from before a deploy names script files the deploy deleted
+		     (every build renames them), and without them it renders but nothing
+		     on it responds. When one of this build's files fails to load, fetch
+		     the page again, at most once a minute so a broken deploy cannot loop.
+		     First in <head>, so it is listening before the preloads start. -->
+		<script>
+			(function () {
+				var KEY = 'cmp_stale_reload';
+				function reload() {
+					try {
+						if (Date.now() - Number(sessionStorage.getItem(KEY) || 0) < 60000) return;
+						sessionStorage.setItem(KEY, String(Date.now()));
+					} catch (e) {
+						// No storage to remember the reload in: mark the address instead.
+						if (/[?&]fresh=1/.test(location.search)) return;
+						var url = new URL(location.href);
+						url.searchParams.set('fresh', '1');
+						location.replace(url.href);
+						return;
+					}
+					location.reload();
+				}
+				addEventListener(
+					'error',
+					function (e) {
+						var el = e.target;
+						var src = el && (el.src || el.href);
+						if (typeof src === 'string' && src.indexOf('/_app/immutable/') !== -1) reload();
+					},
+					true
+				);
+				addEventListener('unhandledrejection', function (e) {
+					var message = String((e.reason && e.reason.message) || e.reason || '');
+					if (/dynamically imported module|Importing a module script failed/i.test(message)) reload();
+				});
+			})();
+		</script>
 		%meta_domain_verification%
 		%gtm_head%
 		<!-- The brand's teal paw (owner's artwork, 2026-10-17). The icon before
