@@ -18,12 +18,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		? ((body as { lines: unknown[] }).lines as Record<string, unknown>[])
 		: [];
 
-	const wanted = requested
-		.map((line) => ({
-			variantId: Number(line.variantId),
-			quantity: Math.max(1, Math.min(10, Number(line.quantity) || 1))
-		}))
-		.filter((line) => Number.isInteger(line.variantId) && line.variantId > 0);
+	// One line per variant, as the order counts them: an old cart holding the
+	// same variant twice would otherwise come back with two lines under one
+	// key, which the checkout's keyed list cannot draw.
+	const quantities = new Map<number, number>();
+	for (const line of requested) {
+		const variantId = Number(line.variantId);
+		if (!Number.isInteger(variantId) || variantId <= 0) continue;
+		const quantity = Math.max(1, Math.min(10, Number(line.quantity) || 1));
+		quantities.set(variantId, Math.min(10, (quantities.get(variantId) ?? 0) + quantity));
+	}
+	const wanted = [...quantities].map(([variantId, quantity]) => ({ variantId, quantity }));
 
 	const priced = await locals.commerce.catalog.priceVariants(wanted.map((l) => l.variantId));
 

@@ -26,6 +26,26 @@ function isLine(value: unknown): value is CartLine {
 }
 
 /**
+ * One line per variant, quantities added together (and capped), the later
+ * line's fields kept. A product renamed after it was carted left one browser
+ * holding the same variant under its old slug and its new one; every list
+ * keyed by variant (the cart drawer, the checkout) then threw Svelte's
+ * `each_key_duplicate`, and the throw stopped every page's buttons and photos
+ * responding (2026-10-19). A cart saved like that is mended on its next load.
+ */
+function merged(lines: CartLine[]): CartLine[] {
+	const byVariant = new Map<number, CartLine>();
+	for (const line of lines) {
+		const seen = byVariant.get(line.variantId);
+		byVariant.set(
+			line.variantId,
+			seen ? { ...line, quantity: Math.min(MAX_PER_LINE, seen.quantity + line.quantity) } : { ...line }
+		);
+	}
+	return [...byVariant.values()];
+}
+
+/**
  * Browser-only cart. This is a module singleton, which on the server would be
  * shared between requests — safe here only because nothing mutates it during
  * SSR: it renders empty and hydrates from localStorage after mount.
@@ -47,7 +67,10 @@ class Cart {
 		try {
 			const raw = localStorage.getItem(KEY);
 			const parsed = raw ? JSON.parse(raw) : [];
-			this.lines = Array.isArray(parsed) ? parsed.filter(isLine) : [];
+			const saved = Array.isArray(parsed) ? parsed.filter(isLine) : [];
+			this.lines = merged(saved);
+			// Save the mended cart now, or the next page load mends it again.
+			if (this.lines.length !== saved.length) this.persist();
 		} catch {
 			this.lines = [];
 		}
@@ -93,9 +116,11 @@ class Cart {
 	 * the cart; the checkout re-prices them against the database.
 	 */
 	replace(lines: CartLine[]) {
-		this.lines = lines
-			.filter(isLine)
-			.map((line) => ({ ...line, quantity: Math.max(1, Math.min(MAX_PER_LINE, line.quantity)) }));
+		this.lines = merged(
+			lines
+				.filter(isLine)
+				.map((line) => ({ ...line, quantity: Math.max(1, Math.min(MAX_PER_LINE, line.quantity)) }))
+		);
 		this.hydrated = true;
 		this.persist();
 	}
