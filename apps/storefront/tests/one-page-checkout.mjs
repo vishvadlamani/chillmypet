@@ -44,7 +44,7 @@ function check(label, cond, detail) {
 	check('SSR offers its colour', html.includes('>Red<'));
 	check('SSR offers the bundle cards at the server’s prices', html.includes('$52.06') && html.includes('$76.41'));
 	check('no size is pre-selected', !/name="size"[^>]*checked/.test(html));
-	const picker = /id="variant-picker"[\s\S]*?<\/fieldset>\s*(?:<\/div>|<p)/.exec(html)?.[0] ?? '';
+	const picker = /id="variant-picker"[\s\S]*?<\/fieldset>\s*(?:<!--[^>]*-->\s*)*(?:<\/div>|<p)/.exec(html)?.[0] ?? '';
 	check('the picker has no button of its own', picker.length > 0 && !html.includes('class="cta'));
 	check('the size guide link goes to the product page', html.includes(`href="/products/${SLUG}#size-guide"`));
 	check('SSR asks for contact and address', html.includes('id="contact-email"') && /id="shipping-/.test(html));

@@ -831,6 +831,41 @@ a ginger cat in the suit, a tabby in the dress) were supplied as screenshots,
 re-encoded with no metadata, and look AI-generated, with source and licence
 unstated: the same caveat as the Santa Costume's photos, so ask before an ad.
 
+`/products/calming-massager` is the **Calming Massager** (2026-10-19), the
+second product that is not for Christmas, after the life jacket: a round
+fabric massager worn on the back on an adjustable strap, with four silicone
+hands that knead, in khaki or black, **one size**, $57.99 (the owner's price), no compare-at. Defined in
+`scripts/calming-massager.js`, tested by `tests/calming-massager.mjs` (in
+`test:store`). SKUs `CMP-MS-<KHAKI|BLACK>`; its bundle tier lives in
+`massager_bundle`. Things to know:
+
+- **The owner calls it the pet massager**; the rule below keeps "pet" out of
+  its name. A rename goes through `copy-changes.js` and keeps the slug.
+- **Not Christmas, so the brand skin.** No `christmas` flag in `pages.ts`:
+  it is on `/` and `/catalog`, not `/christmas`, and wears navy and teal like
+  the life jacket, on the Christmas pages' blocks (`theme: 'tree'`).
+- **One size is nothing to choose.** Its size option holds one value, `One
+  size` (the code is the words, because the cart, the checkout summary and
+  the order row print it beside the colour). The picker shows no size
+  buttons for a product with one size and reads it as chosen; both product
+  pages' loads hand the hosts `oneSize`, which wins over a size another
+  product's page left in session state; and its collection card reads "One
+  size" and "Shop now", not "Choose a size". Add to cart is one tap.
+- **Only what the photos show is claimed**: the strap, the hands, the two
+  buttons. Nothing about heat (the first photo has an orange glow under the
+  hands), modes, battery or health until the supplier's spec sheet is in
+  hand; the test fails on those words.
+- **Its photos were supplied by the owner in chat, look AI-generated, and
+  their source and licence are unstated**: ask before an ad uses them.
+  `khaki.jpg` is the first image as sent; `black.jpg` is the black unit cut
+  from the second, with the edge of the khaki unit beside it painted out;
+  `on-the-back.jpg` is the second image's Labrador, cropped clear of the
+  supplier's "PET MASSAGER" lettering. All re-encoded with no metadata.
+- **Its ad needs a campaign of its own.** Every live ad set is Christmas,
+  and an ad set's audience, budget and optimisation are learned from what it
+  sells; land the ad on `/products/calming-massager` and optimise for
+  AddToCart or Purchase, never AddPaymentInfo.
+
 **No "pet", "dog" or "cat" anywhere a shopper reads (the owner's rule,
 2026-10-18, tightened the same evening from "pet, never dog or cat").** That
 covers product names, URLs, descriptions, page copy, FAQs, the header, footer

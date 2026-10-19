@@ -86,8 +86,11 @@
 	const design = $derived(
 		designs.find((d) => d.code === ctx.state.get('design'))?.code ?? designs[0]?.code ?? ''
 	);
+	// One size (the massager) is nothing to choose: it reads as chosen and
+	// gets no buttons. The hosts read it the same way (`oneSize` in their data).
+	const oneSize = $derived(sizes.length === 1 ? sizes[0].code : '');
 	const size = $derived(
-		sizes.some((s) => s.code === ctx.state.get('size')) ? ctx.state.get('size') : ''
+		sizes.some((s) => s.code === ctx.state.get('size')) ? ctx.state.get('size') : oneSize
 	);
 	const buyable = (d: string, s: string) => available.has(`${d}:${s}`);
 	// The host writes a fresh token here when someone taps buy (here or on the
@@ -172,7 +175,7 @@
 	{/if}
 	{#if p.tagline}<p class="tagline">{@render rich(p.tagline)}</p>{/if}
 
-	<div class="options" class:single={designs.length === 1}>
+	<div class="options" class:single={designs.length === 1} class:no-sizes={Boolean(oneSize)}>
 		<fieldset>
 			<legend>{p.designLabel ?? 'Design'}</legend>
 			<div class="pill-row">
@@ -192,6 +195,7 @@
 			</div>
 		</fieldset>
 
+		{#if !oneSize}
 		<fieldset
 			id="size-picker"
 			bind:this={sizeFieldset}
@@ -220,6 +224,7 @@
 				{/each}
 			</div>
 		</fieldset>
+		{/if}
 	</div>
 	<p class="fine" id="size-note">{p.sizeNote ?? ''}</p>
 	<p class="error" id="size-error" role="alert">
@@ -271,7 +276,7 @@
 		{/if}
 		<p>
 			<strong>{designName}</strong>
-			<span>{p.sizeLabel ?? 'Size'}: {size}{units > 1 ? ` · ${units} ${p.unitsNoun ?? 'items'}` : ''}</span>
+			<span>{oneSize ? oneSize : `${p.sizeLabel ?? 'Size'}: ${size}`}{units > 1 ? ` · ${units} ${p.unitsNoun ?? 'items'}` : ''}</span>
 		</p>
 		<button type="button" onclick={unfold}>
 			{p.changeLabel ?? 'Change'}
@@ -319,6 +324,7 @@
 		</div>
 	</fieldset>
 
+	{#if !oneSize}
 	<fieldset id="size-picker" bind:this={sizeFieldset} aria-describedby="size-note{prompted ? ' size-error' : ''}">
 		<legend>
 			{p.sizeLabel ?? 'Your size'}{#if size}: <strong>{size}</strong>{/if}
@@ -349,6 +355,7 @@
 			{#if prompted}{p.sizeMissing ?? 'Pick your size first.'}{/if}
 		</p>
 	</fieldset>
+	{/if}
 
 	{#if p.button !== false}
 		<button type="button" class="cta" onclick={add}>
@@ -616,6 +623,11 @@
 	   size (the reindeer hoodie's XL) wraps onto a line of its own. */
 	.pills .options.single {
 		grid-template-columns: auto minmax(0, 1fr);
+	}
+	/* One size has no column of its own: the colours take the whole row,
+	   or on a phone they stack in half of it. */
+	.pills .options.no-sizes {
+		grid-template-columns: minmax(0, 1fr);
 	}
 	.pills fieldset {
 		position: relative;

@@ -12,6 +12,7 @@ export interface ProductCard {
 	alt: string;
 	price: string;
 	colours: { label: string; hex: string | null | undefined }[];
+	/** "Sizes S–L", or the one size's own name ("One size"). */
 	sizes: string;
 	inStock: boolean;
 	/** Whether the product page asks for a size, which is what the card offers. */
@@ -67,10 +68,11 @@ export async function loadCollection(
 			colours: colours.map((c) => ({ label: c.label ?? c.value, hex: c.swatchHex })),
 			sizes:
 				sizes.length > 1
-					? `${sizes[0].label ?? sizes[0].value}–${sizes.at(-1)!.label ?? sizes.at(-1)!.value}`
+					? `Sizes ${sizes[0].label ?? sizes[0].value}–${sizes.at(-1)!.label ?? sizes.at(-1)!.value}`
 					: (sizes[0]?.label ?? ''),
 			inStock: p.variants.some((v) => v.stock > 0),
-			pickSize: PRODUCT_PAGES[p.slug].pickSize,
+			// One size is nothing to choose, whatever the page's picker is.
+			pickSize: PRODUCT_PAGES[p.slug].pickSize && sizes.length > 1,
 			fit: PRODUCT_PAGES[p.slug].cardFit ?? 'cover'
 		};
 	});

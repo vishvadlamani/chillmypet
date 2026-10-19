@@ -34,10 +34,11 @@ const COSTUME = 'christmas-tree-costume';
 const REINDEER = 'christmas-hoodie';
 const SANTA = 'santa-costume-with-gift';
 const OUTFIT = 'santa-outfit';
+const MASSAGER = 'calming-massager';
 const RETIRED = 'christmas-pouch-hoodie';
 /** Every product the list carries, in order: what one sync adds and the next one skips. */
-const LISTED = [COSTUME, REINDEER, SANTA, OUTFIT];
-/** The products the 2026-10-18 renames and copy changes reach: the outfit came after. */
+const LISTED = [COSTUME, REINDEER, SANTA, OUTFIT, MASSAGER];
+/** The products the 2026-10-18 renames and copy changes reach: the outfit and the massager came after. */
 const RENAMED = [COSTUME, REINDEER, SANTA];
 const VARIANTS = PRODUCTS.reduce((n, p) => n + p.variants.length, 0);
 
@@ -73,7 +74,7 @@ check(
 	schemaStatements(SCHEMA).length
 );
 check(
-	'the costume, the reindeer hoodie, the Santa costume and the Santa outfit are the products every deployment must have',
+	'the costume, the reindeer hoodie, the Santa costume, the Santa outfit and the massager are the products every deployment must have',
 	PRODUCTS.map((p) => p.slug),
 	LISTED
 );
@@ -254,7 +255,8 @@ check(
 		[COSTUME]: 'Dog Christmas Tree Costume',
 		[REINDEER]: 'Reindeer Christmas Dog Hoodie',
 		[SANTA]: 'Santa Pet Costume with Gift',
-		[OUTFIT]: 'Santa Outfit'
+		[OUTFIT]: 'Santa Outfit',
+		[MASSAGER]: 'Calming Massager'
 	};
 	for (const def of PRODUCTS) {
 		await insertProduct(db, STORE_ID, {
@@ -270,7 +272,7 @@ check(
 		translations: { en: { title: 'Dog Life Jacket' } },
 		variants: shape.variants.map((v) => ({ ...v, sku: `DLJ-${v.sku}` }))
 	});
-	check('the first slugs are the old dog and pet ones', PRODUCTS.map((p) => firstSlug(p.slug)), ['dog-christmas-costume', 'reindeer-dog-hoodie', 'santa-pet-costume', OUTFIT]);
+	check('the first slugs are the old dog and pet ones', PRODUCTS.map((p) => firstSlug(p.slug)), ['dog-christmas-costume', 'reindeer-dog-hoodie', 'santa-pet-costume', OUTFIT, MASSAGER]);
 	const variantIds = async () =>
 		(await db.execute('select id from product_variants order by id')).rows.map((r) => Number(r.id));
 	const before = await variantIds();
@@ -297,8 +299,8 @@ check(
 	);
 	check(
 		'and named with no pet, dog or cat',
-		[await title(COSTUME), await title(REINDEER), await title(SANTA), await title(OUTFIT), await title('life-jacket')],
-		['Christmas Tree Costume', 'Christmas Hoodie', 'Santa Costume with Gift', 'Santa Outfit', 'Life Jacket']
+		[await title(COSTUME), await title(REINDEER), await title(SANTA), await title(OUTFIT), await title(MASSAGER), await title('life-jacket')],
+		['Christmas Tree Costume', 'Christmas Hoodie', 'Santa Costume with Gift', 'Santa Outfit', 'Calming Massager', 'Life Jacket']
 	);
 	const second = await syncCatalogue(db);
 	check('a second sync renames nothing', second.renamed, []);

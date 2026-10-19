@@ -131,6 +131,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		festive: Boolean(page.christmas),
 		// The colour the picker shows chosen before anyone chooses.
 		leadDesign: page.leadDesign ?? null,
+		// The size, when the product comes in only one (the massager): the
+		// picker shows no buttons for it, so it is chosen without a tap.
+		oneSize: page.pickSize && sizes.length === 1 ? sizes[0].value : null,
 		// Where Add to cart sends the buyer: the product's own payment page
 		// when it has one (`checkout: 'shop'` in pages.ts), else the cart's.
 		payAt: page.checkout === 'shop' ? `/products/${slug}/checkout` : '/checkout',

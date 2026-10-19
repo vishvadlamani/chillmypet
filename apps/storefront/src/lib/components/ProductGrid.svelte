@@ -50,7 +50,7 @@
 								{product.colours.map((c) => c.label).join(', ')}
 							</span>
 						</span>
-						{#if product.sizes}<span>Sizes {product.sizes}</span>{/if}
+						{#if product.sizes}<span>{product.sizes}</span>{/if}
 					</p>
 					<span class="cta">{!product.inStock ? 'Sold out' : product.pickSize ? 'Choose a size' : 'Shop now'}</span>
 				</div>

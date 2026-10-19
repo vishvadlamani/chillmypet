@@ -148,7 +148,8 @@
 	function addChosenVariant(payload: Record<string, unknown>) {
 		const design =
 			String(payload.design ?? '') || bag.design || data.leadDesign || data.variantIndex[0]?.colourCode || '';
-		const size = String(payload.size ?? '') || bag.size || '';
+		// A one-size product's size is never the one remembered from another page.
+		const size = String(payload.size ?? '') || (data.oneSize ?? bag.size) || '';
 		const entry = data.variantIndex.find((v) => v.colourCode === design && v.size === size);
 		if (!entry) {
 			// A fresh token each time, so a second tap prompts again.
