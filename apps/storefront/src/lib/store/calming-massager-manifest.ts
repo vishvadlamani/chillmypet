@@ -37,6 +37,10 @@ export const CALMING_MASSAGER_PAGE: FunnelDefinition = {
 						alt: 'A Labrador lying on a rug with the khaki massager strapped across its back'
 					}
 				],
+				// The black close-up was cut from the supplier's two-colour shot and
+				// blown up, and it showed (the owner's call, 2026-10-19). Black shows
+				// its "coming soon" box until the owner's new photos are in.
+				photos: { black: { src: '' } },
 				hint: 'Swipe to explore',
 				title: 'Calming Massager photos'
 			}
@@ -151,22 +155,6 @@ export const CALMING_MASSAGER_PAGE: FunnelDefinition = {
 					{ title: 'Soft hands', body: 'Four rounded silicone hands rest on the coat and knead.' },
 					{ title: 'Two colours', body: 'Khaki or black, one size, with an adjustable strap.' }
 				]
-			}
-		},
-		{
-			id: 'colours',
-			component: 'photo_pair',
-			version: 1,
-			// The picker's two choices, in the supplier's photos.
-			props: {
-				eyebrow: 'Two colours.',
-				title: 'Khaki or black?',
-				sub: 'The same massager and strap, one size. Pick the colour above.',
-				photos: [
-					{ src: '/products/calming-massager/on-the-back.jpg', alt: 'The khaki massager strapped across a Labrador’s back', caption: 'Khaki' },
-					{ src: '/products/calming-massager/black.jpg', alt: 'The black massager with its four soft hands', caption: 'Black' }
-				],
-				note: 'AI-styled images.'
 			}
 		},
 		{

@@ -35,6 +35,8 @@
 			 * A page's own photo for a design, by code, in place of the
 			 * catalogue's. Lets a page reshoot a colour without a catalogue
 			 * migration; the design itself still comes from the catalogue.
+			 * An empty `src` takes the catalogue's photo away, so the design
+			 * shows its "coming soon" box until a better photo is in.
 			 */
 			photos?: Record<string, { src: string; alt?: string }>;
 		}
@@ -43,7 +45,8 @@
 	const designs = $derived(
 		(p.designs ?? []).map((d) => {
 			const own = p.photos?.[d.code];
-			return own?.src ? { ...d, image: own.src, alt: own.alt ?? d.alt } : d;
+			if (!own) return d;
+			return own.src ? { ...d, image: own.src, alt: own.alt ?? d.alt } : { ...d, image: undefined };
 		})
 	);
 	const extras = $derived((p.extras ?? []).filter((e) => e.src));

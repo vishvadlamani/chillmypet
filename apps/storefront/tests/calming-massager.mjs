@@ -161,7 +161,7 @@ await page.locator('#variant-picker label.tier', { hasText: 'Two massagers' }).c
 check('two massagers re-price the button', (await page.locator('#variant-picker button.cta').innerText()).includes('$107.86'), await page.locator('#variant-picker button.cta').innerText());
 await page.locator('#variant-picker label.tier', { hasText: 'One massager' }).click();
 await page.locator('#variant-picker label', { hasText: 'Black' }).click();
-check('the gallery follows the colour', (await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/black.jpg'));
+check('the gallery follows the colour: black has no photo yet, so it says so', (await page.locator('.gallery .frame .placeholder').count()) === 1 && (await page.locator('.gallery .frame img').count()) === 0);
 await page.locator('#variant-picker button', { hasText: /Add to cart/ }).click();
 await page.waitForURL(`**/products/${SLUG}/checkout`, { timeout: 15000 });
 {
