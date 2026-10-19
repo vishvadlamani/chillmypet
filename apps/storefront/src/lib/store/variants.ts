@@ -44,6 +44,25 @@ export interface VariantPicker {
 	price: string;
 }
 
+/**
+ * The product as a page sells it: only the designs named (`designs` in
+ * pages.ts), with their variants and photos. Unset or empty, the product as
+ * the catalogue has it.
+ */
+export function offeredDesigns(product: Product, codes?: string[]): Product {
+	if (!codes?.length) return product;
+	const offered = (code: string | null) => code !== null && codes.includes(code);
+	const [designs, ...rest] = product.options;
+	if (!designs) return product;
+	return {
+		...product,
+		options: [{ ...designs, values: designs.values.filter((v) => offered(v.value)) }, ...rest],
+		variants: product.variants.filter((v) => offered(v.options[0])),
+		// Photos of the product as a whole (no design) stay.
+		media: product.media.filter((m) => m.optionValue === null || offered(m.optionValue))
+	};
+}
+
 /** Every buyable design × size, positional: options[0] design, options[1] size. */
 export function variantEntries(product: Product): VariantEntry[] {
 	const designs = product.options[0]?.values ?? [];

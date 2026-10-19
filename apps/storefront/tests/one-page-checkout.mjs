@@ -53,10 +53,12 @@ function check(label, cond, detail) {
 	check('og:image is absolute', /property="og:image" content="https?:\/\//.test(html));
 }
 {
+	// Every product has a size picker now (the life jacket since 2026-10-19),
+	// so every product has one.
 	const res = await fetch(`${BASE}/products/life-jacket/checkout`);
-	check('a product without a size picker has no one-page checkout', res.status === 404, String(res.status));
+	check('the life jacket has a one-page checkout too', res.status === 200, String(res.status));
 	const missing = await fetch(`${BASE}/products/no-such-thing/checkout`);
-	check('nor does an unknown slug', missing.status === 404, String(missing.status));
+	check('an unknown slug has none', missing.status === 404, String(missing.status));
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });

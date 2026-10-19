@@ -53,6 +53,12 @@ function check(label, cond, detail) {
 
 // --- product page: a block states intent, the host routes it ---------------
 await page.goto(`${BASE}/products/life-jacket`, { waitUntil: 'networkidle' });
+// The size is the buyer's: Buy now without one asks for it and goes nowhere.
+await page.getByRole('button', { name: /buy now/i }).first().click();
+await page.locator('#size-error').filter({ hasText: /Pick a size first/ }).waitFor({ timeout: 5000 });
+check('buy now without a size asks for one', page.url().endsWith('/products/life-jacket'));
+check('only the two colours on sale are offered', (await page.locator('#variant-picker input[name="design"]').evaluateAll((els) => els.map((e) => e.value))).join() === 'sailboat,green');
+await page.locator('#size-picker label').filter({ hasText: /^\s*S\s*$/ }).click();
 await page.getByRole('button', { name: /buy now/i }).first().click();
 await page.waitForURL('**/checkout**', { timeout: 15000 });
 check('buy now lands on the checkout', page.url().endsWith('/checkout'));

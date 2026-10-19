@@ -10,7 +10,7 @@ import { loadFeaturedReviews, loadPhotoWall, loadSpotlightQuotes } from '$lib/st
 import { loadSizeChart } from '$lib/store/sizes';
 import { loadStock } from '$lib/store/stock';
 import { PRODUCT_PAGES, renamedRedirect, retiredRedirect } from '$lib/store/pages';
-import { loadVariantPicker, variantEntries } from '$lib/store/variants';
+import { loadVariantPicker, offeredDesigns, variantEntries } from '$lib/store/variants';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
@@ -34,7 +34,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		loadBundles(commerce, locale, slug),
 		loadOffer(commerce, locale, settings, slug),
 		loadSizeChart(commerce, locale, slug),
-		commerce.catalog.getProduct(slug, locale)
+		// Only the designs this page sells (`designs` in pages.ts).
+		commerce.catalog.getProduct(slug, locale).then((p) => p && offeredDesigns(p, page.designs))
 	]);
 
 	if (!product || !catalogue) error(404, `No product at "${slug}"`);
@@ -73,6 +74,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		// shape from the life jacket's chest-and-weight bullet rows. Empty when
 		// the supplier's figures are not in yet, which shows the guide's note.
 		sizes: page.pickSize ? (sizeGuideTable(catalogue) ?? {}) : sizeChart,
+		// The life jacket's own chart (a title over its chart graphic), read
+		// from the same metafield; a page that does not name it ignores it.
+		sizeChart,
 		// The design and size pickers. Only a manifest that names them reads them.
 		variants: page.pickSize ? loadVariantPicker(catalogue, locale, page.leadDesign) : {},
 		// Config, not computation: see `$lib/store/christmas.ts`. Empty once the

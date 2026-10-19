@@ -2,6 +2,7 @@ import type { Commerce } from 'ecomwithai';
 import { formatMoney, type Locale } from '$lib/i18n';
 import { loadChristmasDelivery } from './christmas';
 import { PRODUCT_PAGES, type ProductPage } from './pages';
+import { offeredDesigns } from './variants';
 
 /** One product as a collection card shows it: photo, words, price, choices. */
 export interface ProductCard {
@@ -49,7 +50,14 @@ export async function loadCollection(
 	const seasonal = (slug: string) => (PRODUCT_PAGES[slug].christmas ? 0 : 1);
 	slugs.sort((a, b) => seasonal(a) - seasonal(b));
 	const products = (
-		await Promise.all(slugs.map((slug) => commerce.catalog.getProduct(slug, locale)))
+		await Promise.all(
+			slugs.map((slug) =>
+				commerce.catalog
+					.getProduct(slug, locale)
+					// The card's swatches are the colours the page sells.
+					.then((p) => p && offeredDesigns(p, PRODUCT_PAGES[slug].designs))
+			)
+		)
 	).filter((p) => p !== null);
 
 	return products.map((p) => {
