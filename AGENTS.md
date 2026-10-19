@@ -861,6 +861,13 @@ hands that knead, in khaki or black, **one size**, $57.99 (the owner's price), n
   from the second, with the edge of the khaki unit beside it painted out;
   `on-the-back.jpg` is the second image's Labrador, cropped clear of the
   supplier's "PET MASSAGER" lettering. All re-encoded with no metadata.
+- **It pays on a page of its own**, `/products/calming-massager/checkout`
+  (`checkout: 'shop'`, like the costume; the owner's call, 2026-10-19), so
+  its checkouts have their own address in GA4 and in URL-based custom
+  conversions, apart from `/checkout`. Meta tells the products apart either
+  way: every AddToCart, InitiateCheckout and Purchase carries the SKU. With
+  one size the picker there opens folded ("Khaki · One size", Change), even
+  without a choice in the link.
 - **Its ad needs a campaign of its own.** Every live ad set is Christmas,
   and an ad set's audience, budget and optimisation are learned from what it
   sells; land the ad on `/products/calming-massager` and optimise for

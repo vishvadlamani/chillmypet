@@ -20,7 +20,8 @@
  *     the black massager in the cart, on the checkout summary, the order row
  *     and the AddToCart payload, under one event id browser and server
  *   - a size remembered from another product's page does not get in the way
- *   - the one-page checkout fills the cart without a size tap
+ *   - Add to cart opens its own payment page, not /checkout, and that page
+ *     fills the cart without a size tap
  *
  * Expects a dev server with no STRIPE_SECRET_KEY, like tests/store-flow.mjs.
  */
@@ -162,7 +163,17 @@ await page.locator('#variant-picker label.tier', { hasText: 'One massager' }).cl
 await page.locator('#variant-picker label', { hasText: 'Black' }).click();
 check('the gallery follows the colour', (await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/black.jpg'));
 await page.locator('#variant-picker button', { hasText: /Add to cart/ }).click();
-await page.waitForURL('**/checkout', { timeout: 15000 });
+await page.waitForURL(`**/products/${SLUG}/checkout`, { timeout: 15000 });
+{
+	// Its own payment page, so its checkouts have their own address in GA4 and
+	// in URL-based custom conversions, apart from `/checkout`.
+	const url = new URL(page.url());
+	check('add to cart opens the massager’s own payment page, not /checkout', url.pathname === `/products/${SLUG}/checkout`, page.url());
+	check('at its plain address, with no choice in the link', url.search === '', url.search);
+	check('the payment page has a title of its own', /^Checkout · Calming Massager/.test(await page.title()), await page.title());
+	const line = await page.locator('.picker.folded').innerText().catch(() => 'not folded');
+	check('the choice is one line, black, one size, with a way to change it', /Black[\s\S]*One size/.test(line) && !/Size:/.test(line) && /Change/.test(line), line);
+}
 
 {
 	const lines = await cartLines();
@@ -182,20 +193,22 @@ await page.waitForURL('**/checkout', { timeout: 15000 });
 	check('AddToCart names the variant by SKU at the price', JSON.stringify(b[0]?.[2]?.content_ids) === `["${SKU}"]` && b[0]?.[2]?.value === PRICE, JSON.stringify(b[0]?.[2]));
 }
 
-await page.waitForSelector('form dl');
+await page.waitForSelector('button.shop-pay');
 {
-	const summary = await page.locator('form', { has: page.locator('dl') }).innerText();
+	const summary = (await page.locator('.shop-aside').textContent()) ?? '';
 	check('checkout shows the massager, black, one size', summary.includes('Calming Massager') && /Black · One size/.test(summary), summary.slice(0, 300));
-	check(`checkout charges $${PRICE}`, (await page.locator('form dl').innerText()).includes(`$${PRICE}`));
+	check(`checkout charges $${PRICE}`, (await page.locator('button.shop-pay').innerText()).includes(`$${PRICE}`));
+	check('and the payment page reports no second AddToCart', (await browserEvent('AddToCart')).length === 1);
 }
 
-await page.fill('#contact-fullName', 'Mary Quiet');
 await page.fill('#contact-email', 'calming-massager@example.com');
-await page.fill('#shipping-lookup', '751');
-await page.waitForSelector('[role="option"]');
-await page.locator('[role="option"]').first().click();
-await page.waitForSelector('#shipping-city');
-await page.getByRole('button', { name: /^(Pay |Place order)/ }).click();
+await page.fill('#shipping-firstName', 'Mary');
+await page.fill('#shipping-lastName', 'Quiet');
+await page.fill('#shipping-address', '1 Evergreen Terrace');
+await page.fill('#shipping-city', 'Albany');
+await page.selectOption('#shipping-state', 'NY');
+await page.fill('#shipping-zip', '12207');
+await page.locator('button.shop-pay').click();
 await page
 	.getByRole('heading', { name: /order received/i })
 	.waitFor({ timeout: 20000 })
@@ -230,14 +243,17 @@ check('the order was accepted', Boolean(orderNumber), body.slice(0, 300));
 	db.close();
 }
 
-// --- the one-page checkout fills the cart with no size tap ------------------------
+// --- its payment page, opened straight, fills the cart with no size tap ------------
 {
 	await page.evaluate(() => {
 		localStorage.clear();
 		sessionStorage.clear();
 	});
 	await page.goto(`${URL_}/checkout`, { waitUntil: 'networkidle' });
-	check('the one-page checkout shows no size buttons', (await page.locator('input[name="size"]').count()) === 0);
+	check('the payment page shows no size buttons', (await page.locator('input[name="size"]').count()) === 0);
+	// With one size the choice is already whole, so the picker opens folded on
+	// the lead colour; Change opens it.
+	await page.locator('.picker.folded button', { hasText: 'Change' }).click();
 	await page.locator('#variant-picker label', { hasText: 'Black' }).click();
 	await page.waitForFunction(() => JSON.parse(localStorage.getItem('chillmypet.cart.v1') ?? '[]').length === 1, null, { timeout: 5000 }).catch(() => {});
 	const lines = await cartLines();
