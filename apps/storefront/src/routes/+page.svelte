@@ -11,11 +11,13 @@
 	let t = $derived(createTranslator(locale));
 
 	/**
-	 * The shop window: the three outfits as they are worn, a large photo and
+	 * The shop window: three outfits as they are worn, a large photo and
 	 * two small ones, rather than one staged scene. The tabby in the green
 	 * costume leads, as on the costume's page. Its "AI-styled image" label came
 	 * off on the owner's call (2026-10-18), as did the two-dog scene that stood
-	 * here first (2026-10-17).
+	 * here first (2026-10-17). The bulldog in the Santa costume took the
+	 * third tile from the dog in the red tree costume on the owner's call
+	 * (2026-10-19), so each tile shows a different outfit.
 	 */
 	const HERO = [
 		{
@@ -29,9 +31,9 @@
 			alt: 'A small grey dog in the red reindeer hoodie by a Christmas tree'
 		},
 		{
-			src: '/products/dog-christmas-costume/worn-red.jpg',
-			href: '/products/christmas-tree-costume',
-			alt: 'A small dog wearing the red Christmas tree costume'
+			src: '/products/santa-pet-costume/dog.jpg',
+			href: '/products/santa-costume-with-gift',
+			alt: 'A French bulldog in the red Santa costume holding a gift'
 		}
 	];
 </script>
