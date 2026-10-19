@@ -80,7 +80,9 @@
 	color: var(--tree-green);
 }
 /* Wide screens: the name centred, language and cart right, the links on
-   their own centred row beneath (four product names do not fit beside it). */
+   their own centred row beneath (four product names do not fit beside it).
+   The row wraps rather than scrolls: with five products the last link was
+   cut off at 1280px, and a hidden scrollbar gives no hint there is more. */
 @media (min-width: 768px) {
 	.tree-chrome > header nav {
 		display: grid;
@@ -102,8 +104,10 @@
 	.tree-chrome > header nav > ul {
 		grid-column: 1 / -1;
 		grid-row: 2;
+		flex-wrap: wrap;
 		justify-content: center;
 		column-gap: 28px;
+		row-gap: 8px;
 		font-size: 14px;
 	}
 }

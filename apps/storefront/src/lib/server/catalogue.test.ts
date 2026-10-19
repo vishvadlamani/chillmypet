@@ -28,8 +28,9 @@ function check(label: string, actual: unknown, expected: unknown) {
 const HOODIE = 'christmas-pouch-hoodie';
 const COSTUME = 'dog-christmas-costume';
 const REINDEER = 'reindeer-dog-hoodie';
+const SANTA_CAT = 'santa-cat-costume';
 /** Every product the list carries, in order: what one sync adds and the next one skips. */
-const LISTED = [HOODIE, COSTUME, REINDEER];
+const LISTED = [HOODIE, COSTUME, REINDEER, SANTA_CAT];
 const VARIANTS = PRODUCTS.reduce((n, p) => n + p.variants.length, 0);
 
 // A file, not `:memory:`: the libSQL client reopens its connection around a
@@ -64,7 +65,7 @@ check(
 	schemaStatements(SCHEMA).length
 );
 check(
-	'the hoodie, the costume and the reindeer hoodie are the products every deployment must have',
+	'the hoodie, the costume, the reindeer hoodie and the Santa cat costume are the products every deployment must have',
 	PRODUCTS.map((p) => p.slug),
 	LISTED
 );
