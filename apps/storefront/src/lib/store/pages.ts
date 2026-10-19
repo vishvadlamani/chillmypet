@@ -135,7 +135,11 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 	[CALMING_MASSAGER_SLUG]: {
 		manifest: CALMING_MASSAGER_PAGE,
 		pickSize: true,
-		theme: 'tree'
+		theme: 'tree',
+		// Its Add to cart opens a payment page of its own, like the costume's,
+		// so its checkouts have their own address in GA4 and in URL-based
+		// custom conversions (the owner's call, 2026-10-19).
+		checkout: 'shop'
 	}
 };
 
