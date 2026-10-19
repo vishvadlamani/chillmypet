@@ -150,7 +150,8 @@
 	/**
 	 * The variant and count the picker shows, read from the state it writes.
 	 * The design falls back to the first one, as the picker's own display does;
-	 * the size never does, because it is the pet's and only the buyer knows it.
+	 * the size never does, because it is the pet's and only the buyer knows it
+	 * (unless there is only one).
 	 * Tier ids are the host's own `qty-N` from `$lib/store/bundles.ts`.
 	 */
 	let wanted = $derived.by(() => {
@@ -158,7 +159,9 @@
 		// (`leadDesign` in pages.ts), else the catalogue's first. The two must
 		// agree, or a buyer who leaves the shown colour as it is gets another.
 		const design = bag.design || data.leadDesign || data.variantIndex[0]?.colourCode || '';
-		const entry = data.variantIndex.find((v) => v.colourCode === design && v.size === bag.size);
+		// A one-size product's size is chosen already, whatever another page left.
+		const size = data.oneSize ?? bag.size;
+		const entry = data.variantIndex.find((v) => v.colourCode === design && v.size === size);
 		if (!entry) return null;
 		const tier = data.tiered ? /^qty-(\d+)$/.exec(bag[data.tierField] ?? '') : null;
 		// null: no bundle cards, so the count is whatever the buyer set in the

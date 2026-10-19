@@ -54,6 +54,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	// count is the buyer's to set in the summary.
 	const tiered = Boolean(picker?.props?.tiers);
 
+	const sizes = catalogue.options[1]?.values ?? [];
+
 	const resolve = createRefResolver({
 		...checkoutSources(locals),
 		product,
@@ -82,6 +84,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		festive: Boolean(page.christmas),
 		// The colour the picker shows chosen before anyone chooses.
 		leadDesign: page.leadDesign ?? null,
+		// The size, when the product comes in only one (the massager): the
+		// picker shows no buttons for it, so it is chosen without a tap.
+		oneSize: sizes.length === 1 ? sizes[0].value : null,
 		tierField,
 		tiered,
 		// The host's lookup from the picker's codes to a variant. Never a prop:
