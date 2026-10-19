@@ -945,12 +945,24 @@ the menu leads instead. Things to know:
   is still `<a href="/checkout">`, so it works without JavaScript and the
   tests that read its count keep finding it; the click handler opens the
   drawer instead. Before, the only − + were under the address and card
-  fields on `/checkout`. A re-price that fails before anything is shown (an
-  error status, an HTML error page such as a 1101, a dropped connection, or
-  no answer within 10 s) shows a message with Checkout and Try again, never
-  an endless "Loading…" (the owner found one on 2026-10-19). Lines the
-  server no longer prices leave the cart, as on the checkout, so the count
-  matches the lines. `tests/cart-drawer.mjs` (in `test:store`) pins both.
+  fields on `/checkout`. **The drawer never waits on the network to show
+  the basket.** Its lines, − + and Remove are drawn from the cart in the
+  browser the moment it opens; `/api/cart` then fills in each line's title,
+  photo and price, and the bundle discount (shown only for the quantities
+  it was worked out on). Titles and photos the server gave are kept in
+  `localStorage` (`chillmypet.cart.described.v1`) so the next open, on any
+  page, has them at once; until then a line reads as its slug ("Calming
+  massager"). A failed re-price (an error status, an HTML page such as a
+  1101, a dropped connection, or no answer within 10 s) adds a note with
+  Try again and leaves everything editable. The owner found the drawer
+  stuck on "Loading…" twice on 2026-10-19, with 10 and then 12 items,
+  the second time after a fix that only gave up after 10 s.
+  `/checkout` cannot pay without the server's total, so there a failed
+  re-price shows "We couldn't load your cart" with Try again, where it used
+  to show "Loading…" for good or, on an error page, an empty cart. Lines
+  the server no longer prices leave the cart, as on the checkout, so the
+  count matches the lines. `tests/cart-drawer.mjs` (in `test:store`) pins
+  all of it.
 - **The whole site wears the tree chrome** (cream, pine, Poppins, the
   delivery strip above the header, the green footer), except a product page
   with a skin of its own (the life jacket's sales page) and the one-page

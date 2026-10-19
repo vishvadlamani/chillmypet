@@ -103,6 +103,7 @@
 		"increase": "Añadir uno: {item}",
 		"quantityOf": "Cantidad de {item}",
 		"loadFailed": "No pudimos cargar tu carrito. Tus artículos siguen guardados.",
+		"priceFailed": "No pudimos comprobar los precios. El total final se muestra al pagar.",
 		"retry": "Reintentar"
 	},
 	"checkout": {

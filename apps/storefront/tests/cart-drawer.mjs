@@ -4,16 +4,20 @@
  *   node tests/cart-drawer.mjs
  *
  * The drawer re-prices the saved cart through /api/cart each time it opens.
- * It used to show "Loading…" until that answered, and kept showing it when
- * the answer never came: a request that timed out, an error page (Cloudflare's
- * 1101 is HTML, so reading it as JSON throws) or a dropped connection. The
- * owner found it stuck like that on 2026-10-19 with ten items in the bag.
+ * It used to show "Loading…" until that answered, so a slow or broken answer
+ * (a timeout, an error page such as Cloudflare's 1101, a dropped connection)
+ * left a full bag that could not be changed. The owner found it stuck like
+ * that twice on 2026-10-19, with ten and then twelve items in the bag.
  * What this pins down:
- *   - a failed or broken answer shows a message, the checkout and Try again
- *   - Try again prices the cart once the server answers
+ *   - the lines, − + and Remove are there at once, before the server answers,
+ *     and work while it never does
+ *   - a failed or broken answer leaves the lines and adds a note with Try
+ *     again; Try again prices the cart once the server answers
  *   - a request that never answers gives up after ten seconds
  *   - a line the server no longer sells (a retired product still saved in
  *     the browser) leaves the cart, so the count matches the lines shown
+ *   - /checkout says it couldn't load the cart, with Try again, rather than
+ *     "Loading…" for good or an empty cart
  *
  * Expects a dev server with no STRIPE_SECRET_KEY, like tests/store-flow.mjs.
  */
@@ -45,6 +49,11 @@ const COSTUME = {
 	quantity: 3,
 	unitPriceCents: Number(rows[0].price_cents)
 };
+const second = await db.execute(
+	`select v.id, v.option2 from product_variants v where v.sku = 'CMP-XT-GREEN-L'`
+);
+if (!second.rows[0]) throw new Error('no CMP-XT-GREEN-L variant — seed the database');
+const SECOND = { variantId: Number(second.rows[0].id), size: String(second.rows[0].option2) };
 // No variant has this id: a product taken off sale since it was added.
 const RETIRED = { variantId: 987654, slug: 'christmas-pouch-hoodie', colour: 'red', size: 'M', quantity: 7, unitPriceCents: 5499 };
 
@@ -76,14 +85,14 @@ async function visitor(lines, pricing) {
 		return route.continue();
 	});
 	await openBag();
-	await drawer.getByRole('alert').waitFor({ timeout: 5000 }).catch(() => {});
+	await drawer.locator('.note').waitFor({ timeout: 5000 }).catch(() => {});
 	const text = await drawer.innerText();
-	check('an error page shows a message, not endless Loading', /couldn't load your cart/i.test(text) && !/Loading/.test(text), text);
+	check('an error page leaves the lines and says prices could not be checked', /couldn't check prices/i.test(text) && (await drawer.locator('.lines li').count()) === 1 && !/Loading/.test(text), text);
 	check('it still offers the checkout', (await drawer.locator('a[href="/checkout"]').count()) > 0);
 	await drawer.getByRole('button', { name: 'Try again' }).click();
-	await drawer.locator('.lines li').first().waitFor({ timeout: 8000 }).catch(() => {});
+	await drawer.locator('.lines li img').first().waitFor({ timeout: 8000 }).catch(() => {});
 	const after = await drawer.innerText();
-	check('Try again prices the cart once the server answers', after.includes('Christmas Tree Costume') && !/couldn't load/i.test(after), after.slice(0, 200));
+	check('Try again prices the cart once the server answers', after.includes('Christmas Tree Costume') && !/couldn't check/i.test(after), after.slice(0, 200));
 	await ctx.close();
 }
 
@@ -91,21 +100,47 @@ async function visitor(lines, pricing) {
 {
 	const { ctx, drawer, openBag } = await visitor([COSTUME], (route) => route.abort('connectionreset'));
 	await openBag();
-	await drawer.getByRole('alert').waitFor({ timeout: 5000 }).catch(() => {});
-	check('a dropped connection shows the message too', /couldn't load your cart/i.test(await drawer.innerText()));
+	await drawer.locator('.note').waitFor({ timeout: 5000 }).catch(() => {});
+	check('a dropped connection shows the note too', /couldn't check prices/i.test(await drawer.innerText()));
 	await ctx.close();
 }
 
 // --- a request that never answers ---------------------------------------------------
 {
-	const { ctx, drawer, openBag } = await visitor([COSTUME], () => {
+	const { ctx, page, drawer, openBag } = await visitor([COSTUME, { ...COSTUME, variantId: SECOND.variantId, size: SECOND.size, quantity: 2 }], () => {
 		// Never fulfilled.
 	});
 	await openBag();
-	await new Promise((r) => setTimeout(r, 3000));
-	check('while waiting it says Loading', /Loading/.test(await drawer.innerText()));
-	await drawer.getByRole('alert').waitFor({ timeout: 12000 }).catch(() => {});
-	check('after ten seconds it gives up and says so', /couldn't load your cart/i.test(await drawer.innerText()));
+	await page.waitForTimeout(500);
+	const text = await drawer.innerText();
+	check('the lines are there at once, with no Loading', (await drawer.locator('.lines li').count()) === 2 && !/Loading/.test(text), text);
+	await drawer.locator('.lines li').nth(0).getByRole('button', { name: /one more/i }).click();
+	await drawer.locator('.lines li').nth(1).getByRole('button', { name: 'Remove' }).click();
+	await page.waitForTimeout(300);
+	const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('chillmypet.cart.v1') ?? '[]'));
+	const heading = await drawer.locator('h2').innerText();
+	check('+ and Remove work while the server says nothing', saved.length === 1 && saved[0].quantity === 4 && /\(4\)/.test(heading), `${heading} ${JSON.stringify(saved)}`);
+	await drawer.locator('.note').waitFor({ timeout: 12000 }).catch(() => {});
+	check('after ten seconds it gives up and says so', /couldn't check prices/i.test(await drawer.innerText()));
+	await ctx.close();
+}
+
+// --- the checkout page -------------------------------------------------------------
+{
+	let calls = 0;
+	const { ctx, page } = await visitor([COSTUME], (route) => {
+		calls += 1;
+		if (calls === 1) return route.fulfill({ status: 500, contentType: 'text/html', body: '<h1>Error 1101</h1>' });
+		return route.continue();
+	});
+	await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
+	const alert = page.getByRole('alert').filter({ hasText: /couldn't load your cart/i });
+	await alert.first().waitFor({ timeout: 5000 }).catch(() => {});
+	const body = await page.locator('body').innerText();
+	check('/checkout says it could not load the cart, not that it is empty', (await alert.count()) > 0 && !/Your cart is empty/i.test(body), body.slice(0, 300));
+	await alert.first().getByRole('button', { name: 'Try again' }).click();
+	await page.getByText('Christmas Tree Costume').first().waitFor({ timeout: 8000 }).catch(() => {});
+	check('and Try again brings the lines', (await page.getByText('Christmas Tree Costume').count()) > 0);
 	await ctx.close();
 }
 

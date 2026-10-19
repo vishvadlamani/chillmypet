@@ -200,42 +200,64 @@
 		cart.hydrate();
 	});
 
+	// Set when the last re-price failed: a timeout, an error page (a 1101 is
+	// HTML) or a dropped connection. The summary then says so and offers Try
+	// again, where it used to wait on "Loading…" for good, or show a full cart
+	// as empty. Nothing can be paid for meanwhile: the total is the server's.
+	let priceFailed = $state(false);
+	let priceAttempt = $state(0);
+	const PRICE_TIMEOUT_MS = 10_000;
+
 	// Re-price whenever the local cart changes. Stored prices are display-only —
 	// this endpoint and the order action are the only sources of truth, and it is
 	// what makes the bundle discount show the figure that gets charged.
 	$effect(() => {
 		if (!cart.hydrated) return;
+		void priceAttempt;
 		const payload = cart.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity }));
 
 		if (payload.length === 0) {
 			priced = EMPTY;
+			priceFailed = false;
 			return;
 		}
 
 		let cancelled = false;
+		priceFailed = false;
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), PRICE_TIMEOUT_MS);
 		fetch('/api/cart', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ lines: payload })
+			body: JSON.stringify({ lines: payload }),
+			signal: controller.signal
 		})
-			.then((res) => res.json())
+			.then((res) => {
+				if (!res.ok) throw new Error(`cart ${res.status}`);
+				return res.json();
+			})
 			.then((data) => {
 				if (cancelled) return;
+				if (!Array.isArray(data?.lines)) throw new Error('cart: no lines');
 				priced = data;
 				// A line the server no longer prices is a product taken off sale
 				// (`scripts/retired-products.js`) still saved in this browser. It is
 				// already out of the total; drop it from the cart too, or the order
 				// would post it and fail as unavailable.
-				if (!Array.isArray(data?.lines)) return;
 				const sold = new Set(data.lines.map((l: { variantId: number }) => l.variantId));
 				for (const line of cart.lines) if (!sold.has(line.variantId)) cart.remove(line.variantId);
 			})
 			.catch(() => {
-				if (!cancelled) priced = EMPTY;
-			});
+				if (cancelled) return;
+				priced = null;
+				priceFailed = true;
+			})
+			.finally(() => clearTimeout(timer));
 
 		return () => {
 			cancelled = true;
+			clearTimeout(timer);
+			controller.abort();
 		};
 	});
 
@@ -798,8 +820,17 @@
 	</button>
 {/snippet}
 
+{#snippet priceRetry()}
+	<p class="text-15 text-fx-sub" role="alert">
+		{t('cart.loadFailed')}
+		<button type="button" class="underline" onclick={() => priceAttempt++}>{t('cart.retry')}</button>
+	</p>
+{/snippet}
+
 {#snippet shopSummary()}
-	{#if priced === null}
+	{#if priced === null && priceFailed}
+		{@render priceRetry()}
+	{:else if priced === null}
 		<p class="shop-muted">{t('common.loading')}</p>
 	{:else if isEmpty}
 		<p class="shop-muted">{t('checkout.shop.pick')}</p>
@@ -1084,7 +1115,9 @@
 				</h2>
 
 				<div class="rounded-field border border-[#d8d5cf] bg-white px-4 py-4">
-					{#if priced === null}
+					{#if priced === null && priceFailed}
+						{@render priceRetry()}
+					{:else if priced === null}
 						<p class="text-15 text-fx-muted">{t('common.loading')}</p>
 					{:else if isEmpty && emptyNote}
 						<p class="text-15 text-fx-sub">{emptyNote}</p>
