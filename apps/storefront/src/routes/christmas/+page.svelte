@@ -13,10 +13,10 @@
 </script>
 
 <svelte:head>
-	<title>Christmas for your dog · {t('common.brand')}</title>
+	<title>Christmas for your pet · {t('common.brand')}</title>
 	<meta
 		name="description"
-		content="Christmas costumes and hoodies for small dogs. Free US shipping and 30-day returns."
+		content="Christmas costumes and hoodies for small dogs and cats. Free US shipping and 30-day returns."
 	/>
 	<link
 		href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
@@ -34,8 +34,8 @@
 	     photos and prices have to be on the first screen. -->
 	<header class="intro">
 		<p class="eyebrow">The Christmas shop</p>
-		<h1>Christmas, with the dog in it.</h1>
-		<p class="lead">Costumes and hoodies for small dogs. Free US shipping, 30-day returns.</p>
+		<h1>Christmas, with the pets in it.</h1>
+		<p class="lead">Costumes and hoodies for small dogs and cats. Free US shipping, 30-day returns.</p>
 	</header>
 
 	{#if data.products.length}

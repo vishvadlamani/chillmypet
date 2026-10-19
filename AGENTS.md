@@ -703,6 +703,28 @@ The picker's single-colour case gives the sizes the rest of the row
 (`.options.single`), and the bundle cards' saving line names its unit through
 `unitsNoun` ("with 2 hoodies"); it used to say "costumes" on every page.
 
+`/products/santa-cat-costume` is the fifth, and the first for cats: a red
+Santa outfit in two styles, S–L, built like the reindeer hoodie (`tree`
+theme, same blocks and rules), defined in `scripts/santa-cat-costume.js` and
+tested by `tests/santa-cat-costume.mjs`. Added 2026-10-19 from two supplier
+photos the owner sent. Three things to know:
+
+- **The design slot holds a style, not a colour.** The owner asked for one
+  product, red, S/M/L, and the two photos are two different outfits, so the
+  buyer picks `santa_suit` (hat, belted jacket, trousers) or `santa_dress`
+  (collar, ruffled skirt, sash), both red. The picker's `designLabel` reads
+  "Style", both codes are named under `product.colors.<code>` in both language
+  packs, and SKUs are `CMP-SC-<SUIT|DRESS>-<SIZE>`. Both swatches are the same
+  red: the label and the photo tell them apart.
+- **No size chart, and a placeholder price**, as on the reindeer hoodie: the
+  supplier's table is not in hand, and $27.99 is the reindeer hoodie's figure,
+  which the owner chose to reuse. Either change on the live store needs a
+  catalogue migration.
+- **The tree header's links wrap on wide screens now.** Five product names
+  plus Home and Christmas overflowed the centred row at 1280px and the last
+  one was clipped behind a hidden scrollbar; `tree-theme.css` lets the row
+  wrap at ≥768px. `/christmas`'s intro says dogs and cats.
+
 **`/christmas` is the page the Christmas ads can share.** It lists every
 product whose `PRODUCT_PAGES` entry has `christmas: true` and which has a row
 in the store, in catalogue order, each card linking to its product page. A new
