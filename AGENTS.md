@@ -903,7 +903,12 @@ the menu leads instead. Things to know:
   is still `<a href="/checkout">`, so it works without JavaScript and the
   tests that read its count keep finding it; the click handler opens the
   drawer instead. Before, the only − + were under the address and card
-  fields on `/checkout`.
+  fields on `/checkout`. A re-price that fails before anything is shown (an
+  error status, an HTML error page such as a 1101, a dropped connection, or
+  no answer within 10 s) shows a message with Checkout and Try again, never
+  an endless "Loading…" (the owner found one on 2026-10-19). Lines the
+  server no longer prices leave the cart, as on the checkout, so the count
+  matches the lines. `tests/cart-drawer.mjs` (in `test:store`) pins both.
 - **The whole site wears the tree chrome** (cream, pine, Poppins, the
   delivery strip above the header, the green footer), except a product page
   with a skin of its own (the life jacket's sales page) and the one-page

@@ -18,7 +18,7 @@
 		"test:e2e": "node tests/e2e.mjs",
 		"deploy": "npm run build && wrangler deploy",
 		"test:payments": "node tests/payment-flow.mjs",
-		"test:store": "node tests/store-flow.mjs && node tests/christmas-tree-costume.mjs && node tests/christmas-hoodie.mjs && node tests/santa-costume-with-gift.mjs && node tests/santa-outfit.mjs && node tests/one-page-checkout.mjs && node tests/shop-checkout.mjs && node tests/basket-edit.mjs",
+		"test:store": "node tests/store-flow.mjs && node tests/christmas-tree-costume.mjs && node tests/christmas-hoodie.mjs && node tests/santa-costume-with-gift.mjs && node tests/santa-outfit.mjs && node tests/one-page-checkout.mjs && node tests/shop-checkout.mjs && node tests/basket-edit.mjs && node tests/cart-drawer.mjs",
 		"test:admin": "node tests/admin-flow.mjs",
 		"test:recovery": "node tests/checkout-recovery.mjs",
 		"db:content": "node --env-file-if-exists=.env scripts/sync-content.js",

@@ -53,11 +53,21 @@
 	let t = $derived(createTranslator(page.data.locale ?? defaultLocale));
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let priced = $state<Priced | null>(null);
+	// Set when a re-price fails before anything was shown, so the panel offers
+	// Try again and the checkout instead of "Loading…" that never ends — which
+	// is what a timed-out request, an error page (a 1101 answers with HTML) or
+	// a dropped connection used to leave behind.
+	let failed = $state(false);
+	let attempt = $state(0);
+
+	// A request that never settles counts as failed after this long.
+	const PRICE_TIMEOUT_MS = 10_000;
 
 	// Priced only while open: the bag is on every page, and a fetch per page
 	// view for a panel nobody opened is not worth it.
 	$effect(() => {
 		if (!isOpen || !cart.hydrated) return;
+		void attempt;
 		const payload = cart.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity }));
 		if (payload.length === 0) {
 			priced = { lines: [], discountCents: 0, bundlePercentOff: 0, currency: 'USD' };
@@ -65,20 +75,38 @@
 		}
 
 		let cancelled = false;
+		failed = false;
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), PRICE_TIMEOUT_MS);
 		fetch('/api/cart', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ lines: payload })
+			body: JSON.stringify({ lines: payload }),
+			signal: controller.signal
 		})
-			.then((res) => res.json())
+			.then((res) => {
+				if (!res.ok) throw new Error(`cart ${res.status}`);
+				return res.json();
+			})
 			.then((data) => {
-				if (!cancelled && Array.isArray(data?.lines)) priced = data;
+				if (cancelled) return;
+				if (!Array.isArray(data?.lines)) throw new Error('cart: no lines');
+				priced = data;
+				// A line the server no longer prices is a product taken off sale
+				// still saved in this browser. Drop it, as the checkout does, or
+				// the count says 10 over lines that add up to 7.
+				const sold = new Set(data.lines.map((l: PricedLine) => l.variantId));
+				for (const line of cart.lines) if (!sold.has(line.variantId)) cart.remove(line.variantId);
 			})
 			.catch(() => {
-				// Keep what is shown; the checkout prices it again anyway.
-			});
+				// Lines already on screen stay; the checkout prices them again anyway.
+				if (!cancelled && priced === null) failed = true;
+			})
+			.finally(() => clearTimeout(timer));
 		return () => {
 			cancelled = true;
+			clearTimeout(timer);
+			controller.abort();
 		};
 	});
 
@@ -123,6 +151,12 @@
 			<div class="empty">
 				<p>{t('cart.empty')}</p>
 				<a href="/catalog" class="go">{t('cart.emptyAction')}</a>
+			</div>
+		{:else if priced === null && failed}
+			<div class="empty" role="alert">
+				<p>{t('cart.loadFailed')}</p>
+				<a href="/checkout" class="go">{t('cart.checkout')}</a>
+				<button type="button" class="keep" onclick={() => attempt++}>{t('cart.retry')}</button>
 			</div>
 		{:else if priced === null}
 			<p class="loading">{t('common.loading')}</p>
