@@ -141,6 +141,10 @@ function check(label, cond, detail) {
 	const html = await fetch(`${BASE}/checkout`).then((r) => r.text());
 	check('SSR renders the checkout forms', /Contact/.test(html) && /Shipping address/.test(html));
 	check('SSR renders the pay button', /Place order|Pay \$/.test(html));
+	check(
+		'under it: free returns (to the policy), free shipping, and the support email',
+		/type="submit"[\s\S]*?<ul class="pay-trust[^"]*">[\s\S]*?href="\/policies\/refunds"[^>]*>30-day free returns<\/a>[\s\S]*?Free shipping[\s\S]*?href="mailto:contact\.chillmypet@gmail\.com"/.test(html)
+	);
 	check('checkout stays out of search results', /noindex/.test(html));
 }
 

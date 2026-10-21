@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { createTranslator, defaultLocale, pack } from '$lib/i18n';
-
-	const SUPPORT_EMAIL = 'contact.chillmypet@gmail.com';
+	import { SUPPORT_EMAIL } from '$lib/support';
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let t = $derived(createTranslator(locale));

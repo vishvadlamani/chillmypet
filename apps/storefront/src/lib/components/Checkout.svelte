@@ -18,6 +18,7 @@
 	import CardFields from '$lib/components/CardFields.svelte';
 	import QuantityStepper from '$lib/components/QuantityStepper.svelte';
 	import { resized } from '$lib/resized';
+	import { SUPPORT_EMAIL } from '$lib/support';
 	import { fieldProblem } from '$lib/checkout-fields';
 	import type { ActionData, PageData } from '../../routes/checkout/$types';
 
@@ -820,6 +821,23 @@
 	</button>
 {/snippet}
 
+<!-- What a buyer from an ad, who has never heard of the shop, wants to know
+     at the moment of paying: can it go back, what does delivery cost, is
+     there someone to ask. So it sits under the button rather than in the
+     footer. The returns and shipping words are the product page's, and true
+     of every order: the refund policy promises 30 days, and shipping is free. -->
+{#snippet payTrust()}
+	<ul class="pay-trust">
+		<li><span aria-hidden="true">✓</span> <a href="/policies/refunds">{t('product.trustReturns')}</a></li>
+		<li><span aria-hidden="true">✓</span> {t('product.trustShipping')}</li>
+		<li>
+			<span aria-hidden="true">✓</span>
+			{t('checkout.questions')}
+			<a href="mailto:{SUPPORT_EMAIL}">{SUPPORT_EMAIL}</a>
+		</li>
+	</ul>
+{/snippet}
+
 {#snippet priceRetry()}
 	<p class="text-15 text-fx-sub" role="alert">
 		{t('cart.loadFailed')}
@@ -994,6 +1012,7 @@
 
 					{@render alerts()}
 					{@render payButton()}
+					{@render payTrust()}
 
 					<nav class="shop-policies" aria-label={t('checkout.shop.secure')}>
 						<a href="/policies/refunds">{t('footer.refunds')}</a>
@@ -1179,6 +1198,7 @@
 
 			{@render alerts()}
 			{@render payButton()}
+			{@render payTrust()}
 		</form>
 	</div>
 {/if}
@@ -1196,5 +1216,52 @@
 	.storefront-type {
 		--font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
 		font-family: var(--font-sans);
+	}
+
+	/*
+	 * Small and quiet: the button is what to press, this is what settles the
+	 * doubt. One rule for both looks, in each one's own colours. 15px, so
+	 * "Questions?" and the address share a row on a 390px phone; 16px on the
+	 * shop look, which sets nothing smaller. Every link 44px tall so a thumb
+	 * finds it. No dots between the items: on a phone the line wraps,
+	 * and a dot left at the start or end of a row reads as a stray mark.
+	 */
+	.pay-trust {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		column-gap: 16px;
+		/* Tied to the button above it, not floating halfway to the next thing. */
+		margin: -10px 0 0;
+		padding: 0;
+		list-style: none;
+		font-size: 15px;
+		line-height: 1.3;
+		color: var(--shop-muted, var(--color-fx-sub));
+		text-align: center;
+	}
+	.shop .pay-trust {
+		font-size: 16px;
+	}
+	.pay-trust li {
+		display: inline-flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+		column-gap: 6px;
+		min-height: 44px;
+	}
+	.pay-trust span {
+		color: var(--shop-accent, #2f6b3d);
+		font-weight: 600;
+	}
+	.pay-trust a {
+		display: inline-flex;
+		align-items: center;
+		min-height: 44px;
+		color: inherit;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		overflow-wrap: anywhere;
 	}
 </style>

@@ -176,6 +176,7 @@ await page.waitForURL(`**/products/${SLUG}/checkout`, { timeout: 15000 });
 	check('the payment page has a title of its own', /^Checkout · Calming Massager/.test(await page.title()), await page.title());
 	const line = await page.locator('.picker.folded').innerText().catch(() => 'not folded');
 	check('the choice is one line, black, one size, with a way to change it', /Black[\s\S]*One size/.test(line) && !/Size:/.test(line) && /Change/.test(line), line);
+	check('and it names the product first', /^\s*Calming Massager\s+Black · One size/.test(line), line);
 }
 
 {
