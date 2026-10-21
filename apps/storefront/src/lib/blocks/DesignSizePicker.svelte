@@ -69,6 +69,13 @@
 			 * whole picker, since there is nothing to fold yet.
 			 */
 			fold?: boolean;
+			/**
+			 * The product's name, on the folded line above the colour and size.
+			 * A phone shows the shop checkout's summary folded, so without it
+			 * the first screen named a colour ("Khaki · One size") and never
+			 * said what was being bought.
+			 */
+			productName?: string;
 			changeLabel?: string;
 		}
 	);
@@ -275,8 +282,8 @@
 			<img src={resized(designImage, 200)} alt="" width="48" height="48" />
 		{/if}
 		<p>
-			<strong>{designName}</strong>
-			<span>{oneSize ? oneSize : `${p.sizeLabel ?? 'Size'}: ${size}`}{units > 1 ? ` · ${units} ${p.unitsNoun ?? 'items'}` : ''}</span>
+			{#if p.productName}<strong>{p.productName}</strong>{/if}
+			<span>{designName} · {oneSize ? oneSize : `${p.sizeLabel ?? 'Size'}: ${size}`}{units > 1 ? ` · ${units} ${p.unitsNoun ?? 'items'}` : ''}</span>
 		</p>
 		<button type="button" onclick={unfold}>
 			{p.changeLabel ?? 'Change'}

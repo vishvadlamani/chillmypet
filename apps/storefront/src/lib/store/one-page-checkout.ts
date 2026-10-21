@@ -102,6 +102,9 @@ function shopCheckout(product: FunnelDefinition, slug: string): FunnelDefinition
 								tagline: '',
 								button: false,
 								fold: true,
+								// The folded line names the product: on a phone it is all
+								// of the order the first screen shows.
+								productName: { $ref: 'product.title' },
 								sizeGuideHref: `/products/${slug}#size-guide`
 							}
 						} as Block

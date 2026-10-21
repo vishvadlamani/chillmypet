@@ -1241,6 +1241,18 @@ logo, centred, and a padlock. Things to know:
   checkout.
 - **Text 16px and up, fields 60px, every target 44px.** The test walks every
   visible text node and fails on anything smaller.
+- **The folded picker names the product** ("Calming Massager", then "Khaki ·
+  One size"): on a phone the summary starts folded, so that line is all of
+  the order the first screen shows, and until 2026-10-21 it named only a
+  colour. `productName` on the picker, bound to `product.title`.
+- **Under the pay button, on both looks and `/checkout`: "✓ 30-day free
+  returns ✓ Free shipping ✓ Questions? <email>"** (`payTrust` in
+  `Checkout.svelte`; the owner's ask of 2026-10-21, after 20 adds to cart
+  and no payment since 2026-10-16). The returns item links to the refund
+  policy, the email is a `mailto:`. The words are the product page's
+  (`product.trustReturns`, `product.trustShipping`) and the address is
+  `SUPPORT_EMAIL` in `$lib/support.ts`, the same one the policies and the
+  contact page print; change a promise in the policy and this line with it.
 
 `tests/shop-checkout.mjs` (in `test:store`) drives it as the Facebook app on
 an iPhone. With `PAYMENTS_BASE_URL` set to a second dev server holding

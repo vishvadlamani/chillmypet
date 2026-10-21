@@ -56,7 +56,12 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('the shop chrome: the name, a padlock, no cart link', html.includes('class="shop-header"') && html.includes('Secure checkout') && !html.includes('href="/checkout"'));
-	check('the choice from the link is chosen on the server: the picker is folded', /class="picker folded[\s"]/.test(html) && />\s*Green\s*</.test(html) && /Size: M/.test(html));
+	check('the choice from the link is chosen on the server: the picker is folded', /class="picker folded[\s"]/.test(html) && /Green · Size: M/.test(html));
+	// The phone's first screen shows the order only as this line, so it says
+	// what is being bought, above the colour and size.
+	check('the folded line names the product, above the colour and size', /<strong[^>]*>Christmas Tree Costume<\/strong>(?:\s|<!--[^>]*-->)*<span[^>]*>Green · Size: M</.test(html));
+	// What settles a first-time buyer's doubt, where they are deciding.
+	check('under the pay button: free returns, free shipping and who to ask', /class="shop-pay[\s"][\s\S]*?<ul class="pay-trust[^"]*">[\s\S]*?href="\/policies\/refunds"[^>]*>30-day free returns<\/a>[\s\S]*?Free shipping[\s\S]*?Questions\?[\s\S]*?href="mailto:contact\.chillmypet@gmail\.com"/.test(html));
 	check('no product photos or strip: this page is the checkout', !html.includes('class="gallery') && !html.includes('announcement'));
 	const order = ['shop-contact-title', 'shop-delivery-title', 'shop-method-title', 'shop-payment-title'].map((id) => html.indexOf(`id="${id}"`));
 	check('Contact, Delivery, Shipping method, Payment, in that order', order.every((i, n) => i > 0 && (n === 0 || i > order[n - 1])), JSON.stringify(order));
@@ -196,6 +201,9 @@ await page.goto(`${BASE}${FROM_PRODUCT}&fbclid=ad1&utm_source=fb`, { waitUntil: 
 		els.filter((e) => e.getBoundingClientRect().height > 0).map((e) => [e.textContent.trim().slice(0, 20), Math.round(e.getBoundingClientRect().height)])
 	);
 	check('every button and link is 44px tall or more', target.every(([, h]) => h >= 44), JSON.stringify(target.filter(([, h]) => h < 44)));
+	const pay = await page.locator('button.shop-pay').boundingBox();
+	const trust = await page.locator('.pay-trust').boundingBox();
+	check('the trust line sits right under the pay button, inside the column', trust && pay && trust.y >= pay.y + pay.height && trust.y - (pay.y + pay.height) <= 16 && trust.x >= 0 && trust.x + trust.width <= 390, JSON.stringify({ pay, trust }));
 }
 
 // --- arriving from the product page ---------------------------------------------------

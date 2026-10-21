@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { createTranslator, defaultLocale, pack } from '$lib/i18n';
+	import { SUPPORT_EMAIL } from '$lib/support';
 
 	type Section = { heading: string; body: string[] };
 
@@ -8,8 +9,6 @@
 	// pack() rather than t(): they are arrays, and the translator only resolves
 	// string leaves.
 	let { which }: { which: 'shipping' | 'refunds' | 'privacy' | 'terms' } = $props();
-
-	const SUPPORT_EMAIL = 'contact.chillmypet@gmail.com';
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let t = $derived(createTranslator(locale));
