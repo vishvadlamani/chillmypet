@@ -705,6 +705,13 @@
 		order?.designs.find((d) => d.code === chosenDesign)?.image ?? order?.designs[0]?.image ?? null
 	);
 	let otherLines = $derived((priced?.lines ?? []).filter((l) => l.slug !== pickerSlug));
+	// What the selects' own product costs as chosen, shown beside it, so the
+	// lines in the panel add up to the subtotal under them.
+	let ownCents = $derived(
+		(priced?.lines ?? [])
+			.filter((l) => l.slug === pickerSlug)
+			.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0)
+	);
 	const ORDER_SUBJECT = { id: 'order', component: 'classic_order' };
 
 	function chooseDesign(code: string) {
@@ -1052,6 +1059,9 @@
 									<p class="name">{order.title}</p>
 									{#if order.tagline}<p class="tagline">{order.tagline}</p>{/if}
 								</div>
+								{#if ownCents > 0}
+									<b class="amount">{formatMoney(ownCents, locale, currency)}</b>
+								{/if}
 							</div>
 							<div class="classic-picks">
 								<label class="pick">
