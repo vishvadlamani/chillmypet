@@ -15,6 +15,9 @@
 	 * The message is announced with the field (`aria-describedby`) and the box
 	 * turns red with it; whether to show it is the caller's call, because only
 	 * the block knows whether the buyer has been here yet.
+	 *
+	 * `stacked` is the classic checkout's drawing of the same field: the label
+	 * above the box with a required mark, and a placeholder inside it.
 	 */
 	let {
 		id,
@@ -26,6 +29,9 @@
 		options,
 		error = '',
 		hint = '',
+		stacked = false,
+		placeholder,
+		required = false,
 		oninput,
 		onblur
 	}: {
@@ -39,15 +45,28 @@
 		options?: { value: string; label: string }[];
 		error?: string;
 		hint?: string;
+		stacked?: boolean;
+		placeholder?: string;
+		/** Marks the label; the check itself is `$lib/checkout-fields.ts`. */
+		required?: boolean;
 		oninput: (value: string) => void;
 		onblur?: () => void;
 	} = $props();
 
-	let raised = $derived(Boolean(options) || value.length > 0);
+	let raised = $derived(stacked || Boolean(options) || value.length > 0);
 	let described = $derived([hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' '));
 </script>
 
-<div class="shop-field" class:raised class:invalid={Boolean(error)} class:select={Boolean(options)}>
+<div
+	class="shop-field"
+	class:raised
+	class:stacked
+	class:invalid={Boolean(error)}
+	class:select={Boolean(options)}
+>
+	{#if stacked}
+		<label for={id}>{label}{#if required}<span class="req" aria-hidden="true">*</span>{/if}</label>
+	{/if}
 	<div class="box">
 		{#if options}
 			<select
@@ -57,10 +76,11 @@
 				{value}
 				aria-invalid={error ? 'true' : undefined}
 				aria-describedby={described || undefined}
+				aria-required={required || undefined}
 				onchange={(e) => oninput(e.currentTarget.value)}
 				onblur={() => onblur?.()}
 			>
-				{#if !value}<option value="" disabled></option>{/if}
+				{#if !value}<option value="" disabled>{stacked ? (placeholder ?? '') : ''}</option>{/if}
 				{#each options as option (option.value)}
 					<option value={option.value}>{option.label}</option>
 				{/each}
@@ -76,13 +96,15 @@
 				{autocomplete}
 				{inputmode}
 				{value}
+				placeholder={stacked ? placeholder : undefined}
 				aria-invalid={error ? 'true' : undefined}
 				aria-describedby={described || undefined}
+				aria-required={required || undefined}
 				oninput={(e) => oninput(e.currentTarget.value)}
 				onblur={() => onblur?.()}
 			/>
 		{/if}
-		<label for={id}>{label}</label>
+		{#if !stacked}<label for={id}>{label}</label>{/if}
 	</div>
 	{#if error}
 		<p class="message" id="{id}-error">{error}</p>

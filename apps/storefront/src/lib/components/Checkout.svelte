@@ -44,7 +44,9 @@
 		mainClass = 'flex flex-col gap-6 py-8',
 		look = 'default',
 		pickerSlug,
-		pickerSetsQuantity = false
+		pickerSetsQuantity = false,
+		order,
+		tierField = 'bundle'
 	}: {
 		data: Pick<
 			PageData,
@@ -106,8 +108,14 @@
 		 * is markup only: what is priced, checked, tracked and posted is the
 		 * code above the markup, shared by both looks. Its fields are the shop
 		 * blocks, which ask for first and last name separately.
+		 *
+		 * `classic` is the Classic Christmas checkout: one card, a pine header,
+		 * the order panel (with the colour, size and quantity selects) in cream
+		 * on top of a phone and beside the form on a desktop, then numbered
+		 * steps. Its fields are the shop blocks too, so it checks, flags and
+		 * posts exactly as the shop look does.
 		 */
-		look?: 'default' | 'shop';
+		look?: 'default' | 'shop' | 'classic';
 		/**
 		 * On a one-page checkout, the product whose picker sits above the
 		 * form. Its line is the picker's to change: it gets no Remove (the
@@ -118,9 +126,31 @@
 		 */
 		pickerSlug?: string;
 		pickerSetsQuantity?: boolean;
+		/**
+		 * What the classic look's order panel offers; see the one-page loader.
+		 * Its selects choose the `pickerSlug` product.
+		 */
+		order?: ClassicOrder | null;
+		/** The state key the product's bundle tier, its quantity, lives under. */
+		tierField?: string;
 	} = $props();
 
+	type ClassicOrder = {
+		title: string;
+		tagline: string;
+		designLabel: string;
+		designs: { code: string; label: string; image?: string }[];
+		sizes: { code: string; label: string }[];
+		available: string[];
+		sizeNotes: Record<string, string>;
+		quantities: number[];
+	};
+
 	let shop = $derived(look === 'shop');
+	let classic = $derived(look === 'classic');
+	// Both of those draw their fields with the shop blocks: first and last
+	// name apart, each field with its own message under it.
+	let split = $derived(look !== 'default');
 	let summaryOpen = $state(false);
 
 	const canStep = (line: { slug: string }) => !(pickerSetsQuantity && line.slug === pickerSlug);
@@ -337,7 +367,7 @@
 	 */
 	let issues = $derived.by(() => {
 		const list: string[] = [];
-		if (shop) {
+		if (split) {
 			// The shop blocks show these under each field; this list only
 			// decides whether the order can be posted.
 			// By ISO code: the select shows names in the page's language, and
@@ -599,7 +629,7 @@
 		showIssues = true;
 		if (issues.length > 0) {
 			cancel();
-			if (shop) flagFields();
+			if (split) flagFields();
 			return;
 		}
 		submitting = true;
@@ -649,7 +679,9 @@
 	async function flagFields() {
 		funnelState.set('checkout_attempt', crypto.randomUUID());
 		await tick();
-		const first = document.querySelector<HTMLElement>('.shop [aria-invalid="true"]');
+		const first = document.querySelector<HTMLElement>(
+			'.shop [aria-invalid="true"], .classic [aria-invalid="true"]'
+		);
 		if (!first) return;
 		const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		first.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
@@ -658,6 +690,61 @@
 
 	let itemCount = $derived((priced?.lines ?? []).reduce((sum, l) => sum + l.quantity, 0));
 	let firstImage = $derived(priced?.lines.find((l) => l.image)?.image ?? null);
+
+	/**
+	 * The classic look's order panel chooses through funnel state, under the
+	 * same keys the product page's picker writes (`design`, `size`, the
+	 * tier), so the page that renders this keeps the cart equal to it exactly
+	 * as it does for the picker, and the server prices it. Quantity is the
+	 * bundle tier, `qty-N`: the breaks the product page's cards offer.
+	 */
+	let chosenDesign = $derived(bag.design || order?.designs[0]?.code || '');
+	let chosenSize = $derived(bag.size ?? '');
+	let chosenUnits = $derived(Number(/^qty-(\d+)$/.exec(bag[tierField] ?? '')?.[1] ?? 1));
+	let designImage = $derived(
+		order?.designs.find((d) => d.code === chosenDesign)?.image ?? order?.designs[0]?.image ?? null
+	);
+	let otherLines = $derived((priced?.lines ?? []).filter((l) => l.slug !== pickerSlug));
+	const ORDER_SUBJECT = { id: 'order', component: 'classic_order' };
+
+	function chooseDesign(code: string) {
+		funnelState.set('design', code);
+		// A size this colour doesn't come in is not a size anyone can buy.
+		if (chosenSize && !order?.available.includes(`${code}:${chosenSize}`)) funnelState.set('size', '');
+		track('design_selected', ORDER_SUBJECT, { design: code });
+	}
+	function chooseSize(code: string) {
+		funnelState.set('size', code);
+		track('size_selected', ORDER_SUBJECT, { size: code });
+	}
+	function chooseUnits(units: string) {
+		funnelState.set(tierField, `qty-${units}`);
+		track('bundle_selected', ORDER_SUBJECT, { bundle: `qty-${units}` });
+	}
+
+	/**
+	 * Stripe's fields in the classic look's colours. The sizes are the shop
+	 * look's, which is what `.classic-pay-box` reserves the height of (in
+	 * classic-checkout.css): change a size or spacing and measure again.
+	 */
+	const CLASSIC_APPEARANCE = {
+		theme: 'stripe',
+		variables: {
+			colorPrimary: '#234b35',
+			colorText: '#244533',
+			colorTextSecondary: '#627064',
+			colorDanger: '#a12d39',
+			colorBackground: '#fffefa',
+			fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+			fontSizeBase: '16px',
+			borderRadius: '10px'
+		},
+		rules: {
+			'.Label': { fontSize: '16px' },
+			'.Input': { fontSize: '17px' },
+			'.Error': { fontSize: '16px' }
+		}
+	};
 
 	/**
 	 * Stripe's fields in the shop look's type and colours, so the card box
@@ -693,7 +780,7 @@
 {#snippet lineControls(line: PricedLine, withChange: boolean)}
 	{#if canStep(line) || canRemove(line) || withChange}
 		<div
-			class={shop
+			class={split
 				? 'line-actions'
 				: 'text-15 text-fx-sub mt-1 flex flex-wrap items-center gap-x-4 gap-y-1'}
 		>
@@ -704,13 +791,13 @@
 				<button
 					type="button"
 					onclick={() => cart.remove(line.variantId)}
-					class={shop ? 'line-link' : 'min-h-11 underline'}
+					class={split ? 'line-link' : 'min-h-11 underline'}
 				>
 					{t('cart.remove')}
 				</button>
 			{/if}
 			{#if withChange}
-				<a href="/products/{line.slug}" class={shop ? 'line-link' : 'inline-flex min-h-11 items-center underline'}>
+				<a href="/products/{line.slug}" class={split ? 'line-link' : 'inline-flex min-h-11 items-center underline'}>
 					{t('checkout.changeOrder')}
 				</a>
 			{/if}
@@ -722,7 +809,7 @@
 	<!-- The shop look asks for the two names separately, and posts them
 	     that way, so "Mary Ann" stays a first name instead of being split
 	     at its first space. -->
-	{#if shop}
+	{#if split}
 		<input type="hidden" name="firstName" value={bag.firstName ?? ''} />
 		<input type="hidden" name="lastName" value={bag.lastName ?? ''} />
 	{:else}
@@ -749,7 +836,7 @@
 	{#if topLevelError}
 		<p
 			class="rounded-field text-15 border border-[#c8342f] bg-[#fdf3f2] px-4 py-3 text-[#c8342f]"
-			class:shop-alert={shop}
+			class:shop-alert={split}
 			role="alert"
 		>
 			{topLevelError}
@@ -760,7 +847,7 @@
 		     aren't sure. -->
 		<p
 			class="rounded-field text-15 text-fx-sub border border-[#d8d5cf] bg-white px-4 py-3"
-			class:shop-notice={shop}
+			class:shop-notice={split}
 		>
 			{t('checkout.cancelled')}
 		</p>
@@ -769,14 +856,14 @@
 	{#if payError}
 		<p
 			class="rounded-field text-15 border border-[#c8342f] bg-[#fdf3f2] px-4 py-3 text-[#c8342f]"
-			class:shop-alert={shop}
+			class:shop-alert={split}
 			role="alert"
 		>
 			{payError}
 		</p>
 	{/if}
 
-	{#if shop}
+	{#if split}
 		<!-- The fields carry their own messages; this line is for whoever is
 		     looking at the button they just pressed. The server's verdict
 		     still lists itself, since it can name a field the page didn't ask. -->
@@ -895,6 +982,323 @@
 				{t('checkout.successContinue')}
 			</a>
 		</section>
+	</div>
+{:else if classic}
+	<div class="classic">
+		<div class="classic-card">
+			<header class="classic-head">
+				<!-- The owner's logo, white on the pine (static/brand). -->
+				<a href="/" class="classic-logo">
+					<img src="/brand/logo-white.png" alt={t('common.brand')} width="449" height="96" />
+				</a>
+				<span class="classic-secure">
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<rect x="5" y="10.5" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.8" />
+						<path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+						<circle cx="12" cy="15.5" r="1.3" fill="currentColor" />
+					</svg>
+					{t('checkout.shop.secure')}
+				</span>
+			</header>
+			<h1 class="sr-only">{t('checkout.title')}</h1>
+
+			<div class="classic-grid">
+				<!-- The order first in the source: on a phone it is the top of the
+				     page; on a desktop the grid moves it beside the form. -->
+				<aside class="classic-order" aria-label={t('checkout.yourOrder')}>
+					<div class="classic-order-inner">
+						<div class="classic-free">
+							<p class="lead">
+								{t('checkout.classic.freeLead')} <strong>{t('checkout.classic.freeStrong')}</strong>
+							</p>
+							<p class="note">{t('checkout.classic.freeNote')}</p>
+							<!-- The stripe fills and the truck drives to the end of it;
+							     both stand still under prefers-reduced-motion. -->
+							<div class="classic-road" aria-hidden="true">
+								<span class="stripe"></span>
+								<span class="truck">
+									<svg viewBox="0 0 24 24">
+										<path
+											d="M2.5 6.5h11v9h-11zM13.5 9.5h4l3 3.2v2.8h-7"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="1.7"
+											stroke-linejoin="round"
+										/>
+										<circle class="wheel" cx="6.5" cy="17" r="1.9" fill="#fffefa" stroke="currentColor" stroke-width="1.7" />
+										<circle class="wheel" cx="17" cy="17" r="1.9" fill="#fffefa" stroke="currentColor" stroke-width="1.7" />
+									</svg>
+								</span>
+							</div>
+						</div>
+
+						<div class="classic-order-head">
+							<h2>{t('checkout.yourOrder')}</h2>
+							{#if priced && !isEmpty}
+								<span>
+									{itemCount === 1
+										? t('checkout.shop.oneItem')
+										: t('checkout.shop.manyItems', { count: itemCount })}
+								</span>
+							{/if}
+						</div>
+
+						{#if order}
+							<div class="classic-product">
+								{#if designImage}
+									<img src={resized(designImage, 200)} alt="" width="84" height="84" />
+								{/if}
+								<div>
+									<p class="name">{order.title}</p>
+									{#if order.tagline}<p class="tagline">{order.tagline}</p>{/if}
+								</div>
+							</div>
+							<div class="classic-picks">
+								<label class="pick">
+									<span>{order.designLabel}</span>
+									<select
+										id="order-design"
+										value={chosenDesign}
+										onchange={(e) => chooseDesign(e.currentTarget.value)}
+									>
+										{#each order.designs as design (design.code)}
+											<option value={design.code}>{design.label}</option>
+										{/each}
+									</select>
+								</label>
+								<label class="pick">
+									<span>{t('checkout.classic.size')}</span>
+									<select
+										id="order-size"
+										value={chosenSize}
+										onchange={(e) => chooseSize(e.currentTarget.value)}
+									>
+										{#if !chosenSize}
+											<option value="" disabled>{t('checkout.classic.chooseSize')}</option>
+										{/if}
+										{#each order.sizes as size (size.code)}
+											<option
+												value={size.code}
+												disabled={!order.available.includes(`${chosenDesign}:${size.code}`)}
+											>
+												{size.label}
+											</option>
+										{/each}
+									</select>
+								</label>
+								<label class="pick qty">
+									<span>{t('checkout.classic.qty')}</span>
+									<select
+										id="order-qty"
+										value={String(chosenUnits)}
+										onchange={(e) => chooseUnits(e.currentTarget.value)}
+									>
+										{#each order.quantities as units (units)}
+											<option value={String(units)}>{units}</option>
+										{/each}
+									</select>
+								</label>
+							</div>
+							<p class="classic-size-note">
+								{#if chosenSize && order.sizeNotes[chosenSize]}
+									{order.sizeNotes[chosenSize]}. {t('checkout.classic.sizeTip')}
+								{:else if !chosenSize}
+									{t('checkout.classic.pick')}
+								{:else}
+									{t('checkout.classic.sizeTip')}
+								{/if}
+							</p>
+						{/if}
+
+						{#each otherLines as line (line.variantId)}
+							<div class="classic-line">
+								{#if line.image}<img src={resized(line.image, 200)} alt="" width="48" height="48" />{/if}
+								<div>
+									<p>
+										{line.title}
+										<small>{colourName(line.colour)} · {line.size}</small>
+									</p>
+									{@render lineControls(line, false)}
+								</div>
+								<b>{formatMoney(line.unitPriceCents * line.quantity, locale, currency)}</b>
+							</div>
+						{/each}
+
+						{#if priced === null && priceFailed}{@render priceRetry()}{/if}
+						<dl class="classic-totals">
+							<div>
+								<dt>{t('checkout.subtotal')}</dt>
+								<dd>{formatMoney(subtotalCents, locale, currency)}</dd>
+							</div>
+							{#if discountCents > 0}
+								<div class="saving">
+									<dt>{t('checkout.bundleDiscount')} ({bundlePercentOff}%)</dt>
+									<dd>−{formatMoney(discountCents, locale, currency)}</dd>
+								</div>
+							{/if}
+							<div>
+								<dt>{t('checkout.shipping')}</dt>
+								<dd>
+									{shippingCents === 0
+										? t('checkout.free').toUpperCase()
+										: formatMoney(shippingCents, locale, currency)}
+								</dd>
+							</div>
+							<div class="total">
+								<dt>{t('checkout.total')} <small>{currency}</small></dt>
+								<dd>{formatMoney(totalCents, locale, currency)}</dd>
+							</div>
+						</dl>
+
+						<section class="classic-peace" aria-labelledby="classic-peace-title">
+							<p class="kicker">{t('checkout.classic.peaceKicker')}</p>
+							<h2 id="classic-peace-title">{t('checkout.classic.peaceTitle')}</h2>
+							<details open>
+								<summary>{t('checkout.classic.fitQ')}</summary>
+								<p>
+									{chosenSize
+										? t('checkout.classic.fitSelected', { size: chosenSize })
+										: t('checkout.classic.fitNone')}
+									{t('checkout.classic.fitBody')}
+								</p>
+								<!-- The bands themselves, here, rather than a link out of
+								     the checkout to the product page's guide. -->
+								{#if order && Object.keys(order.sizeNotes).length > 0}
+									<ul class="bands">
+										{#each order.sizes as size (size.code)}
+											{#if order.sizeNotes[size.code]}
+												<li class:current={size.code === chosenSize}>{order.sizeNotes[size.code]}</li>
+											{/if}
+										{/each}
+									</ul>
+								{/if}
+							</details>
+							<details>
+								<summary>{t('checkout.classic.arriveQ')}</summary>
+								<p>{t('checkout.classic.arriveA')}</p>
+							</details>
+							<details>
+								<summary>{t('checkout.classic.returnQ')}</summary>
+								<p>{t('checkout.classic.returnA')}</p>
+							</details>
+						</section>
+					</div>
+				</aside>
+
+				<div class="classic-main">
+					<div class="classic-intro">
+						<p class="kicker">{t('checkout.classic.kicker')}</p>
+						<p class="headline">
+							{t('checkout.classic.headline1')}<br />{t('checkout.classic.headline2')}
+						</p>
+						<p class="sub">{t('checkout.classic.sub')}</p>
+					</div>
+
+					<PageLayout
+						definition={data.definition}
+						version={data.version}
+						components={STORE_BLOCKS}
+						{track}
+						{submit}
+						state={funnelState}
+						mainClass="classic-blocks"
+						rowClass=""
+						colClass=""
+					/>
+
+					<form method="POST" class="classic-form" use:enhance={submitOrder}>
+						{@render hiddenFields()}
+
+						<section class="shop-section" aria-labelledby="classic-payment-title">
+							<h2 id="classic-payment-title" class="step">
+								<span class="step-no" aria-hidden="true">4</span>
+								{t('checkout.classic.paymentTitle')}
+							</h2>
+							{#if data.paymentsEnabled && data.stripePublishableKey && !cardUnavailable}
+								<div class="classic-pay">
+									<p class="classic-pay-head">
+										<span>
+											<svg viewBox="0 0 24 24" aria-hidden="true">
+												<rect x="2.5" y="5.5" width="19" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7" />
+												<path d="M2.5 9.5h19" stroke="currentColor" stroke-width="1.7" />
+											</svg>
+											{t('checkout.classic.card')}
+										</span>
+										<small>{t('checkout.classic.brands')}</small>
+									</p>
+									<!-- Holds the height the card fields will take, so the button
+									     and everything under it stay put while Stripe.js loads. -->
+									<div class="classic-pay-box" class:ready={Boolean(cardApi)}>
+										{#if !cardApi}
+											<p class="classic-pay-loading">{t('checkout.paymentLoading')}</p>
+										{/if}
+										<CardFields
+											publishableKey={data.stripePublishableKey}
+											paymentMethodConfiguration={data.stripePaymentMethodConfiguration}
+											amountCents={totalCents}
+											{currency}
+											appearance={CLASSIC_APPEARANCE}
+											fonts={SHOP_FONTS}
+											onready={onCardReady}
+										/>
+									</div>
+									<p class="classic-lock">
+										<svg viewBox="0 0 24 24" aria-hidden="true">
+											<rect x="5" y="10.5" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.8" />
+											<path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+										</svg>
+										{t('checkout.classic.encrypted')}
+									</p>
+								</div>
+							{:else}
+								<p class="shop-notice">
+									{data.paymentsEnabled ? t('checkout.paymentHostedNote') : t('checkout.paymentPending')}
+								</p>
+							{/if}
+						</section>
+
+						<!-- Always drawn: the cart is priced in the browser, and a row
+						     that appeared once it was would move the button. -->
+						<p class="classic-due">
+							<span>{t('checkout.total')} · {currency}</span>
+							<b>{priced && !isEmpty ? formatMoney(totalCents, locale, currency) : ''}</b>
+						</p>
+
+						{@render alerts()}
+
+						<button type="submit" class="classic-payb" disabled={submitting || isEmpty}>
+							<svg viewBox="0 0 24 24" aria-hidden="true">
+								<rect x="5" y="10.5" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+								<path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" stroke-width="2" />
+							</svg>
+							<span>
+								{#if submitting}
+									{t('checkout.placing')}
+								{:else if totalCents > 0}
+									{t('checkout.payNow', { total: formatMoney(totalCents, locale, currency) })}
+								{:else}
+									{t('checkout.placeOrder')}
+								{/if}
+							</span>
+							<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true">
+								<path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" />
+							</svg>
+						</button>
+						<p class="classic-once">{t('checkout.classic.oneTime', { currency })}</p>
+
+						<nav class="classic-links" aria-label={t('checkout.shop.secure')}>
+							<a href="/policies/refunds">{t('checkout.classic.returns')}</a>
+							<a href="/policies/shipping">{t('checkout.classic.shippingLink')}</a>
+							<a href="/contact">{t('checkout.classic.contact')}</a>
+							<span>
+								<a href="/privacy">{t('checkout.classic.privacy')}</a> ·
+								<a href="/terms">{t('checkout.classic.terms')}</a>
+							</span>
+						</nav>
+					</form>
+				</div>
+			</div>
+		</div>
 	</div>
 {:else if shop}
 	<div class="shop">

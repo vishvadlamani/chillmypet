@@ -913,7 +913,7 @@ hands that knead, in khaki or black, **one size**, $57.99 (the owner's price), n
   `design_gallery` takes a colour's photo off a page meanwhile and shows its
   "coming soon" box.)
 - **It pays on a page of its own**, `/products/calming-massager/checkout`
-  (`checkout: 'shop'`, like the costume; the owner's call, 2026-10-19), so
+  (`checkout: 'shop'`; the owner's call, 2026-10-19), so
   its checkouts have their own address in GA4 and in URL-based custom
   conversions, apart from `/checkout`. Meta tells the products apart either
   way: every AddToCart, InitiateCheckout and Purchase carries the SKU. With
@@ -1136,8 +1136,9 @@ the dog and shown whole, over its own backdrop colours.
 the product's delivery strip, photos, title and picker, then the checkout's
 contact, address and shipping blocks, then the same card fields and pay
 button. It is a second way in for an ad that should land on the form; the
-product page and `/checkout` are unchanged. A product with `checkout: 'shop'`
-(the costume) gets the payment-only `shop` look below instead.
+product page and `/checkout` are unchanged. A product with `checkout` set
+gets a payment-only look below instead: `classic` (the costume, since
+2026-10-24) or `shop` (the massager).
 Things to know:
 
 - **The costume ad's URL is the product page, and paying is a page of its
@@ -1146,8 +1147,9 @@ Things to know:
   product page with no card fields at `/products/christmas-tree-costume`,
   and a payment page at `/products/christmas-tree-costume/checkout` that
   does not look like the product page. So the redirect and its `landing`
-  flag are gone, and the costume has `checkout: 'shop'`. On a product with
-  that look, the product page's Add to cart opens
+  flag are gone, and the costume has its own payment-page look (`shop`
+  then, `classic` since 2026-10-24). On a product with either look, the
+  product page's Add to cart opens
   `/products/<slug>/checkout?design=&size=[&bundle=qty-N]&added=1` instead
   of `/checkout` (`payAt` from the product page's load). The bundle-card
   path (the life jacket) still goes to `/checkout`. `fbclid` still becomes
@@ -1180,11 +1182,13 @@ Things to know:
   three checkouts started. Purchase is unchanged: the webhook, the order's
   derived id. `tests/one-page-checkout.mjs` pins all of it.
 
-**The costume's checkout has a look of its own, `shop`** (built 2026-10-17
+**The massager's checkout has a look of its own, `shop`** (built 2026-10-17
 for the since-retired pouch hoodie; `docs/christmas-checkout.md` has the
 reference it copies, the comparison that chose it, and every departure).
-`PRODUCT_PAGES[…].checkout = 'shop'` turns it on per product: since
-2026-10-18 the costume, whose product page's Add to cart opens it (above).
+`PRODUCT_PAGES[…].checkout = 'shop'` turns it on per product: the massager,
+and the costume from 2026-10-18 until it moved to `classic` on 2026-10-24
+(below). What follows was written for the costume and holds for any
+product with the look.
 So the ad's path is `/products/christmas-tree-costume` → Add to cart →
 `/products/christmas-tree-costume/checkout`; `/checkout` is the cart's own
 checkout, for a basket reached from the cart icon. The header there is the
@@ -1249,14 +1253,40 @@ Stripe.js to check the button stays put, that the form offers no Link,
 Google Pay or Discover, and that a blocked js.stripe.com leaves the hosted
 fallback.
 
+**The costume's checkout has a third look, `classic`** (since 2026-10-24;
+`docs/classic-checkout.md`), from the owner's Classic Christmas design:
+one card, a pine header, a cream order panel with Colour/Size/Qty selects
+and a candy-cane free-shipping stripe whose truck drives along it, then
+numbered Contact, Delivery, Shipping and Payment steps. The panel is on top
+on a phone and beside the form from 960px. Things to know:
+
+- **Only the look changed.** The costume's Add to cart still opens it with
+  `?design=&size=&bundle=&added=1`, which the page reads exactly as it did
+  for `shop` (no second ViewContent or AddToCart, the link cleared from the
+  address bar). The massager keeps `shop`: the design's words are
+  Christmas ones. Moving it is `checkout: 'classic'` plus a `tagline`.
+- **The header is the owner's white logo** (`/brand/logo-white.png`) on
+  pine, not the design's mock wordmark.
+- **Same checkout, same blocks.** `Checkout.svelte` draws it; the fields
+  are the shop blocks with `look: 'classic'` and a `step`; the selects write
+  `design`, `size` and the tier (`qty-N`) to the state the picker writes.
+  Quantity is the server's quantity break, never a free number.
+- **Arrival dates are computed** from `SHIPPING_PROMISE` by
+  `arrivalWindows()`, pinned in `christmas.test.ts`.
+- **Not built, on purpose:** the design's express wallet buttons, the
+  billing-address box and the tax line (see the doc for why).
+- `tests/classic-checkout.mjs` drives it; `tests/shop-checkout.mjs` now
+  drives the `shop` look on the massager.
+
 **The first screen on a phone is a budget, and the tests hold it.** The ads
 open in the Facebook app, which leaves an iPhone about 390×664. Oct 3–16 sent
 175 landing-page views and got no AddToCart, from pages whose first screen was
 a three-row header, the strip and a photo, with the price and sizes below it.
 Now the product pages and the one-page checkout fit the price, the colours
-and the size buttons inside 664px, and `tests/christmas-tree-costume.mjs` and
-`tests/one-page-checkout.mjs` measure it. What pays for it, so nobody puts it
-back by accident:
+and the size buttons inside 664px, and `tests/christmas-tree-costume.mjs`,
+`tests/one-page-checkout.mjs` and `tests/classic-checkout.mjs` (the
+costume's payment page, where the selects are the first screen) measure it.
+What pays for it, so nobody puts it back by accident:
 
 - **The header is one row on a phone**: ☰, the name, the cart, at most 64px
   (`tests/e2e.mjs`). Both checkouts drop the menu everywhere (a link out of

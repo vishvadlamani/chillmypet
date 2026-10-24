@@ -197,7 +197,7 @@
 			]
 		});
 
-		// A product with its own payment page (`checkout: 'shop'`) opens it on
+		// A product with its own payment page (`checkout` in pages.ts) opens it on
 		// what was just chosen: the link carries it, so the page renders folded
 		// from the server, and `added=1` stops it reporting this add again.
 		if (data.payAt === '/checkout') return void goto('/checkout');

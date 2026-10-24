@@ -71,11 +71,21 @@ export interface ProductPage {
 	 * page in the shape shoppers know from hosted shop checkouts: contact,
 	 * delivery, shipping method and payment in one column, the order summary
 	 * beside it (folded into a bar on a phone), and the picker reduced to a
-	 * line once a design and size are chosen. It is where the product page's
-	 * own Add to cart goes (with the design and size in the link) instead of
-	 * `/checkout`; see `$lib/store/one-page-checkout.ts`.
+	 * line once a design and size are chosen.
+	 *
+	 * `classic` is the Classic Christmas checkout (docs/classic-checkout.md):
+	 * one card with a pine header, the order (photo, colour, size and
+	 * quantity, totals, the free-shipping stripe) in a cream panel, then
+	 * numbered Contact, Delivery, Shipping and Payment sections. The panel
+	 * sits on top on a phone and beside the form on a desktop.
+	 *
+	 * Either way it is where the product page's own Add to cart goes (with
+	 * the design and size in the link) instead of `/checkout`; see
+	 * `$lib/store/one-page-checkout.ts`.
 	 */
-	checkout?: 'shop';
+	checkout?: 'shop' | 'classic';
+	/** The line under the product's name in the classic checkout's order panel. */
+	tagline?: string;
 }
 
 /** Kept in step with `scripts/christmas-tree-costume.js`. */
@@ -121,8 +131,10 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 		cardImage: '/products/dog-christmas-costume/cat.jpg',
 		// The Christmas costume ad links to the product page; its Add to cart
 		// opens a payment page of its own, not the product page again (the
-		// owner's call, 2026-10-17).
-		checkout: 'shop'
+		// owner's call, 2026-10-17), in the owner's Classic Christmas design
+		// since 2026-10-24.
+		checkout: 'classic',
+		tagline: 'A little tree. A lot of Christmas.'
 	},
 	[CHRISTMAS_HOODIE_SLUG]: {
 		manifest: CHRISTMAS_HOODIE_PAGE,

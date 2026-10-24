@@ -18,10 +18,16 @@
 	 * Writes `email` into host state as it is typed, like the library's
 	 * contact form, so the checkout's draft capture and InitiateCheckout see
 	 * it without a button.
+	 *
+	 * `look: 'classic'` draws it as step `step` of the classic checkout: a
+	 * numbered heading and the label above the box.
 	 */
 	let { block, ctx }: { block: Block; ctx: FlowContext } = $props();
 
-	const p = $derived((block.props ?? {}) as { heading?: string; note?: string });
+	const p = $derived(
+		(block.props ?? {}) as { heading?: string; note?: string; look?: string; step?: number }
+	);
+	let classic = $derived(p.look === 'classic');
 	let t = $derived(createTranslator(page.data.locale ?? defaultLocale));
 
 	let email = $derived(ctx.state.get('email'));
@@ -37,10 +43,16 @@
 </script>
 
 <section class="shop-section" aria-labelledby="shop-contact-title">
-	<h2 id="shop-contact-title">{p.heading ?? t('checkout.contactTitle')}</h2>
+	<h2 id="shop-contact-title" class:step={classic}>
+		{#if classic && p.step}<span class="step-no" aria-hidden="true">{p.step}</span>{/if}
+		{p.heading ?? t('checkout.contactTitle')}
+	</h2>
 	<ShopField
 		id="contact-email"
-		label={t('checkout.email')}
+		label={classic ? t('checkout.classic.emailLabel') : t('checkout.email')}
+		stacked={classic}
+		required
+		placeholder={t('checkout.classic.emailPlaceholder')}
 		type="email"
 		autocomplete="email"
 		inputmode="email"

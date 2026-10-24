@@ -1,5 +1,5 @@
 /**
- * The costume's shop checkout, `/products/christmas-tree-costume/checkout`:
+ * The massager's shop checkout, `/products/calming-massager/checkout`:
  * where the product page's Add to cart lands, laid out like a hosted shop
  * checkout and driven the way the Christmas ad's visitors arrive, on an
  * iPhone inside the Facebook app (390×664).
@@ -37,10 +37,11 @@ import { chromium } from 'playwright';
 import { createClient } from '@libsql/client';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
-const SLUG = 'christmas-tree-costume';
+const SLUG = 'calming-massager';
 const PATH = `/products/${SLUG}/checkout`;
 // As the product page's Add to cart sends it.
-const FROM_PRODUCT = `${PATH}?design=green&size=M&added=1`;
+// One size, and the product page's link names it like any other.
+const FROM_PRODUCT = `${PATH}?design=black&size=One+size&added=1`;
 // The Facebook app's in-app browser on an iPhone, as the ads open the page.
 const FB_IPHONE =
 	'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/480.0.0.0;FBBV/1;FBDV/iPhone14,5;FBMD/iPhone;FBSN/iOS;FBSV/17.5;FBSS/3;FBID/phone;FBLC/en_US;FBOP/5]';
@@ -56,7 +57,7 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('the shop chrome: the name, a padlock, no cart link', html.includes('class="shop-header"') && html.includes('Secure checkout') && !html.includes('href="/checkout"'));
-	check('the choice from the link is chosen on the server: the picker is folded', /class="picker folded[\s"]/.test(html) && />\s*Green\s*</.test(html) && /Size: M/.test(html));
+	check('the choice from the link is chosen on the server: the picker is folded', /class="picker folded[\s"]/.test(html) && />\s*Black\s*</.test(html) && />\s*One size\s*</.test(html));
 	check('no product photos or strip: this page is the checkout', !html.includes('class="gallery') && !html.includes('announcement'));
 	const order = ['shop-contact-title', 'shop-delivery-title', 'shop-method-title', 'shop-payment-title'].map((id) => html.indexOf(`id="${id}"`));
 	check('Contact, Delivery, Shipping method, Payment, in that order', order.every((i, n) => i > 0 && (n === 0 || i > order[n - 1])), JSON.stringify(order));
@@ -72,10 +73,11 @@ function check(label, cond, detail) {
 }
 {
 	const html = await (await fetch(`${BASE}${PATH}`)).text();
-	check('without a choice in the link, the whole picker shows', html.includes('id="size-picker"') && !/class="picker folded[\s"]/.test(html));
-	check('and no size is chosen for the buyer', !/name="size"[^>]*checked/.test(html));
-	const bogus = await (await fetch(`${BASE}${PATH}?design=green&size=XXXL`)).text();
-	check('a size this product does not sell is ignored', !/class="picker folded[\s"]/.test(bogus));
+	// One size: with no choice in the link the lead colour and the only size
+	// are already a choice, so the picker folds to it.
+	check('without a choice in the link, the lead colour and its one size are chosen', /class="picker folded[\s"]/.test(html) && />\s*One size\s*</.test(html) && !html.includes('id="size-picker"'));
+	const bogus = await (await fetch(`${BASE}${PATH}?design=black&size=XXXL`)).text();
+	check('a size this product does not sell is ignored', !bogus.includes('XXXL') && />\s*One size\s*</.test(bogus));
 }
 {
 	// The retired Christmas landing page handed its visitor id over in the
@@ -158,9 +160,9 @@ await page.goto(`${BASE}${FROM_PRODUCT}&fbclid=ad1&utm_source=fb`, { waitUntil: 
 	const url = new URL(page.url());
 	check('the address bar drops the choice the link carried', !['design', 'size', 'bundle', 'added'].some((k) => url.searchParams.has(k)), url.search);
 	check('and keeps the ad’s parameters', url.searchParams.get('fbclid') === 'ad1' && url.searchParams.get('utm_source') === 'fb', url.search);
-	check('the choice is still made: green, size M', /Green[\s\S]*Size: M/.test(await page.locator('.picker.folded').innerText().catch(() => '')));
+	check('the choice is still made: black, one size', /Black[\s\S]*One size/.test(await page.locator('.picker.folded').innerText().catch(() => '')));
 	await page.reload({ waitUntil: 'networkidle' });
-	check('and a reload keeps it, from the session', /Green[\s\S]*Size: M/.test(await page.locator('.picker.folded').innerText().catch(() => '')));
+	check('and a reload keeps it, from the session', /Black[\s\S]*One size/.test(await page.locator('.picker.folded').innerText().catch(() => '')));
 	check('a reload still knows the product page reported the view', (await browserEvent('ViewContent')).length === 0 && serverCopy('ViewContent').length === 0);
 }
 
@@ -169,7 +171,7 @@ await page.goto(`${BASE}${FROM_PRODUCT}&fbclid=ad1&utm_source=fb`, { waitUntil: 
 	const bottom = (sel) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().bottom);
 	const email = await bottom('#contact-email');
 	check('the email field is on the first screen', email <= 664, `it ends at ${email}px`);
-	check('the total is in the bar at the top', /\$27\.99/.test(await page.locator('.shop-bar').innerText()));
+	check('the total is in the bar at the top', /\$57\.99/.test(await page.locator('.shop-bar').innerText()));
 	check('the summary is folded on a phone', (await page.locator('.shop-bar button').getAttribute('aria-expanded')) === 'false' && !(await page.locator('.shop-aside').isVisible()));
 
 	// Text a buyer reads, anywhere outside Stripe's frame: 16px or more.
@@ -202,11 +204,11 @@ await page.goto(`${BASE}${FROM_PRODUCT}&fbclid=ad1&utm_source=fb`, { waitUntil: 
 await settle();
 {
 	const lines = await cartLines();
-	check('the chosen costume is in the cart', lines.length === 1 && lines[0].colour === 'green' && lines[0].size === 'M' && lines[0].quantity === 1, JSON.stringify(lines));
+	check('the chosen massager is in the cart', lines.length === 1 && lines[0].colour === 'black' && lines[0].size === 'One size' && lines[0].quantity === 1, JSON.stringify(lines));
 	check('no ViewContent: the product page reported the view', (await browserEvent('ViewContent')).length === 0 && serverCopy('ViewContent').length === 0);
 	check('no AddToCart: the product page reported it', (await browserEvent('AddToCart')).length === 0 && serverCopy('AddToCart').length === 0);
 	check('no InitiateCheckout before any detail is typed', (await browserEvent('InitiateCheckout')).length === 0);
-	check('the pay button names the total', /Pay \$27\.99/.test(await page.locator('button.shop-pay').innerText()));
+	check('the pay button names the total', /Pay \$57\.99/.test(await page.locator('button.shop-pay').innerText()));
 }
 
 // --- the summary bar opens in place ---------------------------------------------------
@@ -215,20 +217,20 @@ await page.locator('.shop-bar button').click();
 	const folded = page.locator('#shop-summary-folded');
 	check('the bar opens the summary', (await page.locator('.shop-bar button').getAttribute('aria-expanded')) === 'true' && (await folded.isVisible()));
 	const text = await folded.innerText();
-	check('it shows the item, its colour and size, and the totals', /Christmas Tree Costume/.test(text) && /Green · M/.test(text) && /Shipping\s*Free/.test(text) && /Total\s*USD\s*\$27\.99/.test(text), text);
+	check('it shows the item, its colour and size, and the totals', /Calming Massager/.test(text) && /Black · One size/.test(text) && /Shipping\s*Free/.test(text) && /Total\s*USD\s*\$57\.99/.test(text), text);
 	await page.locator('.shop-bar button').click();
 	check('and folds again', !(await folded.isVisible()));
 }
 
-// --- changing the size here ---------------------------------------------------------------
+// --- changing the colour here -------------------------------------------------------------
 await page.locator('#variant-picker button', { hasText: 'Change' }).click();
-await page.locator('#size-picker label').filter({ hasText: /^\s*L\s*$/ }).click();
+await page.locator('#variant-picker label', { hasText: 'Khaki' }).click();
 await settle();
 {
 	const lines = await cartLines();
-	check('Change opens the picker and a new size replaces the line', lines.length === 1 && lines[0].size === 'L', JSON.stringify(lines));
+	check('Change opens the picker and a new colour replaces the line', lines.length === 1 && lines[0].colour === 'khaki', JSON.stringify(lines));
 	check('still no AddToCart from this page', (await browserEvent('AddToCart')).length === 0);
-	check('the picker stays open while the buyer is in it', await page.locator('#size-picker').isVisible());
+	check('the picker stays open while the buyer is in it', await page.locator('#variant-picker label', { hasText: 'Black' }).isVisible());
 }
 
 // --- pay with nothing filled ----------------------------------------------------------------
@@ -297,7 +299,7 @@ check('the page stayed this one', new URL(page.url()).pathname === PATH, page.ur
 	const row = rows.rows[0] ?? {};
 	check('the names are stored as typed: "Mary Ann" stays a first name', row.first_name === 'Mary Ann' && row.last_name === 'Smith', JSON.stringify(row));
 	check('the address is stored with ISO codes', row.province === 'NY' && row.postal_code === '12207' && row.country === 'US', JSON.stringify(row));
-	check('the order is one green L at the server’s price, free shipping', rows.rows.length === 1 && row.sku === 'CMP-XT-GREEN-L' && Number(row.quantity) === 1 && Number(row.unit_price_cents) === 2799 && Number(row.total_cents) === 2799, JSON.stringify(row));
+	check('the order is one khaki massager at the server’s price, free shipping', rows.rows.length === 1 && row.sku === 'CMP-MS-KHAKI' && Number(row.quantity) === 1 && Number(row.unit_price_cents) === 5799 && Number(row.total_cents) === 5799, JSON.stringify(row));
 	db.close();
 }
 {
@@ -350,12 +352,12 @@ await ctx.close();
 	await quiet(desk);
 	const p = await desk.newPage();
 	pageErrors.push(...watch(p));
-	await p.goto(`${BASE}${PATH}?design=red&size=S&added=1`, { waitUntil: 'networkidle' });
+	await p.goto(`${BASE}${PATH}?design=khaki&size=One+size&added=1`, { waitUntil: 'networkidle' });
 	const main = await p.locator('.shop-main').boundingBox();
 	const aside = await p.locator('.shop-aside').boundingBox();
 	check('the summary sits beside the form', Boolean(main && aside) && aside.x >= main.x + main.width - 1 && aside.y < main.y + 50, JSON.stringify({ main, aside }));
 	check('no summary bar or second total on a desktop', !(await p.locator('.shop-bar').isVisible()) && !(await p.locator('.shop-due').isVisible()));
-	check('the summary names the choice', /Red · S/.test(await p.locator('.shop-aside').innerText()));
+	check('the summary names the choice', /Khaki · One size/.test(await p.locator('.shop-aside').innerText()));
 	const row = await p.locator('#shipping-firstName').boundingBox();
 	const last = await p.locator('#shipping-lastName').boundingBox();
 	check('first and last name share a row', Boolean(row && last) && Math.abs(row.y - last.y) < 2 && last.x > row.x);
@@ -372,7 +374,7 @@ if (process.env.PAYMENTS_BASE_URL) {
 		const c = await browser.newContext({ viewport, isMobile: label === 'phone', hasTouch: label === 'phone' });
 		await quiet(c);
 		const p = await c.newPage();
-		await p.goto(`${PAY}${PATH}?design=green&size=M&added=1`);
+		await p.goto(`${PAY}${PATH}?design=black&size=One+size&added=1`);
 		const tops = new Set();
 		const deadline = Date.now() + 15000;
 		let ready = false;
@@ -411,7 +413,7 @@ if (process.env.PAYMENTS_BASE_URL) {
 	await quiet(blocked);
 	await blocked.route('**/js.stripe.com/**', (route) => route.abort());
 	const p = await blocked.newPage();
-	await p.goto(`${PAY}${PATH}?design=green&size=M&added=1`);
+	await p.goto(`${PAY}${PATH}?design=black&size=One+size&added=1`);
 	const note = await p
 		.locator('.shop-notice', { hasText: /Stripe/ })
 		.waitFor({ timeout: 15000 })
@@ -447,7 +449,7 @@ if (process.env.PAYMENTS_BASE_URL) {
 		};
 	});
 	const s = await stubbed.newPage();
-	await s.goto(`${PAY}${PATH}?design=green&size=M&added=1`, { waitUntil: 'networkidle' });
+	await s.goto(`${PAY}${PATH}?design=black&size=One+size&added=1`, { waitUntil: 'networkidle' });
 	await s.locator('.shop-pay-box.ready').waitFor({ timeout: 15000 });
 	// The Apple Pay tab is one line; the box gives up the card form's height
 	// for it, and takes it back for Card.
