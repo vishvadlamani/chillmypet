@@ -97,6 +97,14 @@
 	 */
 	let shopChrome = $derived(page.data.look === 'shop' && onCheckout);
 
+	/**
+	 * The classic checkout draws its own header inside its card (the logo on
+	 * pine, a padlock) and its own policy links under the pay button, so the
+	 * site renders nothing around it: no header, cart, language switch or
+	 * footer, each of them a way off the page that takes the money.
+	 */
+	let bareChrome = $derived(page.data.look === 'classic' && onCheckout);
+
 	/** The admin renders bare: no shop header, cart or footer around an order list. */
 	let isAdmin = $derived(page.url.pathname === '/admin' || page.url.pathname.startsWith('/admin/'));
 
@@ -175,6 +183,10 @@
 
 {#if isAdmin}
 	{@render children()}
+{:else if bareChrome}
+	<main>
+		{@render children()}
+	</main>
 {:else if shopChrome}
 <div class="flex min-h-screen flex-col">
 	<header class="shop-header">

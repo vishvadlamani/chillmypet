@@ -14,6 +14,7 @@
 	import { cart } from '$lib/stores/cart.svelte';
 	import type { ActionData, PageData } from './$types';
 	import '$lib/styles/shop-checkout.css';
+	import '$lib/styles/classic-checkout.css';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -254,8 +255,9 @@
 	<meta property="og:image" content={new URL(data.seo.image, page.url).href} />
 	<!-- The product page is the one to index; this is its checkout. -->
 	<meta name="robots" content="noindex, nofollow" />
-	{#if data.look === 'shop'}
-		<!-- Inter, the type of the hosted shop checkouts this look follows. -->
+	{#if data.look === 'shop' || data.look === 'classic'}
+		<!-- Inter, the type of the hosted shop checkouts this look follows. The
+		     classic look's headlines are Georgia, which every phone has. -->
 		<link
 			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
 			rel="stylesheet"
@@ -282,7 +284,9 @@
 	colClass="flex flex-col gap-3 md:gap-5"
 	topSummary={false}
 	mainClass="flex flex-col gap-6 pb-8"
-	look={data.look === 'shop' ? 'shop' : 'default'}
+	look={data.look === 'shop' || data.look === 'classic' ? data.look : 'default'}
 	pickerSlug={data.slug}
 	pickerSetsQuantity={data.tiered}
+	order={data.order}
+	tierField={data.tierField}
 />

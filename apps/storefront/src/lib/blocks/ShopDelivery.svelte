@@ -23,6 +23,11 @@
 	 * `address2`, `city`, `state` as an ISO subdivision code where one exists,
 	 * `zip`), so `Checkout.svelte` maps it to the order exactly as it maps the
 	 * other checkouts.
+	 *
+	 * `look: 'classic'` is the classic checkout's drawing: a numbered heading,
+	 * labels above the boxes, the apartment behind a link (it is the one
+	 * optional line, and most addresses have none), and the town on its own
+	 * row with state and ZIP beside each other under it.
 	 */
 	let { block, ctx }: { block: Block; ctx: FlowContext } = $props();
 
@@ -34,8 +39,13 @@
 			/** ISO codes, same order, lowercased by the markets loader. */
 			codes?: string[];
 			note?: string;
+			look?: string;
+			step?: number;
 		}
 	);
+	let classic = $derived(p.look === 'classic');
+	// Open from the start when there is already a line 2 to show.
+	let apartmentOpen = $state(untrack(() => Boolean(ctx.state.get('address2'))));
 	let t = $derived(createTranslator(page.data.locale ?? defaultLocale));
 
 	const get = (field: string) => ctx.state.get(field);
@@ -83,11 +93,16 @@
 </script>
 
 <section class="shop-section" aria-labelledby="shop-delivery-title">
-	<h2 id="shop-delivery-title">{p.heading ?? t('checkout.shippingTitle')}</h2>
+	<h2 id="shop-delivery-title" class:step={classic}>
+		{#if classic && p.step}<span class="step-no" aria-hidden="true">{p.step}</span>{/if}
+		{p.heading ?? t('checkout.shippingTitle')}
+	</h2>
 	<div class="shop-fields">
 		<ShopField
 			id="shipping-country"
-			label={t('checkout.country')}
+			label={classic ? t('checkout.classic.countryLabel') : t('checkout.country')}
+			stacked={classic}
+			required
 			autocomplete="country-name"
 			value={country}
 			options={(p.countries ?? []).map((name) => ({ value: name, label: name }))}
@@ -98,6 +113,9 @@
 			<ShopField
 				id="shipping-firstName"
 				label={t('checkout.firstName')}
+				stacked={classic}
+				required
+				placeholder={t('checkout.firstName')}
 				autocomplete="given-name"
 				value={get('firstName')}
 				error={message('firstName', 'firstName')}
@@ -107,6 +125,9 @@
 			<ShopField
 				id="shipping-lastName"
 				label={t('checkout.lastName')}
+				stacked={classic}
+				required
+				placeholder={t('checkout.lastName')}
 				autocomplete="family-name"
 				value={get('lastName')}
 				error={message('lastName', 'lastName')}
@@ -116,24 +137,37 @@
 		</div>
 		<ShopField
 			id="shipping-address"
-			label={t('checkout.address1')}
+			label={classic ? t('checkout.classic.streetLabel') : t('checkout.address1')}
+			stacked={classic}
+			required
+			placeholder={t('checkout.classic.streetPlaceholder')}
 			autocomplete="address-line1"
 			value={get('address')}
 			error={message('address', 'address')}
 			oninput={(v) => set('address', v)}
 			onblur={blur('address')}
 		/>
-		<ShopField
-			id="shipping-address2"
-			label={t('checkout.address2')}
-			autocomplete="address-line2"
-			value={get('address2')}
-			oninput={(v) => set('address2', v)}
-		/>
-		<div class="shop-row three">
+		{#if classic && !apartmentOpen}
+			<button type="button" class="classic-more" onclick={() => (apartmentOpen = true)}>
+				{t('checkout.classic.addApartment')}
+			</button>
+		{:else}
+			<ShopField
+				id="shipping-address2"
+				label={classic ? t('checkout.classic.apartment') : t('checkout.address2')}
+				stacked={classic}
+				autocomplete="address-line2"
+				value={get('address2')}
+				oninput={(v) => set('address2', v)}
+			/>
+		{/if}
+		<div class="shop-row three" class:split={classic}>
 			<ShopField
 				id="shipping-city"
 				label={t('checkout.city')}
+				stacked={classic}
+				required
+				placeholder={t('checkout.city')}
 				autocomplete="address-level2"
 				value={get('city')}
 				error={message('city', 'city')}
@@ -144,6 +178,9 @@
 				<ShopField
 					id="shipping-state"
 					label={form.stateLabel}
+					stacked={classic}
+					required={form.stateRequired}
+					placeholder={t('checkout.classic.selectState', { label: form.stateLabel.toLowerCase() })}
 					autocomplete="address-level1"
 					value={get('state')}
 					options={form.subdivisions.map((s) => ({ value: s.code, label: s.name }))}
@@ -156,6 +193,9 @@
 					label={form.stateRequired
 						? form.stateLabel
 						: t('checkout.optionalField', { field: form.stateLabel })}
+					stacked={classic}
+					required={form.stateRequired}
+					placeholder={form.stateLabel}
 					autocomplete="address-level1"
 					value={get('state')}
 					error={message('state', 'state')}
@@ -166,6 +206,9 @@
 			<ShopField
 				id="shipping-zip"
 				label={form.zipLabel}
+				stacked={classic}
+				required
+				placeholder={form.zipLabel}
 				autocomplete="postal-code"
 				value={get('zip')}
 				error={message('zip', 'zip')}

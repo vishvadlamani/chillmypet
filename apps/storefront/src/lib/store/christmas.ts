@@ -73,6 +73,42 @@ export function latestOrderDate(
 	return toIso(orderBy);
 }
 
+function addBusinessDays(d: Date, n: number): Date {
+	let out = d;
+	for (let left = n; left > 0; ) {
+		out = addDays(out, 1);
+		if (!isWeekend(out)) left -= 1;
+	}
+	return out;
+}
+
+/**
+ * When a parcel ordered today should arrive by standard shipping (the only
+ * rate, `SHIPPING_RATES`), as YYYY-MM-DD: the promise above, best case to
+ * worst case on both legs. The checkout prints this instead of "5–12 days
+ * after it ships", because a buyer wants a date, and a date made from the
+ * published promise is one the shipping policy page already stands behind.
+ */
+export function arrivalWindow(now: Date = new Date()): { from: string; to: string } {
+	const ordered = toDate(today(now, CHRISTMAS_DELIVERY.timeZone));
+	const p = SHIPPING_PROMISE;
+	return {
+		from: toIso(addDays(addBusinessDays(ordered, p.processingBusinessDays.min), p.transitDays.min)),
+		to: toIso(addDays(addBusinessDays(ordered, p.processingBusinessDays.max), p.transitDays.max))
+	};
+}
+
+/** "Nov 2–10", or "Oct 28–Nov 2" across a month. English, like the strip. */
+export function dateRange(from: string, to: string): string {
+	const month = (iso: string) =>
+		new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short' }).format(toDate(iso));
+	const day = (iso: string) => String(toDate(iso).getUTCDate());
+	if (from === to) return `${month(from)} ${day(from)}`;
+	return month(from) === month(to)
+		? `${month(from)} ${day(from)}–${day(to)}`
+		: `${month(from)} ${day(from)}–${month(to)} ${day(to)}`;
+}
+
 /** Today's date where the strip's clock lives, as YYYY-MM-DD. */
 function today(now: Date, timeZone: string): string {
 	// en-CA formats as YYYY-MM-DD, which compares correctly as a string.

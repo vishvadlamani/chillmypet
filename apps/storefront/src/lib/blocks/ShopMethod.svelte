@@ -15,13 +15,24 @@
 	 * order is priced against, bound from `shipping.rates`; the Christmas
 	 * cut-off is the same config value the product page's strip reads, and
 	 * drops out on its own once the date has passed.
+	 *
+	 * `look: 'classic'` numbers it as a step and puts the three stages of a
+	 * delivery above the rates, so "Estimated arrival" reads as the last one.
 	 */
 	let { block, ctx }: { block: Block; ctx: FlowContext } = $props();
 
 	type Rate = { id: string; label: string; detail?: string; price: string; selected?: boolean };
 	const p = $derived(
-		(block.props ?? {}) as { heading?: string; options?: Rate[]; field?: string; note?: string }
+		(block.props ?? {}) as {
+			heading?: string;
+			options?: Rate[];
+			field?: string;
+			note?: string;
+			look?: string;
+			step?: number;
+		}
 	);
+	let classic = $derived(p.look === 'classic');
 	let t = $derived(createTranslator(page.data.locale ?? defaultLocale));
 	const field = $derived(p.field ?? 'shippingMethod');
 	const options = $derived(p.options ?? []);
@@ -45,7 +56,17 @@
 </script>
 
 <section class="shop-section" aria-labelledby="shop-method-title">
-	<h2 id="shop-method-title" class="small">{p.heading ?? t('checkout.methodTitle')}</h2>
+	<h2 id="shop-method-title" class:small={!classic} class:step={classic}>
+		{#if classic && p.step}<span class="step-no" aria-hidden="true">{p.step}</span>{/if}
+		{p.heading ?? t('checkout.methodTitle')}
+	</h2>
+	{#if classic}
+		<ol class="classic-timeline" aria-label={p.heading ?? t('checkout.methodTitle')}>
+			<li>{t('checkout.classic.placed')}</li>
+			<li>{t('checkout.classic.tracking')}</li>
+			<li>{t('checkout.classic.delivered')}</li>
+		</ol>
+	{/if}
 	<fieldset class="shop-choices">
 		<legend class="sr-only">{p.heading ?? t('checkout.methodTitle')}</legend>
 		{#each options as option (option.id)}

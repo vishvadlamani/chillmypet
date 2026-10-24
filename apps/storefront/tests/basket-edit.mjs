@@ -10,10 +10,10 @@
  *   - /checkout: each line in the "Your order" box has − n +, Remove, and a
  *     Change link to its own product (not the first line's); the total is
  *     re-priced by the server after each change
- *   - the costume's shop checkout: a leftover from another product opens the
- *     phone summary by itself and can be removed there; the costume's own
- *     line has neither (its bundle cards set the count), and a change of
- *     size replaces it
+ *   - the costume's classic checkout: a leftover from another product shows
+ *     in the order panel, which is never folded, and can be removed there;
+ *     the costume's own line is the panel's selects, with no Remove, and a
+ *     change of size there replaces it
  *   - the reindeer hoodie's one-page checkout: its own line has neither,
  *     because its bundle cards set the count; the leftover line has both
  *
@@ -135,21 +135,20 @@ await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
 	check('the pay button agrees', shown.includes(expected) || /Place order/.test(shown), shown);
 }
 
-// --- the costume's shop checkout, with a jacket left over ---------------------------------
+// --- the costume's classic checkout, with a jacket left over -------------------------------
 await basket([JACKETS]);
 await page.goto(`${BASE}/products/christmas-tree-costume/checkout?design=green&size=M&added=1`, { waitUntil: 'networkidle' });
 {
-	const folded = page.locator('#shop-summary-folded');
-	check('a leftover from another product opens the phone summary by itself', await folded.isVisible());
-	check('so the buyer sees it before paying', /Life Jacket/.test(await folded.innerText()));
-	const ownRow = folded.locator('li', { hasText: 'Christmas Tree Costume' });
-	const jacketRow = folded.locator('li', { hasText: 'Life Jacket' });
-	check('the costume line has no quantity buttons or Remove: its bundle cards own it', (await ownRow.getByRole('group').count()) === 0 && (await ownRow.getByRole('button', { name: 'Remove' }).count()) === 0);
+	const panel = page.locator('.classic-order');
+	const jacketRow = panel.locator('.classic-line', { hasText: 'Life Jacket' });
+	await jacketRow.waitFor({ timeout: 5000 }).catch(() => {});
+	check('a leftover from another product shows in the order panel', await jacketRow.isVisible());
+	check('so the buyer sees it before paying', /Life Jacket/.test(await panel.innerText()));
+	check('the costume itself is the panel’s selects, with no Remove: its bundle tiers own it', (await panel.getByRole('button', { name: 'Remove' }).count()) === 1 && (await page.inputValue('#order-size')) === 'M');
 	await jacketRow.getByRole('button', { name: 'Remove' }).click();
 	check('the jacket can be removed', (await cartLines()).every((l) => l.slug !== JACKETS.slug));
-	check('leaving the costume at its price', await shows(page.locator('button.shop-pay'), 'Pay $27.99'));
-	await page.locator('#variant-picker button', { hasText: 'Change' }).click();
-	await page.locator('#size-picker label').filter({ hasText: /^\s*L\s*$/ }).click();
+	check('leaving the costume at its price', await shows(page.locator('button.classic-payb'), 'Pay $27.99'));
+	await page.selectOption('#order-size', 'L');
 	await page.waitForLoadState('networkidle');
 	const lines = await cartLines();
 	check('a change of size replaces the line', lines.length === 1 && lines[0].size === 'L' && lines[0].quantity === 1, JSON.stringify(lines));

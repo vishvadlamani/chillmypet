@@ -47,7 +47,7 @@ function check(label, cond, detail) {
 	const res = await fetch(URL_);
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
-	check('no payment on the product page: no card, email or address fields', !/id="contact-email"|id="shipping-|class="shop-pay/.test(html));
+	check('no payment on the product page: no card, email or address fields', !/id="contact-email"|id="shipping-|class="shop-pay|class="classic-payb/.test(html));
 	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
 	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Christmas Tree Costume/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
@@ -244,12 +244,13 @@ await page.waitForURL('**/products/christmas-tree-costume/checkout', { timeout: 
 	const url = new URL(page.url());
 	check('add to cart opens the costume’s payment page', url.pathname === '/products/christmas-tree-costume/checkout', page.url());
 	check('at its plain address, with no choice in the link', url.search === '', url.search);
-	const line = await page.locator('.picker.folded').innerText().catch(() => 'not folded');
-	check('the choice is one line, with a way to change it', /Green[\s\S]*Size: M/.test(line) && /Change/.test(line), line);
+	// The Classic Christmas checkout (tests/classic-checkout.mjs drives it in
+	// full): the choice arrives in its order panel's selects.
+	check('the choice is in the order panel, to change there', (await page.inputValue('#order-design')) === 'green' && (await page.inputValue('#order-size')) === 'M');
 	check('none of the product page comes across: no photos, no title, no bundle cards', (await page.locator('.gallery').count()) === 0 && !(await page.locator('h1', { hasText: 'Christmas Tree Costume' }).count()) && (await page.locator('label.tier').count()) === 0);
 	// Google Analytics groups pages by title: the payment page needs its own.
 	check('the payment page has a title of its own', /^Checkout · Christmas Tree Costume/.test(await page.title()), await page.title());
-	check('the shop chrome: logo and padlock, no menu', (await page.locator('header.shop-header img[src="/brand/logo.png"]').count()) === 1 && !(await page.locator('header nav').count()));
+	check('its own chrome: logo and padlock, no menu', (await page.locator('.classic-head img[src="/brand/logo-white.png"]').count()) === 1 && !(await page.locator('header nav').count()));
 }
 
 {
@@ -272,12 +273,12 @@ await page.waitForURL('**/products/christmas-tree-costume/checkout', { timeout: 
 }
 
 // --- the checkout line, priced by the server ---------------------------------------
-await page.waitForSelector('button.shop-pay');
+await page.locator('button.classic-payb', { hasText: `$${PRICE}` }).waitFor({ timeout: 10000 }).catch(() => {});
 {
-	const summary = (await page.locator('.shop-aside').textContent()) ?? '';
+	const summary = (await page.locator('.classic-order').textContent()) ?? '';
 	check('checkout shows the product', summary.includes('Christmas Tree Costume'), summary.slice(0, 300));
-	check('checkout shows colour and size', /Green · M/.test(summary), summary.slice(0, 300));
-	check('checkout charges $27.99', (await page.locator('button.shop-pay').innerText()).includes(`$${PRICE}`));
+	check('checkout shows the size’s weight band', /M · [\d.]+–[\d.]+ kg/.test(summary), summary.slice(0, 300));
+	check('checkout charges $27.99', (await page.locator('button.classic-payb').innerText()).includes(`$${PRICE}`));
 	check('one ViewContent for the visit: the product page’s', (await browserEvent('ViewContent')).length === 1);
 	check('and one AddToCart', (await browserEvent('AddToCart')).length === 1);
 }
@@ -290,7 +291,7 @@ await page.fill('#shipping-address', '1 Evergreen Terrace');
 await page.fill('#shipping-city', 'Albany');
 await page.selectOption('#shipping-state', 'NY');
 await page.fill('#shipping-zip', '12207');
-await page.locator('button.shop-pay').click();
+await page.locator('button.classic-payb').click();
 await page
 	.getByRole('heading', { name: /order received/i })
 	.waitFor({ timeout: 20000 })

@@ -8,6 +8,8 @@
 import {
 	CHRISTMAS_DELIVERY,
 	SHIPPING_PROMISE,
+	arrivalWindow,
+	dateRange,
 	latestOrderDate,
 	loadChristmasDelivery
 } from './christmas.ts';
@@ -36,6 +38,25 @@ check(
 );
 check('parcels do not leave on a weekend', latestOrderDate('2026-12-24', 0, 12), '2026-12-11');
 check('processing skips the weekend', latestOrderDate('2026-12-24', 4, 12), '2026-12-07');
+
+// --- the checkout's arrival dates -------------------------------------------
+// Ordered Thu 22 Oct: shipped Mon 26 – Wed 28 (2–4 business days), then 5–12
+// days on the road.
+check('arrival, from the promise', arrivalWindow(new Date('2026-10-22T18:00:00Z')), {
+	from: '2026-10-31',
+	to: '2026-11-09'
+});
+check('processing skips the weekend', arrivalWindow(new Date('2026-10-23T18:00:00Z')), {
+	from: '2026-11-01',
+	to: '2026-11-10'
+});
+check(
+	'the order date is the west coast’s',
+	arrivalWindow(new Date('2026-10-23T05:00:00Z')), // 22:00 PDT on the 22nd
+	{ from: '2026-10-31', to: '2026-11-09' }
+);
+check('a range within a month', dateRange('2026-11-02', '2026-11-10'), 'Nov 2–10');
+check('a range across months', dateRange('2026-10-28', '2026-11-02'), 'Oct 28–Nov 2');
 
 // --- the strip --------------------------------------------------------------
 const at = (iso: string) => new Date(iso);

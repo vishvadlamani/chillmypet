@@ -27,6 +27,7 @@ export function onePageCheckout(
 	look?: ProductPage['checkout']
 ): FunnelDefinition {
 	if (look === 'shop') return shopCheckout(product, slug);
+	if (look === 'classic') return classicCheckout(product);
 	const top = product.blocks.flatMap((block): Block[] => {
 		const isTitle = block.component === 'heading' && block.props?.level === 1;
 		if (!FROM_PRODUCT.has(block.component) && !isTitle) return [];
@@ -131,6 +132,64 @@ function shopCheckout(product: FunnelDefinition, slug: string): FunnelDefinition
 				props: {
 					heading: { $ref: 'copy.method' },
 					options: { $ref: 'shipping.rates' },
+					field: 'shippingMethod',
+					note: { $ref: 'christmas.message' }
+				}
+			}
+		]
+	};
+}
+
+/**
+ * The `classic` look (docs/classic-checkout.md): the Classic Christmas
+ * checkout. The order panel at the top (photo, colour, size and quantity,
+ * totals, the free-shipping stripe) is host markup in `Checkout.svelte`,
+ * because only the host knows the priced cart; the picker does not come
+ * across. The blocks are the shop look's fields, drawn with their labels
+ * above the box and numbered as steps, so validation, host-state keys and
+ * error messages are the shop look's, unchanged.
+ */
+function classicCheckout(product: FunnelDefinition): FunnelDefinition {
+	return {
+		...CHECKOUT_PAGE,
+		id: `${product.id}-checkout`,
+		name: `${product.name} — classic checkout`,
+		blocks: [
+			{
+				id: 'contact',
+				component: 'shop_contact',
+				version: 1,
+				props: {
+					look: 'classic',
+					step: 1,
+					heading: { $ref: 'copy.contact' },
+					note: { $ref: 'copy.contactNote' }
+				}
+			},
+			{
+				id: 'shipping',
+				component: 'shop_delivery',
+				version: 1,
+				props: {
+					look: 'classic',
+					step: 2,
+					heading: { $ref: 'copy.delivery' },
+					countries: { $ref: 'markets.names' },
+					codes: { $ref: 'markets.codes' }
+				}
+			},
+			{
+				id: 'method',
+				component: 'shop_method',
+				version: 1,
+				requires: ['classic.rates'],
+				props: {
+					look: 'classic',
+					step: 3,
+					heading: { $ref: 'classic.methodTitle' },
+					// The same rates as every checkout, with an arrival date for
+					// each in place of a transit time.
+					options: { $ref: 'classic.rates' },
 					field: 'shippingMethod',
 					note: { $ref: 'christmas.message' }
 				}

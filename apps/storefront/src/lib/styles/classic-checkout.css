@@ -1,0 +1,1005 @@
+/*
+ * The classic checkout (`checkout: 'classic'` in pages.ts), from the owner's
+ * "Classic Christmas · Mobile" design of 2026-10-22 (docs/classic-checkout.md).
+ *
+ * One card: a pine header with the logo, the order in a cream panel, then the
+ * form on paper white with numbered steps. On a phone the panel is the top of
+ * the card, as drawn; from 960px it moves beside the form. It is not sticky:
+ * with the peace-of-mind card it is taller than most windows, so it would
+ * only stick once its bottom was already in view. The total is said again by
+ * the pay button instead.
+ *
+ * Colours were sampled from the design. Plain CSS scoped under `.classic`,
+ * like shop-checkout.css: the page's own custom properties, nothing that
+ * depends on Tailwind generating a utility. The field blocks are the shop
+ * look's, so their class names (`.shop-field`, `.shop-choice`) are restyled
+ * here, under `.classic`, and shop-checkout.css never sees this page's look.
+ */
+.classic {
+	--pine: #234b35;
+	--ink: #244533;
+	--muted: #627064;
+	--red: #b52e3a;
+	--red-text: #a12d39;
+	--red-soft: #e4acac;
+	--red-wash: #f7ebe9;
+	--cream: #f7f3e8;
+	--paper: #fffefa;
+	--line: #dce1d5;
+	--gold: #ecd39b;
+	--focus: rgb(35 75 53 / 0.22);
+	--serif: Georgia, 'Times New Roman', serif;
+	font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+	color: var(--ink);
+	background: #fff;
+	font-size: 17px;
+	line-height: 1.45;
+	padding: 12px 10px 32px;
+	min-height: 100svh;
+}
+
+.classic-card {
+	max-width: 1180px;
+	margin: 0 auto;
+	border: 1px solid var(--line);
+	border-radius: 20px;
+	background: var(--paper);
+}
+
+/* --- header ------------------------------------------------------------- */
+.classic-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	background: var(--pine);
+	color: #fff;
+	padding: 18px 20px;
+	border-radius: 19px 19px 0 0;
+}
+
+.classic-logo {
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
+}
+
+.classic-logo img {
+	display: block;
+	width: auto;
+	height: 30px;
+}
+
+@media (min-width: 960px) {
+	.classic-logo img {
+		height: 34px;
+	}
+}
+
+.classic-secure {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 15px;
+	white-space: nowrap;
+}
+
+.classic-secure svg {
+	width: 20px;
+	height: 20px;
+}
+
+/* --- layout ------------------------------------------------------------- */
+.classic-order {
+	background: var(--cream);
+	border-bottom: 1px solid var(--line);
+}
+
+.classic-order-inner,
+.classic-main {
+	padding: 24px 18px 30px;
+}
+
+@media (min-width: 960px) {
+	.classic {
+		padding: 32px 24px 48px;
+	}
+
+	.classic-head {
+		padding: 20px 40px;
+	}
+
+	.classic-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(380px, 440px);
+		grid-template-areas: 'main order';
+	}
+
+	.classic-main {
+		grid-area: main;
+		padding: 44px 56px 48px;
+	}
+
+	.classic-order {
+		grid-area: order;
+		border-bottom: 0;
+		border-left: 1px solid var(--line);
+		border-radius: 0 0 19px 0;
+	}
+
+	.classic-order-inner {
+		padding: 36px 36px 40px;
+	}
+}
+
+/* --- free shipping and the road ----------------------------------------- */
+.classic-free .lead {
+	margin: 0;
+	font-size: clamp(18px, 5vw, 21px);
+	font-weight: 700;
+	line-height: 1.25;
+	letter-spacing: -0.01em;
+}
+
+.classic-free .lead strong {
+	color: var(--red-text);
+	white-space: nowrap;
+}
+
+.classic-free .note {
+	margin: 4px 0 0;
+	color: var(--muted);
+	font-size: 16px;
+}
+
+.classic-road {
+	--truck: 46px;
+	position: relative;
+	height: var(--truck);
+	margin: 14px 0 0;
+}
+
+/* A candy-cane stripe: one 24px tile, so sliding it 24px is seamless. */
+.classic-road .stripe {
+	position: absolute;
+	left: 0;
+	top: 50%;
+	height: 13px;
+	width: calc(100% - var(--truck) / 2);
+	transform: translateY(-50%);
+	border-radius: 999px;
+	background-color: var(--red-soft);
+	background-image: linear-gradient(
+		135deg,
+		var(--red) 25%,
+		transparent 25%,
+		transparent 50%,
+		var(--red) 50%,
+		var(--red) 75%,
+		transparent 75%
+	);
+	background-size: 24px 24px;
+	animation:
+		classic-fill 1.6s cubic-bezier(0.22, 0.8, 0.3, 1) both,
+		classic-slide 0.9s linear infinite;
+}
+
+.classic-road .truck {
+	position: absolute;
+	top: 0;
+	left: calc(100% - var(--truck));
+	display: grid;
+	place-items: center;
+	width: var(--truck);
+	height: var(--truck);
+	border-radius: 50%;
+	background: var(--paper);
+	border: 3px solid var(--red-text);
+	color: var(--ink);
+	animation: classic-drive 1.6s cubic-bezier(0.22, 0.8, 0.3, 1) both;
+}
+
+.classic-road .truck svg {
+	width: 24px;
+	height: 24px;
+	animation: classic-bump 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes classic-fill {
+	from {
+		width: 0;
+	}
+}
+
+@keyframes classic-drive {
+	from {
+		left: 0;
+	}
+}
+
+@keyframes classic-slide {
+	to {
+		background-position: 24px 0;
+	}
+}
+
+@keyframes classic-bump {
+	from {
+		transform: translateY(0) rotate(0deg);
+	}
+	to {
+		transform: translateY(-1.5px) rotate(-2deg);
+	}
+}
+
+/* --- the order ---------------------------------------------------------- */
+.classic-order-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	margin: 26px 0 16px;
+}
+
+.classic-order-head h2 {
+	margin: 0;
+	font-size: 22px;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+}
+
+.classic-order-head span {
+	color: var(--muted);
+	font-size: 16px;
+}
+
+.classic-product {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+
+.classic-product img {
+	width: 84px;
+	height: 84px;
+	flex: none;
+	border-radius: 12px;
+	object-fit: cover;
+	background: #fff;
+}
+
+.classic-product .name {
+	margin: 0;
+	font-size: 19px;
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.classic-product .tagline {
+	margin: 4px 0 0;
+	color: var(--muted);
+	font-size: 16px;
+}
+
+.classic-picks {
+	display: grid;
+	grid-template-columns: 1.45fr 1.1fr 0.85fr;
+	gap: 10px;
+	margin-top: 18px;
+}
+
+.classic-picks .pick {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+	font-size: 15px;
+}
+
+.classic select {
+	appearance: none;
+	-webkit-appearance: none;
+	width: 100%;
+	height: 52px;
+	padding: 0 38px 0 14px;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	background-color: var(--paper);
+	/* The chevron, drawn in the ink colour. */
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 6l4.5 4.5L12.5 6' fill='none' stroke='%23244533' stroke-width='1.8'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 12px center;
+	background-size: 18px;
+	color: var(--ink);
+	font: inherit;
+	font-size: 17px;
+	text-overflow: ellipsis;
+}
+
+.classic select:focus,
+.classic input:focus {
+	outline: none;
+	border-color: var(--pine);
+	box-shadow: 0 0 0 3px var(--focus);
+}
+
+.classic-size-note {
+	margin: 10px 0 0;
+	color: var(--muted);
+	font-size: 15px;
+}
+
+.classic-line {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	margin-top: 16px;
+}
+
+.classic-line img {
+	width: 48px;
+	height: 48px;
+	border-radius: 8px;
+	object-fit: cover;
+}
+
+.classic-line > div {
+	flex: 1;
+	min-width: 0;
+}
+
+.classic-line p {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+/* Quantity and Remove under another product's line (QuantityStepper.svelte). */
+.classic .line-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 16px;
+	margin-top: 4px;
+	font-size: 16px;
+}
+
+.classic .line-link {
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	color: var(--red-text);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+	cursor: pointer;
+}
+
+.classic-line small {
+	display: block;
+	color: var(--muted);
+	font-size: 15px;
+	font-weight: 400;
+}
+
+.classic-totals {
+	margin: 20px 0 0;
+	padding: 16px 0 0;
+	border-top: 1px solid var(--line);
+}
+
+.classic-totals div {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 6px 0;
+	font-size: 17px;
+}
+
+.classic-totals dd {
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+.classic-totals .saving {
+	color: var(--pine);
+	font-weight: 600;
+}
+
+.classic-totals .total {
+	align-items: baseline;
+	margin-top: 12px;
+	padding-top: 18px;
+	border-top: 1px solid var(--line);
+	font-size: 23px;
+}
+
+.classic-totals .total small {
+	margin-left: 6px;
+	color: var(--muted);
+	font-size: 13px;
+	letter-spacing: 0.04em;
+}
+
+.classic-totals .total dd {
+	font-size: 25px;
+	font-weight: 700;
+}
+
+/* --- peace of mind ------------------------------------------------------ */
+.classic-peace {
+	margin-top: 24px;
+	padding: 22px 20px 8px;
+	border: 1px solid var(--line);
+	border-radius: 16px;
+	background: var(--paper);
+}
+
+.classic .kicker {
+	margin: 0;
+	color: var(--red-text);
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+}
+
+.classic-peace h2 {
+	margin: 8px 0 12px;
+	font-family: var(--serif);
+	font-size: 25px;
+	font-weight: 400;
+	line-height: 1.2;
+}
+
+.classic-peace details {
+	border-top: 1px solid var(--line);
+}
+
+.classic-peace summary {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 52px;
+	cursor: pointer;
+	font-size: 17px;
+	font-weight: 700;
+	list-style: none;
+}
+
+.classic-peace summary::-webkit-details-marker {
+	display: none;
+}
+
+.classic-peace summary::before {
+	content: '';
+	flex: none;
+	width: 0;
+	height: 0;
+	border-style: solid;
+	border-width: 6px 0 6px 9px;
+	border-color: transparent transparent transparent currentColor;
+	transition: transform 0.15s ease;
+}
+
+.classic-peace details[open] summary::before {
+	transform: rotate(90deg);
+}
+
+.classic-peace details p {
+	margin: 0 0 14px;
+	color: var(--muted);
+	font-size: 16px;
+}
+
+.classic-peace .bands {
+	margin: -4px 0 16px;
+	padding: 0;
+	list-style: none;
+	font-size: 16px;
+	color: var(--muted);
+}
+
+.classic-peace .bands li {
+	padding: 2px 0;
+}
+
+.classic-peace .bands li.current {
+	color: var(--ink);
+	font-weight: 600;
+}
+
+/* --- the form ----------------------------------------------------------- */
+.classic-intro {
+	margin-bottom: 30px;
+}
+
+.classic-intro .headline {
+	margin: 12px 0 10px;
+	font-family: var(--serif);
+	font-size: 38px;
+	line-height: 1.06;
+	letter-spacing: -0.02em;
+}
+
+@media (min-width: 960px) {
+	.classic-intro .headline {
+		font-size: 46px;
+	}
+}
+
+.classic-intro .sub {
+	margin: 0;
+	color: var(--muted);
+	font-size: 17px;
+}
+
+.classic-blocks,
+.classic-form {
+	display: flex;
+	flex-direction: column;
+	gap: 32px;
+}
+
+.classic-form {
+	margin-top: 32px;
+}
+
+.classic .shop-section {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.classic .shop-section h2 {
+	margin: 0;
+	font-size: 22px;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+}
+
+.classic h2.step {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.classic .step-no {
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 34px;
+	height: 34px;
+	border: 2px solid var(--line);
+	border-radius: 50%;
+	color: var(--red-text);
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.classic .shop-fields {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.classic .shop-row {
+	display: grid;
+	gap: 12px;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+/* City on its own row, state and ZIP side by side under it, at any width. */
+.classic .shop-row.split {
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.classic .shop-row.split > :first-child {
+	grid-column: 1 / -1;
+}
+
+/* The shop look floats its label inside the box; here it sits above it. */
+.classic .shop-field label {
+	position: static;
+	display: block;
+	margin-bottom: 6px;
+	transform: none;
+	white-space: normal;
+	pointer-events: auto;
+	transition: none;
+	color: var(--ink);
+	font-size: 15px;
+	line-height: 1.3;
+}
+
+.classic .shop-field .req {
+	margin-left: 0.25em;
+	color: var(--muted);
+}
+
+.classic .shop-field .box {
+	position: relative;
+}
+
+.classic .shop-field input,
+.classic .shop-field select {
+	width: 100%;
+	height: 52px;
+	padding: 0 14px;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	background-color: var(--paper);
+	color: var(--ink);
+	font: inherit;
+	font-size: 17px;
+	line-height: normal;
+}
+
+.classic .shop-field select {
+	padding-right: 38px;
+}
+
+.classic .shop-field input::placeholder {
+	color: #8a948b;
+}
+
+.classic .shop-field .chevron {
+	display: none;
+}
+
+.classic .shop-field.invalid input,
+.classic .shop-field.invalid select {
+	border: 2px solid var(--red-text);
+	box-shadow: none;
+}
+
+.classic .shop-field .message {
+	margin: 6px 0 0;
+	color: var(--red-text);
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.classic .shop-field .hint {
+	margin: 8px 0 0;
+	color: var(--muted);
+	font-size: 15px;
+}
+
+.classic-more {
+	align-self: flex-start;
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 44px;
+	margin: -6px 0 -6px;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--red-text);
+	font: inherit;
+	font-size: 16px;
+	cursor: pointer;
+}
+
+.classic-more::before {
+	content: '';
+	width: 0;
+	height: 0;
+	border-style: solid;
+	border-width: 6px 0 6px 9px;
+	border-color: transparent transparent transparent currentColor;
+}
+
+/* --- shipping ------------------------------------------------------------ */
+.classic-timeline {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: 4px 6px;
+	margin: 0;
+	padding: 12px 12px;
+	border-radius: 12px;
+	background: var(--cream);
+	list-style: none;
+	font-size: 13.5px;
+}
+
+.classic-timeline li {
+	white-space: nowrap;
+}
+
+@media (min-width: 480px) {
+	.classic-timeline {
+		padding: 14px 16px;
+		font-size: 15px;
+	}
+}
+
+.classic-timeline li + li::before {
+	content: '→ ';
+	color: var(--red-text);
+}
+
+.classic .shop-choices {
+	margin: 0;
+	padding: 0;
+	border: 1px solid var(--line);
+	border-radius: 14px;
+	overflow: hidden;
+	min-width: 0;
+}
+
+.classic .shop-choice {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	min-height: 76px;
+	padding: 14px 18px;
+	cursor: pointer;
+	background: var(--paper);
+}
+
+.classic .shop-choice + .shop-choice {
+	border-top: 1px solid var(--line);
+}
+
+.classic .shop-choice.checked {
+	background: var(--red-wash);
+	box-shadow: none;
+}
+
+.classic .shop-choice input {
+	flex: none;
+	width: 22px;
+	height: 22px;
+	margin: 0;
+	accent-color: var(--red-text);
+}
+
+.classic .shop-choice .text {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 2px;
+	font-size: 17px;
+	font-weight: 700;
+}
+
+.classic .shop-choice small {
+	color: var(--muted);
+	font-size: 15px;
+	font-weight: 400;
+}
+
+.classic .shop-choice strong {
+	font-size: 17px;
+	white-space: nowrap;
+}
+
+.classic .shop-note {
+	margin: 0;
+	color: var(--muted);
+	font-size: 15px;
+}
+
+/* --- payment -------------------------------------------------------------- */
+.classic-pay {
+	padding: 16px 18px 14px;
+	border: 1px solid var(--line);
+	border-radius: 14px;
+}
+
+.classic-pay-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 4px 12px;
+	margin: 0 0 14px;
+	font-size: 17px;
+}
+
+.classic-pay-head span {
+	white-space: nowrap;
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.classic-pay-head svg {
+	width: 22px;
+	height: 22px;
+}
+
+.classic-pay-head small {
+	color: var(--muted);
+	font-size: 14px;
+	white-space: nowrap;
+}
+
+/*
+ * Reserves the Payment Element's finished height, as `.shop-pay-box` does,
+ * measured with the same sizes (CLASSIC_APPEARANCE keeps the shop look's):
+ * 316px stacked, 236px once the box is 440px wide and Stripe puts country
+ * and ZIP side by side. The reserve and `flow-root` go on CardFields' mount
+ * point, so Stripe's own -4px margins stay inside it instead of shrinking
+ * the box the moment the element mounts.
+ */
+.classic-pay-box {
+	container-type: inline-size;
+	position: relative;
+}
+
+.classic-pay-box > div {
+	display: flow-root;
+	min-height: 316px;
+}
+
+@container (min-width: 440px) {
+	.classic-pay-box > div {
+		min-height: 236px;
+	}
+}
+
+.classic-pay-loading {
+	position: absolute;
+	inset: 0 0 auto;
+	margin: 0;
+	color: var(--muted);
+	font-size: 16px;
+}
+
+.classic-lock {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 12px 0 0;
+	color: var(--muted);
+	font-size: 15px;
+}
+
+.classic-lock svg {
+	width: 18px;
+	height: 18px;
+	flex: none;
+}
+
+.classic .shop-notice,
+.classic .shop-alert {
+	margin: 0;
+	padding: 14px 16px;
+	border-radius: 12px;
+	font-size: 16px;
+}
+
+.classic .shop-notice {
+	border: 1px solid var(--line);
+	color: var(--muted);
+}
+
+.classic .shop-alert {
+	border: 1px solid var(--red-text);
+	background: var(--red-wash);
+	color: var(--red-text);
+}
+
+.classic .shop-alert p,
+.classic .shop-alert ul {
+	margin: 0;
+}
+
+.classic .shop-alert ul {
+	padding-left: 20px;
+}
+
+/* Its height fixed, so the price arriving does not nudge the button. */
+.classic-due {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	height: 36px;
+	margin: 0;
+	font-size: 23px;
+	line-height: 36px;
+}
+
+.classic-due b {
+	font-size: 25px;
+	font-variant-numeric: tabular-nums;
+}
+
+.classic-payb {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 14px;
+	width: 100%;
+	min-height: 60px;
+	padding: 0 20px;
+	border: 0;
+	border-radius: 12px;
+	background: var(--red);
+	color: #fff;
+	font: inherit;
+	font-size: 19px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+}
+
+.classic-payb svg {
+	width: 22px;
+	height: 22px;
+	flex: none;
+}
+
+.classic-payb .arrow {
+	transition: transform 0.15s ease;
+}
+
+.classic-payb:hover {
+	background: #9e2632;
+}
+
+.classic-payb:hover .arrow {
+	transform: translateX(3px);
+}
+
+.classic-payb:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+
+.classic-payb:focus-visible {
+	outline: 3px solid var(--focus);
+	outline-offset: 3px;
+}
+
+.classic-once {
+	margin: -18px 0 0;
+	text-align: center;
+	color: var(--muted);
+	font-size: 15px;
+}
+
+.classic-links {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 22px;
+	padding-top: 18px;
+	border-top: 1px solid var(--line);
+	font-size: 15px;
+}
+
+.classic-links a {
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
+	color: var(--red-text);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.classic-links span,
+.classic-links span a {
+	color: var(--muted);
+	text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.classic-road .stripe,
+	.classic-road .truck,
+	.classic-road .truck svg {
+		animation: none;
+	}
+
+	.classic-peace summary::before,
+	.classic-payb,
+	.classic-payb .arrow {
+		transition: none;
+	}
+}
