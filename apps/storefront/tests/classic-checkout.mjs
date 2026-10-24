@@ -242,6 +242,7 @@ await settle();
 	const lines = await cartLines();
 	check('a size puts the chosen variant in the cart', lines.length === 1 && lines[0].colour === 'green' && lines[0].size === 'S' && lines[0].quantity === 1, JSON.stringify(lines));
 	check('the panel prices it', await shows(/Subtotal\s*\$27\.99/), await totals());
+	check('and shows the costume’s own price beside it', (await page.locator('.classic-product .amount').innerText()) === '$27.99');
 	check('and shows that size’s band', (await page.locator('.classic-size-note').innerText()).includes('S · 1.5–2.5 kg'));
 }
 await page.selectOption('#order-size', 'M');
@@ -253,6 +254,7 @@ await settle();
 	check('quantity 2 is two costumes', lines[0]?.quantity === 2, JSON.stringify(lines));
 	check('at the server’s bundle price', await shows(/Bundle discount[\s\S]*Total\s*USD\s*\$52\.06/), await totals());
 	check('the item count follows', (await page.locator('.classic-order-head').innerText()).includes('2 items'));
+	check('the costume’s own price is for two', (await page.locator('.classic-product .amount').innerText()) === '$55.98');
 	const add = await pairedOnce('AddToCart');
 	check('the one AddToCart is the first choice', JSON.stringify(add.content_ids) === '["CMP-XT-GREEN-S"]', JSON.stringify(add));
 }

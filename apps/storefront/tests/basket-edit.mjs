@@ -144,6 +144,12 @@ await page.goto(`${BASE}/products/christmas-tree-costume/checkout?design=green&s
 	await jacketRow.waitFor({ timeout: 5000 }).catch(() => {});
 	check('a leftover from another product shows in the order panel', await jacketRow.isVisible());
 	check('so the buyer sees it before paying', /Life Jacket/.test(await panel.innerText()));
+	// Every line in the panel carries its price, so they add up to the
+	// subtotal under them (the costume's own row once had none).
+	const amounts = await panel.locator('.classic-product .amount, .classic-line > b').allInnerTexts();
+	const sum = amounts.reduce((total, a) => total + Number(a.replace(/[^0-9.]/g, '')), 0);
+	const subtotal = Number((await panel.locator('.classic-totals div', { hasText: 'Subtotal' }).locator('dd').innerText()).replace(/[^0-9.]/g, ''));
+	check('the panel’s lines add up to its subtotal', amounts.length === 2 && Math.abs(sum - subtotal) < 0.005, JSON.stringify({ amounts, subtotal }));
 	check('the costume itself is the panel’s selects, with no Remove: its bundle tiers own it', (await panel.getByRole('button', { name: 'Remove' }).count()) === 1 && (await page.inputValue('#order-size')) === 'M');
 	await jacketRow.getByRole('button', { name: 'Remove' }).click();
 	check('the jacket can be removed', (await cartLines()).every((l) => l.slug !== JACKETS.slug));

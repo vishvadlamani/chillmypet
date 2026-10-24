@@ -267,6 +267,20 @@
 	background: #fff;
 }
 
+.classic-product > div {
+	flex: 1;
+	min-width: 0;
+}
+
+/* Its price, like every other line's, so the panel adds up to the subtotal. */
+.classic-product .amount {
+	align-self: flex-start;
+	margin-top: 2px;
+	font-size: 17px;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
 .classic-product .name {
 	margin: 0;
 	font-size: 19px;
@@ -375,6 +389,12 @@
 	text-decoration: underline;
 	text-underline-offset: 3px;
 	cursor: pointer;
+}
+
+.classic-line > b {
+	font-size: 17px;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
 }
 
 .classic-line small {
