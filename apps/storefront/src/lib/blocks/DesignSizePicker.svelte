@@ -15,8 +15,8 @@
 	 * wearer knows it; a default would quietly ship every order in S.
 	 *
 	 * `look: 'pills'` is the quieter storefront layout (the costume page): colour
-	 * and size as pills side by side, then optional bundle cards, then one
-	 * full-width button. `tiers` are the host's quantity breaks, priced by the
+	 * and size as pills side by side, optional bundle cards and one
+	 * full-width button. `ctaBeforeTiers` puts that button before the upsell. `tiers` are the host's quantity breaks, priced by the
 	 * server; the chosen tier's id goes into `tierField` so the sticky bar can
 	 * show and buy the same thing, and its unit count goes out with the add.
 	 */
@@ -50,6 +50,8 @@
 			/** Words for each tier, matched on `units`. Prices always come from `tiers`. */
 			tierCopy?: TierCopy[];
 			tiersTitle?: string;
+			/** Let a single-item buyer reach checkout before the optional quantity breaks. */
+			ctaBeforeTiers?: boolean;
 			/** What a unit is called on a tier's saving line: "You save 7% with 2 hoodies". */
 			unitsNoun?: string;
 			/** Small print under the button. */
@@ -165,6 +167,16 @@
 	{/each}
 {/snippet}
 
+{#snippet purchaseButton()}
+	{#if p.button !== false}
+		<button type="button" class="cta" onclick={add}>
+			<span>{p.cta ?? 'Add to cart'}</span>
+			{#if tier?.price ?? p.price}<span>{tier?.price ?? p.price}</span>{/if}
+		</button>
+		{#if p.ctaNote}<p class="fine center">{p.ctaNote}</p>{/if}
+	{/if}
+{/snippet}
+
 {#if pills && !folded}
 <div class="picker pills" id="variant-picker">
 	{#if p.price}
@@ -231,6 +243,8 @@
 		{#if prompted}{p.sizeMissing ?? 'Pick your size first.'}{/if}
 	</p>
 
+	{#if p.ctaBeforeTiers}{@render purchaseButton()}{/if}
+
 	{#if tiers.length > 1}
 		<fieldset class="tiers">
 			<legend class="tiers-title"><span>{p.tiersTitle ?? 'Choose your bundle'}</span></legend>
@@ -260,13 +274,7 @@
 		</fieldset>
 	{/if}
 
-	{#if p.button !== false}
-		<button type="button" class="cta" onclick={add}>
-			<span>{p.cta ?? 'Add to cart'}</span>
-			{#if tier?.price ?? p.price}<span>{tier?.price ?? p.price}</span>{/if}
-		</button>
-		{#if p.ctaNote}<p class="fine center">{p.ctaNote}</p>{/if}
-	{/if}
+	{#if !p.ctaBeforeTiers}{@render purchaseButton()}{/if}
 </div>
 {:else if folded}
 <div class="picker folded" id="variant-picker">
