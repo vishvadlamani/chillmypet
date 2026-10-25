@@ -52,8 +52,8 @@ function check(label, cond, detail) {
 	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Christmas Tree Costume/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('the gallery comes before the h1', html.indexOf('class="gallery') > -1 && html.indexOf('class="gallery') < html.search(/<h1[\s>]/));
-	// The page opens on green, the tabby wearing it (`leadDesign` in pages.ts).
-	check('the gallery opens on the tabby in the green costume', /class="frame[\s\S]{0,600}?cat\.jpg/.test(html));
+	// The page opens on green, the original dog photo (`leadDesign` in pages.ts).
+	check('the gallery opens on the original dog photo in the green costume', /class="frame[\s\S]{0,600}?green-dog-original\.jpg/.test(html));
 	check('and green is the colour chosen', /name="design"[^>]*value="green"[^>]*checked|checked[^>]*name="design"[^>]*value="green"/.test(html) || /value="green"[^>]*checked/.test(html));
 	check('the gallery carries every angle, not only the colours', /aria-label="Show photo 4: The green costume worn, with close-ups/.test(html));
 	check('and counts them under the photo', /Swipe to explore[\s\S]{0,200}?1 \/ 4/.test(html));
@@ -62,6 +62,7 @@ function check(label, cond, detail) {
 	check('the closing band points back at the picker, under an h2', /<h2[^>]*>[\s\S]{0,120}?Every tree needs a little one/.test(html) && /href="#variant-picker"/.test(html));
 	check('SSR says the size goes by weight, in kg and lb', /By weight: S 1\.5–2\.5 kg \(3–6 lb\)/.test(html));
 	// The store's own quantity breaks, priced by the server, said in words.
+	check('purchase comes before the optional bundles in SSR', /class="cta[\s\S]*?class="tiers[\s\S]*?Optional: save with a bundle/.test(html));
 	check('SSR offers the bundle cards at the server’s prices', html.includes('$52.06') && html.includes('$76.41') && /You save 7% with 2 costumes/.test(html));
 	check('the theme lifts the delivery strip above the header', /class="tree-strip"[^>]*>[^<]*Order by \w+day, Dec \d+/.test(html) && html.indexOf('tree-strip') < html.indexOf('<header'));
 	check('SSR quotes the price', html.includes(`$${PRICE}`));
@@ -168,6 +169,10 @@ await page.reload({ waitUntil: 'networkidle' });
 	await page.setViewportSize({ width: 390, height: 664 });
 	await page.evaluate(() => window.scrollTo(0, 0));
 	const bottom = (sel) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().bottom);
+	const cta = await page.locator('#variant-picker button.cta').boundingBox();
+	const bundles = await page.locator('#variant-picker .tiers').boundingBox();
+	check('one main purchase button, above optional bundles on mobile', (await page.locator('#variant-picker button.cta').count()) === 1 && cta.y + cta.height < bundles.y);
+	check('the portrait hero shows the whole costume', (await page.locator('.gallery .frame img').evaluate((e) => getComputedStyle(e).objectFit)) === 'contain');
 	check('the price is on the first screen', (await bottom('#variant-picker .price')) <= 664);
 	const sizes = await bottom('#size-picker label');
 	check('and so are the size buttons', sizes <= 664, `they end at ${sizes}px`);
@@ -230,7 +235,7 @@ check(
 await page.locator('#variant-picker label', { hasText: 'Green' }).click();
 check(
 	'and back to the tabby for green',
-	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/cat.jpg')
+	(await page.locator('.gallery .frame img').getAttribute('src'))?.endsWith('/green-dog-original.jpg')
 );
 await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();
 check('the error clears once a size is chosen', (await page.locator('#size-error').innerText()).trim() === '');
