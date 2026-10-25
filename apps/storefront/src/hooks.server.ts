@@ -8,6 +8,7 @@ import { sweepSoon } from '$lib/server/recovery';
 import { metaBrowserIds } from '$lib/server/meta-browser-ids';
 import { rememberedContact, type RememberedContact } from '$lib/server/identity';
 import { attributionFrom, ensureVisitorId } from '$lib/server/purchase';
+import { paymentTestConfiguration, preparePaymentTestStore, PAYMENT_TEST_STORE } from '$lib/server/payment-test';
 import { SHIPPING_RATES } from '$lib/store/shipping-rates';
 import { isLocale, negotiateLocale, textDirection } from '$lib/i18n';
 
@@ -36,6 +37,8 @@ const settingsCache = new Map<string, Record<string, string>>();
  * and a fresh one per request would leak a file handle each time.
  */
 let localDirectory: ReturnType<typeof createDirectory> | undefined;
+// Cache completed setup only, never a request-scoped promise.
+let paymentTestPrepared = false;
 
 function getDirectory() {
 	const url = env.TURSO_DATABASE_URL ?? 'file:local.db';
@@ -172,7 +175,11 @@ function verificationTag(token: string): string {
 export const handle: Handle = async ({ event, resolve }) => {
 	// Before anything else, so an unauthenticated request costs no database read.
 	const isAdmin = isAdminPath(event.url.pathname);
-	if (isAdmin) {
+	const testConfig = paymentTestConfiguration(env, event.url.hostname);
+	if (testConfig.error) error(503, testConfig.error);
+	const paymentTest = testConfig.enabled;
+	event.locals.paymentTest = paymentTest;
+	if (isAdmin || (paymentTest && event.url.pathname !== '/api/stripe/webhook')) {
 		const denied = await adminGate(event.request, env.ADMIN_PASSWORD);
 		if (denied) return denied;
 	}
@@ -186,7 +193,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Guarded here as well as inside: housekeeping must never cost a visitor
 	// the page, whatever the runtime does with it.
 	try {
-		ensureCatalogue(db, event.platform?.context);
+		if (!paymentTest) ensureCatalogue(db, event.platform?.context);
 	} catch (error) {
 		console.error('catalogue sync could not start', error);
 	}
@@ -194,8 +201,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Tenant comes from the Host header; localhost and preview URLs fall back to
 	// a configured default so development needs no hosts-file entry.
 	const host = event.request.headers.get('host') ?? event.url.host;
-	const store: Store | null =
-		(await stores.byDomain(host)) ?? (await stores.byId(env.DEFAULT_STORE_ID || 'chillmypet'));
+	if (paymentTest && !paymentTestPrepared) {
+		await preparePaymentTestStore(db);
+		paymentTestPrepared = true;
+	}
+	const store: Store | null = paymentTest
+		? await stores.byId(PAYMENT_TEST_STORE)
+		: (await stores.byDomain(host)) ?? (await stores.byId(env.DEFAULT_STORE_ID || 'chillmypet'));
 
 	if (!store) {
 		error(503, `No store configured for "${host}". Run the seed, or set DEFAULT_STORE_ID.`);
@@ -214,7 +226,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// single dataset — so this must be the pixel the ad account optimises
 	// against, or its conversions are browser-only and die on iOS and blockers.
 	// An env override so correcting it is a config change, not a database write.
-	const primaryPixelId = env.META_PIXEL_ID ?? settings.meta_pixel_id ?? '';
+	const primaryPixelId = paymentTest && !env.META_CAPI_TEST_EVENT_CODE
+		? '' : (env.META_PIXEL_ID ?? settings.meta_pixel_id ?? '');
 
 	event.locals.store = store;
 	// Publishable, not secret — it identifies the account to Stripe.js and is
@@ -231,7 +244,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// has to be verified in Resend before the key is set, or every send is
 	// rejected into console.error.
 	event.locals.email = {
-		apiKey: env.RESEND_API_KEY,
+		apiKey: paymentTest ? undefined : env.RESEND_API_KEY,
 		from: env.EMAIL_FROM ?? settings.email_from ?? `${store.name} <orders@${store.domain}>`,
 		replyTo: env.EMAIL_REPLY_TO ?? settings.email_reply_to ?? `contact@${store.domain}`,
 		endpoint: env.EMAIL_API_ENDPOINT,
@@ -240,7 +253,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.commerce = createCommerce({
 		db,
 		store,
-		orderNumberPrefix: 'CMP',
+		orderNumberPrefix: paymentTest ? 'SANDBOX' : 'CMP',
 		// The store's own table, so the order is priced against the rates the
 		// checkout offers and never against a framework default it doesn't.
 		shippingRates: SHIPPING_RATES,
@@ -289,9 +302,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// No pixel, no container and so no server PageView on the admin: the
 	// operator packing orders is not a shopper, and the ad account would
 	// otherwise count every order they open as a visit.
-	const pixelIds = isAdmin ? [] : [primaryPixelId, ...extraPixels].filter(Boolean);
+	const pixelIds = isAdmin || paymentTest ? [] : [primaryPixelId, ...extraPixels].filter(Boolean);
 	const gtm = gtmSnippet(
-		isAdmin ? '' : (env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? ''),
+		isAdmin || paymentTest ? '' : (env.GTM_CONTAINER_ID ?? settings.gtm_container_id ?? ''),
 		env.GTM_GATEWAY_PATH ?? ''
 	);
 
@@ -322,7 +335,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Abandoned-checkout reminders ride on page traffic: nothing schedules the
 	// Worker, so a shopper's page view is what notices a reminder has come due.
 	// Throttled per isolate and run after the response, so it never slows a page.
-	if (!isAdmin && isDocumentRequest(event.request)) {
+	if (!isAdmin && !paymentTest && isDocumentRequest(event.request)) {
 		sweepSoon(event.locals.commerce, event.locals.email, settings, event.platform?.context);
 	}
 
@@ -386,7 +399,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		response.headers.set('cache-control', 'no-store');
 	}
 
-	if (isAdmin) {
+	if (isAdmin || paymentTest) {
 		for (const [name, value] of Object.entries(ADMIN_HEADERS)) response.headers.set(name, value);
 	}
 
