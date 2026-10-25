@@ -800,10 +800,13 @@ know:
   lives in funnel state as `costume_bundle`, not `bundle`, so a 3-pack chosen
   on the life jacket cannot carry over, and the sticky bar reads the same
   field so it shows and buys what the cards show.
-- **It opens on green, on the tabby** (owner's call, 2026-10-17):
+- **It opens on green, on the original dog photo** (owner's call, 2026-10-25):
   `leadDesign: 'green'` in `pages.ts` puts green first in the picker and the
-  gallery, and the gallery's green photo is `cat.jpg`; `cardImage` makes the
-  tabby the listing photo too (cards, sticky bar, bundle cards, link
+  gallery, and the gallery's green photo is `green-dog-original.jpg`, from
+  the owner's Downloads (`IMG_3592.jpg`), supplied as the original photo.
+  The product-page purchase button precedes the optional bundle cards
+  (`ctaBeforeTiers`); size is still required and the single-unit tier is the default.
+  `cardImage` keeps the tabby as the listing photo (cards, sticky bar, bundle cards, link
   previews). The hosts' fallback for "no colour chosen" reads `leadDesign`
   as well (`data.leadDesign` on both product pages), because the picker shows
   that colour chosen: a buyer who leaves it and picks a size must get green,
