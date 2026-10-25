@@ -222,19 +222,20 @@ await page.waitForURL('**/checkout', { timeout: 15000 });
 	check('AddToCart names the variant by SKU at the price', JSON.stringify(b[0]?.[2]?.content_ids) === `["${SKU}"]` && b[0]?.[2]?.value === PRICE, JSON.stringify(b[0]?.[2]));
 }
 
-await page.waitForSelector('form dl');
+await page.waitForSelector('.classic-totals');
 {
-	const summary = await page.locator('form', { has: page.locator('dl') }).innerText();
-	check('checkout shows the costume, red, size M', summary.includes('Santa Costume with Gift') && /Red · M/.test(summary), summary.slice(0, 300));
-	check(`checkout charges $${PRICE}`, (await page.locator('form dl').innerText()).includes(`$${PRICE}`));
+	const summary = await page.locator('.classic-order').innerText();
+	check('checkout shows the costume, red, size M', summary.includes('Santa Costume with Gift') && /Red · Size M/.test(summary), summary.slice(0, 300));
+	check(`checkout charges $${PRICE}`, (await page.locator('.classic-totals').innerText()).includes(`$${PRICE}`));
 }
 
-await page.fill('#contact-fullName', 'Nick Claus');
+await page.fill('#shipping-firstName', 'Nick');
+await page.fill('#shipping-lastName', 'Claus');
 await page.fill('#contact-email', 'santa@example.com');
-await page.fill('#shipping-lookup', '751');
-await page.waitForSelector('[role="option"]');
-await page.locator('[role="option"]').first().click();
-await page.waitForSelector('#shipping-city');
+await page.fill('#shipping-address', '751 Pine St');
+await page.fill('#shipping-city', 'Austin');
+await page.selectOption('#shipping-state', 'TX');
+await page.fill('#shipping-zip', '73301');
 await page.getByRole('button', { name: /^(Pay |Place order)/ }).click();
 await page
 	.getByRole('heading', { name: /order received/i })

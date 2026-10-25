@@ -55,6 +55,7 @@ function check(label, cond, detail) {
 	check('the order panel’s selects', ['order-design', 'order-size', 'order-qty'].every((id) => html.includes(`id="${id}"`)));
 	check('both colours and every size', html.includes('>Green<') && html.includes('>Red<') && ['S', 'M', 'L'].every((s) => html.includes(`value="${s}"`)));
 	check('quantities are the bundle breaks', /id="order-qty"[\s\S]*?value="1"[\s\S]*?value="2"[\s\S]*?value="3"/.test(html));
+	check('fit advice starts collapsed', !/<details open/.test(html));
 	check('the size bands from the catalogue', html.includes('M · 2.5–5 kg (6–11 lb)'));
 	const steps = ['shop-contact-title', 'shop-delivery-title', 'shop-method-title', 'classic-payment-title'].map((id) => html.indexOf(`id="${id}"`));
 	check('Contact, Delivery, Shipping, Payment, in that order', steps.every((i, n) => i > 0 && (n === 0 || i > steps[n - 1])), JSON.stringify(steps));
@@ -97,9 +98,9 @@ function watch(page) {
 	return errors;
 }
 
-// --- the truck drives ------------------------------------------------------------
+// --- the desktop truck drives ------------------------------------------------------------
 {
-	const ctx = await browser.newContext({ viewport: { width: 390, height: 664 }, isMobile: true });
+	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 	await quiet(ctx);
 	const page = await ctx.newPage();
 	await page.goto(`${BASE}${PATH}`);
@@ -122,7 +123,7 @@ function watch(page) {
 	check('and the stripe keeps moving under it', shift[0] !== shift[1], JSON.stringify(shift));
 	await ctx.close();
 
-	const still = await browser.newContext({ viewport: { width: 390, height: 664 }, reducedMotion: 'reduce' });
+	const still = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
 	await quiet(still);
 	const p2 = await still.newPage();
 	await p2.goto(`${BASE}${PATH}`);
@@ -343,7 +344,7 @@ check('the order was accepted', Boolean(orderNumber), body.slice(0, 300));
 
 // --- arriving from the product page's Add to cart -------------------------------
 {
-	const c = await browser.newContext({ viewport: { width: 390, height: 664 }, isMobile: true });
+	const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
 	await quiet(c);
 	const p = await c.newPage();
 	await p.goto(`${BASE}${PATH}?design=red&size=L&bundle=qty-2&added=1`, { waitUntil: 'networkidle' });
@@ -352,6 +353,19 @@ check('the order was accepted', Boolean(orderNumber), body.slice(0, 300));
 	const sent = await p.evaluate(() => (window.fbq?.queue ?? []).map((a) => a[1]));
 	check('the product page counted the view and the add, so this page sends neither', !sent.includes('ViewContent') && !sent.includes('AddToCart'), JSON.stringify(sent));
 	check('the link is cleared from the address bar once read', new URL(p.url()).search === '', p.url());
+	check('chosen options start collapsed on mobile', !(await p.locator('#order-size').isVisible()));
+	check('the selected variant stays visible', /Red · Size L · Qty 2/.test(await p.locator('.classic-selection').innerText()));
+	check('the email field is on the first phone screen', (await p.locator('#contact-email').boundingBox()).y + 52 <= 844);
+	check('the delivery estimate matches Shipping', (await p.locator('.classic-arrival').innerText()) === (await p.locator('.shop-choice small').first().innerText()));
+	await p.getByRole('button', { name: 'Change', exact: true }).click();
+	check('Change opens the selectors and focuses the first', (await p.locator('#order-size').isVisible()) && (await p.evaluate(() => document.activeElement?.id)) === 'order-design');
+	await p.selectOption('#order-size', 'M');
+	await p.selectOption('#order-qty', '1');
+	await p.waitForLoadState('networkidle');
+	await p.getByRole('button', { name: 'Done', exact: true }).click();
+	check('Done confirms the changed variant and closes the controls', !(await p.locator('#order-size').isVisible()) && /Red · Size M · Qty 1/.test(await p.locator('.classic-selection').innerText()));
+	check('the collapsed total keeps the server price', (await p.locator('.classic-totals').innerText()).includes('$27.99'));
+
 	await c.close();
 }
 

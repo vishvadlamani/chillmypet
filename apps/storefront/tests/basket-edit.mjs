@@ -96,8 +96,8 @@ const qty = (variantId) => cartLines().then((ls) => ls.find((l) => l.variantId =
 await basket([JACKETS, COSTUME, REINDEER]);
 await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
 {
-	const box = page.locator('section[aria-label="Your order"]');
-	const jacketRow = box.locator('div.flex.items-start', { hasText: 'Life Jacket' });
+	const box = page.locator('.classic-order');
+	const jacketRow = box.locator('.classic-line', { hasText: 'Life Jacket' });
 	check('every line has its own quantity buttons', (await box.getByRole('group', { name: /^Quantity of / }).count()) === 3);
 	check('and its own Remove', (await box.getByRole('button', { name: 'Remove' }).count()) === 3);
 	const changes = await box.locator('a', { hasText: 'Change' }).evaluateAll((as) => as.map((a) => a.getAttribute('href')));
@@ -115,7 +115,7 @@ await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
 	await jacketRow.getByRole('button', { name: /^One fewer / }).click();
 	check('the minus stops at 1 rather than emptying the line', (await jacketRow.getByRole('button', { name: /^One fewer / }).isDisabled()) && (await qty(JACKETS.variantId)) === 1);
 
-	await box.locator('div.flex.items-start', { hasText: 'Christmas Tree Costume' }).getByRole('button', { name: /^One more / }).click();
+	await box.locator('.classic-line', { hasText: 'Christmas Tree Costume' }).getByRole('button', { name: /^One more / }).click();
 	check('one more costume: the cart holds 2', (await qty(COSTUME.variantId)) === 2);
 
 	await jacketRow.getByRole('button', { name: 'Remove' }).click();
@@ -130,7 +130,7 @@ await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
 		})
 	).json();
 	const expected = ((priced.subtotalCents - priced.discountCents) / 100).toFixed(2);
-	check('and the total is the server’s price for what is left', await shows(box, `Total: $${expected}`), await box.innerText());
+	check('and the total is the server’s price for what is left', await shows(box, `$${expected}`), await box.innerText());
 	const shown = await page.locator('form[method="POST"]:not([action]) button[type="submit"]').innerText();
 	check('the pay button agrees', shown.includes(expected) || /Place order/.test(shown), shown);
 }
@@ -154,6 +154,7 @@ await page.goto(`${BASE}/products/christmas-tree-costume/checkout?design=green&s
 	await jacketRow.getByRole('button', { name: 'Remove' }).click();
 	check('the jacket can be removed', (await cartLines()).every((l) => l.slug !== JACKETS.slug));
 	check('leaving the costume at its price', await shows(page.locator('button.classic-payb'), 'Pay $27.99'));
+	await page.getByRole('button', { name: 'Change', exact: true }).click();
 	await page.selectOption('#order-size', 'L');
 	await page.waitForLoadState('networkidle');
 	const lines = await cartLines();
@@ -169,23 +170,22 @@ await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
 {
 	const lines = await cartLines();
 	check('a line the server no longer sells leaves the cart', lines.length === 1 && lines[0].variantId === COSTUME.variantId, JSON.stringify(lines));
-	check('and the total is the costume alone', await shows(page.locator('section[aria-label="Your order"]'), '$27.99'));
+	check('and the total is the costume alone', await shows(page.locator('.classic-order'), '$27.99'));
 }
 
 // --- the reindeer hoodie's one-page checkout: the bundle cards own its count ------------------
 // (Red is its one colour, chosen from the start.)
 await basket([JACKETS]);
 await page.goto(`${BASE}/products/${REINDEER.slug}/checkout`, { waitUntil: 'networkidle' });
-await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();
+await page.selectOption('#order-size', 'M');
 await page.waitForLoadState('networkidle');
 {
-	const form = page.locator('form[method="POST"]:not([action])');
-	const ownRow = form.locator('li', { hasText: 'Christmas Hoodie' });
-	const jacketRow = form.locator('li', { hasText: 'Life Jacket' });
-	await ownRow.waitFor({ timeout: 5000 }).catch(() => {});
-	check('the hoodie line has no quantity buttons or Remove', (await ownRow.getByRole('group').count()) === 0 && (await ownRow.getByRole('button', { name: 'Remove' }).count()) === 0);
-	check('it says its count instead', /Qty 1/.test(await ownRow.innerText()), await ownRow.innerText());
-	check('the leftover jackets have both', (await jacketRow.getByRole('group').count()) === 1 && (await jacketRow.getByRole('button', { name: 'Remove' }).count()) === 1);
+	const panel = page.locator('.classic-order');
+	const jacketRow = panel.locator('.classic-line', { hasText: 'Life Jacket' });
+	check('the hoodie has its own quantity selector', (await page.inputValue('#order-qty')) === '1');
+	check('the hoodie has no Remove, but the leftover jackets do', (await panel.getByRole('button', { name: 'Remove' }).count()) === 1);
+	check('the leftover jackets keep quantity controls', (await jacketRow.getByRole('group').count()) === 1);
+
 }
 
 if (pageErrors.length) {

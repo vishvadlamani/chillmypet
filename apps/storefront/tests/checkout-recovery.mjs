@@ -89,7 +89,7 @@ const newShopper = async () => {
 	await page.locator('#variant-picker button', { hasText: /Add to cart/ }).click();
 	// The costume's own payment page (`checkout: 'shop'` in pages.ts).
 	await page.waitForURL('**/products/christmas-tree-costume/checkout', { timeout: 15000 });
-	await page.waitForSelector('button.shop-pay');
+	await page.waitForSelector('button.classic-payb');
 
 	const hint = await page.textContent('body');
 	check('the email field says a reminder may follow', /we'll send one reminder/i.test(hint ?? ''));
@@ -133,11 +133,11 @@ check('the reminder links to a restore page', Boolean(restoreUrl?.includes('/che
 	const page = await ctx.newPage();
 	await page.goto(restoreUrl, { waitUntil: 'networkidle' });
 	await page.waitForURL('**/checkout', { timeout: 15000 });
-	await page.waitForSelector('form dl');
-	const summary = await page.locator('form', { has: page.locator('dl') }).innerText();
+	await page.waitForSelector('.classic-totals');
+	const summary = await page.locator('.classic-order').innerText();
 	check('it lands on the checkout', new URL(page.url()).pathname === '/checkout');
 	check('with the costume back in the cart', summary.includes('Christmas Tree Costume') && /Green · M/.test(summary), summary.slice(0, 200));
-	check('priced by the server', (await page.locator('form dl').innerText()).includes('$27.99'));
+	check('priced by the server', (await page.locator('.classic-totals').innerText()).includes('$27.99'));
 	check('and their email already filled in', (await page.inputValue('#contact-email')) === ADDRESS, await page.inputValue('#contact-email'));
 	await ctx.close();
 }
