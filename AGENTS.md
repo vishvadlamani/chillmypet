@@ -1265,6 +1265,19 @@ Stripe.js to check the button stays put, that the form offers no Link,
 Google Pay or Discover, and that a blocked js.stripe.com leaves the hosted
 fallback.
 
+**All live checkouts use the classic template** (owner's request, 2026-10-25).
+This supersedes the older shop/one-page layout descriptions below: every
+`PRODUCT_PAGES` entry sets `checkout: 'classic'`, and `/checkout` binds the
+same `classicCheckout()` fields with the same calculated shipping estimate.
+The basket keeps each line's quantity, Remove and Change link. One-size
+products have no size control or fit advice. The product route normalizes
+restored choices before reading a hand-off; never guess a sized product's size.
+Only seasonal products show the Christmas deadline. The truck is a labelled
+button: activation replays the existing CSS drive/fill and retains focus,
+while reduced motion suppresses it. It neither changes an order nor tracks
+an ecommerce event. `checkout-template.mjs` replaces the old shop/one-page
+layout suites in `test:store`; classic and product/basket suites remain.
+
 **The costume's checkout has a third look, `classic`** (since 2026-10-24;
 `docs/classic-checkout.md`), from the owner's Classic Christmas design:
 one card, a pine header, a cream order panel with Colour/Size/Qty selects
@@ -1283,6 +1296,12 @@ on a phone and beside the form from 960px. Things to know:
   are the shop blocks with `look: 'classic'` and a `step`; the selects write
   `design`, `size` and the tier (`qty-N`) to the state the picker writes.
   Quantity is the server's quantity break, never a free number.
+- **Mobile order confirmation is compact** (2026-10-25): a valid selection
+  shows colour, size and quantity with Change/Done controlling the existing
+  selectors. Missing or unavailable sizes keep them open; choosing never
+  silently collapses controls. Desktop keeps the selectors visible. The mobile
+  tagline and marketing intro are hidden, and fit advice starts closed.
+  The estimate under the total reuses Standard shipping's server-computed text.
 - **Arrival dates are computed** from `SHIPPING_PROMISE` by
   `arrivalWindows()`, pinned in `christmas.test.ts`.
 - **Not built, on purpose:** the design's express wallet buttons, the

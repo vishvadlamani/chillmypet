@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import '$lib/styles/classic-checkout.css';
 	import Checkout from '$lib/components/Checkout.svelte';
 	import { countryOptions } from '$lib/countries';
 	import { createTranslator, defaultLocale } from '$lib/i18n';
@@ -21,13 +22,12 @@
 
 <svelte:head>
 	<title>{t('checkout.title')} · {t('common.brand')}</title>
-	<!-- Poppins only on the storefront. Loaded here rather than in app.html so
-	     /quiz and /checkout-dr* don't pay for a font they never render. -->
+	<!-- The same Inter typography as the product checkout template. -->
 	<link
-		href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+		href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
 		rel="stylesheet"
 	/>
 	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-<Checkout {data} {form} {bag} funnelState={state} />
+<Checkout {data} {form} {bag} funnelState={state} look="classic" arrival={data.arrival} />

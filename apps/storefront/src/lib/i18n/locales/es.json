@@ -194,6 +194,10 @@
 			"pick": "Elige un diseño y una talla para ver el total."
 		},
 		"classic": {
+			"truckHint": "Envío gratis · Toca el camión",
+			"truckReplay": "Repetir la animación del camión de reparto",
+			"change": "Cambiar",
+			"done": "Listo",
 			"colour": "Color",
 			"size": "Talla",
 			"qty": "Cant.",

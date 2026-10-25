@@ -27,6 +27,18 @@
 			countryOptions(page.data.locale ?? defaultLocale).find((c) => c.code === 'US')?.name ?? ''
 	});
 
+	// The classic selectors replace the picker block, including its normalizer.
+	// A choice restored from a different product must not become an invalid
+	// design or a size the visible controls do not actually offer.
+	untrack(() => {
+		const initialDesign = bag.design;
+		if (!data.variantIndex.some((entry) => entry.colourCode === initialDesign)) {
+			state.set('design', data.leadDesign ?? data.order?.designs[0]?.code ?? data.variantIndex[0]?.colourCode ?? '');
+		}
+		if (data.oneSize) state.set('size', data.oneSize);
+		else if (bag.size && !data.variantIndex.some((entry) => entry.colourCode === bag.design && entry.size === bag.size)) state.set('size', '');
+	});
+
 	/**
 	 * A choice made somewhere else and carried here in the link: the product
 	 * page's Add to cart sends `?design=green&size=M`, with `bundle=qty-2`

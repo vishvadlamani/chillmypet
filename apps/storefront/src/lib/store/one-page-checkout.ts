@@ -149,7 +149,7 @@ function shopCheckout(product: FunnelDefinition, slug: string): FunnelDefinition
  * above the box and numbered as steps, so validation, host-state keys and
  * error messages are the shop look's, unchanged.
  */
-function classicCheckout(product: FunnelDefinition): FunnelDefinition {
+export function classicCheckout(product: FunnelDefinition): FunnelDefinition {
 	return {
 		...CHECKOUT_PAGE,
 		id: `${product.id}-checkout`,

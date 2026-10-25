@@ -1023,3 +1023,70 @@
 		transition: none;
 	}
 }
+
+.classic-truck-hint { display: none; }
+.classic-picks.one-size { grid-template-columns: 1.45fr 0.85fr; }
+
+/* A chosen order is a confirmation on mobile; selectors are a tap away.
+ * Missing or unavailable sizes always keep the real controls visible. */
+.classic-selection {
+	display: none;
+}
+
+.classic-arrival {
+	margin: 8px 0 0;
+	color: var(--muted);
+	font-size: 15px;
+}
+
+@media (max-width: 959px) {
+	.classic-order-inner { padding: 16px 18px 18px; }
+	.classic-free .lead, .classic-free .note, .classic-intro { display: none; }
+	.classic-truck-hint { display: block; margin: 0; font-size: 14px; color: var(--muted); }
+	.classic-road { margin-top: 4px; margin-bottom: 8px; }
+	.classic-order-head { margin: 0 0 8px; }
+	.classic-product { gap: 12px; }
+	.classic-product img { width: 64px; height: 64px; }
+	.classic-product .name { font-size: 17px; }
+	.classic-product .tagline { display: none; }
+	.classic-selection {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		font-size: 15px;
+		margin-top: 4px;
+	}
+	.classic-selection p { margin: 0; }
+	.classic-selection button {
+		min-height: 44px;
+		padding: 0 6px;
+		border: 0;
+		background: none;
+		color: var(--red-text);
+		font: inherit;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		cursor: pointer;
+	}
+	.classic-selection button:disabled { visibility: hidden; }
+	.classic-selection button:focus-visible {
+		outline: 2px solid var(--pine);
+		outline-offset: 2px;
+		border-radius: 4px;
+	}
+	.classic-options.collapsed { display: none; }
+	.classic-picks { margin-top: 8px; }
+	.classic-totals { margin-top: 8px; padding-top: 8px; }
+	.classic-totals div { padding: 3px 0; font-size: 16px; }
+	.classic-totals .total { margin-top: 6px; padding-top: 8px; font-size: 21px; }
+	.classic-totals .total dd { font-size: 23px; }
+	.classic-peace { margin-top: 16px; padding: 0 14px; }
+	.classic-peace .kicker, .classic-peace h2 { display: none; }
+	.classic-peace details:first-of-type { border-top: 0; }
+	.classic-peace summary { min-height: 44px; font-size: 15px; }
+	.classic-main { padding-top: 20px; }
+}
+
+.classic-road .truck { padding: 0; cursor: pointer; }
+.classic-road .truck:focus-visible { outline: 3px solid var(--pine); outline-offset: 3px; }

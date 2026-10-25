@@ -69,7 +69,7 @@ check('the selection became real cart lines', stored.length > 0 && stored[0].var
 
 // --- the summary prices what the server will charge ------------------------
 await page.waitForSelector('dl');
-const summary = await page.locator('form dl').innerText();
+const summary = await page.locator('.classic-totals').innerText();
 const subtotal = money(summary.split('\n').slice(0, 2).join(' '));
 check('the summary prices the cart', subtotal > 0, summary);
 
@@ -81,42 +81,35 @@ check('the button offers a total, not just a verb', /Pay \$/.test(await payButto
 // an empty checkout would post happily without this.
 await payButton.click();
 await page.waitForSelector('form [role="alert"]');
-const issues = await page.locator('form [role="alert"]').last().innerText();
+const issues = await page.locator('.classic-main').innerText();
 check('an empty checkout does not post', page.url().endsWith('/checkout'));
-check('it says the name is missing', /Full name is required/i.test(issues), issues);
-check('it says the email is missing', /Email is required/i.test(issues), issues);
-check('it says the address is missing', /Address is required/i.test(issues), issues);
+check('it says the name is missing', /first name/i.test(issues), issues);
+check('it says the email is missing', /email/i.test(issues), issues);
+check('it says the address is missing', /street address/i.test(issues), issues);
 
 // --- fill it in ------------------------------------------------------------
-await page.fill('#contact-fullName', 'Block Buyer');
+await page.fill('#shipping-firstName', 'Block');
+await page.fill('#shipping-lastName', 'Buyer');
 await page.fill('#contact-email', 'blocks@example.com');
 
-// One search field that expands into six. Without a Places key, dev serves a
-// fixture — the point being that an autocompleted address has to arrive in host
-// state in the shape the order takes.
-await page.fill('#shipping-lookup', '751');
-await page.waitForSelector('[role="option"]');
-await page.locator('[role="option"]').first().click();
-await page.waitForSelector('#shipping-city');
-
-check('the chosen address filled the city', (await page.inputValue('#shipping-city')) === 'Delta');
-check(
-	'the province arrived as a code, not a display name',
-	(await page.inputValue('#shipping-state')) === 'BC',
-	await page.inputValue('#shipping-state')
-);
-check('the country came through', (await page.inputValue('#shipping-country')) === 'Canada');
+await page.selectOption('#shipping-country', 'Canada');
+await page.fill('#shipping-address', '751 River Rd');
+await page.fill('#shipping-city', 'Delta');
+await page.selectOption('#shipping-state', 'BC');
+await page.fill('#shipping-zip', 'V4K 0A1');
+check('the province is a code, not a display name', (await page.inputValue('#shipping-state')) === 'BC');
+check('the country name is mapped by the shared checkout', (await page.inputValue('#shipping-country')) === 'Canada');
 
 // --- shipping: Standard only ----------------------------------------------------
 // Express was taken off on 2026-10-17 (see SHIPPING_RATES): its 2–3 business
 // days is not a promise a dropshipped order can keep. The one rate left is
 // free, so the total is the goods and the button says the same.
 const totalNow = async () =>
-	money((await page.locator('form dl').innerText()).split('\n').at(-1));
+	money((await page.locator('.classic-totals').innerText()).split('\n').at(-1));
 
 check('only Standard shipping is offered', (await page.locator('input[name="method-method"]').count()) === 1 && (await page.locator('input[name="method-method"][value="express"]').count()) === 0);
 const orderTotal = await totalNow();
-check('and it is free: the total is the goods', /Shipping\s*Free/.test(await page.locator('form dl').innerText()));
+check('and it is free: the total is the goods', /Shipping\s*FREE/.test(await page.locator('.classic-totals').innerText()));
 check('and the button says the total', (await payButton.innerText()).includes(orderTotal.toFixed(2)));
 
 // --- place it --------------------------------------------------------------

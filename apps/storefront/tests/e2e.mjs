@@ -322,8 +322,8 @@ check('cart badge counts them', (await page.textContent('header a[href="/checkou
 }
 
 // --- checkout ---
-await page.waitForSelector('form dl');
-const summary = await page.textContent('form dl');
+await page.waitForSelector('.classic-totals');
+const summary = await page.textContent('.classic-totals');
 check('subtotal is 3 x 44.99', summary?.includes('$134.97'));
 check('the 3-pack discount is applied', summary?.includes('$12.15'));
 

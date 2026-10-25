@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import PageLayout from '@funnel/core/PageLayout.svelte';
@@ -46,6 +46,7 @@
 		pickerSlug,
 		pickerSetsQuantity = false,
 		order,
+		arrival = '',
 		tierField = 'bundle'
 	}: {
 		data: Pick<
@@ -131,6 +132,7 @@
 		 * Its selects choose the `pickerSlug` product.
 		 */
 		order?: ClassicOrder | null;
+		arrival?: string;
 		/** The state key the product's bundle tier, its quantity, lives under. */
 		tierField?: string;
 	} = $props();
@@ -138,6 +140,8 @@
 	type ClassicOrder = {
 		title: string;
 		tagline: string;
+		arrival: string;
+		initialDesign: string;
 		designLabel: string;
 		designs: { code: string; label: string; image?: string }[];
 		sizes: { code: string; label: string }[];
@@ -699,11 +703,27 @@
 	 * bundle tier, `qty-N`: the breaks the product page's cards offer.
 	 */
 	let chosenDesign = $derived(bag.design || order?.designs[0]?.code || '');
-	let chosenSize = $derived(bag.size ?? '');
+	let chosenSize = $derived(order?.sizes.length === 1 ? order.sizes[0].code : bag.size ?? '');
+	let orderEditing = $state(false);
+	let classicMounted = $state(false);
+	onMount(() => { classicMounted = true; });
+	let orderDesignSelect: HTMLSelectElement | undefined = $state();
+	let selectionReady = $derived(Boolean(chosenSize && order?.available.includes(`${chosenDesign}:${chosenSize}`)));
+	let orderExpanded = $derived(orderEditing || !selectionReady);
+	async function toggleOrder() {
+		orderEditing = !orderExpanded;
+		if (orderEditing) {
+			await tick();
+			orderDesignSelect?.focus();
+		}
+	}
 	let chosenUnits = $derived(Number(/^qty-(\d+)$/.exec(bag[tierField] ?? '')?.[1] ?? 1));
 	let designImage = $derived(
 		order?.designs.find((d) => d.code === chosenDesign)?.image ?? order?.designs[0]?.image ?? null
 	);
+	// Restore the saved photo after hydration, as a normal attribute update.
+	// Svelte otherwise keeps the server's default src when session state differs.
+	let classicImage = $derived(classicMounted ? designImage : order?.designs.find((d) => d.code === order.initialDesign)?.image ?? order?.designs[0]?.image);
 	let otherLines = $derived((priced?.lines ?? []).filter((l) => l.slug !== pickerSlug));
 	// What the selects' own product costs as chosen, shown beside it, so the
 	// lines in the panel add up to the subtotal under them.
@@ -721,6 +741,8 @@
 		track('design_selected', ORDER_SUBJECT, { design: code });
 	}
 	function chooseSize(code: string) {
+		// Keep the editor open while someone finishes changing their choices.
+		orderEditing = true;
 		funnelState.set('size', code);
 		track('size_selected', ORDER_SUBJECT, { size: code });
 	}
@@ -734,6 +756,20 @@
 	 * look's, which is what `.classic-pay-box` reserves the height of (in
 	 * classic-checkout.css): change a size or spacing and measure again.
 	 */
+	function replayDelivery(event: MouseEvent) {
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		const truck = event.currentTarget as HTMLButtonElement;
+		// Replay the existing CSS journey without remounting the focused button.
+		for (const target of [truck, truck.parentElement?.querySelector('.stripe')]) {
+			for (const animation of target?.getAnimations() ?? []) {
+				if (['classic-drive', 'classic-fill'].includes((animation as CSSAnimation).animationName)) {
+					animation.currentTime = 0;
+					animation.play();
+				}
+			}
+		}
+	}
+
 	const CLASSIC_APPEARANCE = {
 		theme: 'stripe',
 		variables: {
@@ -1021,10 +1057,11 @@
 							<p class="note">{t('checkout.classic.freeNote')}</p>
 							<!-- The stripe fills and the truck drives to the end of it;
 							     both stand still under prefers-reduced-motion. -->
-							<div class="classic-road" aria-hidden="true">
-								<span class="stripe"></span>
-								<span class="truck">
-									<svg viewBox="0 0 24 24">
+							<p class="classic-truck-hint">{t('checkout.classic.truckHint')}</p>
+							<div class="classic-road">
+								<span class="stripe" aria-hidden="true"></span>
+								<button type="button" class="truck" aria-label={t('checkout.classic.truckReplay')} title={t('checkout.classic.truckReplay')} onclick={replayDelivery}>
+									<svg viewBox="0 0 24 24" aria-hidden="true">
 										<path
 											d="M2.5 6.5h11v9h-11zM13.5 9.5h4l3 3.2v2.8h-7"
 											fill="none"
@@ -1035,7 +1072,7 @@
 										<circle class="wheel" cx="6.5" cy="17" r="1.9" fill="#fffefa" stroke="currentColor" stroke-width="1.7" />
 										<circle class="wheel" cx="17" cy="17" r="1.9" fill="#fffefa" stroke="currentColor" stroke-width="1.7" />
 									</svg>
-								</span>
+								</button>
 							</div>
 						</div>
 
@@ -1052,8 +1089,8 @@
 
 						{#if order}
 							<div class="classic-product">
-								{#if designImage}
-									<img src={resized(designImage, 200)} alt="" width="84" height="84" />
+								{#if classicImage}
+									<img src={resized(classicImage, 200)} alt="" width="84" height="84" />
 								{/if}
 								<div>
 									<p class="name">{order.title}</p>
@@ -1063,61 +1100,77 @@
 									<b class="amount">{formatMoney(ownCents, locale, currency)}</b>
 								{/if}
 							</div>
-							<div class="classic-picks">
-								<label class="pick">
-									<span>{order.designLabel}</span>
-									<select
-										id="order-design"
-										value={chosenDesign}
-										onchange={(e) => chooseDesign(e.currentTarget.value)}
-									>
-										{#each order.designs as design (design.code)}
-											<option value={design.code}>{design.label}</option>
-										{/each}
-									</select>
-								</label>
-								<label class="pick">
-									<span>{t('checkout.classic.size')}</span>
-									<select
-										id="order-size"
-										value={chosenSize}
-										onchange={(e) => chooseSize(e.currentTarget.value)}
-									>
-										{#if !chosenSize}
-											<option value="" disabled>{t('checkout.classic.chooseSize')}</option>
-										{/if}
-										{#each order.sizes as size (size.code)}
-											<option
-												value={size.code}
-												disabled={!order.available.includes(`${chosenDesign}:${size.code}`)}
-											>
-												{size.label}
-											</option>
-										{/each}
-									</select>
-								</label>
-								<label class="pick qty">
-									<span>{t('checkout.classic.qty')}</span>
-									<select
-										id="order-qty"
-										value={String(chosenUnits)}
-										onchange={(e) => chooseUnits(e.currentTarget.value)}
-									>
-										{#each order.quantities as units (units)}
-											<option value={String(units)}>{units}</option>
-										{/each}
-									</select>
-								</label>
+							<div class="classic-selection">
+								<p>
+									{order.designs.find((design) => design.code === chosenDesign)?.label ?? chosenDesign}
+									{#if order.sizes.length > 1}· {t('checkout.classic.size')} {chosenSize || '—'}{/if} · {t('checkout.classic.qty')} {chosenUnits}
+								</p>
+								<button type="button" aria-expanded={orderExpanded} aria-controls="classic-order-options" disabled={!selectionReady} onclick={toggleOrder}>
+									{t(orderExpanded ? 'checkout.classic.done' : 'checkout.classic.change')}
+								</button>
 							</div>
-							<p class="classic-size-note">
-								{#if chosenSize && order.sizeNotes[chosenSize]}
-									{order.sizeNotes[chosenSize]}. {t('checkout.classic.sizeTip')}
-								{:else if !chosenSize}
-									{t('checkout.classic.pick')}
-								{:else}
-									{t('checkout.classic.sizeTip')}
+							<div id="classic-order-options" class="classic-options" class:collapsed={!orderExpanded}>
+								<div class="classic-picks" class:one-size={order.sizes.length === 1}>
+									<label class="pick">
+										<span>{order.designLabel}</span>
+										<select
+											id="order-design"
+											bind:this={orderDesignSelect}
+											value={chosenDesign}
+											onchange={(e) => chooseDesign(e.currentTarget.value)}
+										>
+											{#each order.designs as design (design.code)}
+												<option value={design.code}>{design.label}</option>
+											{/each}
+										</select>
+									</label>
+									{#if order.sizes.length > 1}
+										<label class="pick">
+											<span>{t('checkout.classic.size')}</span>
+											<select
+												id="order-size"
+												value={chosenSize}
+												onchange={(e) => chooseSize(e.currentTarget.value)}
+											>
+												{#if !chosenSize}
+													<option value="" disabled>{t('checkout.classic.chooseSize')}</option>
+												{/if}
+												{#each order.sizes as size (size.code)}
+													<option
+														value={size.code}
+														disabled={!order.available.includes(`${chosenDesign}:${size.code}`)}
+													>
+														{size.label}
+													</option>
+												{/each}
+											</select>
+										</label>
+									{/if}
+									<label class="pick qty">
+										<span>{t('checkout.classic.qty')}</span>
+										<select
+											id="order-qty"
+											value={String(chosenUnits)}
+											onchange={(e) => chooseUnits(e.currentTarget.value)}
+										>
+											{#each order.quantities as units (units)}
+												<option value={String(units)}>{units}</option>
+											{/each}
+										</select>
+									</label>
+								</div>
+								{#if order.sizes.length > 1}
+									<p class="classic-size-note">
+										{#if chosenSize && order.sizeNotes[chosenSize]}
+											{order.sizeNotes[chosenSize]}. {t('checkout.classic.sizeTip')}
+										{:else if !chosenSize}
+											{t('checkout.classic.pick')}
+										{:else}
+											{t('checkout.classic.sizeTip')}
+										{/if}
+									</p>
 								{/if}
-							</p>
+							</div>
 						{/if}
 
 						{#each otherLines as line (line.variantId)}
@@ -1128,12 +1181,15 @@
 										{line.title}
 										<small>{colourName(line.colour)} · {line.size}</small>
 									</p>
-									{@render lineControls(line, false)}
+									{@render lineControls(line, !pickerSlug)}
 								</div>
 								<b>{formatMoney(line.unitPriceCents * line.quantity, locale, currency)}</b>
 							</div>
 						{/each}
 
+						{#if priced && isEmpty && !order}
+							<p>{t('cart.empty')} <a class="line-link" href={continueHref}>{t('cart.emptyAction')}</a></p>
+						{/if}
 						{#if priced === null && priceFailed}{@render priceRetry()}{/if}
 						<dl class="classic-totals">
 							<div>
@@ -1159,11 +1215,13 @@
 								<dd>{formatMoney(totalCents, locale, currency)}</dd>
 							</div>
 						</dl>
+						{#if order?.arrival || arrival}<p class="classic-arrival">{order?.arrival || arrival}</p>{/if}
 
 						<section class="classic-peace" aria-labelledby="classic-peace-title">
 							<p class="kicker">{t('checkout.classic.peaceKicker')}</p>
 							<h2 id="classic-peace-title">{t('checkout.classic.peaceTitle')}</h2>
-							<details open>
+							{#if order && order.sizes.length > 1}
+							<details>
 								<summary>{t('checkout.classic.fitQ')}</summary>
 								<p>
 									{chosenSize
@@ -1183,6 +1241,7 @@
 									</ul>
 								{/if}
 							</details>
+							{/if}
 							<details>
 								<summary>{t('checkout.classic.arriveQ')}</summary>
 								<p>{t('checkout.classic.arriveA')}</p>
