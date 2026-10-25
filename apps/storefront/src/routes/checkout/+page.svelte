@@ -30,4 +30,4 @@
 	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-<Checkout {data} {form} {bag} funnelState={state} look="classic" arrival={data.arrival} />
+<Checkout {data} {form} {bag} funnelState={state} look="classic" arrival={data.paymentTest ? '' : data.arrival} continueHref={data.paymentTest ? '/admin/payment-test' : undefined} />
