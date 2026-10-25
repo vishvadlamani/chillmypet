@@ -1,17 +1,19 @@
-name: Deploy
+name: Deploy payment sandbox
 
+# This branch is only a manual deployment launcher. Do not merge it into main.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chillmypet-payment-test-deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      # Step conditions cannot read secrets, so whether it exists is worked
-      # out here. Never the value, only true or false.
-      HAS_CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,58 +23,19 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm test
-      # Before the build, because this is the check for a failure nothing else
-      # catches: a Conversions API token that belongs to another dataset is
-      # rejected once per event, forever, in silence. Needs
-      # META_CAPI_ACCESS_TOKEN as a repository secret. Only when this run is
-      # going to deploy: without the Cloudflare token nothing ships, and a
-      # missing Meta secret then failed every merge for a deploy that was
-      # never going to happen.
-      - name: Verify the Meta CAPI token matches the pixel
-        if: env.HAS_CLOUDFLARE_TOKEN == 'true'
-        run: npm run meta:check
-        env:
-          META_CAPI_ACCESS_TOKEN: ${{ secrets.META_CAPI_ACCESS_TOKEN }}
       - run: npm run build
-
-      # CLOUDFLARE_API_TOKEN has been a repository secret since 2026-10-11, so a
-      # merge to main is a release. The fallback stays: if the secret ever goes
-      # missing the run says, on its summary page, that nothing was deployed,
-      # rather than failing or passing quietly — a green run with that warning
-      # means production did not change.
-      - name: Report that nothing was deployed
-        if: env.HAS_CLOUDFLARE_TOKEN != 'true'
-        run: |
-          echo "::warning title=chillmypet.com was NOT deployed::CLOUDFLARE_API_TOKEN is not a repository secret, so this run only checked, tested and built the code. Production is unchanged. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID under Settings > Secrets and variables > Actions, or deploy by hand."
-          {
-            echo "## ⚠️ chillmypet.com was not deployed"
-            echo
-            echo "Check, tests and build passed. The deploy was skipped because the repository has no \`CLOUDFLARE_API_TOKEN\` secret, so production is still running whatever was last deployed."
-            echo
-            echo "To deploy on every merge, add \`CLOUDFLARE_API_TOKEN\` and \`CLOUDFLARE_ACCOUNT_ID\` under **Settings › Secrets and variables › Actions** (see README › Deploying), then re-run this workflow."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - run: npx wrangler deploy
-        if: env.HAS_CLOUDFLARE_TOKEN == 'true'
+      - name: Deploy only the separate payment sandbox
+        run: npx wrangler deploy --config wrangler.payment-test.toml
         working-directory: apps/storefront
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      # A product page is code AND a row. The manifest ships with the Worker,
-      # but the page is a 404 until the product is in the live database, which
-      # is exactly how a new product page was a 404 on chillmypet.com for
-      # days after it had deployed. This pipeline cannot
-      # bring the database up to date itself: that needs the database's token,
-      # and the repository's owner does not hold it. The Worker does, because it
-      # serves every page from that database, so the Worker does the job on its
-      # first request after a deploy (apps/storefront/src/lib/server/catalogue.ts).
-      # What this run can do is prove the result from outside: every product
-      # page the code defines has to answer 200 on the live site, and a retired
-      # one has to redirect to the product it moved to. A deploy is
-      # not visible everywhere at once, and that first request also does the
-      # sync, so the check retries for a few minutes before calling the release
-      # broken. A red run here means a page is not selling — look, don't re-run.
-      - name: Check every product page answers on chillmypet.com
-        if: env.HAS_CLOUDFLARE_TOKEN == 'true'
-        run: node apps/storefront/scripts/check-live.js https://chillmypet.com
+      - name: Explain the activation step
+        run: |
+          {
+            echo '## Payment sandbox deployed'
+            echo
+            echo 'The Worker is chillmypet-payment-test. Production was not deployed.'
+            echo 'Configure sandbox-only Stripe keys, webhook secret, an owner password, database credentials, and Meta Test Events settings in its Cloudflare settings.'
+            echo 'It stays unavailable until sandbox keys and the webhook secret are configured.'
+          } >> "$GITHUB_STEP_SUMMARY"
