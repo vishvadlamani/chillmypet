@@ -69,7 +69,8 @@ export const CALMING_MASSAGER_PAGE: FunnelDefinition = {
 				// field, so a bundle chosen on another page does not carry over.
 				tiers: { $ref: 'bundles.plain' },
 				tierField: 'massager_bundle',
-				tiersTitle: 'Choose your bundle',
+				tiersTitle: 'Optional: save with a bundle',
+				ctaBeforeTiers: true,
 				unitsNoun: 'massagers',
 				tierCopy: [
 					{ units: 1, title: 'One massager • 1', tag: 'Free US shipping', sub: 'One Calming Massager', ribbon: 'Just one' },

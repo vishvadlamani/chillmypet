@@ -95,7 +95,8 @@ export const CHRISTMAS_HOODIE_PAGE: FunnelDefinition = {
 				// field, so a costume bundle chosen earlier does not carry over.
 				tiers: { $ref: 'bundles.plain' },
 				tierField: 'reindeer_bundle',
-				tiersTitle: '🎄 Choose your bundle',
+				tiersTitle: 'Optional: save with a bundle',
+				ctaBeforeTiers: true,
 				unitsNoun: 'hoodies',
 				tierCopy: [
 					{ units: 1, title: 'One hoodie • 1', tag: 'Free US shipping', sub: 'One reindeer hoodie', ribbon: 'Just one' },
