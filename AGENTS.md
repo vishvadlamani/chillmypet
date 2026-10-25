@@ -279,6 +279,12 @@ once resolved a merge by deleting this file in favour of the hand-built
 version; don't. `tests/payment-flow.mjs` replays a stale cookie against a new
 click through the page and a beacon.
 
+For `/api/track`, the same-origin `eventSourceUrl` also supplies the click to
+the builder. A missing or origin-only Referer with a stale `_fbc` otherwise
+pairs an old click with the new one in `event_source_url`, which Meta flags as
+modified. The payment-flow regression checks PageView, ViewContent and AddToCart
+without Referer, and rejects malformed or off-origin event source URLs.
+
 **Meta events dedupe on `event_id`.** For Purchase the id is *derived* from the
 order number by `purchaseEventId()`, not minted per call — the server event fires
 from the Stripe webhook and the browser event from the success page, two requests
