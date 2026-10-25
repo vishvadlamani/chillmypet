@@ -25,6 +25,9 @@ for (const [slug, design, size] of [
 	await p.getByRole('button', { name: 'Change', exact: true }).click();
 	check(`${slug}: Change opens and focuses selectors`, (await p.locator('#order-design').isVisible()) && await p.evaluate(() => document.activeElement?.id === 'order-design'));
 	await p.getByRole('button', { name: 'Done', exact: true }).click();
+	const photo = await p.locator('.classic-product img').getAttribute('src');
+	await p.reload({ waitUntil: 'networkidle' });
+	check(`${slug}: reloading restores the selected photo`, (await p.locator('.classic-product img').getAttribute('src')) === photo);
 	await p.getByRole('button', { name: 'Replay delivery truck animation' }).click();
 	check(`${slug}: replay button keeps keyboard focus`, await p.locator('.truck').evaluate(e => e === document.activeElement));
 	await p.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
