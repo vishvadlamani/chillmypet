@@ -111,6 +111,7 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 	[PRODUCT_SLUG]: {
 		manifest: STORE_PAGE,
 		pickSize: true,
+		checkout: 'classic',
 		// Two colours, on the owner's call of 2026-10-19: Sailboat, the print
 		// both of the page's photos show, and Green, the one with every size.
 		designs: ['sailboat', 'green'],
@@ -123,6 +124,7 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 	[CHRISTMAS_TREE_COSTUME_SLUG]: {
 		manifest: CHRISTMAS_COSTUME_PAGE,
 		pickSize: true,
+		checkout: 'classic',
 		theme: 'tree',
 		christmas: true,
 		// The tabby in the green costume leads, on the owner's instruction of
@@ -133,24 +135,26 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 		// opens a payment page of its own, not the product page again (the
 		// owner's call, 2026-10-17), in the owner's Classic Christmas design
 		// since 2026-10-24.
-		checkout: 'classic',
 		tagline: 'A little tree. A lot of Christmas.'
 	},
 	[CHRISTMAS_HOODIE_SLUG]: {
 		manifest: CHRISTMAS_HOODIE_PAGE,
 		pickSize: true,
+		checkout: 'classic',
 		theme: 'tree',
 		christmas: true
 	},
 	[SANTA_COSTUME_SLUG]: {
 		manifest: SANTA_COSTUME_PAGE,
 		pickSize: true,
+		checkout: 'classic',
 		theme: 'tree',
 		christmas: true
 	},
 	[SANTA_OUTFIT_SLUG]: {
 		manifest: SANTA_OUTFIT_PAGE,
 		pickSize: true,
+		checkout: 'classic',
 		theme: 'tree',
 		christmas: true
 	},
@@ -160,11 +164,11 @@ export const PRODUCT_PAGES: Record<string, ProductPage> = {
 	[CALMING_MASSAGER_SLUG]: {
 		manifest: CALMING_MASSAGER_PAGE,
 		pickSize: true,
-		theme: 'tree',
+		checkout: 'classic',
+		theme: 'tree'
 		// Its Add to cart opens a payment page of its own, like the costume's,
 		// so its checkouts have their own address in GA4 and in URL-based
 		// custom conversions (the owner's call, 2026-10-19).
-		checkout: 'shop'
 	}
 };
 
