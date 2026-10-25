@@ -2,6 +2,7 @@ import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { createTranslator } from '$lib/i18n';
 import { loadMarkets } from '$lib/store/markets';
+import { arrivalWindow, dateRange } from '$lib/store/christmas';
 import { loadShippingRates } from '$lib/store/shipping-rates';
 
 /**
@@ -53,5 +54,22 @@ export function checkoutPayment(locals: App.Locals, url: URL) {
 		stripePaymentMethodConfiguration: locals.stripePaymentMethodConfiguration,
 		// Stripe sends the customer back here when they abandon the hosted page.
 		cancelled: url.searchParams.has('cancelled')
+	};
+}
+
+/** One delivery estimate shared by the summary and the selected shipping rate. */
+export function classicCheckoutSources(locals: App.Locals, currency = locals.store.currency) {
+	const t = createTranslator(locals.locale);
+	const { from, to } = arrivalWindow();
+	return {
+		methodTitle: t('checkout.classic.shippingTitle'),
+		rates: loadShippingRates(locals.locale, currency).map((rate) => ({
+			...rate,
+			price: rate.price === t('checkout.free') ? t('checkout.free').toUpperCase() : rate.price,
+			...(rate.id === 'standard' ? {
+				label: t('checkout.classic.standard'),
+				detail: t('checkout.classic.arrival', { dates: dateRange(from, to) })
+			} : {})
+		}))
 	};
 }
