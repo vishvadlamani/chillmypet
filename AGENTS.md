@@ -1124,6 +1124,15 @@ So:
 - `tests/e2e.mjs` asserts the logo, the tab icon, and which pages wear which
   skin.
 
+**Purchase before bundles on every product** (owner's call, 2026-10-25).
+All six product manifests set `ctaBeforeTiers: true` on the pills picker and
+label the three quantity cards "Optional: save with a bundle". The single
+button stays after the colour/size choices and before those cards, in source
+order and on mobile. Do not preselect a size or a multi-unit tier. Composed
+checkouts still set `button: false`: their payment button stays after the
+required fields and payment entry. This is a layout choice, not a change to
+cart updates, bundle pricing, destinations or event handlers.
+
 **Sizes read metric first, pounds beside.** The costume's size note and
 FAQ say `1.5–2.5 kg (3–6 lb)`, like its table; the tables in
 `garment-sizes.ts` and `sizes.ts` already print both units, and the life

@@ -122,7 +122,8 @@ export const STORE_PAGE: FunnelDefinition = {
 				// field, so a bundle chosen on another page does not carry over.
 				tiers: { $ref: 'bundles.plain' },
 				tierField: 'life_jacket_bundle',
-				tiersTitle: 'Choose your bundle',
+				tiersTitle: 'Optional: save with a bundle',
+				ctaBeforeTiers: true,
 				unitsNoun: 'jackets',
 				tierCopy: [
 					{ units: 1, title: 'One jacket • 1', tag: 'Free US shipping', sub: 'One life jacket', ribbon: 'Just one' },

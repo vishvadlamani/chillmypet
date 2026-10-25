@@ -91,7 +91,8 @@ export const SANTA_OUTFIT_PAGE: FunnelDefinition = {
 				// carry over.
 				tiers: { $ref: 'bundles.plain' },
 				tierField: 'santa_outfit_bundle',
-				tiersTitle: '🎄 Choose your bundle',
+				tiersTitle: 'Optional: save with a bundle',
+				ctaBeforeTiers: true,
 				unitsNoun: 'outfits',
 				tierCopy: [
 					{ units: 1, title: 'One outfit • 1', tag: 'Free US shipping', sub: 'One Santa outfit', ribbon: 'Just one' },
