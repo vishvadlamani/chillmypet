@@ -1,5 +1,6 @@
 import { rememberedContact } from '$lib/server/identity';
 import { attributionFrom } from '$lib/server/purchase';
+import { metaBrowserIds } from '$lib/server/meta-browser-ids';
 import type { MetaCustomData, MetaEventName } from 'ecomwithai/marketing';
 import type { RequestHandler } from './$types';
 
@@ -67,7 +68,8 @@ function cleanCustomData(input: unknown): MetaCustomData | undefined {
 	return Object.keys(out).length ? (out as MetaCustomData) : undefined;
 }
 
-export const POST: RequestHandler = async ({ request, locals, url, cookies, platform, getClientAddress }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, locals, url, cookies, platform, getClientAddress } = event;
 	// 204 in every branch below: this is a tracking beacon, and a page must never
 	// see an error from one. Failures are logged, not surfaced.
 	const done = new Response(null, { status: 204 });
@@ -86,7 +88,21 @@ export const POST: RequestHandler = async ({ request, locals, url, cookies, plat
 	const eventId = str(body.eventId);
 	if (!eventName || !eventId || !MIRRORED.has(eventName)) return done;
 
-	const eventSourceUrl = str(body.eventSourceUrl) ?? url.href;
+	let sourceUrl = url;
+	try {
+		const candidate = new URL(str(body.eventSourceUrl) ?? url.href);
+		if (candidate.origin === url.origin) sourceUrl = candidate;
+	} catch {
+		// A malformed source must never break a tracking beacon.
+	}
+	const eventSourceUrl = sourceUrl.href;
+	// The hook only sees /api/track and Referer. A stale cookie with no
+	// Referer otherwise sends an older click next to the new click in the
+	// event's URL, which Meta flags as modified. Reconcile through Meta's
+	// builder using the same-origin page URL, never hand-build or trim fbc.
+	const ids = sourceUrl.searchParams.has('fbclid')
+		? metaBrowserIds(event, sourceUrl)
+		: locals.metaBrowserIds;
 
 	const send = meta
 		.send({
@@ -103,7 +119,7 @@ export const POST: RequestHandler = async ({ request, locals, url, cookies, plat
 			// was told.
 			user: {
 				...rememberedContact(cookies),
-				...attributionFrom(cookies, locals.metaBrowserIds, request.headers, getClientAddress())
+				...attributionFrom(cookies, ids, request.headers, getClientAddress())
 			},
 			customData: cleanCustomData(body.customData)
 		})
