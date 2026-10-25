@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import PageLayout from '@funnel/core/PageLayout.svelte';
@@ -141,6 +141,7 @@
 		title: string;
 		tagline: string;
 		arrival: string;
+		initialDesign: string;
 		designLabel: string;
 		designs: { code: string; label: string; image?: string }[];
 		sizes: { code: string; label: string }[];
@@ -704,6 +705,8 @@
 	let chosenDesign = $derived(bag.design || order?.designs[0]?.code || '');
 	let chosenSize = $derived(order?.sizes.length === 1 ? order.sizes[0].code : bag.size ?? '');
 	let orderEditing = $state(false);
+	let classicMounted = $state(false);
+	onMount(() => { classicMounted = true; });
 	let orderDesignSelect: HTMLSelectElement | undefined = $state();
 	let selectionReady = $derived(Boolean(chosenSize && order?.available.includes(`${chosenDesign}:${chosenSize}`)));
 	let orderExpanded = $derived(orderEditing || !selectionReady);
@@ -718,6 +721,9 @@
 	let designImage = $derived(
 		order?.designs.find((d) => d.code === chosenDesign)?.image ?? order?.designs[0]?.image ?? null
 	);
+	// Restore the saved photo after hydration, as a normal attribute update.
+	// Svelte otherwise keeps the server's default src when session state differs.
+	let classicImage = $derived(classicMounted ? designImage : order?.designs.find((d) => d.code === order.initialDesign)?.image ?? order?.designs[0]?.image);
 	let otherLines = $derived((priced?.lines ?? []).filter((l) => l.slug !== pickerSlug));
 	// What the selects' own product costs as chosen, shown beside it, so the
 	// lines in the panel add up to the subtotal under them.
@@ -1083,8 +1089,8 @@
 
 						{#if order}
 							<div class="classic-product">
-								{#if designImage}
-									<img src={resized(designImage, 200)} alt="" width="84" height="84" />
+								{#if classicImage}
+									<img src={resized(classicImage, 200)} alt="" width="84" height="84" />
 								{/if}
 								<div>
 									<p class="name">{order.title}</p>
