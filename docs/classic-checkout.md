@@ -6,11 +6,18 @@ the `shop` look before). Built from the owner's design "ChillMyPet - Classic
 Christmas · Mobile - Christmas Tree Costume" (a PDF of a phone-width page,
 sent in chat on 2026-10-24), with a desktop layout added on their request.
 
-`PRODUCT_PAGES[slug].checkout = 'classic'` turns it on, per product. Only the
-costume has it. The design's preview also offered the Calming Massager, but
-its words are Christmas ones ("A little tree. A lot of Christmas.", "for
-your little one"), so the massager keeps the `shop` look until the owner
-says otherwise. Moving it over is `checkout: 'classic'` plus a `tagline`.
+Since 2026-10-25 this is the shared template for **all six product
+checkouts and `/checkout`**, on the owner's request. Product photos, designs,
+sizes and quantity breaks remain catalogue-driven. The massager has no size
+selector or fit advice; the basket keeps each line's quantity, Remove and
+Change link. Non-seasonal products do not show a Christmas deadline.
+
+The delivery truck is a real button, labelled in English and Spanish.
+Click, tap, Enter or Space replays its journey and the stripe filling, without
+moving keyboard focus, changing the basket or posting tracking events.
+`prefers-reduced-motion` keeps the truck still, including after activation.
+The mobile strip includes a short tap hint. This is a reusable application
+template, implemented in the shared checkout component.
 
 ## What it is
 
@@ -38,7 +45,16 @@ One card on a white page:
   Express row was dropped with Express itself on 2026-10-17. Then the total
   again, the red Pay button, and the policy links.
 
-On a phone the panel is the top of the card, as drawn. From 960px it sits
+On a phone the panel is the top of the card. Since 2026-10-25, a valid
+selection is shown as colour · size · quantity with a **Change** button.
+Change opens the existing selectors and focuses Colour; **Done** closes them.
+An unchosen or unavailable size always leaves them open, and choosing a size
+keeps them open until Done. No size or bundle is preselected. Other basket
+lines remain visible with their own controls. The tagline and large
+marketing intro are desktop-only; the phone starts its form with Contact.
+Fit, arrival and returns advice starts collapsed, and its decorative heading
+is desktop-only. The estimate directly under the total is the very same
+server-calculated string used by the Standard shipping option. From 960px it sits
 beside the form. It is not sticky: with the peace-of-mind card it is taller
 than most windows, so it would only stick once its bottom was in view.
 
@@ -100,7 +116,11 @@ illustrative; for an order on 22 October this gives Oct 31–Nov 9.
 phone (first screen, sizes, the truck moving and standing still), choosing,
 bundle pricing, the product page's hand-off link, tracking, inline errors,
 a placed order checked in the database, and the desktop layout.
-`tests/shop-checkout.mjs` now drives the `shop` look on the massager. With `PAYMENTS_BASE_URL` it also loads
+`tests/checkout-template.mjs` covers every product and the basket, variant
+editing, one-size behavior, matching arrival dates and the interactive truck.
+The old one-page and shop layout suites are historical and no longer in
+`test:store`; product, basket and recovery suites use the shared selectors.
+With `PAYMENTS_BASE_URL`, the classic suite also loads
 the real Stripe.js and checks that the Pay button stays put while the card
 form loads, that cards are offered without Link, Google Pay or Discover, and
 that a blocked js.stripe.com falls back to the hosted page.
