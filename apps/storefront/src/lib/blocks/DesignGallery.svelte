@@ -21,7 +21,7 @@
 	 */
 	let { block, ctx }: { block: Block; ctx: FlowContext } = $props();
 
-	type Design = { code: string; label: string; image?: string; alt?: string };
+	type Design = { code: string; label: string; image?: string; alt?: string; fit?: 'cover' | 'contain' };
 	type Extra = { src: string; alt?: string };
 
 	const p = $derived(
@@ -38,7 +38,7 @@
 			 * An empty `src` takes the catalogue's photo away, so the design
 			 * shows its "coming soon" box until a better photo is in.
 			 */
-			photos?: Record<string, { src: string; alt?: string }>;
+			photos?: Record<string, { src: string; alt?: string; fit?: 'cover' | 'contain' }>;
 		}
 	);
 
@@ -46,7 +46,7 @@
 		(p.designs ?? []).map((d) => {
 			const own = p.photos?.[d.code];
 			if (!own) return d;
-			return own.src ? { ...d, image: own.src, alt: own.alt ?? d.alt } : { ...d, image: undefined };
+			return own.src ? { ...d, image: own.src, alt: own.alt ?? d.alt, fit: own.fit ?? d.fit } : { ...d, image: undefined };
 		})
 	);
 	const extras = $derived((p.extras ?? []).filter((e) => e.src));
@@ -131,6 +131,8 @@
 					srcset={photoSrcset(current.image, 1254)}
 					sizes="(min-width: 768px) 50vw, 100vw"
 					alt={current.alt ?? current.label}
+					style:object-fit={current.fit ?? 'cover'}
+					style:object-position={current.fit === 'contain' ? 'center' : undefined}
 					width="1100"
 					height="985"
 					fetchpriority="high"
