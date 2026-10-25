@@ -55,14 +55,13 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			requires: ['variants.designs'],
 			props: {
 				designs: { $ref: 'variants.designs' },
-				// Green leads (`leadDesign` in pages.ts) and opens on the tabby
-				// wearing it, the owner's pick for the page's main photo. Red is the
-				// catalogue's own photo (worn-red.jpg). Green's catalogue photo is a
-				// flat-lay, so the page shows the costume worn instead.
+				// Green leads, using the owner's original supplier photo of the
+				// costume worn by a dog to match the dog-focused ad.
 				photos: {
 					green: {
-						src: '/products/dog-christmas-costume/cat.jpg',
-						alt: 'A tabby cat wearing the green Christmas tree costume on a rug, hood up, gold star on top'
+						src: '/products/dog-christmas-costume/green-dog-original.jpg',
+						fit: 'contain',
+						alt: 'A small white dog wearing the green Christmas tree costume, with the neck cord tied and gold star on the hood'
 					}
 				},
 				// The shots not tied to a colour, after the colours' own photos, so
@@ -112,7 +111,8 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				// picked above, and the copy says so.
 				tiers: { $ref: 'bundles.plain' },
 				tierField: 'costume_bundle',
-				tiersTitle: '🎄 Choose your bundle',
+				tiersTitle: 'Optional: save with a bundle',
+				ctaBeforeTiers: true,
 				unitsNoun: 'costumes',
 				tierCopy: [
 					{ units: 1, title: 'One costume • 1', tag: 'Free US shipping', sub: 'One festive costume', ribbon: 'Just one' },
@@ -198,7 +198,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					{ title: 'Red or green', body: 'Classic pine green or a bold Christmas red. Same cut, same star, same pom-poms.' },
 					{ title: 'Off as fast as it goes on', body: 'One cord and one button. Dress them for the photo, the party or the visit, then let them be themselves again.' }
 				],
-				// Not the tabby: it is the gallery's opening photo now.
+				// A second view after the original supplier photo in the gallery.
 				image: {
 					src: '/products/dog-christmas-costume/green-studio.jpg',
 					alt: 'A small curly-haired dog wearing the green Christmas tree costume, hood up, gold star on top'
