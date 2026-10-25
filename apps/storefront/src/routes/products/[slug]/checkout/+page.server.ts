@@ -1,16 +1,15 @@
 import { error, redirect } from '@sveltejs/kit';
 import { bindDefinition, createRefResolver } from '@funnel/core';
 import { loadBundles } from '$lib/store/bundles';
-import { arrivalWindow, dateRange, loadChristmasDelivery } from '$lib/store/christmas';
+import { loadChristmasDelivery } from '$lib/store/christmas';
 import { sizeGuideTable } from '$lib/store/garment-sizes';
 import { onePageCheckout } from '$lib/store/one-page-checkout';
 import { PRODUCT_PAGES, renamedRedirect, retiredRedirect } from '$lib/store/pages';
 import { loadProduct } from '$lib/store/product';
-import { loadShippingRates } from '$lib/store/shipping-rates';
 import { loadVariantPicker, offeredDesigns, variantEntries } from '$lib/store/variants';
 import { createTranslator } from '$lib/i18n';
 import { placeOrder } from '$lib/server/checkout';
-import { checkoutPayment, checkoutSources } from '$lib/server/checkout-page';
+import { classicCheckoutSources, checkoutPayment, checkoutSources } from '$lib/server/checkout-page';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
@@ -64,6 +63,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const gallery = page.manifest.blocks.find((b) => b.component === 'design_gallery');
 	const galleryPhotos = (gallery?.props?.photos ?? {}) as Record<string, { src?: string }>;
 	const t = createTranslator(locale);
+	const classicDelivery = classic ? classicCheckoutSources(locals, catalogue.currency) : null;
 
 	const resolve = createRefResolver({
 		...checkoutSources(locals),
@@ -71,8 +71,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		// The same tiers the product page's cards show: no "was" total.
 		bundles: { ...bundles, plain: bundles.tiers.map(({ compareAt: _, ...tier }) => tier) },
 		variants,
-		christmas: page.theme ? loadChristmasDelivery(settings) : {},
-		classic: classic ? classicSources(t, locale, catalogue.currency) : {}
+		christmas: page.christmas ? loadChristmasDelivery(settings) : {},
+		classic: classicDelivery ?? {}
 	});
 	// The composed manifest is authored, not data: it is the same for every
 	// request to this slug, so versioning it before binding keeps one version
@@ -109,6 +109,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 			? {
 					title: catalogue.title,
 					tagline: page.tagline ?? catalogue.subtitle ?? '',
+					arrival: classicDelivery?.rates.find((rate) => rate.id === 'standard')?.detail ?? '',
 					designLabel: String(picker?.props?.designLabel ?? t('checkout.classic.colour')),
 					// The photo the product page's gallery shows for each colour,
 					// which may be a worn shot standing in for a catalogue flat-lay.
@@ -134,28 +135,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		}
 	};
 };
-
-/**
- * What the classic look's blocks bind to: the store's shipping rates, with
- * standard's arrival dates worked out from the published shipping promise.
- * Another rate, if one is ever added back, keeps its own label and detail.
- */
-function classicSources(t: ReturnType<typeof createTranslator>, locale: App.Locals['locale'], currency: string) {
-	const { from, to } = arrivalWindow();
-	return {
-		methodTitle: t('checkout.classic.shippingTitle'),
-		rates: loadShippingRates(locale, currency).map((rate) => {
-			const price = rate.price === t('checkout.free') ? t('checkout.free').toUpperCase() : rate.price;
-			if (rate.id !== 'standard') return { ...rate, price };
-			return {
-				...rate,
-				price,
-				label: t('checkout.classic.standard'),
-				detail: t('checkout.classic.arrival', { dates: dateRange(from, to) })
-			};
-		})
-	};
-}
 
 /** "M · 2.5–5 kg (6–11 lb)", per size, from the size guide's own table. */
 function sizeNotes(product: Parameters<typeof sizeGuideTable>[0]): Record<string, string> {
