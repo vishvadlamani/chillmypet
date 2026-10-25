@@ -57,6 +57,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	// count is the buyer's to set in the summary.
 	const tiered = Boolean(picker?.props?.tiers);
 
+	const variantIndex = variantEntries(catalogue);
+	const initialDesign = variantIndex.find((entry) => entry.colourCode === url.searchParams.get('design') && entry.size === url.searchParams.get('size'))?.colourCode ?? page.leadDesign ?? catalogue.options[0]?.values[0]?.value ?? '';
 	const sizes = catalogue.options[1]?.values ?? [];
 	const variants = loadVariantPicker(catalogue, locale, page.leadDesign);
 	const classic = page.checkout === 'classic';
@@ -101,13 +103,14 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		tiered,
 		// The host's lookup from the picker's codes to a variant. Never a prop:
 		// a block that carried variant ids would be coupled to this catalogue.
-		variantIndex: variantEntries(catalogue),
+		variantIndex,
 		// The classic look's order panel: what its colour, size and quantity
 		// selects offer. Host markup, not a block, because it sits beside the
 		// priced cart that only the host has.
 		order: classic
 			? {
 					title: catalogue.title,
+					initialDesign,
 					tagline: page.tagline ?? catalogue.subtitle ?? '',
 					arrival: classicDelivery?.rates.find((rate) => rate.id === 'standard')?.detail ?? '',
 					designLabel: String(picker?.props?.designLabel ?? t('checkout.classic.colour')),
