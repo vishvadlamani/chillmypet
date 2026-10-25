@@ -6,6 +6,7 @@ import type { MetaBrowserIds } from '$lib/server/meta-browser-ids';
 declare global {
 	namespace App {
 		interface Locals {
+			paymentTest: boolean;
 			locale: Locale;
 			/** Tenant resolved from the Host header in hooks.server.ts. */
 			store: Store;
