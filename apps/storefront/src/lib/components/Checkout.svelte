@@ -752,16 +752,11 @@
 		track('bundle_selected', ORDER_SUBJECT, { bundle: `qty-${units}` });
 	}
 
-	/**
-	 * Stripe's fields in the classic look's colours. The sizes are the shop
-	 * look's, which is what `.classic-pay-box` reserves the height of (in
-	 * classic-checkout.css): change a size or spacing and measure again.
-	 */
 	function replayDelivery(event: MouseEvent) {
 		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-		const truck = event.currentTarget as HTMLButtonElement;
-		// Replay the existing CSS journey without remounting the focused button.
-		for (const target of [truck, truck.parentElement?.querySelector('.stripe')]) {
+		const road = event.currentTarget as HTMLButtonElement;
+		// Keep one stationary, full-width target while its truck moves.
+		for (const target of road.querySelectorAll('.truck, .stripe')) {
 			for (const animation of target?.getAnimations() ?? []) {
 				if (['classic-drive', 'classic-fill'].includes((animation as CSSAnimation).animationName)) {
 					animation.currentTime = 0;
@@ -771,6 +766,10 @@
 		}
 	}
 
+	/**
+	 * Stripe's field sizes match the space reserved by `.classic-pay-box`.
+	 * Change a size or spacing and measure again.
+	 */
 	const CLASSIC_APPEARANCE = {
 		theme: 'stripe',
 		variables: {
@@ -1059,9 +1058,9 @@
 							<!-- The stripe fills and the truck drives to the end of it;
 							     both stand still under prefers-reduced-motion. -->
 							<p class="classic-truck-hint">{t('checkout.classic.truckHint')}</p>
-							<div class="classic-road">
+							<button type="button" class="classic-road" aria-label={t('checkout.classic.truckReplay')} title={t('checkout.classic.truckReplay')} onclick={replayDelivery}>
 								<span class="stripe" aria-hidden="true"></span>
-								<button type="button" class="truck" aria-label={t('checkout.classic.truckReplay')} title={t('checkout.classic.truckReplay')} onclick={replayDelivery}>
+								<span class="truck" aria-hidden="true">
 									<svg viewBox="0 0 24 24" aria-hidden="true">
 										<path
 											d="M2.5 6.5h11v9h-11zM13.5 9.5h4l3 3.2v2.8h-7"
@@ -1073,8 +1072,8 @@
 										<circle class="wheel" cx="6.5" cy="17" r="1.9" fill="#fffefa" stroke="currentColor" stroke-width="1.7" />
 										<circle class="wheel" cx="17" cy="17" r="1.9" fill="#fffefa" stroke="currentColor" stroke-width="1.7" />
 									</svg>
-								</button>
-							</div>
+								</span>
+							</button>
 						</div>
 
 						<div class="classic-order-head">
