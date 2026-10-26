@@ -5,7 +5,7 @@ const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PAT
 function check(label, ok) { console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}`); if (!ok) process.exitCode = 1; }
 // The whole stationary road remains tappable while the vehicle is moving.
 for (const width of [320, 390, 959, 960, 1280]) {
-	const ctx = await browser.newContext({ viewport: { width, height: 844 } });
+	const ctx = await browser.newContext({ viewport: { width, height: 844 }, isMobile: width < 960, hasTouch: width < 960 });
 	const p = await ctx.newPage();
 	await p.goto(`${BASE}/products/christmas-tree-costume/checkout`, { waitUntil: 'networkidle' });
 	const road = p.getByRole('button', { name: 'Replay delivery truck animation' });
@@ -14,8 +14,10 @@ for (const width of [320, 390, 959, 960, 1280]) {
 	const rewind = () => p.locator('.truck').evaluate(e => e.getAnimations().find(a => a.animationName === 'classic-drive').finish());
 	const replayed = () => p.locator('.truck').evaluate(e => e.getAnimations().some(a => a.animationName === 'classic-drive' && a.playState === 'running' && a.currentTime < 800));
 	await rewind();
-	await road.click({ position: { x: 10, y: bounds.height / 2 } });
-	check(`${width}px: clicking the stripe replays the drive`, await replayed());
+	if (width < 960) await road.tap({ position: { x: 10, y: bounds.height / 2 } });
+	else await road.click({ position: { x: 10, y: bounds.height / 2 } });
+	check(`${width}px: activating the stripe replays the drive`, await replayed());
+	check(`${width}px: activation gives visible feedback`, (await p.locator('.classic-truck-hint').innerText()).includes('Tap again'));
 	await rewind();
 	await road.press('Enter');
 	check(`${width}px: Enter replays the drive`, await replayed());
@@ -59,13 +61,14 @@ for (const [slug, design, size] of [
 	check(`${slug}: no page errors`, errors.length === 0);
 	await ctx.close();
 }
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' });
 const p = await ctx.newPage();
 await p.goto(`${BASE}/products/christmas-tree-costume/checkout`, { waitUntil: 'networkidle' });
 check('no size: real selectors remain open', await p.locator('#order-size').isVisible());
 check('no size: no selection is guessed', await p.inputValue('#order-size') === '');
 check('no size: payment waits', await p.locator('.classic-payb').isDisabled());
-await p.getByRole('button', { name: 'Replay delivery truck animation' }).click();
+await p.getByRole('button', { name: 'Replay delivery truck animation' }).tap();
+check('reduced motion: tapping gives visible feedback', (await p.locator('.classic-truck-hint').innerText()) === 'Free standard shipping is included.');
 check('reduced motion: replay stays still', await p.locator('.truck').evaluate(e => e.getAnimations().length === 0));
 await ctx.close();
 await browser.close();

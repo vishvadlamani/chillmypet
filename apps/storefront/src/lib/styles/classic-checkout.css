@@ -166,6 +166,10 @@
 	color: inherit;
 	cursor: pointer;
 	touch-action: manipulation;
+	appearance: none;
+	-webkit-appearance: none;
+	user-select: none;
+	-webkit-user-select: none;
 	-webkit-tap-highlight-color: transparent;
 }
 
@@ -177,6 +181,12 @@
 .classic-road:hover .truck,
 .classic-road:active .truck {
 	background: var(--red-wash);
+}
+
+/* Touches always hit the stationary native button, even during the drive. */
+.classic-road .stripe,
+.classic-road .truck {
+	pointer-events: none;
 }
 
 /* A candy-cane stripe: one 24px tile, so sliding it 24px is seamless. */
