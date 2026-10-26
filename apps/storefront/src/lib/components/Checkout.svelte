@@ -752,18 +752,14 @@
 		track('bundle_selected', ORDER_SUBJECT, { bundle: `qty-${units}` });
 	}
 
-	function replayDelivery(event: MouseEvent) {
-		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-		const road = event.currentTarget as HTMLButtonElement;
-		// Keep one stationary, full-width target while its truck moves.
-		for (const target of road.querySelectorAll('.truck, .stripe')) {
-			for (const animation of target?.getAnimations() ?? []) {
-				if (['classic-drive', 'classic-fill'].includes((animation as CSSAnimation).animationName)) {
-					animation.currentTime = 0;
-					animation.play();
-				}
-			}
-		}
+	let deliveryReplay = $state(0);
+	let deliveryReduced = $state(false);
+
+	function replayDelivery() {
+		deliveryReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		// Restart the visual children, keeping the native touch target and focus.
+		// Avoid relying on browser-specific CSSAnimation rewind behavior.
+		deliveryReplay += 1;
 	}
 
 	/**
@@ -1057,22 +1053,28 @@
 							<p class="note">{t('checkout.classic.freeNote')}</p>
 							<!-- The stripe fills and the truck drives to the end of it;
 							     both stand still under prefers-reduced-motion. -->
-							<p class="classic-truck-hint">{t('checkout.classic.truckHint')}</p>
+							<p class="classic-truck-hint" aria-live="polite">
+								{deliveryReplay === 0
+									? t('checkout.classic.truckHint')
+									: t(deliveryReduced ? 'checkout.classic.truckStill' : 'checkout.classic.truckPlayed')}
+							</p>
 							<button type="button" class="classic-road" aria-label={t('checkout.classic.truckReplay')} title={t('checkout.classic.truckReplay')} onclick={replayDelivery}>
-								<span class="stripe" aria-hidden="true"></span>
-								<span class="truck" aria-hidden="true">
-									<svg viewBox="0 0 24 24" aria-hidden="true">
-										<path
-											d="M2.5 6.5h11v9h-11zM13.5 9.5h4l3 3.2v2.8h-7"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="1.7"
-											stroke-linejoin="round"
-										/>
-										<circle class="wheel" cx="6.5" cy="17" r="1.9" fill="#fffefa" stroke="currentColor" stroke-width="1.7" />
-										<circle class="wheel" cx="17" cy="17" r="1.9" fill="#fffefa" stroke="currentColor" stroke-width="1.7" />
-									</svg>
-								</span>
+								{#key deliveryReplay}
+									<span class="stripe" aria-hidden="true"></span>
+									<span class="truck" aria-hidden="true">
+										<svg viewBox="0 0 24 24" aria-hidden="true">
+											<path
+												d="M2.5 6.5h11v9h-11zM13.5 9.5h4l3 3.2v2.8h-7"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="1.7"
+												stroke-linejoin="round"
+											/>
+											<circle class="wheel" cx="6.5" cy="17" r="1.9" fill="#fffefa" stroke="currentColor" stroke-width="1.7" />
+											<circle class="wheel" cx="17" cy="17" r="1.9" fill="#fffefa" stroke="currentColor" stroke-width="1.7" />
+										</svg>
+									</span>
+								{/key}
 							</button>
 						</div>
 
