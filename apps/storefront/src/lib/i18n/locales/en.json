@@ -194,7 +194,7 @@
 			"pick": "Choose a design and size to see your total."
 		},
 		"classic": {
-			"truckHint": "Free shipping · Tap the truck",
+			"truckHint": "Free shipping · Tap or click to drive",
 			"truckReplay": "Replay delivery truck animation",
 			"change": "Change",
 			"done": "Done",
