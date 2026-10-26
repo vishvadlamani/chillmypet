@@ -196,6 +196,8 @@
 		"classic": {
 			"truckHint": "Free shipping · Tap or click to drive",
 			"truckReplay": "Replay delivery truck animation",
+			"truckPlayed": "Free shipping · Tap again to replay",
+			"truckStill": "Free standard shipping is included.",
 			"change": "Change",
 			"done": "Done",
 			"colour": "Colour",
