@@ -55,7 +55,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const tierField = String(picker?.props?.tierField ?? 'bundle');
 	// Whether the picker's bundle cards decide how many. When they don't, the
 	// count is the buyer's to set in the summary.
-	const tiered = Boolean(picker?.props?.tiers);
+	const bogo = commerce.buyOneGetOneFree.includes(slug);
+	const tiered = Boolean(picker?.props?.tiers) || bogo;
 
 	const variantIndex = variantEntries(catalogue);
 	const initialDesign = variantIndex.find((entry) => entry.colourCode === url.searchParams.get('design') && entry.size === url.searchParams.get('size'))?.colourCode ?? page.leadDesign ?? catalogue.options[0]?.values[0]?.value ?? '';
@@ -101,6 +102,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		oneSize: sizes.length === 1 ? sizes[0].value : null,
 		tierField,
 		tiered,
+		bogo,
 		// The host's lookup from the picker's codes to a variant. Never a prop:
 		// a block that carried variant ids would be coupled to this catalogue.
 		variantIndex,

@@ -213,6 +213,7 @@
 		subtotalCents: number;
 		discountCents: number;
 		bundlePercentOff: number;
+		bogoDiscountCents?: number;
 		currency: string;
 	};
 
@@ -308,6 +309,7 @@
 	let subtotalCents = $derived(priced?.subtotalCents ?? 0);
 	let discountCents = $derived(priced?.discountCents ?? 0);
 	let bundlePercentOff = $derived(priced?.bundlePercentOff ?? 0);
+	let bogoDiscountCents = $derived(priced?.bogoDiscountCents ?? 0);
 	let currency = $derived(priced?.currency ?? 'USD');
 	let totalCents = $derived(subtotalCents - discountCents + shippingCents);
 	let isEmpty = $derived((priced?.lines.length ?? 0) === 0);
@@ -988,7 +990,7 @@
 			</div>
 			{#if discountCents > 0}
 				<div class="saving">
-					<dt>{t('checkout.bundleDiscount')} ({bundlePercentOff}%)</dt>
+					<dt>{bogoDiscountCents ? t(bundlePercentOff ? 'checkout.offerDiscount' : 'checkout.bogoDiscount') : t('checkout.bundleDiscount')}{#if !bogoDiscountCents} ({bundlePercentOff}%){/if}</dt>
 					<dd>−{formatMoney(discountCents, locale, currency)}</dd>
 				</div>
 			{/if}
@@ -1077,6 +1079,16 @@
 								{/key}
 							</button>
 						</div>
+
+						{#if bogoDiscountCents > 0}
+							<div class="classic-bogo" role="status">
+								<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h16v11H4zM3 6h18v4H3zM12 6v15M12 6H8.5A2.5 2.5 0 1 1 11 3.5L12 6Zm0 0h3.5A2.5 2.5 0 1 0 13 3.5L12 6Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+								<div>
+									<strong>{t('checkout.bogoDiscount')}</strong>
+									<span>Christmas Tree Costume · {t('checkout.bogoApplied')}</span>
+								</div>
+							</div>
+						{/if}
 
 						<div class="classic-order-head">
 							<h2>{t('checkout.yourOrder')}</h2>
@@ -1200,7 +1212,7 @@
 							</div>
 							{#if discountCents > 0}
 								<div class="saving">
-									<dt>{t('checkout.bundleDiscount')} ({bundlePercentOff}%)</dt>
+									<dt>{bogoDiscountCents ? t(bundlePercentOff ? 'checkout.offerDiscount' : 'checkout.bogoDiscount') : t('checkout.bundleDiscount')}{#if !bogoDiscountCents} ({bundlePercentOff}%){/if}</dt>
 									<dd>−{formatMoney(discountCents, locale, currency)}</dd>
 								</div>
 							{/if}
@@ -1629,7 +1641,7 @@
 							</div>
 							{#if discountCents > 0}
 								<div class="text-15 flex justify-between text-[#2f6b3d]">
-									<dt>{t('checkout.bundleDiscount')} ({bundlePercentOff}%)</dt>
+									<dt>{bogoDiscountCents ? t(bundlePercentOff ? 'checkout.offerDiscount' : 'checkout.bogoDiscount') : t('checkout.bundleDiscount')}{#if !bogoDiscountCents} ({bundlePercentOff}%){/if}</dt>
 									<dd class="tabular-nums">−{formatMoney(discountCents, locale, currency)}</dd>
 								</div>
 							{/if}

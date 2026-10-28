@@ -16,6 +16,8 @@ import { createCustomerService, type CustomerService } from './customers/index.t
 import { createDb, type Client, type DatabaseConfig } from './db/index.ts';
 import { createFulfillmentService, type FulfillmentService } from './fulfillments/index.ts';
 import { createRecoveryService, type RecoveryService } from './recovery/index.ts';
+import { createReviewService, type ReviewService } from './reviews/index.ts';
+export type { Review, ReviewService } from './reviews/index.ts';
 import { createMetaService, type MetaConfig, type MetaService } from './marketing/index.ts';
 import { createOrderService, type OrderService } from './orders/index.ts';
 import { createStoreService, type Store, type StoreService } from './stores/index.ts';
@@ -98,12 +100,14 @@ export type Commerce = {
 	fulfillments: FulfillmentService;
 	/** Abandoned-checkout drafts and the rules for reminding them. */
 	recovery: RecoveryService;
+	reviews: ReviewService;
 	/** Null unless a pixel id is configured for this store. */
 	meta: MetaService | null;
 	/** Null unless a payment provider is configured for this store. */
 	payments: PaymentService | null;
 	/** The configured buy-more-save-more tiers, for a storefront to render. */
 	quantityBreaks: QuantityBreak[];
+	buyOneGetOneFree: string[];
 };
 
 /**
@@ -127,6 +131,7 @@ export type CommerceConfig = {
 	 * storefront renders them but never decides them.
 	 */
 	quantityBreaks?: QuantityBreak[];
+	buyOneGetOneFree?: string[];
 	orderNumberPrefix?: string;
 	meta?: Omit<MetaConfig, 'pixelId'> & { pixelId?: string };
 	/** Supply to enable payments. Without it `commerce.payments` is null. */
@@ -153,11 +158,13 @@ export function createCommerce(config: CommerceConfig): Commerce {
 		defaultLocale: store.defaultLocale,
 		shippingRates: config.shippingRates,
 		quantityBreaks: config.quantityBreaks,
+		buyOneGetOneFree: config.buyOneGetOneFree,
 		orderNumberPrefix: config.orderNumberPrefix
 	});
 
 	const fulfillments = createFulfillmentService({ db, storeId });
 	const recovery = createRecoveryService({ db, storeId, defaultLocale: store.defaultLocale });
+	const reviews = createReviewService({ db, storeId });
 
 	const pixelId = config.meta?.pixelId;
 	const meta = pixelId ? createMetaService({ ...config.meta, pixelId }) : null;
@@ -174,8 +181,10 @@ export function createCommerce(config: CommerceConfig): Commerce {
 		orders,
 		fulfillments,
 		recovery,
+		reviews,
 		meta,
 		payments,
-		quantityBreaks: config.quantityBreaks ?? []
+		quantityBreaks: config.quantityBreaks ?? [],
+		buyOneGetOneFree: config.buyOneGetOneFree ?? []
 	};
 }

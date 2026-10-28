@@ -19,7 +19,7 @@
 		"deploy": "npm run build && wrangler deploy",
 		"test:payments": "node tests/payment-flow.mjs",
 		"test:payment-sandbox": "node tests/payment-sandbox.mjs",
-		"test:store": "node tests/store-flow.mjs && node tests/christmas-tree-costume.mjs && node tests/christmas-hoodie.mjs && node tests/santa-costume-with-gift.mjs && node tests/santa-outfit.mjs && node tests/calming-massager.mjs && node tests/checkout-template.mjs && node tests/classic-checkout.mjs && node tests/basket-edit.mjs && node tests/cart-drawer.mjs",
+		"test:store": "node tests/store-flow.mjs && node tests/christmas-tree-costume.mjs && node tests/christmas-hoodie.mjs && node tests/santa-costume-with-gift.mjs && node tests/santa-outfit.mjs && node tests/calming-massager.mjs && node tests/checkout-template.mjs && node tests/classic-checkout.mjs && node tests/basket-edit.mjs && node tests/cart-drawer.mjs && node tests/reviews-bogo.mjs",
 		"test:admin": "node tests/admin-flow.mjs",
 		"test:recovery": "node tests/checkout-recovery.mjs",
 		"db:content": "node --env-file-if-exists=.env scripts/sync-content.js",

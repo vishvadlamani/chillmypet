@@ -10,6 +10,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 let failures = 0;
 function check(label, cond, detail) {
@@ -34,7 +35,7 @@ const run = () =>
 	new Promise((resolve) => {
 		execFile(
 			process.execPath,
-			[new URL('../scripts/meta-dedupe.js', import.meta.url).pathname],
+			[fileURLToPath(new URL('../scripts/meta-dedupe.js', import.meta.url))],
 			{
 				env: {
 					PATH: process.env.PATH,

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import PageLayout from '@funnel/core/PageLayout.svelte';
+	import CustomerReviews from '$lib/components/CustomerReviews.svelte';
 	import { STORE_BLOCKS } from '$lib/store/blocks';
 	import type { FunnelStateAdapter, SubmitFn, TrackFn } from '@funnel/core';
 	import { toAmount } from 'ecomwithai/marketing';
@@ -9,10 +10,10 @@
 	import { amount, pushEcommerce } from '$lib/analytics/datalayer';
 	import { createTranslator, defaultLocale } from '$lib/i18n';
 	import { cart } from '$lib/stores/cart.svelte';
-	import type { PageData } from './$types';
+	import type { ActionData, PageData } from './$types';
 	import '$lib/styles/tree-theme.css';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let locale = $derived(page.data.locale ?? defaultLocale);
 	let tree = $derived(data.theme === 'tree');
@@ -70,6 +71,7 @@
 	 * the bar, and buys one.
 	 */
 	function unitsFrom(payload: Record<string, unknown>): number {
+		if (data.slug === 'christmas-tree-costume') return 2;
 		const stated = Number(payload.units);
 		if (Number.isFinite(stated) && stated > 0) return Math.floor(stated);
 		const tier = /^qty-(\d+)$/.exec(String(payload.bundle ?? ''));
@@ -286,6 +288,8 @@
 		: 'mx-auto grid w-full max-w-shell gap-8 px-gutter py-6 md:grid-cols-[715fr_537fr] md:gap-12'}
 	colClass={tree ? 'flex min-w-0 flex-col gap-3 md:gap-5' : 'flex flex-col gap-6'}
 />
+
+<CustomerReviews summary={data.customerReviews} {form} spanish={locale === 'es'} />
 
 <style>
 	/*

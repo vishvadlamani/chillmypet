@@ -65,6 +65,7 @@
 	let ownsAnnouncement = $derived(Boolean(page.data.definition) || treeChrome);
 	let liftedStrip = $derived.by(() => {
 		if (!treeChrome) return '';
+		if (page.data.sitePromotion) return page.data.sitePromotion.message;
 		if (typeof page.data.announcement === 'string') return page.data.announcement;
 		const blocks = (page.data.definition?.blocks ?? []) as {
 			component: string;
@@ -214,7 +215,28 @@
 {:else}
 <div class="flex min-h-screen flex-col" class:tree-chrome={treeChrome} class:brand-skin={brandSkin}>
 	{#if liftedStrip}
-		<p class="tree-strip">{liftedStrip}</p>
+		{#if page.data.sitePromotion}
+			<aside class="tree-strip offer-banner" aria-label={page.data.sitePromotion.message}>
+				<a class="offer-banner-link" href={page.data.sitePromotion.href}>
+					<span class="offer-banner-eyebrow">
+						<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true">
+							<path d="M4 11h16v10H4zM3 7h18v4H3zM12 7v14M12 7H8.5A2.5 2.5 0 1 1 11 4.5L12 7Zm0 0h3.5A2.5 2.5 0 1 0 13 4.5L12 7Z" stroke-linejoin="round" />
+						</svg>
+						{page.data.sitePromotion.eyebrow}
+					</span>
+					<span class="offer-banner-copy">
+						<strong>{page.data.sitePromotion.headline}</strong>
+						<span class="offer-banner-product">{page.data.sitePromotion.product}</span>
+					</span>
+					<span class="offer-banner-cta">
+						<span>{page.data.sitePromotion.cta}</span>
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+					</span>
+				</a>
+			</aside>
+		{:else}
+			<p class="tree-strip">{liftedStrip}</p>
+		{/if}
 	{/if}
 	{#if !ownsAnnouncement}
 		<p class="bg-tide-700 px-4 py-2 text-center text-sm text-white">

@@ -50,6 +50,7 @@
 		lines: PricedLine[];
 		discountCents: number;
 		bundlePercentOff: number;
+		bogoDiscountCents?: number;
 		currency: string;
 	};
 
@@ -251,7 +252,7 @@
 					</div>
 					{#if discountCents > 0}
 						<div class="saving">
-							<dt>{t('checkout.bundleDiscount')} ({priced?.bundlePercentOff}%)</dt>
+							<dt>{priced?.bogoDiscountCents ? t(priced.bundlePercentOff ? 'checkout.offerDiscount' : 'checkout.bogoDiscount') : t('checkout.bundleDiscount')}{#if !priced?.bogoDiscountCents} ({priced?.bundlePercentOff}%){/if}</dt>
 							<dd>−{formatMoney(discountCents, locale, currency)}</dd>
 						</div>
 					{/if}

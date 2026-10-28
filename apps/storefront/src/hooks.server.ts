@@ -259,6 +259,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		shippingRates: SHIPPING_RATES,
 		// Buy-more-save-more. The storefront renders these; the server decides
 		// them, from the quantity it counts after merging duplicate lines.
+		buyOneGetOneFree: ['christmas-tree-costume'],
 		quantityBreaks: [
 			{ minQuantity: 2, percentOff: 7 },
 			{ minQuantity: 3, percentOff: 9 }
