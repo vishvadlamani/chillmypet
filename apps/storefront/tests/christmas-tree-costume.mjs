@@ -48,7 +48,7 @@ function check(label, cond, detail) {
 	const html = await res.text();
 	check('the page serves', res.status === 200, String(res.status));
 	check('no payment on the product page: no card, email or address fields', !/id="contact-email"|id="shipping-|class="shop-pay|class="classic-payb/.test(html));
-	check('SSR carries the Christmas delivery strip', /Order by \w+day, Dec \d+ for Christmas delivery to the US/.test(html));
+	check('SSR carries the costume-only BOGO banner', /BUY ONE, GET ONE FREE[\s\S]{0,120}?Christmas Tree Costume/.test(html));
 	check('SSR opens on the product: its title is the h1', /<h1[^>]*>[\s\S]{0,200}?Christmas Tree Costume/.test(html));
 	check('and it is the only h1', (html.match(/<h1[\s>]/g) ?? []).length === 1);
 	check('the gallery comes before the h1', html.indexOf('class="gallery') > -1 && html.indexOf('class="gallery') < html.search(/<h1[\s>]/));
@@ -61,10 +61,9 @@ function check(label, cond, detail) {
 	check('the story section follows the buy box', /<h2[^>]*>[\s\S]{0,120}?steals the Christmas card/.test(html));
 	check('the closing band points back at the picker, under an h2', /<h2[^>]*>[\s\S]{0,120}?Every tree needs a little one/.test(html) && /href="#variant-picker"/.test(html));
 	check('SSR says the size goes by weight, in kg and lb', /By weight: S 1\.5–2\.5 kg \(3–6 lb\)/.test(html));
-	// The store's own quantity breaks, priced by the server, said in words.
-	check('purchase comes before the optional bundles in SSR', /class="cta[\s\S]*?class="tiers[\s\S]*?Optional: save with a bundle/.test(html));
-	check('SSR offers the bundle cards at the server’s prices', html.includes('$52.06') && html.includes('$76.41') && /You save 7% with 2 costumes/.test(html));
-	check('the theme lifts the delivery strip above the header', /class="tree-strip"[^>]*>[^<]*Order by \w+day, Dec \d+/.test(html) && html.indexOf('tree-strip') < html.indexOf('<header'));
+	check('the old quantity-discount cards are gone', !html.includes('Optional: save with a bundle') && !html.includes('$52.06') && !html.includes('$76.41'));
+	check('the offer says what gets added', html.includes('in your selected colour and size'));
+	check('the banner sits above the header', html.indexOf('tree-strip') < html.indexOf('<header'));
 	check('SSR quotes the price', html.includes(`$${PRICE}`));
 	check('SSR offers both colours', html.includes('>Red<') && html.includes('>Green<'));
 	check('SSR has a size guide section', html.includes('id="size-guide"'));
@@ -170,8 +169,7 @@ await page.reload({ waitUntil: 'networkidle' });
 	await page.evaluate(() => window.scrollTo(0, 0));
 	const bottom = (sel) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().bottom);
 	const cta = await page.locator('#variant-picker button.cta').boundingBox();
-	const bundles = await page.locator('#variant-picker .tiers').boundingBox();
-	check('one main purchase button, above optional bundles on mobile', (await page.locator('#variant-picker button.cta').count()) === 1 && cta.y + cta.height < bundles.y);
+	check('one purchase button and no bundle cards on mobile', (await page.locator('#variant-picker button.cta').count()) === 1 && (await page.locator('#variant-picker .tiers').count()) === 0);
 	check('the portrait hero shows the whole costume', (await page.locator('.gallery .frame img').evaluate((e) => getComputedStyle(e).objectFit)) === 'contain');
 	check('the price is on the first screen', (await bottom('#variant-picker .price')) <= 664);
 	const sizes = await bottom('#size-picker label');
@@ -193,7 +191,7 @@ await page.reload({ waitUntil: 'networkidle' });
 // --- no size, no sale -------------------------------------------------------------
 {
 	await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-	const dock = page.locator('button', { hasText: /^\s*Add to cart\s*$/ }).last();
+	const dock = page.locator('button', { hasText: /^\s*Get two costumes\s*$/ }).last();
 	await dock.waitFor({ state: 'visible' });
 	await dock.click();
 	await page.locator('#size-error').filter({ hasText: /Pick a size first/ }).waitFor({ timeout: 5000 });
@@ -221,12 +219,7 @@ check(
 	(await page.locator('#variant-picker input[name="design"]:checked').getAttribute('value')) === 'green'
 );
 
-// The bundle cards: picking two re-prices the button and the sticky bar, and
-// one puts it back. The order below is for one costume.
-await page.locator('#variant-picker label.tier', { hasText: 'Two costumes' }).click();
-check('two costumes re-price the button', (await page.locator('#variant-picker button.cta').innerText()).includes('$52.06'));
-await page.locator('#variant-picker label.tier', { hasText: 'One costume' }).click();
-check('and one costume puts it back', (await page.locator('#variant-picker button.cta').innerText()).includes('$27.99'));
+check('the BOGO button quotes one costume’s price', (await page.locator('#variant-picker button.cta').innerText()).includes('$27.99'));
 await page.locator('#variant-picker label', { hasText: 'Red' }).click();
 check(
 	'the gallery follows the colour',
@@ -240,7 +233,7 @@ check(
 await page.locator('#size-picker label').filter({ hasText: /^\s*M\s*$/ }).click();
 check('the error clears once a size is chosen', (await page.locator('#size-error').innerText()).trim() === '');
 
-await page.locator('#variant-picker button', { hasText: /Add to cart/ }).click();
+await page.locator('#variant-picker button', { hasText: /Get two costumes/ }).click();
 await page.waitForURL('**/products/christmas-tree-costume/checkout', { timeout: 15000 });
 {
 	// The payment page is a page of its own. The link carried the choice and
@@ -262,7 +255,7 @@ await page.waitForURL('**/products/christmas-tree-costume/checkout', { timeout: 
 	const lines = await cartLines();
 	check(
 		'the cart holds exactly the chosen colour and size',
-		lines.length === 1 && lines[0].colour === 'green' && lines[0].size === 'M' && lines[0].quantity === 1,
+		lines.length === 1 && lines[0].colour === 'green' && lines[0].size === 'M' && lines[0].quantity === 2,
 		JSON.stringify(lines)
 	);
 }
@@ -271,8 +264,8 @@ await page.waitForURL('**/products/christmas-tree-costume/checkout', { timeout: 
 {
 	const add = await pairedOnce('AddToCart');
 	check('AddToCart names the variant by SKU', JSON.stringify(add.data.content_ids) === `["${SKU}"]`, JSON.stringify(add.data));
-	check('AddToCart is worth one costume', add.data.value === PRICE && add.data.num_items === 1, JSON.stringify(add.data));
-	check('AddToCart server copy matches', JSON.stringify(add.server.content_ids) === `["${SKU}"]` && add.server.value === PRICE, JSON.stringify(add.server));
+	check('AddToCart carries both costumes', add.data.value === '55.98' && add.data.num_items === 2, JSON.stringify(add.data));
+	check('AddToCart server copy matches', JSON.stringify(add.server.content_ids) === `["${SKU}"]` && add.server.value === '55.98', JSON.stringify(add.server));
 	const item = (await dataLayer()).find((e) => e.event === 'add_to_cart')?.ecommerce?.items?.[0];
 	check('add_to_cart names the variant for GA4', item?.item_id === SKU && item?.item_variant === 'green / M' && item?.price === 27.99, JSON.stringify(item));
 }
@@ -325,7 +318,7 @@ check('the order was accepted', Boolean(orderNumber), body.slice(0, 300));
 			row.option1 === 'green' &&
 			row.option2 === 'M' &&
 			Number(row.unit_price_cents) === 2799 &&
-			Number(row.quantity) === 1 &&
+			Number(row.quantity) === 2 &&
 			row.product_slug === 'christmas-tree-costume',
 		JSON.stringify(row)
 	);

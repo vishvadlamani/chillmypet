@@ -31,6 +31,7 @@
 	// A choice restored from a different product must not become an invalid
 	// design or a size the visible controls do not actually offer.
 	untrack(() => {
+		if (data.bogo && !/^qty-([1-9]|10)$/.test(bag[data.tierField] ?? '')) state.set(data.tierField, 'qty-2');
 		const initialDesign = bag.design;
 		if (!data.variantIndex.some((entry) => entry.colourCode === initialDesign)) {
 			state.set('design', data.leadDesign ?? data.order?.designs[0]?.code ?? data.variantIndex[0]?.colourCode ?? '');

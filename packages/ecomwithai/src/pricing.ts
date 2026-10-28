@@ -65,3 +65,30 @@ export function applyQuantityBreak(
 	);
 	return { applied, discountCents, totalCents: subtotalCents - discountCents };
 }
+
+/** A server-priced line; eligibility never comes from a browser's claim. */
+export type DiscountLine = { productSlug: string; unitPriceCents: number; quantity: number };
+
+/** BOGO products are excluded from quantity breaks, so promotions never stack. */
+export function applyCartDiscounts(breaks: QuantityBreak[], lines: DiscountLine[], bogoProducts: string[] = []) {
+	const eligible = new Set(bogoProducts);
+	const regular = lines.filter((line) => !eligible.has(line.productSlug));
+	const subtotalCents = lines.reduce((sum, line) => sum + line.unitPriceCents * line.quantity, 0);
+	const bundle = applyQuantityBreak(breaks,
+		regular.reduce((sum, line) => sum + line.unitPriceCents * line.quantity, 0),
+		regular.reduce((sum, line) => sum + line.quantity, 0));
+	let bogoDiscountCents = 0;
+	for (const slug of eligible) {
+		const productLines = lines.filter((line) => line.productSlug === slug)
+			.sort((a, b) => a.unitPriceCents - b.unitPriceCents);
+		let freeUnits = Math.floor(productLines.reduce((sum, line) => sum + line.quantity, 0) / 2);
+		for (const line of productLines) {
+			const free = Math.min(line.quantity, freeUnits);
+			bogoDiscountCents += free * line.unitPriceCents;
+			freeUnits -= free;
+		}
+	}
+	const discountCents = bogoDiscountCents + bundle.discountCents;
+	return { discountCents, bogoDiscountCents, bundleDiscountCents: bundle.discountCents,
+		bundlePercentOff: bundle.applied?.percentOff ?? 0, totalCents: subtotalCents - discountCents };
+}

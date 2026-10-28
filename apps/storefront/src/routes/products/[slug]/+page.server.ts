@@ -1,4 +1,4 @@
-import { error, redirect } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { bindDefinition, createRefResolver } from '@funnel/core';
 import { loadBundles } from '$lib/store/bundles';
 import { loadChristmasDelivery } from '$lib/store/christmas';
@@ -11,7 +11,7 @@ import { loadSizeChart } from '$lib/store/sizes';
 import { loadStock } from '$lib/store/stock';
 import { PRODUCT_PAGES, renamedRedirect, retiredRedirect } from '$lib/store/pages';
 import { loadVariantPicker, offeredDesigns, variantEntries } from '$lib/store/variants';
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const { commerce, locale, settings } = locals;
@@ -125,6 +125,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const variantIndex = page.pickSize ? variantEntries(catalogue) : firstSizePerColour;
 
 	return {
+		customerReviews: await commerce.reviews.publicFor(slug),
 		definition,
 		version,
 		variantIndex,
@@ -153,4 +154,19 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 			image: product.image
 		}
 	};
+};
+
+export const actions: Actions = {
+	review: async ({ request, locals, params, cookies }) => {
+		if (!PRODUCT_PAGES[params.slug]) error(404, 'Product not found');
+		const data = await request.formData();
+		const reviewValues = { author: String(data.get('author') ?? '').trim(), rating: Number(data.get('rating')), body: String(data.get('body') ?? '').trim() };
+		const spanish = locals.locale === 'es';
+		if (data.get('website')) return { reviewSent: true };
+		if (cookies.get('cmp_review_cooldown')) return fail(429, { reviewValues, reviewError: spanish ? 'Espera unos minutos antes de enviar otra opinión.' : 'Please wait a few minutes before submitting another review.' });
+		const saved = await locals.commerce.reviews.submit({ ...reviewValues, productSlug: params.slug });
+		if (!saved) return fail(400, { reviewValues, reviewError: spanish ? 'Escribe un nombre de 2–80 caracteres, una valoración de 1–5 y una opinión de 10–3000 caracteres.' : 'Please enter a name of 2–80 characters, a rating of 1–5, and a review of 10–3000 characters.' });
+		cookies.set('cmp_review_cooldown', '1', { path: '/', maxAge: 300, httpOnly: true, sameSite: 'lax', secure: request.url.startsWith('https:') });
+		return { reviewSent: true };
+	}
 };

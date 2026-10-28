@@ -35,6 +35,13 @@
 			available?: string[];
 			price?: string;
 			priceNote?: string;
+			/** A fixed promotional pair, with no quantity-break cards. */
+			units?: number;
+			offerTitle?: string;
+			offerDetail?: string;
+			offerEyebrow?: string;
+			offerPriceLabel?: string;
+			reviewsHref?: string;
 			/** One line under the price, saying what this is for. `**bold**` is honoured. */
 			tagline?: string;
 			designLabel?: string;
@@ -78,7 +85,7 @@
 	const tiers = $derived((p.tiers ?? []).filter((t) => t.id));
 	const tierField = $derived(p.tierField ?? 'bundle');
 	const tier = $derived(tiers.find((t) => t.id === ctx.state.get(tierField)) ?? tiers[0] ?? null);
-	const units = $derived(Math.max(1, tier?.units ?? 1));
+	const units = $derived(Math.max(1, p.units ?? tier?.units ?? 1));
 	const copyFor = (t: Tier) => p.tierCopy?.find((c) => c.units === (t.units ?? 1));
 
 	const designs = $derived(p.designs ?? []);
@@ -169,11 +176,28 @@
 
 {#snippet purchaseButton()}
 	{#if p.button !== false}
+		{#if p.offerTitle}
+			<div class="offer" aria-label={p.offerTitle}>
+				{#if p.offerEyebrow}
+					<span class="offer-eyebrow">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M4 11h16v10H4zM3 7h18v4H3zM12 7v14M12 7H8.5A2.5 2.5 0 1 1 11 4.5L12 7Zm0 0h3.5A2.5 2.5 0 1 0 13 4.5L12 7Z" stroke-linejoin="round" /></svg>
+						{p.offerEyebrow}
+					</span>
+				{/if}
+				<div class="offer-lead">
+					<strong>{p.offerTitle}</strong>
+					{#if p.price && p.offerPriceLabel}<span class="offer-price"><b>{p.price}</b><small>{p.offerPriceLabel}</small></span>{/if}
+				</div>
+				{#if p.offerDetail}<span>{p.offerDetail}</span>{/if}
+			</div>
+		{/if}
+
 		<button type="button" class="cta" onclick={add}>
 			<span>{p.cta ?? 'Add to cart'}</span>
 			{#if tier?.price ?? p.price}<span>{tier?.price ?? p.price}</span>{/if}
 		</button>
 		{#if p.ctaNote}<p class="fine center">{p.ctaNote}</p>{/if}
+		{#if p.reviewsHref}<a class="reviews-link" href={p.reviewsHref}>Read & write a review ↗</a>{/if}
 	{/if}
 {/snippet}
 
@@ -427,6 +451,8 @@
 			order: 1;
 		}
 		.pills .tiers,
+		.pills .offer,
+		.pills .reviews-link,
 		.pills .cta,
 		.pills .fine.center {
 			order: 2;
@@ -598,6 +624,26 @@
 		--ink: var(--tree-ink, #243b31);
 		color: var(--ink);
 	}
+	.reviews-link { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; font-size: 13px; color: var(--tree-green, #285b43); text-underline-offset: 4px; }
+	.offer {
+		display: grid;
+		gap: 9px;
+		padding: 18px 20px;
+		border: 1px solid #db5000;
+		border-radius: 10px;
+		background: #ff6b00;
+		color: #2a1220;
+		font-size: 12px;
+		line-height: 1.5;
+		letter-spacing: 0.1px;
+		box-shadow: inset 0 0 0 4px #ff6b00, inset 0 0 0 5px rgb(58 23 35 / 0.28);
+	}
+	.offer-eyebrow { display: flex; align-items: center; gap: 8px; color: #3a1723; font-size: 10px; font-weight: 500; letter-spacing: 1.8px; text-transform: uppercase; }
+	.offer-lead { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+	.offer strong { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(20px, 2vw, 25px); font-weight: 400; line-height: 1.15; letter-spacing: -0.5px; text-wrap: balance; }
+	.offer-price { display: grid; flex: none; gap: 2px; padding: 9px 10px; border-radius: 5px; background: #ff6b00; color: #2a1220; text-align: center; }
+	.offer-price b { font-size: 20px; font-weight: 600; line-height: 1.1; letter-spacing: -0.3px; }
+	.offer-price small { color: #3a1723; font-size: 10px; letter-spacing: 1px; }
 	.pills .amount {
 		font-size: 28px;
 		line-height: 28px;

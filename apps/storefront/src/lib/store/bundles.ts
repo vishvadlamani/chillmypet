@@ -7,7 +7,7 @@
  * different totals.
  */
 import type { Commerce } from 'ecomwithai';
-import { applyQuantityBreak } from 'ecomwithai';
+import { applyCartDiscounts } from 'ecomwithai';
 import { formatMoney, type Locale } from '$lib/i18n';
 import { PRODUCT_SLUG } from './product';
 
@@ -45,14 +45,14 @@ export async function loadBundles(
 	const money = (cents: number) => formatMoney(cents, locale, product.currency);
 
 	// One tier per quantity the server gives a break at, plus the single unit.
-	const quantities = [1, ...commerce.quantityBreaks.map((b) => b.minQuantity)].sort(
+	const quantities = (commerce.buyOneGetOneFree.includes(slug) ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] : [1, ...commerce.quantityBreaks.map((b) => b.minQuantity)]).sort(
 		(a, b) => a - b
 	);
 	const best = Math.max(...quantities);
 
 	const tiers: BundleTier[] = quantities.map((units) => {
 		const subtotal = product.priceCents * units;
-		const applied = applyQuantityBreak(commerce.quantityBreaks, subtotal, units);
+		const applied = applyCartDiscounts(commerce.quantityBreaks, [{ productSlug: slug, unitPriceCents: product.priceCents, quantity: units }], commerce.buyOneGetOneFree);
 		const compareAt = (product.compareAtCents ?? product.priceCents) * units;
 		const savedPct = Math.round((1 - applied.totalCents / compareAt) * 100);
 

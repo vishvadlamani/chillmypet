@@ -26,16 +26,19 @@ const COOKIE_SAFE = /^[\x21\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]+$/;
  * how Meta tells a click id we passed on intact from one that was rewritten
  * along the way. Values must reach Meta exactly as returned here.
  */
-export function metaBrowserIds(event: RequestEvent): MetaBrowserIds {
+export function metaBrowserIds(event: RequestEvent, sourceUrl?: URL): MetaBrowserIds {
 	const { url, cookies, request } = event;
 
 	try {
 		const builder = new ParamBuilder();
 		builder.processRequest(
 			url.host,
-			Object.fromEntries(url.searchParams),
+			Object.fromEntries((sourceUrl ?? url).searchParams),
 			Object.fromEntries(cookies.getAll().map((c) => [c.name, c.value])),
-			request.headers.get('referer')
+			// A beacon's declared page URL is more precise than Referer, which
+			// privacy policies can remove or reduce to an origin. Do not let
+			// a different referrer's click override that page.
+			sourceUrl ? null : request.headers.get('referer')
 		);
 
 		for (const cookie of builder.getCookiesToSet()) {

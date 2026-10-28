@@ -12,13 +12,14 @@
  * Expects a dev server with no STRIPE_SECRET_KEY.
  */
 import { mkdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
 const PRODUCT = `${BASE}/products/life-jacket`;
 const shotDir = new URL('./screenshots/', import.meta.url);
 await mkdir(shotDir, { recursive: true });
-const shot = (name) => new URL(name, shotDir).pathname;
+const shot = (name) => fileURLToPath(new URL(name, shotDir));
 
 const browser = await chromium.launch({
 	executablePath: process.env.CHROMIUM_PATH || undefined
@@ -139,7 +140,7 @@ function check(label, cond, detail) {
 
 {
 	const html = await fetch(`${BASE}/checkout`).then((r) => r.text());
-	check('SSR renders the checkout forms', /Contact/.test(html) && /Shipping address/.test(html));
+	check('SSR renders the checkout forms', /Contact/.test(html) && /Delivery/.test(html));
 	check('SSR renders the pay button', /Place order|Pay \$/.test(html));
 	check('checkout stays out of search results', /noindex/.test(html));
 }
@@ -188,9 +189,10 @@ function check(label, cond, detail) {
 	const home = await skinned('/');
 	check('the header shows the logo', /<header[\s\S]*?src="\/brand\/logo\.png"[\s\S]*?<\/header>/.test(home.html));
 	check('the tab icon is the brand paw, not SvelteKit’s', home.html.includes('/brand/favicon-32.png') && !home.html.includes('favicon.svg'));
-	for (const path of ['/', '/catalog', '/contact', '/checkout', '/products/life-jacket']) {
+	for (const path of ['/', '/catalog', '/contact', '/products/life-jacket']) {
 		check(`${path} wears the brand skin`, (await skinned(path)).brand);
 	}
+	check('the cart checkout uses the classic template', /class="classic-head/.test((await skinned('/checkout')).html));
 	for (const path of ['/christmas', '/products/christmas-tree-costume', '/products/christmas-hoodie']) {
 		check(`${path} keeps the Christmas colours`, !(await skinned(path)).brand);
 	}
@@ -247,7 +249,7 @@ function check(label, cond, detail) {
 	check('the header keeps to one row on a phone', (await p.locator('header.site-header').evaluate((h) => h.getBoundingClientRect().height)) <= 64);
 	await p.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
 	check('a checkout has no menu button', (await p.locator('.phone-menu').count()) === 0);
-	check('but keeps the language switch', await p.locator('header button[value="es"]').isVisible());
+	check('the checkout keeps the logo and secure header', await p.locator('.classic-head img').isVisible());
 	await ctxPhone.close();
 }
 
@@ -307,7 +309,7 @@ const units = await page.evaluate(() =>
 	JSON.parse(localStorage.getItem('chillmypet.cart.v1') ?? '[]').reduce((n, l) => n + l.quantity, 0)
 );
 check('the sticky bar bought the chosen tier, not one unit', units === 3);
-check('cart badge counts them', (await page.textContent('header a[href="/checkout"]'))?.includes('3'));
+check('the checkout counts them', (await page.textContent('.classic-order-head'))?.includes('3'));
 
 {
 	const calls = await fbqCalls();
@@ -326,6 +328,9 @@ await page.waitForSelector('.classic-totals');
 const summary = await page.textContent('.classic-totals');
 check('subtotal is 3 x 44.99', summary?.includes('$134.97'));
 check('the 3-pack discount is applied', summary?.includes('$12.15'));
+// Product checkouts start tracking checkout intent when contact details begin.
+await page.fill('#contact-email', 'e2e-check@example.test');
+await page.waitForTimeout(400);
 
 {
 	const calls = await fbqCalls();
@@ -366,7 +371,7 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
 check(
 	'cart persists across reload',
-	(await page.textContent('header a[href="/checkout"]'))?.includes('3')
+	await page.evaluate(() => JSON.parse(localStorage.getItem('chillmypet.cart.v1') ?? '[]').reduce((sum, line) => sum + line.quantity, 0) === 3)
 );
 check(
 	'exactly one PageView on a full load',
@@ -383,12 +388,11 @@ check(
 	!tracked(await fbqCalls(), 'InitiateCheckout')
 );
 
-// Client-side navigation must also record a PageView. fbq.queue survives here
-// because SvelteKit navigates without a document reload. The checkout has no
-// product menu, so the way back is the order box's own "Change" link.
+// The classic checkout's logo returns to the shop using client navigation.
+// fbq.queue survives, so the new page must add one PageView.
 check('the checkout has no product menu', !(await page.locator('header nav > ul').isVisible()));
-await page.click('section[aria-label="Your order"] a[href="/products/life-jacket"]');
-await page.waitForURL('**/products/life-jacket', { timeout: 10000 });
+await page.click('.classic-head a[href="/"]');
+await page.waitForURL(`${BASE}/`, { timeout: 10000 });
 {
 	const calls = await fbqCalls();
 	check(
@@ -407,7 +411,7 @@ await page.screenshot({ path: shot('product-es.png'), fullPage: false });
 
 await page.goto(`${BASE}/checkout`, { waitUntil: 'networkidle' });
 check('checkout translated', (await page.textContent('h1')) === 'Finalizar compra');
-check('checkout forms translated', (await page.content()).includes('Dirección de envío'));
+check('checkout forms translated', /Correo electrónico|Dirección de envío/.test(await page.content()));
 
 // --- the pages the page links to must exist ---
 for (const path of ['/policies/shipping', '/policies/refunds', '/privacy', '/terms', '/contact']) {

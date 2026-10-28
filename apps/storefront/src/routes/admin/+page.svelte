@@ -12,6 +12,7 @@
 <div class="mx-auto max-w-6xl px-4 py-8">
 	<header class="mb-6 flex flex-wrap items-center gap-4">
 		<h1 class="text-2xl font-semibold">Orders</h1>
+		<a href="/admin/reviews" class="rounded px-3 py-1.5 text-sm underline">Customer reviews</a>
 		<nav class="flex gap-1 text-sm" aria-label="Order views">
 			<a
 				href="/admin"

@@ -212,6 +212,7 @@
 		subtotalCents: number;
 		discountCents: number;
 		bundlePercentOff: number;
+		bogoDiscountCents?: number;
 		currency: string;
 	};
 
@@ -307,6 +308,7 @@
 	let subtotalCents = $derived(priced?.subtotalCents ?? 0);
 	let discountCents = $derived(priced?.discountCents ?? 0);
 	let bundlePercentOff = $derived(priced?.bundlePercentOff ?? 0);
+	let bogoDiscountCents = $derived(priced?.bogoDiscountCents ?? 0);
 	let currency = $derived(priced?.currency ?? 'USD');
 	let totalCents = $derived(subtotalCents - discountCents + shippingCents);
 	let isEmpty = $derived((priced?.lines.length ?? 0) === 0);
@@ -751,25 +753,20 @@
 		track('bundle_selected', ORDER_SUBJECT, { bundle: `qty-${units}` });
 	}
 
-	/**
-	 * Stripe's fields in the classic look's colours. The sizes are the shop
-	 * look's, which is what `.classic-pay-box` reserves the height of (in
-	 * classic-checkout.css): change a size or spacing and measure again.
-	 */
-	function replayDelivery(event: MouseEvent) {
-		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-		const truck = event.currentTarget as HTMLButtonElement;
-		// Replay the existing CSS journey without remounting the focused button.
-		for (const target of [truck, truck.parentElement?.querySelector('.stripe')]) {
-			for (const animation of target?.getAnimations() ?? []) {
-				if (['classic-drive', 'classic-fill'].includes((animation as CSSAnimation).animationName)) {
-					animation.currentTime = 0;
-					animation.play();
-				}
-			}
-		}
+	let deliveryReplay = $state(0);
+	let deliveryReduced = $state(false);
+
+	function replayDelivery() {
+		deliveryReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		// Restart the visual children, keeping the native touch target and focus.
+		// Avoid relying on browser-specific CSSAnimation rewind behavior.
+		deliveryReplay += 1;
 	}
 
+	/**
+	 * Stripe's field sizes match the space reserved by `.classic-pay-box`.
+	 * Change a size or spacing and measure again.
+	 */
 	const CLASSIC_APPEARANCE = {
 		theme: 'stripe',
 		variables: {
@@ -992,7 +989,7 @@
 			</div>
 			{#if discountCents > 0}
 				<div class="saving">
-					<dt>{t('checkout.bundleDiscount')} ({bundlePercentOff}%)</dt>
+					<dt>{bogoDiscountCents ? t(bundlePercentOff ? 'checkout.offerDiscount' : 'checkout.bogoDiscount') : t('checkout.bundleDiscount')}{#if !bogoDiscountCents} ({bundlePercentOff}%){/if}</dt>
 					<dd>−{formatMoney(discountCents, locale, currency)}</dd>
 				</div>
 			{/if}
@@ -1057,24 +1054,40 @@
 							<p class="note">{t('checkout.classic.freeNote')}</p>
 							<!-- The stripe fills and the truck drives to the end of it;
 							     both stand still under prefers-reduced-motion. -->
-							<p class="classic-truck-hint">{t('checkout.classic.truckHint')}</p>
-							<div class="classic-road">
-								<span class="stripe" aria-hidden="true"></span>
-								<button type="button" class="truck" aria-label={t('checkout.classic.truckReplay')} title={t('checkout.classic.truckReplay')} onclick={replayDelivery}>
-									<svg viewBox="0 0 24 24" aria-hidden="true">
-										<path
-											d="M2.5 6.5h11v9h-11zM13.5 9.5h4l3 3.2v2.8h-7"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="1.7"
-											stroke-linejoin="round"
-										/>
-										<circle class="wheel" cx="6.5" cy="17" r="1.9" fill="#fffefa" stroke="currentColor" stroke-width="1.7" />
-										<circle class="wheel" cx="17" cy="17" r="1.9" fill="#fffefa" stroke="currentColor" stroke-width="1.7" />
-									</svg>
-								</button>
-							</div>
+							<p class="classic-truck-hint" aria-live="polite">
+								{deliveryReplay === 0
+									? t('checkout.classic.truckHint')
+									: t(deliveryReduced ? 'checkout.classic.truckStill' : 'checkout.classic.truckPlayed')}
+							</p>
+							<button type="button" class="classic-road" aria-label={t('checkout.classic.truckReplay')} title={t('checkout.classic.truckReplay')} onclick={replayDelivery}>
+								{#key deliveryReplay}
+									<span class="stripe" aria-hidden="true"></span>
+									<span class="truck" aria-hidden="true">
+										<svg viewBox="0 0 24 24" aria-hidden="true">
+											<path
+												d="M2.5 6.5h11v9h-11zM13.5 9.5h4l3 3.2v2.8h-7"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="1.7"
+												stroke-linejoin="round"
+											/>
+											<circle class="wheel" cx="6.5" cy="17" r="1.9" fill="#fffefa" stroke="currentColor" stroke-width="1.7" />
+											<circle class="wheel" cx="17" cy="17" r="1.9" fill="#fffefa" stroke="currentColor" stroke-width="1.7" />
+										</svg>
+									</span>
+								{/key}
+							</button>
 						</div>
+
+						{#if bogoDiscountCents > 0}
+							<div class="classic-bogo" role="status">
+								<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h16v11H4zM3 6h18v4H3zM12 6v15M12 6H8.5A2.5 2.5 0 1 1 11 3.5L12 6Zm0 0h3.5A2.5 2.5 0 1 0 13 3.5L12 6Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+								<div>
+									<strong>{t('checkout.bogoDiscount')}</strong>
+									<span>Christmas Tree Costume · {t('checkout.bogoApplied')}</span>
+								</div>
+							</div>
+						{/if}
 
 						<div class="classic-order-head">
 							<h2>{t('checkout.yourOrder')}</h2>
@@ -1198,7 +1211,7 @@
 							</div>
 							{#if discountCents > 0}
 								<div class="saving">
-									<dt>{t('checkout.bundleDiscount')} ({bundlePercentOff}%)</dt>
+									<dt>{bogoDiscountCents ? t(bundlePercentOff ? 'checkout.offerDiscount' : 'checkout.bogoDiscount') : t('checkout.bundleDiscount')}{#if !bogoDiscountCents} ({bundlePercentOff}%){/if}</dt>
 									<dd>−{formatMoney(discountCents, locale, currency)}</dd>
 								</div>
 							{/if}
@@ -1627,7 +1640,7 @@
 							</div>
 							{#if discountCents > 0}
 								<div class="text-15 flex justify-between text-[#2f6b3d]">
-									<dt>{t('checkout.bundleDiscount')} ({bundlePercentOff}%)</dt>
+									<dt>{bogoDiscountCents ? t(bundlePercentOff ? 'checkout.offerDiscount' : 'checkout.bogoDiscount') : t('checkout.bundleDiscount')}{#if !bogoDiscountCents} ({bundlePercentOff}%){/if}</dt>
 									<dd class="tabular-nums">−{formatMoney(discountCents, locale, currency)}</dd>
 								</div>
 							{/if}

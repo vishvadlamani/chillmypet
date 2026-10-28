@@ -14,6 +14,20 @@
  *    schema sells t-shirts, coffee subscriptions or single-SKU hardware.
  *    Nothing here knows what a "size" is.
  */
+export const REVIEWS_SCHEMA = `
+create table if not exists product_reviews (
+	id integer primary key autoincrement,
+	store_id text not null references stores (id) on delete cascade,
+	product_id integer not null references products (id) on delete cascade,
+	author text not null,
+	rating integer not null check (rating between 1 and 5),
+	body text not null,
+	status text not null default 'pending' check (status in ('pending', 'published', 'hidden')),
+	created_at text not null default (datetime('now'))
+);
+create index if not exists idx_reviews_product on product_reviews (store_id, product_id, status);
+`;
+
 export const SCHEMA = `
 create table if not exists stores (
 	id text primary key,
@@ -250,6 +264,8 @@ create table if not exists email_suppressions (
 	created_at text not null default (datetime('now')),
 	primary key (store_id, email)
 );
+
+${REVIEWS_SCHEMA}
 
 create index if not exists idx_checkout_drafts_due on checkout_drafts (store_id, updated_at);
 create index if not exists idx_fulfillments_store on fulfillments (store_id, shipped_at);

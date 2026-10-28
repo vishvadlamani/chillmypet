@@ -241,9 +241,9 @@ await page.selectOption('#order-size', 'S');
 await settle();
 {
 	const lines = await cartLines();
-	check('a size puts the chosen variant in the cart', lines.length === 1 && lines[0].colour === 'green' && lines[0].size === 'S' && lines[0].quantity === 1, JSON.stringify(lines));
-	check('the panel prices it', await shows(/Subtotal\s*\$27\.99/), await totals());
-	check('and shows the costume’s own price beside it', (await page.locator('.classic-product .amount').innerText()) === '$27.99');
+	check('a size puts the chosen variant in the cart', lines.length === 1 && lines[0].colour === 'green' && lines[0].size === 'S' && lines[0].quantity === 2, JSON.stringify(lines));
+	check('the panel prices it', await shows(/Subtotal\s*\$55\.98/), await totals());
+	check('and shows the costume’s own price beside it', (await page.locator('.classic-product .amount').innerText()) === '$55.98');
 	check('and shows that size’s band', (await page.locator('.classic-size-note').innerText()).includes('S · 1.5–2.5 kg'));
 }
 await page.selectOption('#order-size', 'M');
@@ -253,14 +253,14 @@ await settle();
 	const lines = await cartLines();
 	check('a new size replaces the line', lines.length === 1 && lines[0].size === 'M', JSON.stringify(lines));
 	check('quantity 2 is two costumes', lines[0]?.quantity === 2, JSON.stringify(lines));
-	check('at the server’s bundle price', await shows(/Bundle discount[\s\S]*Total\s*USD\s*\$52\.06/), await totals());
+	check('at the server’s bundle price', await shows(/Buy one, get one free[\s\S]*Total\s*USD\s*\$27\.99/), await totals());
 	check('the item count follows', (await page.locator('.classic-order-head').innerText()).includes('2 items'));
 	check('the costume’s own price is for two', (await page.locator('.classic-product .amount').innerText()) === '$55.98');
 	const add = await pairedOnce('AddToCart');
 	check('the one AddToCart is the first choice', JSON.stringify(add.content_ids) === '["CMP-XT-GREEN-S"]', JSON.stringify(add));
 }
-check('shipping is free', await shows(/Shipping\s*FREE[\s\S]*\$52\.06/), await totals());
-check('and the total by the button follows', (await page.locator('.classic-due').innerText()).includes('$52.06'));
+check('shipping is free', await shows(/Shipping\s*FREE[\s\S]*\$27\.99/), await totals());
+check('and the total by the button follows', (await page.locator('.classic-due').innerText()).includes('$27.99'));
 
 // --- errors --------------------------------------------------------------------------
 await page.fill('#contact-email', 'tree@example.com');
@@ -313,7 +313,7 @@ check('the order was accepted', Boolean(orderNumber), body.slice(0, 300));
 	const row = rows.rows[0] ?? {};
 	check('the names are stored as typed', row.first_name === 'Mary Ann' && row.last_name === 'Holly', JSON.stringify(row));
 	check('with the apartment, state and country', row.address2 === 'Apt 2' && row.province === 'TX' && row.country === 'US', JSON.stringify(row));
-	check('two green M costumes, standard, at the bundle price', rows.rows.length === 1 && row.sku === 'CMP-XT-GREEN-M' && Number(row.quantity) === 2 && row.shipping_method === 'standard' && Number(row.total_cents) === 5206, JSON.stringify(row));
+	check('two green M costumes, standard, at the bundle price', rows.rows.length === 1 && row.sku === 'CMP-XT-GREEN-M' && Number(row.quantity) === 2 && row.shipping_method === 'standard' && Number(row.total_cents) === 2799, JSON.stringify(row));
 	db.close();
 }
 {

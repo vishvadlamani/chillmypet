@@ -37,9 +37,9 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 			// No date, no strip: the loader returns nothing once the cut-off has
 			// passed, and an "order by" date in the past is worse than silence.
 			// The tree theme lifts this message above the site header.
-			requires: ['christmas.message'],
+
 			props: {
-				message: { $ref: 'christmas.message' },
+				message: 'BUY ONE, GET ONE FREE · Christmas Tree Costume · Automatically applied at checkout',
 				size: 'sm',
 				weight: 'semibold',
 				tracking: 'normal',
@@ -106,20 +106,14 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				sizeGuideHref: '#size-guide',
 				sizeGuideLabel: 'Size guide',
 				sizeMissing: 'Pick a size first, then we’re good to go.',
-				// The store's real quantity breaks, priced by the server; the cards
-				// only add words. Every costume in a bundle is the colour and size
-				// picked above, and the copy says so.
-				tiers: { $ref: 'bundles.plain' },
-				tierField: 'costume_bundle',
-				tiersTitle: 'Optional: save with a bundle',
-				ctaBeforeTiers: true,
-				unitsNoun: 'costumes',
-				tierCopy: [
-					{ units: 1, title: 'One costume • 1', tag: 'Free US shipping', sub: 'One festive costume', ribbon: 'Just one' },
-					{ units: 2, title: 'Two costumes • 2', tag: 'Free US shipping', sub: 'Two, in the colour and size you pick', ribbon: 'Pair up' },
-					{ units: 3, title: 'Three costumes • 3', tag: 'Free US shipping + best value', sub: 'Three, for the whole pack', ribbon: 'Best value' }
-				],
-				cta: 'Add to cart',
+				units: 2,
+				reviewsHref: '#customer-reviews',
+				tierField: 'costume_bogo_quantity',
+				offerEyebrow: 'A little Christmas extra',
+				offerTitle: 'Buy one, get one free',
+				offerPriceLabel: 'for two',
+				offerDetail: 'Two Christmas Tree Costumes, in your selected colour and size. Your second costume is on us. Automatically applied at checkout.',
+				cta: 'Get two costumes',
 				ctaNote: 'Secure checkout · Free standard US shipping · 30-day returns'
 			}
 		},
@@ -152,7 +146,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					},
 					{
 						label: 'Shipping & delivery',
-						body: 'Free standard shipping. We take 2–4 business days to pack your order, then it’s 5–12 days on the road, with tracking.\n\nOrder by the date in the bar at the top for Christmas delivery to the US. After the cut-off we still ship right away, but we can’t promise it lands before the 25th.',
+						body: 'Free standard shipping. We take 2–4 business days to pack your order, then it’s 5–12 days on the road, with tracking.\n\nYour checkout shows the Christmas delivery deadline. After the cut-off we still ship right away, but we can’t promise it lands before the 25th.',
 						link: { label: 'Read our shipping policy', href: '/policies/shipping' }
 					},
 					{
@@ -162,7 +156,7 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 					},
 					{
 						label: 'What’s included & care',
-						body: 'One hooded cape in the colour and size you pick, with the glitter star on the hood and the pom-poms stitched on.\n\nHand wash in cool water and lay flat to dry. Keep the star away from heat and the washing machine.'
+						body: 'Two hooded capes in the colour and size you pick with our buy-one-get-one-free offer, with the glitter star on the hood and the pom-poms stitched on.\n\nHand wash in cool water and lay flat to dry. Keep the star away from heat and the washing machine.'
 					}
 				]
 			}
@@ -337,12 +331,12 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 						body: 'Go by weight: S for 1.5–2.5 kg (3–6 lb), M for 2.5–5 kg (6–11 lb), L for 5–7.5 kg (11–17 lb). The cord at the neck adjusts the fit.\n\nNot sure? Size up. A loose cape looks better than a tight one.'
 					},
 					{
-						label: 'How do the bundles work?',
-						body: 'Two or three costumes cost less each: the saving is on each card, and it comes off at checkout. Every costume in a bundle is the colour and size you picked; for a mix, add each one to your cart and the saving still counts them all.'
+						label: 'How does buy one, get one free work?',
+						body: 'For every two Christmas Tree Costumes in your cart, one is free. The button adds two in your chosen colour and size, for the price of one. The offer is applied automatically at checkout and only applies to this costume. An extra unpaired costume is full price.'
 					},
 					{
 						label: 'Will it arrive before Christmas?',
-						body: 'We take 2–4 business days to pack, then 5–12 days on the road. Order by the date in the bar at the top and it should reach a US address in time.'
+						body: 'We take 2–4 business days to pack, then 5–12 days on the road. Your checkout shows the Christmas delivery deadline for US addresses.'
 					},
 					{
 						label: 'Is it safe to leave on?',
@@ -377,11 +371,8 @@ export const CHRISTMAS_COSTUME_PAGE: FunnelDefinition = {
 				alt: { $ref: 'product.alt' },
 				title: { $ref: 'product.title' },
 				price: { $ref: 'product.price' },
-				// Follows the bundle card chosen in the picker, so the bar shows
-				// and buys the same count.
-				tiers: { $ref: 'bundles.plain' },
-				selectionField: 'costume_bundle',
-				cta: 'Add to cart',
+				// The same fixed two-costume offer as the main purchase button.
+				cta: 'Get two costumes',
 				accent: '#285B43',
 				accentText: '#FFFFFF'
 			}

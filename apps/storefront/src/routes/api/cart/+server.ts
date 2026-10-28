@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { applyQuantityBreak } from 'ecomwithai';
+import { applyCartDiscounts } from 'ecomwithai';
 
 /**
  * Re-prices a client cart against the database. The browser stores prices for
@@ -25,7 +25,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	for (const line of requested) {
 		const variantId = Number(line.variantId);
 		if (!Number.isInteger(variantId) || variantId <= 0) continue;
-		const quantity = Math.max(1, Math.min(10, Number(line.quantity) || 1));
+		const quantity = Math.max(1, Math.min(10, Math.floor(Number(line.quantity) || 1)));
 		quantities.set(variantId, Math.min(10, (quantities.get(variantId) ?? 0) + quantity));
 	}
 	const wanted = [...quantities].map(([variantId, quantity]) => ({ variantId, quantity }));
@@ -69,8 +69,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const subtotalCents = lines.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0);
 	// Same tiers, same arithmetic as the order, so the total the customer reads
 	// is the total they are charged.
-	const units = lines.reduce((sum, l) => sum + l.quantity, 0);
-	const bundle = applyQuantityBreak(locals.commerce.quantityBreaks, subtotalCents, units);
+	const discounts = applyCartDiscounts(locals.commerce.quantityBreaks,
+		lines.map((line) => ({ ...line, productSlug: line.slug })), locals.commerce.buyOneGetOneFree);
 	const currency = lines[0]
 		? priced.get(lines[0].variantId)!.currency
 		: locals.store.currency;
@@ -78,9 +78,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	return json({
 		lines,
 		subtotalCents,
-		discountCents: bundle.discountCents,
-		totalCents: bundle.totalCents,
-		bundlePercentOff: bundle.applied?.percentOff ?? 0,
+		...discounts,
 		currency
 	});
 };

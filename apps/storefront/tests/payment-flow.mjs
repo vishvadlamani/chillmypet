@@ -232,6 +232,22 @@ check(
 	`fbc ${landingViewContent?.user_data?.fbc}`
 );
 
+// A privacy policy can remove Referer, and a queued beacon can still carry
+// the previous click's cookie. Its source URL is the page that fired the
+// event, so that URL's click must win even without the header.
+for (const eventName of ['PageView', 'ViewContent', 'AddToCart']) {
+	const eventId = `no-referrer-${eventName}-${RUN}`;
+	await fetch(`${BASE}/api/track`, {
+		method: 'POST',
+		headers: { ...staleClick, 'content-type': 'application/json' },
+		body: JSON.stringify({ eventName, eventId, eventSourceUrl: landing })
+	});
+	await settle();
+	const received = capiPayloads().find((e) => e.event_id === eventId);
+	check(`${eventName} keeps the source URL's click without Referer`,
+		clickFbc.test(received?.user_data?.fbc ?? ''), received?.user_data?.fbc);
+}
+
 // --- the deployed token can be checked from outside -------------------------
 // Every server event carries the browser's event_id, so a dataset that reports
 // server events with no dedupe key and no coverage is usually not receiving the

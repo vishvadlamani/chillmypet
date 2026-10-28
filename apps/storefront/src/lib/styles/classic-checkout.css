@@ -155,8 +155,38 @@
 .classic-road {
 	--truck: 46px;
 	position: relative;
+	display: block;
+	width: 100%;
 	height: var(--truck);
-	margin: 14px 0 0;
+	margin: 6px 0 0;
+	padding: 0;
+	border: 0;
+	border-radius: 999px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	touch-action: manipulation;
+	appearance: none;
+	-webkit-appearance: none;
+	user-select: none;
+	-webkit-user-select: none;
+	-webkit-tap-highlight-color: transparent;
+}
+
+.classic-road:focus-visible {
+	outline: 3px solid var(--pine);
+	outline-offset: 4px;
+}
+
+.classic-road:hover .truck,
+.classic-road:active .truck {
+	background: var(--red-wash);
+}
+
+/* Touches always hit the stationary native button, even during the drive. */
+.classic-road .stripe,
+.classic-road .truck {
+	pointer-events: none;
 }
 
 /* A candy-cane stripe: one 24px tile, so sliding it 24px is seamless. */
@@ -231,6 +261,31 @@
 		transform: translateY(-1.5px) rotate(-2deg);
 	}
 }
+
+/* The applied seasonal offer stays within the order panel's margins. */
+.classic-bogo {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 22px 0 18px;
+	padding: 16px;
+	border: 1px solid #db5000;
+	border-radius: 10px;
+	background: #ff6b00;
+	color: #2a1220;
+	box-shadow: inset 0 0 0 4px #ff6b00, inset 0 0 0 5px rgb(58 23 35 / 0.28);
+}
+.classic-bogo > svg { width: 26px; height: 26px; flex: none; }
+.classic-bogo > div { display: grid; gap: 5px; }
+.classic-bogo strong {
+	font-family: Georgia, 'Times New Roman', serif;
+	font-size: 23px;
+	font-weight: 400;
+	line-height: 1.15;
+	letter-spacing: -0.35px;
+	text-wrap: balance;
+}
+.classic-bogo span { font-size: 11px; line-height: 1.5; }
 
 /* --- the order ---------------------------------------------------------- */
 .classic-order-head {
@@ -1024,7 +1079,12 @@
 	}
 }
 
-.classic-truck-hint { display: none; }
+.classic-truck-hint {
+	display: block;
+	margin: 8px 0 0;
+	font-size: 14px;
+	color: var(--muted);
+}
 .classic-picks.one-size { grid-template-columns: 1.45fr 0.85fr; }
 
 /* A chosen order is a confirmation on mobile; selectors are a tap away.
@@ -1087,6 +1147,3 @@
 	.classic-peace summary { min-height: 44px; font-size: 15px; }
 	.classic-main { padding-top: 20px; }
 }
-
-.classic-road .truck { padding: 0; cursor: pointer; }
-.classic-road .truck:focus-visible { outline: 3px solid var(--pine); outline-offset: 3px; }

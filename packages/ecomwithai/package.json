@@ -22,6 +22,7 @@
     "./orders": "./src/orders/index.ts",
     "./fulfillments": "./src/fulfillments/index.ts",
     "./recovery": "./src/recovery/index.ts",
+    "./reviews": "./src/reviews/index.ts",
     "./stores": "./src/stores/index.ts",
     "./shipping": "./src/shipping.ts",
     "./marketing": "./src/marketing/index.ts",
@@ -36,7 +37,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --experimental-strip-types src/commerce.test.ts && node --experimental-strip-types src/agent/agent.test.ts && node --experimental-strip-types src/hunt.test.ts && node --experimental-strip-types src/payments/payments.test.ts && node --experimental-strip-types src/marketing/hash.test.ts && node --experimental-strip-types src/recovery/recovery.test.ts",
+    "test": "node --experimental-strip-types src/commerce.test.ts && node --experimental-strip-types src/agent/agent.test.ts && node --experimental-strip-types src/hunt.test.ts && node --experimental-strip-types src/payments/payments.test.ts && node --experimental-strip-types src/marketing/hash.test.ts && node --experimental-strip-types src/recovery/recovery.test.ts && node --experimental-strip-types src/reviews/reviews.test.ts",
     "test:one": "node --experimental-strip-types",
     "mcp": "node --experimental-strip-types src/agent/mcp-stdio.ts",
     "typecheck": "tsc --noEmit"
