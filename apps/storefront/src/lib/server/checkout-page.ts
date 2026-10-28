@@ -44,6 +44,7 @@ export function checkoutPayment(locals: App.Locals, url: URL) {
 		// which on a checkout would render a page that looks complete and
 		// silently cannot take money. Card entry stays host code, so the host
 		// needs what mounts it.
+		paymentTest: locals.paymentTest,
 		paymentsEnabled: Boolean(locals.commerce.payments),
 		// Publishable by design; it identifies the account to Stripe.js. Without
 		// it there is nothing to mount, so checkout falls back to the hosted page

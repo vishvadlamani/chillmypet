@@ -237,7 +237,7 @@ check(
 // event, so that URL's click must win even without the header.
 for (const eventName of ['PageView', 'ViewContent', 'AddToCart']) {
 	const eventId = `no-referrer-${eventName}-${RUN}`;
-	await fetch(`${BASE}/api/track`, {
+	const response = await fetch(`${BASE}/api/track`, {
 		method: 'POST',
 		headers: { ...staleClick, 'content-type': 'application/json' },
 		body: JSON.stringify({ eventName, eventId, eventSourceUrl: landing })
@@ -246,6 +246,22 @@ for (const eventName of ['PageView', 'ViewContent', 'AddToCart']) {
 	const received = capiPayloads().find((e) => e.event_id === eventId);
 	check(`${eventName} keeps the source URL's click without Referer`,
 		clickFbc.test(received?.user_data?.fbc ?? ''), received?.user_data?.fbc);
+	check(`${eventName} writes that same click back for later events`,
+		response.headers.getSetCookie().some((c) => c.startsWith(`_fbc=${received?.user_data?.fbc};`)));
+}
+
+for (const eventSourceUrl of ['https://unrelated.example/?fbclid=ForeignClick', 'not a URL']) {
+	const eventId = `bad-source-${crypto.randomUUID()}`;
+	const response = await fetch(`${BASE}/api/track`, {
+		method: 'POST',
+		headers: { ...staleClick, 'content-type': 'application/json' },
+		body: JSON.stringify({ eventName: 'AddToCart', eventId, eventSourceUrl })
+	});
+	await settle();
+	const received = capiPayloads().find((e) => e.event_id === eventId);
+	check('an invalid or external source cannot replace the cookie’s click',
+		response.status === 204 && tagged(received?.user_data?.fbc, 'fb.1.1600000000000.OlderClickId') &&
+		received?.event_source_url === `${BASE}/api/track`, received?.event_source_url);
 }
 
 // --- the deployed token can be checked from outside -------------------------

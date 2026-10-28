@@ -3,6 +3,7 @@ import { CheckoutError } from 'ecomwithai';
 import { SHIPPING_RATES } from '$lib/store/shipping-rates';
 import { isCountryCode } from '$lib/countries';
 import { sendOrderConfirmation } from '$lib/server/email';
+import { PAYMENT_TEST_SLUG, PAYMENT_TEST_SKU } from '$lib/server/payment-test';
 import { rememberContact } from '$lib/server/identity';
 import {
 	attributionFrom,
@@ -94,6 +95,14 @@ export async function placeOrder(event: RequestEvent, options: { cancelPath: str
 	}
 
 	if (lines.length === 0) fieldErrors.cart = 'cartEmpty';
+
+	if (locals.paymentTest) {
+		const product = await commerce.catalog.getProduct(PAYMENT_TEST_SLUG);
+		const variant = product?.variants.find((v) => v.sku === PAYMENT_TEST_SKU && v.priceCents === 100);
+		if (!variant || lines.length !== 1 || lines[0].variantId !== variant.id || lines[0].quantity !== 1) {
+			return fail(400, { errorCode: 'generic' as const, detail: 'A payment test must be exactly one $1.00 item.' });
+		}
+	}
 
 	if (Object.keys(fieldErrors).length > 0) {
 		return fail(400, { fieldErrors, values: Object.fromEntries(form) });

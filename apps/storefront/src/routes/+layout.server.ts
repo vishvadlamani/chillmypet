@@ -25,6 +25,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 				href: '/products/christmas-tree-costume'
 			}
 			: null,
+		paymentTest: locals.paymentTest,
 		// The strip the tree chrome lifts above the header on a page that
 		// brings none of its own; empty once the Christmas cut-off has passed.
 		siteAnnouncement: loadChristmasDelivery(locals.settings).message ?? '',

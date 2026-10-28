@@ -1,0 +1,19 @@
+name = "chillmypet-payment-test"
+main = ".svelte-kit/cloudflare/_worker.js"
+compatibility_date = "2026-08-08"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+# Separate deployment. Never copy the production Stripe keys or custom routes.
+[vars]
+PAYMENT_TEST_MODE = "1"
+META_PIXEL_ID = "1341978141149107"
+META_EXTRA_PIXEL_IDS = ""
+GTM_CONTAINER_ID = ""
+
+[observability]
+enabled = true
+
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"

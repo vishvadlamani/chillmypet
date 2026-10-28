@@ -53,6 +53,7 @@
 			PageData,
 			| 'definition'
 			| 'version'
+			| 'paymentTest'
 			| 'paymentsEnabled'
 			| 'stripePublishableKey'
 			| 'stripePaymentMethodConfiguration'
@@ -157,8 +158,8 @@
 	let split = $derived(look !== 'default');
 	let summaryOpen = $state(false);
 
-	const canStep = (line: { slug: string }) => !(pickerSetsQuantity && line.slug === pickerSlug);
-	const canRemove = (line: { slug: string }) => line.slug !== pickerSlug;
+	const canStep = (line: { slug: string }) => !data.paymentTest && !(pickerSetsQuantity && line.slug === pickerSlug);
+	const canRemove = (line: { slug: string }) => !data.paymentTest && line.slug !== pickerSlug;
 	// The cart's count, not the priced one: the price follows a moment later,
 	// from /api/cart, and the number under the buyer's thumb must not lag.
 	const quantityOf = (line: { variantId: number; quantity: number }) =>

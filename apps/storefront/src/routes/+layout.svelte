@@ -19,7 +19,7 @@
 	afterNavigate((navigation) => {
 		if (navigation.type === 'enter') return;
 		// The admin loads no pixel, and its page views are not a shopper's.
-		if (isAdmin) return;
+		if (isAdmin || page.data.paymentTest) return;
 		// Plain, not scoped: every pixel is initialised by the snippet in
 		// app.html, so one call gives each of them exactly one PageView.
 		track('PageView');
@@ -181,6 +181,10 @@
 		{/each}
 	</form>
 {/snippet}
+
+{#if page.data.paymentTest}
+	<p role="status" class="bg-amber-200 px-4 py-3 text-center font-semibold">SANDBOX · $1.00 test · No real charge or shipment</p>
+{/if}
 
 {#if isAdmin}
 	{@render children()}
