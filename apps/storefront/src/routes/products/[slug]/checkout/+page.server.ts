@@ -128,7 +128,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 					sizeNotes: sizeNotes(catalogue),
 					// Quantity is the bundle tier: the same breaks the product page's
 					// cards offer, priced by the server.
-					quantities: tiered ? bundles.tiers.map((tier) => tier.units ?? 1) : [1]
+					quantities: tiered ? bundles.tiers.filter((tier) => !bogo || (tier.units ?? 1) >= 2).map((tier) => tier.units ?? 1) : [1]
 				}
 			: null,
 		currency: catalogue.currency,

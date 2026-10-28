@@ -54,7 +54,8 @@ function check(label, cond, detail) {
 	check('the free-shipping stripe and its truck', html.includes('FREE shipping!') && html.includes('class="truck'));
 	check('the order panel’s selects', ['order-design', 'order-size', 'order-qty'].every((id) => html.includes(`id="${id}"`)));
 	check('both colours and every size', html.includes('>Green<') && html.includes('>Red<') && ['S', 'M', 'L'].every((s) => html.includes(`value="${s}"`)));
-	check('quantities are the bundle breaks', /id="order-qty"[\s\S]*?value="1"[\s\S]*?value="2"[\s\S]*?value="3"/.test(html));
+	const quantities = html.match(/<select[^>]*id="order-qty"[^>]*>[\s\S]*?<\/select>/)?.[0] ?? '';
+	check('the BOGO offer starts at two costumes', quantities.includes('value="2"') && quantities.includes('value="3"') && !quantities.includes('value="1"'));
 	check('fit advice starts collapsed', !/<details open/.test(html));
 	check('the size bands from the catalogue', html.includes('M · 2.5–5 kg (6–11 lb)'));
 	const steps = ['shop-contact-title', 'shop-delivery-title', 'shop-method-title', 'classic-payment-title'].map((id) => html.indexOf(`id="${id}"`));
@@ -355,16 +356,20 @@ check('the order was accepted', Boolean(orderNumber), body.slice(0, 300));
 	check('the link is cleared from the address bar once read', new URL(p.url()).search === '', p.url());
 	check('chosen options start collapsed on mobile', !(await p.locator('#order-size').isVisible()));
 	check('the selected variant stays visible', /Red · Size L · Qty 2/.test(await p.locator('.classic-selection').innerText()));
-	check('the email field is on the first phone screen', (await p.locator('#contact-email').boundingBox()).y + 52 <= 844);
+	// The approved BOGO banner adds an offer confirmation above this summary.
+	// Contact must still follow the order directly, without another sales block.
+	const contactTop = (await p.locator('#contact-email').boundingBox()).y;
+	const orderBottom = await p.locator('.classic-order').evaluate((el) => el.getBoundingClientRect().bottom);
+	check('Contact immediately follows the order confirmation', contactTop >= orderBottom && contactTop - orderBottom <= 120, `${contactTop - orderBottom}px`);
 	check('the delivery estimate matches Shipping', (await p.locator('.classic-arrival').innerText()) === (await p.locator('.shop-choice small').first().innerText()));
 	await p.getByRole('button', { name: 'Change', exact: true }).click();
 	check('Change opens the selectors and focuses the first', (await p.locator('#order-size').isVisible()) && (await p.evaluate(() => document.activeElement?.id)) === 'order-design');
 	await p.selectOption('#order-size', 'M');
-	await p.selectOption('#order-qty', '1');
+	await p.selectOption('#order-qty', '3');
 	await p.waitForLoadState('networkidle');
 	await p.getByRole('button', { name: 'Done', exact: true }).click();
-	check('Done confirms the changed variant and closes the controls', !(await p.locator('#order-size').isVisible()) && /Red · Size M · Qty 1/.test(await p.locator('.classic-selection').innerText()));
-	check('the collapsed total keeps the server price', (await p.locator('.classic-totals').innerText()).includes('$27.99'));
+	check('Done confirms the changed variant and closes the controls', !(await p.locator('#order-size').isVisible()) && /Red · Size M · Qty 3/.test(await p.locator('.classic-selection').innerText()));
+	check('the collapsed total keeps the server price', (await p.locator('.classic-totals').innerText()).includes('$55.98'));
 
 	await c.close();
 }
