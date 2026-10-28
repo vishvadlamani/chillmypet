@@ -31,7 +31,7 @@
 	// A choice restored from a different product must not become an invalid
 	// design or a size the visible controls do not actually offer.
 	untrack(() => {
-		if (data.bogo && !/^qty-([1-9]|10)$/.test(bag[data.tierField] ?? '')) state.set(data.tierField, 'qty-2');
+		if (data.bogo && !/^qty-([2-9]|10)$/.test(bag[data.tierField] ?? '')) state.set(data.tierField, 'qty-2');
 		const initialDesign = bag.design;
 		if (!data.variantIndex.some((entry) => entry.colourCode === initialDesign)) {
 			state.set('design', data.leadDesign ?? data.order?.designs[0]?.code ?? data.variantIndex[0]?.colourCode ?? '');
@@ -65,7 +65,10 @@
 		state.set('size', size);
 		// The bundle the product page's cards showed, so the count is that one.
 		const bundle = params.get('bundle') ?? '';
-		if (data.tiered && /^qty-\d+$/.test(bundle)) state.set(data.tierField, bundle);
+		if (data.tiered && /^qty-\d+$/.test(bundle)) {
+			// Old single-item links must include the free second costume too.
+			state.set(data.tierField, data.bogo && !/^qty-([2-9]|10)$/.test(bundle) ? 'qty-2' : bundle);
+		}
 		return { reported: params.get('added') === '1' };
 	})();
 
@@ -180,7 +183,7 @@
 		const tier = data.tiered ? /^qty-(\d+)$/.exec(bag[data.tierField] ?? '') : null;
 		// null: no bundle cards, so the count is whatever the buyer set in the
 		// summary, kept across a change of size (read below, untracked).
-		return { entry, units: tier ? Number(tier[1]) : data.tiered ? 1 : null };
+		return { entry, units: tier ? Math.max(data.bogo ? 2 : 1, Number(tier[1])) : data.bogo ? 2 : data.tiered ? 1 : null };
 	});
 
 	/**

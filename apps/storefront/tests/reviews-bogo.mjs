@@ -31,10 +31,26 @@ try {
 	await page.getByRole('button', { name: 'Change', exact: true }).first().click();
 	await page.selectOption('#order-qty', '3');
 	await page.locator('.classic-totals .total').filter({ hasText: '$55.98' }).waitFor();
-	await page.selectOption('#order-qty', '1');
+	assert.equal(await page.locator('#order-qty option[value="1"]').count(), 0);
+	await page.selectOption('#order-qty', '2');
 	await page.locator('.classic-totals .total').filter({ hasText: '$27.99' }).waitFor();
-	assert.doesNotMatch(await page.locator('.classic-totals').innerText(), /Buy one, get one free/);
-	console.log('PASS  Mobile offer, first-screen size controls, two-unit handoff, odd quantities and removal of free item');
+	// A pre-offer cart and a legacy single-item link both gain the free costume.
+	await page.evaluate(() => {
+		const state = JSON.parse(sessionStorage.getItem('store-state') ?? '{}');
+		sessionStorage.setItem('store-state', JSON.stringify({ ...state, costume_bogo_quantity: 'qty-1' }));
+		const lines = JSON.parse(localStorage.getItem('chillmypet.cart.v1'));
+		localStorage.setItem('chillmypet.cart.v1', JSON.stringify(lines.map((line) => ({ ...line, quantity: 1 }))));
+	});
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.locator('.classic-bogo').waitFor();
+	assert.equal(await page.locator('#order-qty').inputValue(), '2');
+	await page.locator('.classic-totals .total').filter({ hasText: '$27.99' }).waitFor();
+	await page.goto(`${base}/products/christmas-tree-costume/checkout?design=green&size=M&bundle=qty-1`, { waitUntil: 'networkidle' });
+	assert.equal(await page.locator('#order-qty').inputValue(), '2');
+	assert.match(await page.locator('.classic-totals').innerText(), /Buy one, get one free/);
+	const restored = await page.evaluate(() => JSON.parse(localStorage.getItem('chillmypet.cart.v1')));
+	assert.equal(restored[0].quantity, 2);
+	console.log('PASS  Mobile offer, two-unit handoff, odd quantities, saved single-item migration and legacy links');
 
 	await page.goto(`${base}/products/christmas-tree-costume#write-review`, { waitUntil: 'networkidle' });
 	const author = `Review check ${Date.now()}`;
